@@ -10,6 +10,7 @@
 | Правило | Описание |
 | --------- | ---------- |
 | **Обязательно** | Нельзя создавать инстансы и играть, пока `launcher_devices.status ≠ linked` |
+| **Registered** | Login на сайте → confirm link → `device_token` привязан к `user_id` |
 | **Без регистрации** | Guest на сайте + linked device = полный guest-flow |
 | **UI на сайте** | Управление инстансами — **`/launcher`** (React SPA), не в окне tray |
 | **Go daemon** | Tray: launch-bridge poll, JVM, Java, уведомления |
@@ -24,7 +25,7 @@ sequenceDiagram
     participant U as Пользователь
     participant Web as Сайт /launcher
     participant API as Backend
-    participant L as Go Launcher (tray)
+    participant L as QXLauncher (tray)
 
     U->>Web: Раздел «Лаунчер» → Скачать
     U->>L: Запуск qx-launcher

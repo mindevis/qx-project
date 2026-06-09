@@ -1,6 +1,6 @@
 # Launch Bridge — Site → Tray → JVM
 
-> Решение **B1**: **гибрид** — сайт создаёт launch request в API, Go tray poll'ит и запускает JVM.
+> Решение **B1**: **гибрид** — QXWeb создаёт launch request в QXApi, QXLauncher poll'ит и запускает JVM.
 > ADR: [0008](./adr/0008-launch-bridge-hybrid.md)
 
 ---
@@ -9,11 +9,11 @@
 
 | Комponent | Роль |
 | ----------- | ------ |
-| **`/launcher` на сайте** | UI: кнопка «Играть», выбор инстанса/аккаунта |
-| **Backend API** | Очередь `launch_requests`, авторизация, manifest |
-| **Go tray (ПК)** | Poll, скачивание файлов, Mojang Java, spawn JVM |
+| **QXWeb `/launcher`** | UI: кнопка «Играть», выбор инстанса/аккаунта |
+| **QXApi** | Очередь `launch_requests`, авторизация, manifest |
+| **QXLauncher (tray)** | Poll, скачивание файлов, Mojang Java, spawn JVM |
 
-Tray **не имеет UI** — только tray icon, notifications, local engine.
+QXLauncher **не имеет UI** — только tray icon, notifications, local engine.
 
 ---
 
@@ -21,9 +21,9 @@ Tray **не имеет UI** — только tray icon, notifications, local eng
 
 ```mermaid
 sequenceDiagram
-    participant UI as /launcher (React)
-    participant API as Backend
-    participant T as Go Tray
+    participant UI as QXWeb /launcher
+    participant API as QXApi
+    participant T as QXLauncher
     participant JVM as Minecraft
 
     Note over T: linked device_token, poll every 2s

@@ -10,7 +10,7 @@
 ## Decision (historical)
 
 - ~~WebView~~ → UI на сайте `/launcher`
-- **Go tray daemon** — JVM, sync, notifications
+- **QXLauncher tray** — JVM, sync, notifications
 - **React on website** — данные через Backend REST API
 
 ## Rationale

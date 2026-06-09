@@ -5,7 +5,7 @@
 
 ## Decision
 
-- **Do not fork GML.** Build **own** Go tray + website `/launcher` UI.
+- **Do not fork GML.** Build **own QXLauncher** (Go tray) + **QXWeb** `/launcher` UI.
 - GML/Aurora/TLauncher — **UX references only**, not codebases.
 
 ## Rationale

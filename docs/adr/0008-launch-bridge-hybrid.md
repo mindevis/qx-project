@@ -5,7 +5,7 @@
 
 ## Decision
 
-Website `POST /launcher/launch-requests` + Go tray polls `GET .../pending` + local JVM spawn.
+QXWeb `POST /launcher/launch-requests` + QXLauncher polls `GET .../pending` + local JVM spawn.
 
 Not pure localhost (browser CORS issues). Not pure push WebSocket (complexity).
 

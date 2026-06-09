@@ -1,4 +1,4 @@
-# QX API Specification
+# QXApi Specification
 
 > Версия: **1.0** · Base URL: `https://api.qx.example.com/v1`
 > Backend: **Go + Gin + GORM**
@@ -46,7 +46,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | GET | `/instances/{id}` | Bearer / Guest | Detail |
 | PATCH | `/instances/{id}` | Bearer / Guest | Update — Guest: no mod attachments |
 | DELETE | `/instances/{id}` | Bearer / Guest | Delete |
-| GET | `/instances/{id}/manifest` | Bearer / Guest | Launch manifest (Go tray) |
+| GET | `/instances/{id}/manifest` | Bearer / Guest | Launch manifest (QXLauncher) |
 
 ---
 
@@ -129,7 +129,7 @@ Response item:
 
 | Method | Path | Description |
 | -------- | ------ | ------------- |
-| POST | `/launcher/devices/register` | Go tray first launch |
+| POST | `/launcher/devices/register` | QXLauncher first launch |
 | GET | `/launcher/devices/{id}/status` | Poll link status |
 | POST | `/launcher/devices/link` | Web confirms link (guest or user) |
 | POST | `/launcher/devices/unlink` | Unlink device |
@@ -141,7 +141,7 @@ Full spec: [device-linking.md](./device-linking.md)
 
 ## 8. Launch requests (hybrid B1)
 
-Site creates request → Go tray polls → spawns JVM. Full spec: [launch-bridge.md](./launch-bridge.md)
+Site creates request → QXLauncher polls → spawns JVM. Full spec: [launch-bridge.md](./launch-bridge.md)
 
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |
@@ -164,7 +164,7 @@ Site creates request → Go tray polls → spawns JVM. Full spec: [launch-bridge
 | GET | `/launcher/updates/latest.yml` | — | Electron-style (optional) |
 | GET | `/launcher/ui/*` | — | Static SPA assets (or CDN) |
 
-**Go tray** polls update endpoint on startup. **UI** at `https://qx.example.com/launcher` (React on site, no WebView).
+**QXLauncher** polls update endpoint on startup. **UI** at `https://qx.example.com/launcher` (QXWeb, no WebView).
 
 ---
 

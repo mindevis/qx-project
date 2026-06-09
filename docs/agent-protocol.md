@@ -1,4 +1,4 @@
-# QX Agent Protocol
+# QXAgent Protocol
 
 > Версия: **1.0** · Transport: **WebSocket (WSS)** · Format: **JSON**
 > Shared types: `pkg/protocol` (Go)
@@ -7,8 +7,8 @@
 
 ## 1. Обзор
 
-QX Agent — Go daemon на **Linux**, systemd service. Backend разворачивает agent через **SSH** (см. §2). После deploy
-agent устанавливает **WSS** к Agent Hub и обменивается командами/events.
+QXAgent — Go daemon на **Linux**, systemd service. QXApi разворачивает QXAgent через **SSH** (см. §2). После deploy
+QXAgent устанавливает **WSS** к Agent Hub и обменивается командами/events.
 
 | Свойство | Значение |
 | ---------- | ---------- |
@@ -31,7 +31,7 @@ sequenceDiagram
     participant U as Admin (Panel)
     participant API as Backend
     participant VPS as Linux VPS
-    participant A as QX Agent
+    participant A as QXAgent
 
     U->>API: POST /servers {ssh, server_type, modpack_id?}
     U->>API: POST /servers/{id}/deploy
@@ -75,7 +75,7 @@ WantedBy=multi-user.target
 - Backend хранит `private_key_enc` (AES-GCM, master key из env).
 - Supported: Ed25519, RSA keys.
 - Minimum: user with sudo for `/opt/qx`, systemd.
-- Firewall: исходящий HTTPS/WSS к QX API (443).
+- Firewall: исходящий HTTPS/WSS к QXApi (443).
 
 ---
 

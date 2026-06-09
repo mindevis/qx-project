@@ -1,6 +1,6 @@
 # Launcher Auto-Update
 
-> **F2:** Go tray checks updates on startup + every 6h.
+> **F2:** QXLauncher checks updates on startup + every 6h.
 
 ---
 

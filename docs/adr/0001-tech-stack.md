@@ -12,10 +12,10 @@ SPA-экосистема для UI.
 
 | Layer | Stack |
 | ------- | ------- |
-| Panel Web | TypeScript, React, Vite, Ant Design (SPA) |
-| Backend API | Go, Gin, GORM |
-| Launcher native | Go |
-| Agent | Go |
+| QXWeb | TypeScript, React, Vite, Ant Design (SPA) |
+| QXApi | Go, Gin, GORM |
+| QXLauncher | Go |
+| QXAgent | Go |
 | DB | PostgreSQL, Redis, MinIO |
 
 ## Rationale

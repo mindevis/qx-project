@@ -17,102 +17,57 @@
 | [modpacks-pipeline.md](./modpacks-pipeline.md) | CF/MR, mods/shaders |
 | [observability-ops.md](./observability-ops.md) | Self-hosted ops |
 
----
-
-## 1. Принятые решения
-
-| # | Область | Решение |
-| --- | --------- | --------- |
-| **A1** | Модель хостинга | **BYOS** — серверы на VPS/домашних машинах пользователей; агент ставится на их инфраструктуру |
-| **A2** | Возможности агента | **Полный набор:** heartbeat + метрики, запуск/остановка JAR, управление файлами/плагинами/модами, проксирование RCON/консоли в веб-панель |
-| **B1** | Modloaders | **Vanilla + Forge + NeoForge + Fabric + Quilt** + modpacks |
-| **B2** | Guest vs Auth | **Guest (linked):** Vanilla, Local, базовые инстансы. **Registered+auth:** моды, шейдеры, ресурспаки, modpacks, skins, серверы |
-| **B3** | Launch bridge | **Гибрид** — [launch-bridge.md](./launch-bridge.md) |
-| **B4** | Платформы tray | Windows, macOS, Linux |
-| **C1** | Аккаунты | **Двойная система:** собственные аккаунты QX + интеграция **Microsoft/Mojang OAuth** |
-| **C2** | Offline/cracked | **Поддерживается** — offline-mode на серверах и offline-профили в лаунчере |
-| **D1** | Монетизация | **Premium** (freemium) — **платёжка отложена**, billing не в MVP |
-| **D2** | Аудитория | **Игроки + админы серверов** (оба) |
-| **E1** | Backend | **Go — Gin — GORM** |
-| **E2** | Web (панель + сайт) | **TypeScript — React — Vite — Ant Design (SPA)** |
-| **E3** | Launcher (native) | **Go** — tray daemon (JVM, sync, notifications); **без WebView** |
-| **E4** | Launcher (UI) | **React — Vite — Ant Design** на **сайте** (`/launcher/*`); не в desktop app |
-| **L1** | Device linking (E6) | **Обязательно** до инстансов: download → run → link via site + tray; см. [device-linking.md](./device-linking.md) |
-| **L2** | WebView | **Не нужен** — UI лаунчера на сайте ([ADR-0006](./adr/0006-launcher-website-ui.md)) |
-| **X3** | CurseForge API Key | **Есть** |
-| **X4** | Приоритет modpacks | **CurseForge primary**, Modrinth secondary ([ADR-0007](./adr/0007-curseforge-priority.md)) |
-| **E5** | Agent | **Go**, только **Linux** |
-| **F1** | Java Runtime | Предпочтительно **Mojang Java** (bundled/download) |
-| **F2** | Auto-update лаунчера | **Да** — канал обновлений через MinIO + manifest |
-| **F3** | Server JAR | **Все типы:** Vanilla, Paper, Spigot, Purpur, Forge, NeoForge, Fabric, Quilt, **гибридные** |
-| **F4** | Modpack sync | **Один modpack_id** на client instance и BYOS server (agent deploy) |
-| **F5** | Skin / Cape | **Только зарегистрированные** QX-аккаунты (auth-server) |
-| **F6** | Launcher UI | **`/launcher` на сайте** — внешний вид и управление; **пара** с Go tray на ПК (tray **без UI**) |
-| **I8** | VPS / регион | **TBD** (пока не определено) |
-| **I9** | CDN / proxy | **Pure self-hosted**, без Cloudflare — [ADR-0009](./adr/0009-pure-self-hosted.md) |
-| **L3** | Launcher codebase | **Свой** Go launcher, **не форк GML** — [ADR-0010](./adr/0010-own-launcher-not-gml.md) |
-| **F7** | Agent install | **SSH deploy с backend** → Linux server → systemd agent |
-| **F8** | Multi-admin | **Несколько админов** на один сервер (roles) |
-| **R1** | Референсы (лаунчер) | **TLauncher**, **KLauncher**, **GML**, **AuroraLauncher** |
-| **R2** | Референсы (панель) | **Pterodactyl**, AMP — модель агента и server panel |
-| **S5** | Ожидаемая нагрузка | **Поэтапный рост без жёстких KPI на старте** — архитектура закладывается «с запасом»; детальные цифры уточняются по мере запуска (=) |
-| **T6** | Команда | **1 опытный разработчик** + **1 новичок** (без опыта разработки) |
-| **I7** | Бюджет и инфраструктура | **Self-Hosted** — собственный VPS/дedicated; без managed cloud (AWS/GCP); все сервисы под полным контролем команды |
-| **X1** | Legacy | **Нет** — greenfield-проект, с нуля |
-| **X2** | Внешние интеграции | **CurseForge**, **Modrinth**, **Microsoft/Mojang** |
-
----
-
-## 2. Видение продукта
+## 1. Видение продукта
 
 **QXProject** — единая экосистема для Minecraft, объединяющая:
 
 | Компонент | Назначение |
 | ----------- | ------------ |
-| **Личный кабинет (Web)** | Регистрация, профиль, управление серверами и настройками |
-| **Панель управления серверами** | Мониторинг, lifecycle (start/stop/restart), логи, конфиги |
-| **Desktop-лаунчер** | Скачивание клиента, локальные инстансы разных версий, подключение к серверам |
-| **Агент** | Связующее звено между облачной панелью и Minecraft-сервером на машине пользователя |
+| **QXWeb** | Личный кабинет и панель управления серверами (React SPA): auth, профиль, инстансы, серверы, UI `/launcher` |
+| **QXApi** | Backend: REST + WebSocket, Agent Hub, auth, modpacks, deploy |
+| **QXLauncher** | Desktop tray (Go): device link, sync, Mojang Java, JVM; **без встроенного UI** |
+| **QXAgent** | Linux daemon на BYOS-сервере пользователя: lifecycle JAR, консоль, файлы, modpack |
 
 ### Ключевые сценарии использования
 
 Инстанс **создаётся на сайте** (метаданные, версия, modloader, модпак), но **физически разворачивается на ПК
-пользователя** через лаунчер. Лаунчер всегда подключается к сервису QX (даже без регистрации).
+пользователя** через tray. Перед инстансами и игрой **обязательна привязка device к сайту** (guest и registered) —
+[device-linking.md](./device-linking.md).
 
 ---
 
 #### Сценарий 1 — Игра с регистрацией (полный flow)
 
-**Актор:** зарегистрированный пользователь.
+**Актор:** зарегистрированный пользователь. **Сначала обязательная привязка tray к сайту**
+([device-linking.md](./device-linking.md)) — без `linked` нельзя создавать инстансы и запускать игру.
 
 ```mermaid
 sequenceDiagram
     participant U as Пользователь
-    participant Web as Сайт (ЛК)
-    participant API as QX API
-    participant L as Launcher
+    participant Web as QXWeb
+    participant API as QXApi
+    participant L as QXLauncher
     participant PC as ПК пользователя
 
     U->>Web: Регистрация
     U->>Web: Авторизация / аутентификация
-    U->>Web: Скачивание лаунчера
+    U->>Web: Скачивание tray
     U->>L: Установка и первый запуск
-    L->>API: Подключение к сервису (pairing / auth)
-    API-->>L: Session OK
+    L->>API: POST /launcher/devices/register
+    API-->>L: pending_link
+    L->>U: OS notification + tray «Связать»
+    U->>Web: Подтвердить link (JWT-сессия)
+    Web->>API: POST /launcher/devices/link
+    API-->>L: linked + device_token (user_id)
 
     U->>Web: Создание инстанса (версия, loader, modpack)
     Web->>API: POST /instances
     API-->>Web: instance_id, manifest
 
-    L->>API: Sync instances (poll / push)
-    API-->>L: Список инстансов пользователя
-    L->>PC: Download assets, mods, libraries
-    L->>PC: Materialize instance на диске
-
-    U->>L: Создание / выбор игрового аккаунта
-    Note over U,L: QXAccount | Local | Microsoft
-
-    U->>L: Выбор инстанса → Запуск
+    U->>Web: «Играть» на /launcher
+    Web->>API: POST /launcher/launch-requests
+    L->>API: GET /launcher/launch-requests/pending
+    L->>PC: Download assets, materialize instance
     L->>PC: Spawn JVM (Minecraft client)
     U->>PC: Игра
 ```
@@ -121,12 +76,12 @@ sequenceDiagram
 | ----- | ---------- | ----- |
 | 1 | Регистрация | Web |
 | 2 | Авторизация / аутентификация | Web |
-| 3 | Скачивание лаунчера | Web |
-| 4 | Подключение лаунчера к сервису QX | Launcher ↔ API |
-| 5 | Создание игрового аккаунта | Launcher — **QXAccount**, **Local** или **Microsoft** |
-| 6 | Создание инстанса | Web (метаданные) → Launcher (развёртывание на ПК) |
-| 7 | Выбор игрового аккаунта | Launcher |
-| 8 | Запуск → Игра | Launcher → JVM |
+| 3 | Скачивание tray | Web |
+| 4 | Первый запуск tray | ПК |
+| 5 | **Привязка device к аккаунту** | Web confirm + tray poll |
+| 6 | Создание игрового аккаунта | `/launcher` — **QXAccount**, **Local** или **Microsoft** |
+| 7 | Создание инстанса | Web (метаданные) → tray (файлы на ПК) |
+| 8 | Запуск → Игра | `/launcher` → launch-bridge → JVM |
 
 ---
 
@@ -137,9 +92,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as Пользователь
-    participant Web as Сайт /launcher
-    participant API as QX API
-    participant L as Go Launcher tray
+    participant Web as QXWeb
+    participant API as QXApi
+    participant L as QXLauncher
 
     U->>Web: Скачать лаунчер
     U->>L: Запуск
@@ -172,8 +127,8 @@ sequenceDiagram
 sequenceDiagram
     participant U as Админ
     participant Web as Панель управления
-    participant API as QX API
-    participant A as QX Agent
+    participant API as QXApi
+    participant A as QXAgent
     participant MC as Minecraft Server
 
     U->>Web: Регистрация + авторизация
@@ -241,17 +196,17 @@ flowchart LR
 
 ---
 
-## 3. Высокоуровневая схема
+## 2. Высокоуровневая схема
 
 ```mermaid
 flowchart TB
     subgraph clients [Клиенты]
-        Web[Web — ЛК + Панель]
-        Launcher[Desktop Launcher]
+        Web[QXWeb]
+        Launcher[QXLauncher]
     end
 
-    subgraph platform [QXPlatform — Backend]
-        API[API Gateway / REST + WebSocket]
+    subgraph platform [QXApi — Backend]
+        API[REST + WebSocket]
         Auth[Auth Service — QX + Microsoft OAuth]
         Billing[Billing — Premium Subscription]
         ServerMgmt[Server Management]
@@ -269,7 +224,7 @@ flowchart TB
     end
 
     subgraph remote [Инфраструктура пользователя]
-        Agent[QX Agent]
+        Agent[QXAgent]
         MCServer[Minecraft Server JAR]
         NodeFS[Файловая система ноды]
     end
@@ -304,9 +259,16 @@ flowchart TB
 
 ---
 
-## 4. Компоненты системы
+## 3. Компоненты системы
 
-### 4.1 Web — Личный кабинет и панель управления
+| Имя | Репозиторий | Описание |
+| ----- | ------------- | ---------- |
+| **QXWeb** | `web/panel-ui/` | Личный кабинет, панель серверов, UI `/launcher` |
+| **QXApi** | `cmd/api/` | Backend REST + WebSocket |
+| **QXLauncher** | `cmd/launcher/` | Desktop tray (Go), без встроенного UI |
+| **QXAgent** | `cmd/agent/` | Linux daemon на BYOS-сервере пользователя |
+
+### 3.1 QXWeb — личный кабинет и панель управления
 
 **Стек:** TypeScript + React + Vite + Ant Design (SPA). Static build → Nginx.
 
@@ -316,17 +278,18 @@ flowchart TB
 - Профиль; Skin/Cape — **только для зарегистрированных** (см. §4.6).
 - CRUD серверов, **SSH deploy agent**, multi-admin invites.
 - CRUD инстансов, modpack picker, **modpack ↔ server sync**.
-- Live-консоль, RCON, файловый менеджер через agent.
+- UI **`/launcher`** для QXLauncher (инстансы, аккаунты, «Играть»); см. §3.4.
+- Live-консоль, RCON, файловый менеджер через QXAgent.
 - Каталог modpacks; Premium/billing — **отложено**.
 
 ---
 
-### 4.2 Backend API
+### 3.2 QXApi
 
 **Стек:** Go + Gin + GORM + PostgreSQL + Redis.
 
 ```text
-cmd/api/
+cmd/api/                 # QXApi
 internal/  auth/  users/  instances/  servers/  agents/
            modpacks/  integrations/  deploy/  skinserver/  files/
 pkg/protocol/
@@ -334,18 +297,18 @@ pkg/protocol/
 
 | Канал | Протокол | Документ |
 | ------- | ---------- | ---------- |
-| Panel SPA ↔ API | HTTPS REST + WS | [api.md](./api.md) |
-| Launcher UI ↔ API | HTTPS REST | [api.md](./api.md) |
-| Launcher Go ↔ API | HTTPS REST | auth, sync, auto-update |
-| Agent ↔ API | WSS + JWT | [agent-protocol.md](./agent-protocol.md) |
+| QXWeb ↔ QXApi | HTTPS REST + WS | [api.md](./api.md) |
+| QXLauncher UI (`/launcher`) ↔ QXApi | HTTPS REST | [api.md](./api.md) |
+| QXLauncher tray ↔ QXApi | HTTPS REST | auth, sync, auto-update |
+| QXAgent ↔ QXApi | WSS + JWT | [agent-protocol.md](./agent-protocol.md) |
 
 ---
 
-### 4.3 QX Agent
+### 3.3 QXAgent
 
 **Стек:** Go · **Платформа: Linux only** · systemd service.
 
-**Установка:** Backend подключается к VPS по **SSH** (ключ пользователя, хранится encrypted) и разворачивает agent
+**Установка:** QXApi подключается к VPS по **SSH** (ключ пользователя, хранится encrypted) и разворачивает QXAgent
 binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
 
 | Категория | Функции |
@@ -359,13 +322,13 @@ binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
 **Безопасность:**
 
 - mTLS или подписанные JWT на каждое соединение.
-- Агент привязан к одному серверу/владельцу.
+- QXAgent привязан к одному серверу/владельцу.
 - Sandbox: whitelist путей (server root), лимиты размера файлов.
 
 **Предлагаемый стек:** ~~Go или Rust~~ **Go** — `cmd/agent/`.
 
 ```text
-cmd/agent/
+cmd/agent/               # QXAgent
 internal/
   connector/      process/        console/
   filesystem/     modpack/        metrics/
@@ -374,16 +337,16 @@ internal/
 
 ---
 
-### 4.4 Desktop Launcher (Go tray + Website UI)
+### 3.4 QXLauncher — tray + UI на QXWeb
 
-**WebView не используется.** UI — React SPA на сайте (`/launcher/*`). Go app — **system tray daemon**.
+**WebView не используется.** UI — React SPA в QXWeb (`/launcher/*`). QXLauncher — **system tray daemon** (Go).
 
 ```mermaid
 flowchart LR
     subgraph pc [ПК пользователя]
-        Tray[Go Launcher tray]
+        Tray[QXLauncher tray]
         Browser[Browser]
-        UI[React /launcher on site]
+        UI[QXWeb /launcher]
         JVM[Minecraft JVM]
         Tray -->|poll sync| API
         Tray --> JVM
@@ -391,21 +354,20 @@ flowchart LR
         UI -->|HTTPS| API
         UI -.->|launch| Tray
     end
-    API[QX Backend]
+    API[QXApi]
 ```
 
-| Компонент | Где | Роль |
+| Часть | Где | Роль |
 | ----------- | ----- | ------ |
-| **Website `/launcher`** | React + Ant Design | Инстансы, аккаунты, публичные серверы, modpacks |
-| **Go tray** | Windows / macOS / Linux | Device link, sync, Mojang Java, JVM, auto-update, OS notifications |
+| **UI `/launcher`** | QXWeb (React + Ant Design) | Инстансы, аккаунты, публичные серверы, modpacks, «Играть» |
+| **Tray daemon** | QXLauncher (Win / macOS / Linux) | Device link, sync, Mojang Java, JVM, auto-update, notifications |
 | **Связь** | [device-linking.md](./device-linking.md) | Обязательна до первого инстанса |
 
 **Tray:** ПКМ → «Связать лаунчер» · ЛКМ → открыть `/launcher` в браузере.
 
 ```text
-cmd/launcher/
-internal/launcher/  tray/  sync/  jvm/  java/  update/  bridge/
-web/panel-ui/src/routes/launcher/   # UI на сайте (не отдельный WebView)
+cmd/launcher/            # QXLauncher tray
+web/panel-ui/            # QXWeb (+ /launcher routes)
 ```
 
 **Поддерживаемые modloader'ы (целевой продукт):**
@@ -425,8 +387,8 @@ web/panel-ui/src/routes/launcher/   # UI на сайте (не отдельны�
 
 ```mermaid
 sequenceDiagram
-    participant L as Launcher
-    participant API as QX API
+    participant L as QXLauncher
+    participant API as QXApi
     participant CDN as CDN / Mojang
     participant JVM as Java Process
 
@@ -444,13 +406,13 @@ sequenceDiagram
 
 ---
 
-### 4.5 Billing — отложено
+### 3.5 Billing — отложено
 
 Premium и платёжка **не в текущей фазе**. Поле `tier` в User — на будущее.
 
 ---
 
-### 4.6 Skin / Cape Server
+### 3.6 Skin / Cape Server
 
 **Только зарегистрированные QX-аккаунты.** Guest Local — без upload/sync skins.
 
@@ -459,27 +421,27 @@ Premium и платёжка **не в текущей фазе**. Поле `tier`
 
 ---
 
-### 4.7 Server JAR types
+### 3.7 Server JAR types
 
 Vanilla, Paper, Spigot, Purpur, Forge, NeoForge, Fabric, Quilt, **hybrid** (Mohist, Magma, Arclight…).
 Config: `server_type` + `jar_path` + `jvm_args`.
 
 ---
 
-### 4.8 Modpack sync
+### 3.8 Modpack sync
 
 Shared `modpack_id` on `launcher_instances` and `servers` → client install (Go) + `modpack.install` (agent).
 
 ---
 
-### 4.9 Multi-admin & SSH Deploy
+### 3.9 Multi-admin & SSH Deploy
 
 `server_members` (owner/admin/viewer). Deploy: backend SSH job → Linux systemd agent.
 DDL: [schema.sql](./schema.sql) · Protocol: [agent-protocol.md](./agent-protocol.md)
 
 ---
 
-## 5. Модель данных (основные сущности)
+## 4. Модель данных (основные сущности)
 
 ```mermaid
 erDiagram
@@ -611,7 +573,7 @@ erDiagram
 
 ---
 
-## 6. Протокол Agent ↔ Platform
+## 5. Протокол Agent ↔ Platform
 
 Детальная спецификация: **[agent-protocol.md](./agent-protocol.md)** (pairing via SSH deploy, reconnect, idempotency,
 modpack.install).
@@ -643,16 +605,16 @@ type Event =
 
 ---
 
-## 7. Внешние интеграции
+## 6. Внешние интеграции
 
 Legacy-систем **нет** — проект пишется с нуля. Вся интеграция с внешним миром идёт через три провайдера.
 
-### 7.1 Обзор
+### 6.1 Обзор
 
 ```mermaid
 flowchart TB
     subgraph qx [QXPlatform]
-        Web[Web — каталог modpacks]
+        Web[QXWeb]
         Launcher[Launcher]
         Auth[Auth Service]
         ModpackSvc[Modpack Service]
@@ -688,7 +650,7 @@ flowchart TB
 
 ---
 
-### 7.2 Microsoft / Mojang
+### 6.2 Microsoft / Mojang
 
 **Два разных контура:**
 
@@ -706,7 +668,7 @@ sequenceDiagram
     participant MS as Microsoft OAuth
     participant Xbox as Xbox Live
     participant MC as Minecraft Services
-    participant API as QX API
+    participant API as QXApi
 
     L->>MS: OAuth 2.0 PKCE (browser / embedded)
     MS-->>L: MSA access token
@@ -729,7 +691,7 @@ sequenceDiagram
 
 ---
 
-### 7.3 CurseForge
+### 6.3 CurseForge
 
 **API:** [CurseForge for Studios API](https://docs.curseforge.com/) (`api.curseforge.com`)
 
@@ -749,7 +711,7 @@ sequenceDiagram
 
 ---
 
-### 7.4 Modrinth (secondary)
+### 6.4 Modrinth (secondary)
 
 > **Приоритет:** CurseForge primary — см. [ADR-0007](./adr/0007-curseforge-priority.md). Modrinth — fallback и
 > Fabric/Quilt-only packs.
@@ -772,7 +734,7 @@ sequenceDiagram
 
 ---
 
-### 7.5 Unified Modpack Layer (абстракция QX)
+### 6.5 Unified Modpack Layer (абстракция QX)
 
 CurseForge и Modrinth имеют разные форматы. QX вводит **единый внутренний манифест**:
 
@@ -826,7 +788,7 @@ flowchart LR
 
 ---
 
-### 7.6 Структура пакетов интеграций
+### 6.6 Структура пакетов интеграций
 
 ```text
 packages/
@@ -850,7 +812,7 @@ packages/
 
 ---
 
-### 7.7 Roadmap интеграций
+### 6.7 Roadmap интеграций
 
 | Фаза | Microsoft/Mojang | CurseForge | Modrinth |
 | ------ | ------------------ | ------------ | ---------- |
@@ -860,7 +822,7 @@ packages/
 
 ---
 
-## 8. Безопасность и compliance
+## 7. Безопасность и compliance
 
 Полная спецификация: **[security-legal.md](./security-legal.md)**
 
@@ -886,7 +848,7 @@ packages/
 
 ---
 
-## 9. Нагрузка и масштабирование
+## 8. Нагрузка и масштабирование
 
 Точные KPI пока не зафиксированы — это нормально для pre-launch. Ниже — **рабочие допущения** и инфраструктурные tier'ы,
 чтобы не переписывать архитектуру при росте от «десятков» до «сотен тысяч».
@@ -1031,7 +993,7 @@ flowchart TB
 
 ---
 
-## 10. Self-Hosted деплой
+## 9. Self-Hosted деплой
 
 ### 9.1 Production stack (Docker Compose)
 
@@ -1141,16 +1103,16 @@ flowchart TB
 
 ---
 
-## 11. Структура репозитория (monorepo)
+## 10. Структура репозитория (monorepo)
 
 ```text
 QXProject/
 ├── cmd/
-│   ├── api/                 # Gin HTTP + WS server
-│   ├── agent/               # Linux agent
-│   └── launcher/            # Go tray daemon
+│   ├── api/                 # QXApi
+│   ├── agent/               # QXAgent
+│   └── launcher/            # QXLauncher tray
 ├── web/
-│   └── panel-ui/            # React SPA: site + /launcher
+│   └── panel-ui/            # QXWeb (+ /launcher)
 ├── internal/
 ├── pkg/protocol/
 ├── docs/
@@ -1169,9 +1131,9 @@ QXProject/
 
 ---
 
-## 12. Команда, роли и сроки
+## 11. Команда, роли и сроки
 
-### 12.1 Состав
+### 11.1 Состав
 
 | Роль | FTE* | Фокус |
 | ------ | ------ | ------- |
@@ -1184,20 +1146,20 @@ QXProject/
 **Эффективная команда на старте: ~1.2 разработчика.** Полный scope QX (лаунчер + панель + агент + billing + 5 loader'ов)
 — проект на **12–24 месяца** для такой команды. Критично: **резать scope MVP**, а не сроки качества.
 
-### 12.2 Распределение зон ответственности
+### 11.2 Распределение зон ответственности
 
 ```mermaid
 flowchart TB
     subgraph senior [Senior]
-        API[Backend API]
-        Agent[QX Agent]
-        LauncherCore[Go launcher shell + JVM]
+        API[QXApi]
+        Agent[QXAgent]
+        LauncherCore[QXLauncher + JVM]
         Infra[Docker, деплой]
         Protocol[Agent protocol]
     end
 
     subgraph junior [Junior + ментorship]
-        WebUI[Web UI — React + Ant Design]
+        WebUI[QXWeb — React + Ant Design]
         Docs[Docs, QA matrix]
         Landing[Лендинг, тексты]
         PanelUI[Panel + Launcher UI]
@@ -1209,15 +1171,15 @@ flowchart TB
 
 | Комponent | Кто | Почему |
 | ----------- | ----- | -------- |
-| API, Auth, Agent Hub | **Senior** | Сложная логика, безопасность, WSS |
-| QX Agent (Go/Rust) | **Senior** | Systems programming, process management |
-| Launcher (modloaders, JVM) | **Senior** | Самая сложная часть; **свой Go tray** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)) |
-| Web — страницы ЛК, формы | **Junior** + review | React + Ant Design |
-| Web — live-консоль, file manager | **Senior** | WebSocket, edge cases |
+| QXApi, Auth, Agent Hub | **Senior** | Сложная логика, безопасность, WSS |
+| QXAgent | **Senior** | Systems programming, process management |
+| QXLauncher (modloaders, JVM) | **Senior** | Самая сложная часть; свой codebase ([ADR-0010](./adr/0010-own-launcher-not-gml.md)) |
+| QXWeb — страницы ЛК, формы | **Junior** + review | React + Ant Design |
+| QXWeb — live-консоль, file manager | **Senior** | WebSocket, edge cases |
 | Docker Compose, CI | **Senior** | Junior подключается позже |
 | Тест-кейсы, баг-репорты | **Junior** | Не требует deep backend |
 
-### 12.3 Онboarding новичка (первые 4–8 недель)
+### 11.3 Онboarding новичка (первые 4–8 недель)
 
 | Неделя | Задача | Результат |
 | -------- | -------- | ----------- |
@@ -1228,7 +1190,7 @@ flowchart TB
 
 > Senior не должен тратить >30% времени на обучение — иначе MVP сдвигается на месяцы. Junior берёт **UI и docs**, не Agent/Launcher.
 
-### 12.4 MVP scope reduction (обязательно для 2 человек)
+### 11.4 MVP scope reduction (обязательно для 2 человек)
 
 Полный продукт сразу — нереалистичен. Детальный scope, чеклисты и Definition of Done — в **[mvp.md](./mvp.md)**.
 
@@ -1245,7 +1207,7 @@ flowchart TB
 | Windows launcher only | macOS / Linux |
 | Tier 0 infra (1 Self-Hosted VPS) | Multi-VPS, MinIO cluster |
 
-### 12.5 Оценка сроков (реалистично)
+### 11.5 Оценка сроков (реалистично)
 
 | Фаза | Scope | Срок (Senior + Junior) | Milestone |
 | ------ | ------- | ------------------------ | ----------- |
@@ -1275,7 +1237,7 @@ gantt
     Premium + Billing            :p4, after p3, 2M
 ```
 
-### 12.6 Риски для маленькой команды
+### 11.6 Риски для маленькой команды
 
 | Риск | Митигация |
 | ------ | ----------- |
@@ -1287,7 +1249,7 @@ gantt
 
 ---
 
-## 13. Roadmap по фазам
+## 12. Roadmap по фазам
 
 ### Phase 0 — Foundation *(6–8 нед, Senior + Junior UI)*
 
@@ -1327,11 +1289,11 @@ gantt
 - [ ] Agent: RCON, files, backups, metrics
 - [ ] Agent self-update, аналитика
 
-> Детальные оценки и MVP scope reduction — §12.4–12.5.
+> Детальные оценки и MVP scope reduction — §11.4–11.5.
 
 ---
 
-## 14. Открытые вопросы (TBD)
+## 13. Открытые вопросы (TBD)
 
 | # | Вопрос | Статус |
 | --- | -------- | -------- |
@@ -1342,9 +1304,9 @@ guest/auth tiers — см. [adr/](./adr/).
 
 ---
 
-## 15. Референсы
+## 14. Референсы
 
-### 15.1 Лаунчеры (основные — продуктовый UX)
+### 14.1 Лаунчеры (основные — продуктовый UX)
 
 | Продукт | Описание | Что взять для QX |
 | --------- | ---------- | ------------------ |
@@ -1368,7 +1330,7 @@ quadrantChart
 ```
 
 QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (инстансы с сайта, `/launcher` UI) +
-**уникально:** панель управления сервером через агент (BYOS). **Свой Go tray**, не GML.
+**уникально:** панель управления сервером через QXAgent (BYOS). **Свой QXLauncher**, не GML.
 
 **Ключевые паттерны из референсов:**
 
@@ -1376,13 +1338,13 @@ QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и
 | --------- | ---------- | ----------------- |
 | Offline-first запуск | TLauncher, KLauncher | Сценарий 2 (guest flow) |
 | Modpack wizard | KLauncher, Aurora | Web: выбор сборки → tray install |
-| Instance manifest | Prism, Aurora | `internal/mc/manifest`, Go tray engine |
+| Instance manifest | Prism, Aurora | `internal/mc/manifest`, QXLauncher engine |
 | Auth-server | Aurora | QXAccount validation, [skin-server.md](./skin-server.md) |
 | Version/mod cache | Все | CDN + локальный cache dir |
 
 ---
 
-### 15.2 Панель и инфраструктура (server-side)
+### 14.2 Панель и инфраструктура (server-side)
 
 | Продукт | Что взять |
 | --------- | ----------- |
@@ -1394,7 +1356,7 @@ QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и
 
 ---
 
-### 15.3 Launcher codebase: свой Go tray
+### 14.3 QXLauncher codebase
 
 **Решение:** собственный Go launcher — **не форк GML** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)).
 

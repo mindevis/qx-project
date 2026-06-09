@@ -13,7 +13,7 @@
 
 Доказать, что экосистема QX **работает end-to-end** для трёх базовых сценариев:
 
-1. **Игра с регистрацией** — сайт → лаунчер → инстанс → запуск Vanilla.
+1. **Игра с регистрацией** — register → login → download tray → **link device** → инстанс → launch-bridge → Vanilla.
 2. **Игра без регистрации** — download → **link device** → guest → инстанс → игра.
 3. **Управление сервером** — BYOS Linux VPS → **SSH deploy** agent → start/stop + live-консоль.
 
@@ -26,8 +26,9 @@ agent (RCON, files).
 
 MVP считается готовым, когда:
 
-- [ ] Пользователь регистрируется на сайте и входит в лаунчер тем же аккаунтом.
-- [ ] Пользователь скачивает tray, **связывает с сайтом** (tray / notification), создаёт инстанс на `/launcher`, играет.
+- [ ] Пользователь регистрируется, логинится, скачивает tray, **связывает device с аккаунтом**, создаёт инстанс на
+  `/launcher`, играет.
+- [ ] Пользователь скачивает tray, **связывает с сайтом** (guest или logged-in), создаёт инстанс на `/launcher`, играет.
 - [ ] На сайте создаётся инстанс (Vanilla) → `POST /launcher/launch-requests` → tray poll → JVM.
 - [ ] Админ добавляет Linux VPS (SSH), backend deploy agent, start/stop JAR из panel.
 - [ ] Live-консоль сервера в web (WebSocket).
@@ -74,7 +75,7 @@ MVP считается готовым, когда:
 ### Flow A — Registered player
 
 ```text
-Register (Web) → Download tray → Link device
+Register + Login (Web) → Download tray → Link device (JWT confirm on /launcher/link)
 → Create instance on /launcher (Vanilla) → POST launch-request
 → Local or QX profile → Tray spawns JVM
 ```
@@ -116,7 +117,7 @@ flowchart TB
     end
 
     subgraph mvp_remote [User infra]
-        Agent[QX Agent]
+        Agent[QXAgent]
         MC[Minecraft Server]
     end
 
@@ -167,7 +168,7 @@ flowchart TB
 | Java | Auto-detect or bundled JRE 17 |
 | Update | Manual download с сайта (auto-update → v2) |
 
-**Codebase:** свой Go tray — **не GML fork** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)); Prism/GML — референс
+**Codebase:** свой QXLauncher — **не GML fork** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)); Prism/GML — референс
 алгоритмов.
 
 ### 5.4 Agent (Senior)
@@ -217,7 +218,7 @@ Agent         — id, server_id, hostname, connected_at
 - `qx.example.com` — web
 - `api.qx.example.com` — REST + WSS
 
-Детали: [architecture.md §10](./architecture.md).
+Детали: [architecture.md §9](./architecture.md).
 
 **Бюджет:** $5–30/мес.
 
@@ -246,7 +247,7 @@ Agent         — id, server_id, hostname, connected_at
 
 | # | Задача | Ответственный |
 | --- | -------- | --------------- |
-| 1.1 | Go tray + device register/link poll | Senior |
+| 1.1 | QXLauncher + device register/link poll | Senior |
 | 1.2 | Web `/launcher/link` page + API | Junior |
 | 1.3 | internal/minecraft: Mojang manifest | Senior |
 | 1.4 | Download assets/libraries, launch Vanilla | Senior |

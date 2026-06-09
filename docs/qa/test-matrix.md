@@ -24,7 +24,7 @@
 
 | ID | Сценарий | Шаги | Ожидание | MVP |
 | ---- | ---------- | ------ | ---------- | ----- |
-| I01 | Create instance auth | panel: Vanilla 1.20.4 | instance in list | ☑ |
+| I01 | Create instance auth | login + linked device + panel: Vanilla 1.20.4 | instance in list | ☑ |
 | I02 | Create instance guest | guest session + web | instance linked to device | ☑ |
 | I03 | Launcher sync | open launcher | instance appears | ☑ |
 | I04 | Launch Vanilla | Play button | MC client starts | ☑ |

@@ -13,7 +13,7 @@ sequenceDiagram
     participant API as Backend
     participant Q as Deploy Worker
     participant VPS as Linux VPS
-    participant A as QX Agent
+    participant A as QXAgent
 
     U->>API: POST /servers + ssh_credentials
     U->>API: POST /servers/{id}/deploy
@@ -36,7 +36,7 @@ sequenceDiagram
 | OS | Linux x86_64 (Ubuntu 22.04+, Debian 12+) |
 | User | sudo without password **or** root (discouraged) |
 | SSH | Port 22 or custom, key-based auth |
-| Firewall | Outbound **443** to QX API; inbound MC port user-defined |
+| Firewall | Outbound **443** to QXApi; inbound MC port user-defined |
 | Allowlist | Optional: QX platform egress IP in `ufw` |
 
 Panel shows **pre-flight checklist** before deploy.

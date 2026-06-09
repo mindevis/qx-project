@@ -15,7 +15,7 @@ flowchart LR
     Norm --> PG[(PostgreSQL)]
     Norm --> MinIO[(Private MinIO)]
     Web[/launcher] --> API
-    Tray[Go tray] --> API
+    Tray[QXLauncher] --> API[QXApi]
     Agent[Linux agent] --> API
 ```
 
