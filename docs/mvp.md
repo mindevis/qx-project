@@ -1,10 +1,10 @@
 # QXProject — MVP
 
-> Минимально жизнеспособный продукт для закрытой alpha.  
+> Минимально жизнеспособный продукт для закрытой alpha.
 > Полная архитектура: [architecture.md](./architecture.md)
 
-**Статус:** v1.2  
-**Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → tray → JVM  
+**Статус:** v1.2
+**Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → tray → JVM
 **RBAC:** [security-legal.md §8](./security-legal.md) — Guest: Vanilla; Registered: mods/shaders/RP
 
 ---
@@ -17,7 +17,8 @@
 2. **Игра без регистрации** — download → **link device** → guest → инстанс → игра.
 3. **Управление сервером** — BYOS Linux VPS → **SSH deploy** agent → start/stop + live-консоль.
 
-**Не цель MVP:** modpacks, modloaders (Forge / NeoForge / Fabric / Quilt), Premium, Microsoft OAuth, macOS/Linux, полный agent (RCON, files).
+**Не цель MVP:** modpacks, modloaders (Forge / NeoForge / Fabric / Quilt), Premium, Microsoft OAuth, macOS/Linux, полный
+agent (RCON, files).
 
 ---
 
@@ -40,7 +41,7 @@ MVP считается готовым, когда:
 ### ✅ В MVP v1
 
 | Область | Функционал |
-|---------|------------|
+| --------- | ------------ |
 | **Web (panel-ui)** | React + Vite + Ant Design — лендинг, auth, instances, servers |
 | **Launcher UI** | React на сайте `/launcher` (не WebView) |
 | **Guest (linked)** | Vanilla, Local profile, базовые инстансы |
@@ -54,7 +55,7 @@ MVP считается готовым, когда:
 ### ❌ Вне MVP (v2+)
 
 | Область | Отложено |
-|---------|----------|
+| --------- | ---------- |
 | Modloaders | Forge, NeoForge, Fabric, Quilt |
 | Modpacks | CurseForge, Modrinth |
 | Auth | Microsoft OAuth, QXAccount sync между устройствами |
@@ -72,7 +73,7 @@ MVP считается готовым, когда:
 
 ### Flow A — Registered player
 
-```
+```text
 Register (Web) → Download tray → Link device
 → Create instance on /launcher (Vanilla) → POST launch-request
 → Local or QX profile → Tray spawns JVM
@@ -80,7 +81,7 @@ Register (Web) → Download tray → Link device
 
 ### Flow B — Guest player
 
-```
+```text
 Download tray (Web) → Link device (guest session)
 → Create Vanilla instance on /launcher
 → Local profile → Play (launch-bridge)
@@ -88,7 +89,7 @@ Download tray (Web) → Link device (guest session)
 
 ### Flow C — Server admin
 
-```
+```text
 Add Linux VPS (SSH creds) → POST /servers/{id}/deploy → Agent online → Start/Stop → Console
 ```
 
@@ -133,7 +134,7 @@ flowchart TB
 ### 5.1 Web (Junior + Senior review)
 
 | Страница | Функции |
-|----------|---------|
+| ---------- | --------- |
 | `/` | Лендинг, ссылка на скачивание лаунчера |
 | `/auth/register`, `/auth/login` | Email + password |
 | `/profile` | Имя, email, смена пароля |
@@ -146,18 +147,18 @@ flowchart TB
 ### 5.2 API (Senior)
 
 | Модуль | MVP endpoints |
-|--------|---------------|
+| -------- | --------------- |
 | Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/guest` |
 | Instances | `GET/POST/DELETE /instances`, `GET /instances/:id/manifest` |
 | Launch | `POST /launcher/launch-requests`, tray `GET .../pending`, `PATCH .../{id}` |
-| Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/start|stop|restart` |
+| Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/start`, `stop`, `restart` |
 | Agent | WSS `/agent/connect`, pairing `POST /agent/pair` |
 | Console | WSS `/servers/:id/console` (proxy → agent) |
 
 ### 5.3 Launcher (Senior)
 
 | Функция | MVP |
-|---------|-----|
+| --------- | ----- |
 | Платформа | Windows 10/11 |
 | Auth | QX login + guest device token |
 | Accounts | Local nickname only (Microsoft → v2) |
@@ -166,12 +167,13 @@ flowchart TB
 | Java | Auto-detect or bundled JRE 17 |
 | Update | Manual download с сайта (auto-update → v2) |
 
-**Codebase:** свой Go tray — **не GML fork** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)); Prism/GML — референс алгоритмов.
+**Codebase:** свой Go tray — **не GML fork** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)); Prism/GML — референс
+алгоритмов.
 
 ### 5.4 Agent (Senior)
 
 | Команда | MVP |
-|---------|-----|
+| --------- | ----- |
 | `server.start` | ✅ |
 | `server.stop` | ✅ |
 | `server.restart` | ✅ |
@@ -187,7 +189,7 @@ flowchart TB
 
 ## 6. Модель данных (MVP subset)
 
-```
+```text
 User          — id, email, password_hash, created_at
 GuestSession  — device_token, expires_at (optional table)
 Instance      — id, user_id|null, guest_token|null, name, mc_version, loader=vanilla
@@ -202,7 +204,7 @@ Agent         — id, server_id, hostname, connected_at
 Один VPS (4–8 GB RAM), Docker Compose:
 
 | Service | Назначение |
-|---------|------------|
+| --------- | ------------ |
 | `nginx` | TLS, reverse proxy |
 | `api` | Backend + Agent Hub |
 | `web` | Nuxt |
@@ -228,7 +230,7 @@ Agent         — id, server_id, hostname, connected_at
 **Milestone:** можно зарегистрироваться и войти.
 
 | # | Задача | Ответственный |
-|---|--------|---------------|
+| --- | -------- | --------------- |
 | 0.1 | Monorepo scaffold (`pnpm`, apps/api, apps/web) | Senior |
 | 0.2 | Docker Compose dev | Senior |
 | 0.3 | PostgreSQL schema: users | Senior |
@@ -243,7 +245,7 @@ Agent         — id, server_id, hostname, connected_at
 > **Порядок:** Launcher до Agent — быстрее видимый результат.
 
 | # | Задача | Ответственный |
-|---|--------|---------------|
+| --- | -------- | --------------- |
 | 1.1 | Go tray + device register/link poll | Senior |
 | 1.2 | Web `/launcher/link` page + API | Junior |
 | 1.3 | internal/minecraft: Mojang manifest | Senior |
@@ -258,7 +260,7 @@ Agent         — id, server_id, hostname, connected_at
 **Milestone:** сервер управляется из web.
 
 | # | Задача | Ответственный |
-|---|--------|---------------|
+| --- | -------- | --------------- |
 | 2.1 | SSH deploy job + agent WSS connect | Senior |
 | 2.2 | Agent: start/stop/restart JAR | Senior |
 | 2.3 | Agent: console stream | Senior |
@@ -271,7 +273,7 @@ Agent         — id, server_id, hostname, connected_at
 **Milestone:** registered user flow полный.
 
 | # | Задача | Ответственный |
-|---|--------|---------------|
+| --- | -------- | --------------- |
 | 3.1 | Launcher: QX login (JWT) | Senior |
 | 3.2 | Instances привязаны к user_id | Senior |
 | 3.3 | Web: «Мои инстансы» для auth user | Junior |
@@ -281,7 +283,7 @@ Agent         — id, server_id, hostname, connected_at
 **Milestone:** закрытая beta.
 
 | # | Задача | Ответственный |
-|---|--------|---------------|
+| --- | -------- | --------------- |
 | A.1 | E2E: Flow A, B, C | Senior |
 | A.2 | Test matrix + bug bash | Junior |
 | A.3 | Prod deploy на VPS | Senior |
@@ -313,7 +315,7 @@ gantt
 ## 10. Риски MVP
 
 | Риск | Действие |
-|------|----------|
+| ------ | ---------- |
 | Launcher с нуля затягивается | Prism/GML — референс; MVP scope = Vanilla only |
 | Senior перегружен | Junior только UI; Agent не начинать до launcher play |
 | Scope creep | Любая фича вне §3 — в backlog v2 |
@@ -338,7 +340,7 @@ gantt
 ## 12. Связанные документы
 
 | Документ | Содержание |
-|----------|------------|
+| ---------- | ------------ |
 | [architecture.md](./architecture.md) | Полная архитектура |
 | [api.md](./api.md) | REST + WebSocket API |
 | [agent-protocol.md](./agent-protocol.md) | Agent WSS, SSH deploy, idempotency |
@@ -348,4 +350,4 @@ gantt
 
 ---
 
-*Последнее обновление: 2026-06-09 (v1.1 — стек Go + React)*
+Последнее обновление: 2026-06-09 (v1.1 — стек Go + React)

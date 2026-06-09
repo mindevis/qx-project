@@ -49,7 +49,7 @@ flowchart TD
 ## 3. Platform specifics
 
 | OS | Method |
-|----|--------|
+| ---- | -------- |
 | **Windows** | Download to `%TEMP%`, verify, spawn updater `.exe` that replaces and relaunches |
 | **Linux** | Download to `/tmp`, verify, `atomic replace` + systemd user service restart |
 | **macOS** | Replace `.app` bundle in `/Applications/QX Launcher.app` (post-MVP signing) |
@@ -59,7 +59,7 @@ flowchart TD
 ## 4. Code signing (roadmap)
 
 | Phase | Windows | macOS |
-|-------|---------|-------|
+| ------- | --------- | ------- |
 | Alpha | Unsigned (SmartScreen warning) | Gatekeeper warn |
 | Beta | Authenticode cert | Apple Developer ID |
 | Prod | Required | Required + notarize |
@@ -70,13 +70,14 @@ Document in user FAQ: «При первом запуске нажмите Под
 
 ## 5. Rollback
 
-Keep previous binary at `qx-agent.prev` / `qx-launcher.prev`. If new version crashes on start (health check fails in 10s), auto-revert once.
+Keep previous binary at `qx-agent.prev` / `qx-launcher.prev`. If new version crashes on start (health check fails in
+10s), auto-revert once.
 
 ---
 
 ## 6. API
 
-```
+```text
 GET /v1/launcher/updates/latest?platform=windows-x64&current=1.1.0
 ```
 

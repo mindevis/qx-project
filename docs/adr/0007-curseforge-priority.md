@@ -1,6 +1,6 @@
 # ADR-0007: CurseForge Priority
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-06-09
 
 ## Decision

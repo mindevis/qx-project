@@ -1,6 +1,6 @@
 # ADR-0002: Hybrid Launcher (Go + React)
 
-**Status:** Superseded by [ADR-0006](./0006-launcher-website-ui.md) (WebView removed)  
+**Status:** Superseded by [ADR-0006](./0006-launcher-website-ui.md) (WebView removed)
 **Date:** 2026-06-09
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-0005: Modpack Sync via Shared modpack_id
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-06-09
 
 ## Context

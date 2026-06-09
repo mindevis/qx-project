@@ -1,6 +1,6 @@
 # ADR-0009: Pure Self-Hosted (No Cloudflare)
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-06-09
 
 ## Decision

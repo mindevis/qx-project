@@ -1,6 +1,6 @@
 # QXProject — QA Test Matrix (Alpha)
 
-> Для закрытой beta / MVP Definition of Done.  
+> Для закрытой beta / MVP Definition of Done.
 > Статус теста: ☐ не пройден · ☑ пройден · ⊘ N/A (post-MVP)
 
 ---
@@ -8,7 +8,7 @@
 ## 1. Auth & Users
 
 | ID | Сценарий | Шаги | Ожидание | MVP |
-|----|----------|------|----------|-----|
+| ---- | ---------- | ------ | ---------- | ----- |
 | A01 | Register | email + password на panel | 201, login possible | ☑ |
 | A02 | Login | valid credentials | JWT, redirect profile | ☑ |
 | A03 | Login fail | wrong password | 401 | ☑ |
@@ -23,7 +23,7 @@
 ## 2. Instances (Client)
 
 | ID | Сценарий | Шаги | Ожидание | MVP |
-|----|----------|------|----------|-----|
+| ---- | ---------- | ------ | ---------- | ----- |
 | I01 | Create instance auth | panel: Vanilla 1.20.4 | instance in list | ☑ |
 | I02 | Create instance guest | guest session + web | instance linked to device | ☑ |
 | I03 | Launcher sync | open launcher | instance appears | ☑ |
@@ -37,7 +37,7 @@
 ## 3. Launcher UI (React on website)
 
 | ID | Сценарий | MVP |
-|----|----------|-----|
+| ---- | ---------- | ----- |
 | L01 | /launcher page loads | ☑ |
 | L02 | Device link flow | ☑ |
 | L03 | Tray «Связать лаунчер» | ☑ |
@@ -48,7 +48,7 @@
 ## 4. Servers & Agent (Linux)
 
 | ID | Сценарий | Шаги | Ожидание | MVP |
-|----|----------|------|----------|-----|
+| ---- | ---------- | ------ | ---------- | ----- |
 | S01 | Create server | panel + SSH creds | server pending | ☑ |
 | S02 | SSH deploy | POST deploy | agent online, systemd running | ☑ |
 | S03 | Start server | Paper/Vanilla jar | status running | ☑ |
@@ -67,7 +67,7 @@
 ## 5. Modpack sync (post-MVP)
 
 | ID | Сценарий | Ожидание | MVP |
-|----|----------|----------|-----|
+| ---- | ---------- | ---------- | ----- |
 | M01 | Same modpack_id client+server | hash match both sides | ⊘ |
 | M02 | CurseForge import | manifest in DB | ⊘ |
 | M03 | Modrinth mrpack | manifest in DB | ⊘ |
@@ -77,11 +77,11 @@
 ## 6. Infra & Non-functional
 
 | ID | Сценарий | Ожидание | MVP |
-|----|----------|----------|-----|
+| ---- | ---------- | ---------- | ----- |
 | N01 | Docker Compose prod | all services up | ☑ |
 | N02 | TLS | HTTPS valid | ☑ |
 | N03 | PG backup restore | data intact | ⊘ |
-| N04 | Agent non-Linux | deploy to Windows | fail gracefully (Linux only) | ☑ |
+| N04 | Agent non-Linux | deploy to Windows — fail gracefully (Linux only) | ☑ |
 
 ---
 
@@ -95,4 +95,4 @@
 
 ---
 
-*Legend: ☑ = required for MVP alpha · ⊘ = tracked but not blocking MVP*
+Legend: ☑ = required for MVP alpha · ⊘ = tracked but not blocking MVP

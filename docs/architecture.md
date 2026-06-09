@@ -1,13 +1,15 @@
 # QXProject — Архитектура
 
-> Документ описывает целевую архитектуру платформы.  
-> Статус: **v1.3** — стек зафиксирован, см. [adr/](./adr/).  
-> **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) · [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) · [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
+> Документ описывает целевую архитектуру платформы.
+> Статус: **v1.3** — стек зафиксирован, см. [adr/](./adr/).
+> **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) ·
+> [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) ·
+> [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
 
-### Специализированные docs
+## Специализированные docs
 
 | Doc | Тема |
-|-----|------|
+| ----- | ------ |
 | [mojang-java.md](./mojang-java.md) | Java runtime matrix |
 | [ssh-deploy.md](./ssh-deploy.md) | SSH agent provisioning |
 | [auto-update.md](./auto-update.md) | Tray updates |
@@ -20,7 +22,7 @@
 ## 1. Принятые решения
 
 | # | Область | Решение |
-|---|---------|---------|
+| --- | --------- | --------- |
 | **A1** | Модель хостинга | **BYOS** — серверы на VPS/домашних машинах пользователей; агент ставится на их инфраструктуру |
 | **A2** | Возможности агента | **Полный набор:** heartbeat + метрики, запуск/остановка JAR, управление файлами/плагинами/модами, проксирование RCON/консоли в веб-панель |
 | **B1** | Modloaders | **Vanilla + Forge + NeoForge + Fabric + Quilt** + modpacks |
@@ -66,7 +68,7 @@
 **QXProject** — единая экосистема для Minecraft, объединяющая:
 
 | Компонент | Назначение |
-|-----------|------------|
+| ----------- | ------------ |
 | **Личный кабинет (Web)** | Регистрация, профиль, управление серверами и настройками |
 | **Панель управления серверами** | Мониторинг, lifecycle (start/stop/restart), логи, конфиги |
 | **Desktop-лаунчер** | Скачивание клиента, локальные инстансы разных версий, подключение к серверам |
@@ -74,7 +76,8 @@
 
 ### Ключевые сценарии использования
 
-Инстанс **создаётся на сайте** (метаданные, версия, modloader, модпак), но **физически разворачивается на ПК пользователя** через лаунчер. Лаунчер всегда подключается к сервису QX (даже без регистрации).
+Инстанс **создаётся на сайте** (метаданные, версия, modloader, модпак), но **физически разворачивается на ПК
+пользователя** через лаунчер. Лаунчер всегда подключается к сервису QX (даже без регистрации).
 
 ---
 
@@ -115,7 +118,7 @@ sequenceDiagram
 ```
 
 | Шаг | Действие | Где |
-|-----|----------|-----|
+| ----- | ---------- | ----- |
 | 1 | Регистрация | Web |
 | 2 | Авторизация / аутентификация | Web |
 | 3 | Скачивание лаунчера | Web |
@@ -152,7 +155,7 @@ sequenceDiagram
 ```
 
 | Шаг | Действие |
-|-----|----------|
+| ----- | ---------- |
 | 1 | Скачать → запустить tray launcher |
 | 2 | **Связать** с сайтом (уведомление или ПКМ в трее) |
 | 3 | Local-аккаунт · инстанс на сайте · sync · игра |
@@ -192,7 +195,7 @@ sequenceDiagram
 ```
 
 | Шаг | Действие | Где |
-|-----|----------|-----|
+| ----- | ---------- | ----- |
 | 1 | Регистрация + авторизация | Web |
 | 2 | Добавление игрового сервера | Web (генерация pairing token) |
 | 3 | Установка агента + pairing | VPS / домашний ПК |
@@ -204,7 +207,7 @@ sequenceDiagram
 ### Типы игровых аккаунтов
 
 | Тип | Где создаётся | Назначение |
-|-----|---------------|------------|
+| ----- | --------------- | ------------ |
 | **QXAccount** | Launcher (при auth) | Привязан к QX-профилю; синхронизация между устройствами |
 | **Local** | Launcher | Offline/cracked; без Mojang-лицензии |
 | **Microsoft** | Launcher (OAuth) | Лицензионный вход через Mojang/Microsoft |
@@ -308,6 +311,7 @@ flowchart TB
 **Стек:** TypeScript + React + Vite + Ant Design (SPA). Static build → Nginx.
 
 **Ответственность:**
+
 - Регистрация, вход (email/password; Microsoft OAuth — post-MVP).
 - Профиль; Skin/Cape — **только для зарегистрированных** (см. §4.6).
 - CRUD серверов, **SSH deploy agent**, multi-admin invites.
@@ -321,7 +325,7 @@ flowchart TB
 
 **Стек:** Go + Gin + GORM + PostgreSQL + Redis.
 
-```
+```text
 cmd/api/
 internal/  auth/  users/  instances/  servers/  agents/
            modpacks/  integrations/  deploy/  skinserver/  files/
@@ -329,7 +333,7 @@ pkg/protocol/
 ```
 
 | Канал | Протокол | Документ |
-|-------|----------|----------|
+| ------- | ---------- | ---------- |
 | Panel SPA ↔ API | HTTPS REST + WS | [api.md](./api.md) |
 | Launcher UI ↔ API | HTTPS REST | [api.md](./api.md) |
 | Launcher Go ↔ API | HTTPS REST | auth, sync, auto-update |
@@ -341,10 +345,11 @@ pkg/protocol/
 
 **Стек:** Go · **Платформа: Linux only** · systemd service.
 
-**Установка:** Backend подключается к VPS по **SSH** (ключ пользователя, хранится encrypted) и разворачивает agent binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
+**Установка:** Backend подключается к VPS по **SSH** (ключ пользователя, хранится encrypted) и разворачивает agent
+binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
 
 | Категория | Функции |
-|-----------|---------|
+| ----------- | --------- |
 | **Deploy** | Установка через SSH job с backend (не ручной pairing token) |
 | **Связь** | WSS к Agent Hub, heartbeat, reconnect + idempotency |
 | **Lifecycle** | start/stop/restart/kill — **все типы JAR** (см. §4.7) |
@@ -352,13 +357,14 @@ pkg/protocol/
 | **Консоль / RCON / Файлы / Метрики** | Полный набор (A2) |
 
 **Безопасность:**
+
 - mTLS или подписанные JWT на каждое соединение.
 - Агент привязан к одному серверу/владельцу.
 - Sandbox: whitelist путей (server root), лимиты размера файлов.
 
 **Предлагаемый стек:** ~~Go или Rust~~ **Go** — `cmd/agent/`.
 
-```
+```text
 cmd/agent/
 internal/
   connector/      process/        console/
@@ -389,14 +395,14 @@ flowchart LR
 ```
 
 | Компонент | Где | Роль |
-|-----------|-----|------|
+| ----------- | ----- | ------ |
 | **Website `/launcher`** | React + Ant Design | Инстансы, аккаунты, публичные серверы, modpacks |
 | **Go tray** | Windows / macOS / Linux | Device link, sync, Mojang Java, JVM, auto-update, OS notifications |
 | **Связь** | [device-linking.md](./device-linking.md) | Обязательна до первого инстанса |
 
 **Tray:** ПКМ → «Связать лаунчер» · ЛКМ → открыть `/launcher` в браузере.
 
-```
+```text
 cmd/launcher/
 internal/launcher/  tray/  sync/  jvm/  java/  update/  bridge/
 web/panel-ui/src/routes/launcher/   # UI на сайте (не отдельный WebView)
@@ -405,16 +411,18 @@ web/panel-ui/src/routes/launcher/   # UI на сайте (не отдельны�
 **Поддерживаемые modloader'ы (целевой продукт):**
 
 | Loader | Версии MC (ориентир) | Meta / installer | Modpack-источник |
-|--------|----------------------|------------------|------------------|
+| -------- | ---------------------- | ------------------ | ------------------ |
 | **Vanilla** | Все официальные | Mojang manifest | — |
 | **Forge** | Legacy (≤1.20.1 и отдельные ветки) | Forge installers, `version.json` | CurseForge |
 | **NeoForge** | 1.20.1+ (форк Forge) | NeoForge installer API | CurseForge |
 | **Fabric** | Широкий диапазон | Fabric loader + intermediary | Modrinth, CurseForge |
 | **Quilt** | Fabric-совместимые | Quilt loader | Modrinth |
 
-> **Forge ≠ NeoForge** — разные installer pipeline и classpath; в QX каждый loader — отдельный adapter в `packages/mc-manifest` / launcher.
+> **Forge ≠ NeoForge** — разные installer pipeline и classpath; в QX каждый loader — отдельный adapter в
+> `packages/mc-manifest` / launcher.
 
 **Поток запуска игры:**
+
 ```mermaid
 sequenceDiagram
     participant L as Launcher
@@ -453,7 +461,7 @@ Premium и платёжка **не в текущей фазе**. Поле `tier`
 
 ### 4.7 Server JAR types
 
-Vanilla, Paper, Spigot, Purpur, Forge, NeoForge, Fabric, Quilt, **hybrid** (Mohist, Magma, Arclight…).  
+Vanilla, Paper, Spigot, Purpur, Forge, NeoForge, Fabric, Quilt, **hybrid** (Mohist, Magma, Arclight…).
 Config: `server_type` + `jar_path` + `jvm_args`.
 
 ---
@@ -466,7 +474,7 @@ Shared `modpack_id` on `launcher_instances` and `servers` → client install (Go
 
 ### 4.9 Multi-admin & SSH Deploy
 
-`server_members` (owner/admin/viewer). Deploy: backend SSH job → Linux systemd agent.  
+`server_members` (owner/admin/viewer). Deploy: backend SSH job → Linux systemd agent.
 DDL: [schema.sql](./schema.sql) · Protocol: [agent-protocol.md](./agent-protocol.md)
 
 ---
@@ -593,8 +601,9 @@ erDiagram
 ```
 
 **Хранилища:**
+
 | Данные | Хранилище |
-|--------|-----------|
+| -------- | ----------- |
 | Пользователи, серверы, метаданные | PostgreSQL |
 | Сессии, pub/sub Agent Hub, кэш | Redis |
 | Бэкапы, большие файлы, modpacks | **MinIO** (Self-Hosted) |
@@ -604,7 +613,8 @@ erDiagram
 
 ## 6. Протокол Agent ↔ Platform
 
-Детальная спецификация: **[agent-protocol.md](./agent-protocol.md)** (pairing via SSH deploy, reconnect, idempotency, modpack.install).
+Детальная спецификация: **[agent-protocol.md](./agent-protocol.md)** (pairing via SSH deploy, reconnect, idempotency,
+modpack.install).
 
 Краткая сводка типов сообщений:
 
@@ -671,7 +681,7 @@ flowchart TB
 ```
 
 | Интеграция | Назначение | Где используется |
-|------------|------------|------------------|
+| ------------ | ------------ | ------------------ |
 | **Microsoft/Mojang** | OAuth, лицензионный вход, version manifest, assets, libraries | Auth, Launcher, `packages/mc-manifest` |
 | **Modrinth** | Каталог modpacks (Fabric/Quilt) — **secondary** | Modpack Service |
 | **CurseForge** | Каталог modpacks — **primary** ([ADR-0007](./adr/0007-curseforge-priority.md)) | Modpack Service, Web-каталог |
@@ -683,7 +693,7 @@ flowchart TB
 **Два разных контура:**
 
 | Контур | Endpoint / протокол | Назначение |
-|--------|---------------------|------------|
+| -------- | --------------------- | ------------ |
 | **Microsoft OAuth** | `login.live.com`, Xbox Live auth chain | Лицензионный вход игрока в лаунчере |
 | **Mojang Meta** | `launchermeta.mojang.com`, `piston-meta.mojang.com` | `version.json`, libraries, assets index |
 | **Mojang CDN** | `resources.download.minecraft.net`, `launcher.mojang.com` | Скачивание assets и client JAR |
@@ -714,7 +724,8 @@ sequenceDiagram
 3. Download libraries/assets with SHA1 verification
 4. Modloader (Forge / NeoForge / Fabric / Quilt) добавляет свои libraries поверх Mojang base
 
-**Хранение:** refresh token Microsoft — encrypted в `MojangLink`; MC session token — только в памяти лаунчера (не на сервере).
+**Хранение:** refresh token Microsoft — encrypted в `MojangLink`; MC session token — только в памяти лаунчера (не на
+сервере).
 
 ---
 
@@ -723,12 +734,13 @@ sequenceDiagram
 **API:** [CurseForge for Studios API](https://docs.curseforge.com/) (`api.curseforge.com`)
 
 | Использование | Endpoint (пример) |
-|---------------|-------------------|
+| --------------- | ------------------- |
 | Поиск modpacks | `GET /v1/mods/search?gameId=432&classId=4471` |
 | Файлы modpack | `GET /v1/mods/{modId}/files` |
 | Download URL | `GET /v1/mods/{modId}/files/{fileId}/download-url` |
 
 **Особенности:**
+
 - **API Key** — есть у команды (env `CURSEFORGE_API_KEY`).
 - Rate limits — обязателен **кэш** на стороне QX (PostgreSQL metadata + MinIO files).
 - Сильная сторона: **Forge / NeoForge** modpacks, крупные сборки.
@@ -739,17 +751,19 @@ sequenceDiagram
 
 ### 7.4 Modrinth (secondary)
 
-> **Приоритет:** CurseForge primary — см. [ADR-0007](./adr/0007-curseforge-priority.md). Modrinth — fallback и Fabric/Quilt-only packs.
+> **Приоритет:** CurseForge primary — см. [ADR-0007](./adr/0007-curseforge-priority.md). Modrinth — fallback и
+> Fabric/Quilt-only packs.
 
 **API:** [Modrinth API v2](https://docs.modrinth.com/api/) (`api.modrinth.com`)
 
 | Использование | Endpoint (пример) |
-|---------------|-------------------|
+| --------------- | ------------------- |
 | Поиск modpacks | `GET /v2/search?facets=[["project_type:modpack"]]` |
 | Версия / files | `GET /v2/project/{id}/version/{version_id}` |
 | Download | URL из version payload |
 
 **Особенности:**
+
 - **Open API**, ключ не обязателен для read (рекомендуется User-Agent).
 - Формат **`.mrpack`** — native modpack format; парсить в unified QX manifest.
 - Сильная сторона: **Fabric / Quilt** modpacks и mods.
@@ -795,8 +809,8 @@ flowchart LR
 ```
 
 | Шаг | Действие |
-|-----|----------|
-| 1 | Поиск modpack | CF API first → MR if not found |
+| ----- | ---------- |
+| 1 | Поиск modpack: CF API first → MR if not found |
 | 2 | Backend fetch metadata, normalize → `QxModpackManifest`, save to PG |
 | 3 | При install лаунчер запрашивает `GET /modpacks/{id}/manifest` |
 | 4 | Файлы: presigned MinIO URL если cached, иначе proxy-fetch → MinIO → presigned |
@@ -805,7 +819,7 @@ flowchart LR
 **Кэш-политика (Self-Hosted):**
 
 | Данные | TTL | Хранилище |
-|--------|-----|-----------|
+| -------- | ----- | ----------- |
 | Search results | 1–6 h | Redis |
 | Modpack metadata | 24 h | PostgreSQL |
 | Mod/modpack files | Permanent (until update) | MinIO |
@@ -814,7 +828,7 @@ flowchart LR
 
 ### 7.6 Структура пакетов интеграций
 
-```
+```text
 packages/
 ├── mc-manifest/              # Mojang version.json, library resolver
 ├── integrations/
@@ -839,7 +853,7 @@ packages/
 ### 7.7 Roadmap интеграций
 
 | Фаза | Microsoft/Mojang | CurseForge | Modrinth |
-|------|------------------|------------|----------|
+| ------ | ------------------ | ------------ | ---------- |
 | Phase 2 (Launcher MVP) | Mojang manifest + assets (Vanilla) | — | — |
 | Phase 3 (Modpacks) | + modloader libraries | Каталог + install | Каталог + install |
 | Phase 4 (Premium) | Microsoft OAuth login | Premium modpack cache priority | То же |
@@ -851,7 +865,7 @@ packages/
 Полная спецификация: **[security-legal.md](./security-legal.md)**
 
 | Область | Документ |
-|---------|----------|
+| --------- | ---------- |
 | Rate limiting | security-legal §1 |
 | Audit log | security-legal §2 |
 | SSH encryption & rotation | security-legal §3, [ssh-deploy.md](./ssh-deploy.md) |
@@ -864,7 +878,7 @@ packages/
 ### Кратко
 
 | Область | Подход |
-|---------|--------|
+| --------- | -------- |
 | Auth | JWT + device_token; bcrypt passwords |
 | Agent | JWT per server, Linux only |
 | SSH keys | AES-256-GCM + master key rotation |
@@ -874,23 +888,25 @@ packages/
 
 ## 9. Нагрузка и масштабирование
 
-Точные KPI пока не зафиксированы — это нормально для pre-launch. Ниже — **рабочие допущения** и инфраструктурные tier'ы, чтобы не переписывать архитектуру при росте от «десятков» до «сотен тысяч».
+Точные KPI пока не зафиксированы — это нормально для pre-launch. Ниже — **рабочие допущения** и инфраструктурные tier'ы,
+чтобы не переписывать архитектуру при росте от «десятков» до «сотен тысяч».
 
 ### 8.1 Ориентиры по фазам
 
 | Фаза | Горизонт | Пользователи (ориентир) | Активность | Примечание |
-|------|----------|-------------------------|------------|------------|
+| ------ | ---------- | ------------------------- | ------------ | ------------ |
 | **Alpha / MVP** | 0–6 мес | **Десятки → сотни** MAU | 10–50 DAU | Закрытая beta, друзья, первые админы серверов |
 | **Launch** | 6–12 мес | **Сотни → тысячи** MAU | 100–500 DAU | Публичный релиз, guest-flow, первые Premium |
 | **Growth** | 1–2 года | **Тысячи → десятки тысяч** MAU | 1k–10k DAU | Успешный сценарий для нишевого лаунчера + панель |
 | **Scale** | 2+ года | **Сотни тысяч+** MAU | 50k+ DAU | Уровень TLauncher/KLauncher — отдельный этап инвестиций в CDN и SRE |
 
-> Референсы (TLauncher и др.) — **миллионы** установок, но QX на старте realistic target — **сотни–тысячи**. Архитектура должна **не мешать** дойти до scale-tier, но **не требовать** Kubernetes в первый день.
+> Референсы (TLauncher и др.) — **миллионы** установок, но QX на старте realistic target — **сотни–тысячи**.
+> Архитектура должна **не мешать** дойти до scale-tier, но **не требовать** Kubernetes в первый день.
 
 ### 8.2 Что нагружает систему
 
 | Источник нагрузки | Характер | Пик |
-|-------------------|----------|-----|
+| ------------------- | ---------- | ----- |
 | **Launcher sync** | REST: список инстансов, манифесты | При каждом запуске лаунчера |
 | **Modpack / assets CDN** | Исходящий трафик, большие файлы | Первый install modpack, обновления |
 | **Agent Hub (WSS)** | Долгоживущие соединения | 1 conn на сервер; консоль = steady stream |
@@ -898,11 +914,12 @@ packages/
 | **Auth** | Login, refresh, guest tokens | Волны при релизах / маркетинге |
 | **PostgreSQL** | CRUD users, instances, servers | Линейно с MAU |
 
-**Вывод:** главный bottleneck при росте — **не API**, а **CDN/объектное хранилище** (modpacks) и **Agent Hub** (тысячи одновременных WSS).
+**Вывод:** главный bottleneck при росте — **не API**, а **CDN/объектное хранилище** (modpacks) и **Agent Hub** (тысячи
+одновременных WSS).
 
 ### 8.3 Инфраструктурные tier'ы (Self-Hosted)
 
-> Все tier'ы — **свои серверы** (VPS или dedicated). Managed DB/S3 не используем.  
+> Все tier'ы — **свои серверы** (VPS или dedicated). Managed DB/S3 не используем.
 > **Pure self-hosted** — без Cloudflare ([ADR-0009](./adr/0009-pure-self-hosted.md)); TLS через Nginx + Let's Encrypt.
 
 #### Tier 0 — MVP (десятки–сотни пользователей)
@@ -929,7 +946,7 @@ flowchart TB
 ```
 
 | Комponent | Self-Hosted стек |
-|-----------|------------------|
+| ----------- | ------------------ |
 | **VPS** | 1× 4–8 GB RAM, 2 vCPU, 80+ GB SSD (Hetzner, Timeweb, Selectel, домашний dedicated) |
 | **Orchestration** | **Docker Compose** — один `docker-compose.prod.yml` |
 | **Reverse proxy** | Nginx + Certbot (Let's Encrypt) |
@@ -943,7 +960,7 @@ flowchart TB
 #### Tier 1 — Launch (сотни–тысячи MAU)
 
 | Компонент | Self-Hosted изменение |
-|-----------|-------------------------|
+| ----------- | ------------------------- |
 | **Topology** | 2× VPS: **app** (API, Nginx, Redis) + **data** (PostgreSQL, MinIO) |
 | **Load balancing** | Nginx upstream на 2 app-ноды **или** второй app-VPS |
 | **PostgreSQL** | Отдельный VPS; PgBouncer на app-ноде; daily pg_dump + offsite copy |
@@ -954,7 +971,7 @@ flowchart TB
 #### Tier 2 — Growth (тысячи–десятки тысяч MAU)
 
 | Компонент | Self-Hosted изменение |
-|-----------|-------------------------|
+| ----------- | ------------------------- |
 | **App tier** | 2–3 VPS с API; Redis pub/sub для Agent Hub |
 | **PostgreSQL** | Primary + **streaming replica** на втором VPS (read-only) |
 | **MinIO** | Distributed mode (4 drives) **или** отдельный storage VPS с большим диском |
@@ -965,7 +982,7 @@ flowchart TB
 #### Tier 3 — Scale (100k+ MAU)
 
 | Компонент | Self-Hosted изменение |
-|-----------|-------------------------|
+| ----------- | ------------------------- |
 | **Geo** | 2 self-hosted PoP (RU + EU VPS), DNS geo-routing |
 | **Storage** | MinIO cluster или dedicated storage server (NVMe) |
 | **Agent Hub** | Sharding по `server_id`, отдельные WSS-ноды |
@@ -975,7 +992,7 @@ flowchart TB
 ### 8.4 Self-Hosted: что не используем
 
 | Managed-сервис | Self-Hosted замена |
-|----------------|-------------------|
+| ---------------- | ------------------- |
 | AWS S3 / Yandex Object Storage | **MinIO** |
 | RDS / Supabase / Neon | **PostgreSQL** в Docker |
 | ElastiCache | **Redis** в Docker |
@@ -986,7 +1003,7 @@ flowchart TB
 ### 8.5 Проектные решения под масштаб
 
 | Решение | Зачем |
-|---------|-------|
+| --------- | ------- |
 | **Stateless API** | Горизонтальное масштабирование с первого дня |
 | **Presigned URLs для modpacks** | MinIO presigned URL — API не проксирует гигабайты |
 | **Launcher: local cache + delta updates** | Снижает повторные загрузки (как TLauncher/KLauncher) |
@@ -999,7 +1016,7 @@ flowchart TB
 Когда переходить на следующий tier:
 
 | Метрика | Порог «пора масштабироваться» |
-|---------|-------------------------------|
+| --------- | ------------------------------- |
 | API p95 latency | > 500 ms стабильно |
 | CPU VPS / pod | > 70% sustained |
 | PostgreSQL connections | > 80% pool |
@@ -1018,7 +1035,7 @@ flowchart TB
 
 ### 9.1 Production stack (Docker Compose)
 
-```
+```text
 infra/
 ├── docker/
 │   ├── docker-compose.yml          # Dev
@@ -1037,7 +1054,7 @@ infra/
 **Сервисы в `docker-compose.prod.yml`:**
 
 | Service | Image | Ports (internal) | Volume |
-|---------|-------|------------------|--------|
+| --------- | ------- | ------------------ | -------- |
 | `nginx` | nginx:alpine | 80, 443 | `./nginx`, certs |
 | `api` | qx-api:latest | 3000 | — |
 | `web` | qx-web:latest | 3001 | — |
@@ -1049,7 +1066,7 @@ infra/
 ### 9.2 Домены и маршрутизация (Nginx)
 
 | Subdomain | Backend | Назначение |
-|-----------|---------|------------|
+| ----------- | --------- | ------------ |
 | `qx.example.com` | `web:3001` | Лендинг, ЛК, панель |
 | `api.qx.example.com` | `api:3000` | REST API |
 | `ws.qx.example.com` | `api:3000` | WebSocket (Agent Hub, консоль) |
@@ -1066,7 +1083,7 @@ infra/
 ### 9.4 Бэкапы (обязательно для Self-Hosted)
 
 | Что | Как часто | Куда |
-|-----|-----------|------|
+| ----- | ----------- | ------ |
 | PostgreSQL | Daily | Restic → второй VPS / NAS |
 | MinIO buckets | Daily incremental | Restic |
 | `.env`, nginx configs | On change | Git (private) + encrypted backup |
@@ -1074,8 +1091,8 @@ infra/
 
 ### 9.5 Dev vs Prod
 
-| | Dev | Prod (Self-Hosted) |
-|---|-----|---------------------|
+| Env | Dev | Prod (Self-Hosted) |
+| --- | ----- | --------------------- |
 | Запуск | `docker compose up` локально | `deploy.sh` на VPS |
 | TLS | mkcert / HTTP | Let's Encrypt |
 | Домен | localhost | Реальный домен |
@@ -1107,13 +1124,13 @@ flowchart TB
     Users --> Nginx
 ```
 
-**MVP:** один VPS + Docker Compose — см. §9.3 Tier 0.  
+**MVP:** один VPS + Docker Compose — см. §9.3 Tier 0.
 **Масштабирование:** добавление VPS, без перехода на public cloud — см. Tier 1–3.
 
 ### 9.7 Ops-нагрузка на команду (Self-Hosted)
 
 | Задача | Кто | Частота |
-|--------|-----|---------|
+| -------- | ----- | --------- |
 | `deploy.sh`, обновления | Senior | По релизам |
 | Проверка бэкапов | Senior | Weekly |
 | Certbot renew | Cron (auto) | — |
@@ -1126,7 +1143,7 @@ flowchart TB
 
 ## 11. Структура репозитория (monorepo)
 
-```
+```text
 QXProject/
 ├── cmd/
 │   ├── api/                 # Gin HTTP + WS server
@@ -1157,14 +1174,15 @@ QXProject/
 ### 12.1 Состав
 
 | Роль | FTE* | Фокус |
-|------|------|-------|
+| ------ | ------ | ------- |
 | **Senior (опытный)** | ~1.0 | Архитектура, API, Agent, Launcher core, инфра, code review |
 | **Junior (новичок)** | ~0.2 → 0.5** | Web UI, документация, тестирование, контент; со временем — изолированные фичи |
 
-\* *Effective Full-Time Equivalent — реальная продуктивная нагрузка.*  
+\* *Effective Full-Time Equivalent — реальная продуктивная нагрузка.*
 \** *0.2 на старте (обучение), ~0.5 через 3–6 мес при ментorship.*
 
-**Эффективная команда на старте: ~1.2 разработчика.** Полный scope QX (лаунчер + панель + агент + billing + 5 loader'ов) — проект на **12–24 месяца** для такой команды. Критично: **резать scope MVP**, а не сроки качества.
+**Эффективная команда на старте: ~1.2 разработчика.** Полный scope QX (лаунчер + панель + агент + billing + 5 loader'ов)
+— проект на **12–24 месяца** для такой команды. Критично: **резать scope MVP**, а не сроки качества.
 
 ### 12.2 Распределение зон ответственности
 
@@ -1190,7 +1208,7 @@ flowchart TB
 ```
 
 | Комponent | Кто | Почему |
-|-----------|-----|--------|
+| ----------- | ----- | -------- |
 | API, Auth, Agent Hub | **Senior** | Сложная логика, безопасность, WSS |
 | QX Agent (Go/Rust) | **Senior** | Systems programming, process management |
 | Launcher (modloaders, JVM) | **Senior** | Самая сложная часть; **свой Go tray** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)) |
@@ -1202,7 +1220,7 @@ flowchart TB
 ### 12.3 Онboarding новичка (первые 4–8 недель)
 
 | Неделя | Задача | Результат |
-|--------|--------|-----------|
+| -------- | -------- | ----------- |
 | 1–2 | Git, TypeScript, React + Ant Design tutorial | Первый PR: тексты / стили |
 | 3–4 | Ant Design: login/register (mock API) | Статичные страницы auth |
 | 5–6 | Подключение к real API (read-only) | Страница профиля, список серверов |
@@ -1217,7 +1235,7 @@ flowchart TB
 Кратко:
 
 | В MVP v1 | Отложить на v2+ |
-|----------|-----------------|
+| ---------- | ----------------- |
 | Auth QX (email/password) | Microsoft OAuth |
 | Guest flow + Local-аккаунт | QXAccount sync между устройствами |
 | Vanilla only в лаунчере | Forge / NeoForge / Fabric / Quilt |
@@ -1230,14 +1248,14 @@ flowchart TB
 ### 12.5 Оценка сроков (реалистично)
 
 | Фаза | Scope | Срок (Senior + Junior) | Milestone |
-|------|-------|------------------------|-----------|
+| ------ | ------- | ------------------------ | ----------- |
 | **Phase 0** | API auth, PG, Web login/register | **6–8 недель** | Можно зарегистрироваться |
 | **Phase 1** | Agent MVP + panel start/stop/console | **8–12 недель** | Сервер управляется из web |
 | **Phase 2** | Launcher Win, Vanilla, guest + auth | **10–14 недель** | Скачал → создал инстанс → играет |
 | **Alpha** | Связка всех 3 сценариев, bugfix | **4–6 недель** | Закрытая beta |
 | **Phase 3+** | Modloaders, modpacks, billing, cross-platform | **+6–12 мес** | Public launch |
 
-**До playable alpha: ~7–9 месяцев** при фокусе и урезанном MVP.  
+**До playable alpha: ~7–9 месяцев** при фокусе и урезанном MVP.
 **До public launch с modpacks и Premium: ~12–18 месяцев.**
 
 ```mermaid
@@ -1260,7 +1278,7 @@ gantt
 ### 12.6 Риски для маленькой команды
 
 | Риск | Митигация |
-|------|-----------|
+| ------ | ----------- |
 | Senior — single point of failure | Документировать API; junior ведёт docs; Prism/GML — **только референс** логики |
 | Scope creep (все loader'ы сразу) | Жёсткий MVP v1 (Vanilla only) |
 | Junior blocked без помощи | Задачи только с mock API; daily 15-min sync |
@@ -1272,32 +1290,38 @@ gantt
 ## 13. Roadmap по фазам
 
 ### Phase 0 — Foundation *(6–8 нед, Senior + Junior UI)*
+
 - [ ] API scaffold + PostgreSQL + Redis *(Senior)*
 - [ ] Auth: QX register/login *(Senior API + Junior forms)*
 - [ ] Web UI: login, register, profile *(Junior)*
 - [ ] Docker Compose dev env *(Senior)*
 
 ### Phase 1 — Agent + Panel *(8–12 нед, mostly Senior)*
+
 - [ ] Agent: pairing, heartbeat, start/stop/restart
 - [ ] Live-консоль (stdout/stderr)
 - [ ] Web: добавление сервера, статус, кнопки start/stop *(Junior UI)*
 
 ### Phase 2 — Launcher MVP *(10–14 нед, mostly Senior)*
+
 - [ ] Windows launcher, Vanilla only
 - [ ] Guest flow + QX auth + Local-аккаунт
 - [ ] Web: создание инстанса → sync → launch
 - [ ] Forge / NeoForge / Fabric / Quilt — отложено на **v2**
 
 ### Phase Alpha — Integration *(4–6 нед)*
+
 - [ ] Сценарии 1–3 end-to-end
 - [ ] Junior: test matrix, bug reports, docs
 
 ### Phase 3 — Modloaders & Modpacks *(+4–6 мес)*
+
 - [ ] Forge + NeoForge + Fabric + Quilt
 - [ ] Modpack catalog
 - [ ] macOS / Linux launcher
 
 ### Phase 4 — Premium & Polish *(+2–4 мес)*
+
 - [ ] Microsoft OAuth
 - [ ] Billing / Premium
 - [ ] Agent: RCON, files, backups, metrics
@@ -1310,10 +1334,11 @@ gantt
 ## 14. Открытые вопросы (TBD)
 
 | # | Вопрос | Статус |
-|---|--------|--------|
+| --- | -------- | -------- |
 | I8 | VPS-провайдер / регион | **TBD** |
 
-**Закрыто:** B3 launch bridge · I9 pure self-hosted · E6 linking · W1 no WebView · X3/X4 CF · L3 own launcher · B2 guest/auth tiers — см. [adr/](./adr/).
+**Закрыто:** B3 launch bridge · I9 pure self-hosted · E6 linking · W1 no WebView · X3/X4 CF · L3 own launcher · B2
+guest/auth tiers — см. [adr/](./adr/).
 
 ---
 
@@ -1322,7 +1347,7 @@ gantt
 ### 15.1 Лаунчеры (основные — продуктовый UX)
 
 | Продукт | Описание | Что взять для QX |
-|---------|----------|------------------|
+| --------- | ---------- | ------------------ |
 | **[TLauncher](https://tlauncher.org/)** | Популярный лаунчер с offline-аккаунтами, modpacks, скинами; сильная аудитория в CIS | Guest/offline flow без регистрации; быстрый старт «скачал → играешь»; каталог версий и сборок; интеграция скинов/cape для offline |
 | **[KLauncher](https://klauncher.gg/)** | Аналог TLauncher: modpacks, серверы, скины, offline-режим | UX выбора modpack и серверов; витрина публичных серверов; простой wizard первого запуска |
 | **[GML](https://github.com/GamerVII/NM)** | Open-source фреймворк (Java) | **Только референс** UX/архитектуры — **не форкаем** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)) |
@@ -1342,12 +1367,13 @@ quadrantChart
     QXProject: [0.85, 0.9]
 ```
 
-QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (инстансы с сайта, `/launcher` UI) + **уникально:** панель управления сервером через агент (BYOS). **Свой Go tray**, не GML.
+QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (инстансы с сайта, `/launcher` UI) +
+**уникально:** панель управления сервером через агент (BYOS). **Свой Go tray**, не GML.
 
 **Ключевые паттерны из референсов:**
 
 | Паттерн | Источник | Применение в QX |
-|---------|----------|-----------------|
+| --------- | ---------- | ----------------- |
 | Offline-first запуск | TLauncher, KLauncher | Сценарий 2 (guest flow) |
 | Modpack wizard | KLauncher, Aurora | Web: выбор сборки → tray install |
 | Instance manifest | Prism, Aurora | `internal/mc/manifest`, Go tray engine |
@@ -1359,7 +1385,7 @@ QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и
 ### 15.2 Панель и инфраструктура (server-side)
 
 | Продукт | Что взять |
-|---------|-----------|
+| --------- | ----------- |
 | **Pterodactyl** | Модель Wings-агента, API панели, файловый менеджер, live-консоль |
 | **AMP (CubeCoders)** | UX управления инстансами, scheduling |
 | **MultiMC / Prism Launcher** | Open-source: архитектура инстансов, Java detection, modloader isolation |
@@ -1373,7 +1399,7 @@ QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и
 **Решение:** собственный Go launcher — **не форк GML** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)).
 
 | За | Против (осознанно принимаем) |
-|----|------------------------------|
+| ---- | ------------------------------ |
 | Единый стек Go (API + Agent + Tray) | Modloader resolution с нуля — дольше MVP |
 | Tray без UI + `/launcher` на сайте — чистое разделение | Нет готового Java/Kotlin core из GML |
 | Полный контроль auth, sync, updates | Больше работы Senior на JVM/classpath |
@@ -1382,4 +1408,4 @@ QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и
 
 ---
 
-*Последнее обновление: 2026-06-09 (v1.3 — launch bridge, security-legal, own launcher, pure self-hosted)*
+Последнее обновление: 2026-06-09 (v1.3 — launch bridge, security-legal, own launcher, pure self-hosted)

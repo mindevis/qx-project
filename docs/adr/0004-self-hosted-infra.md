@@ -1,6 +1,6 @@
 # ADR-0004: Self-Hosted Infrastructure
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-06-09
 
 ## Decision

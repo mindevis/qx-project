@@ -7,7 +7,7 @@
 ## 1. Stack (Self-Hosted Tier 0)
 
 | Tool | Role |
-|------|------|
+| ------ | ------ |
 | **Nginx** | TLS termination, static, rate limit |
 | **Uptime Kuma** | HTTP/TCP checks, status page |
 | **Netdata** (optional) | VPS metrics |
@@ -33,7 +33,7 @@ Structured JSON logs from Go (`slog`):
 ```
 
 | Destination | Retention |
-|-------------|-----------|
+| ------------- | ----------- |
 | stdout → Docker | 7 days rotate |
 | `audit_logs` table | 2 years |
 
@@ -42,7 +42,7 @@ Structured JSON logs from Go (`slog`):
 ## 3. Alerts (Uptime Kuma)
 
 | Check | Interval |
-|-------|----------|
+| ------- | ---------- |
 | `https://api.qx.example.com/health` | 60s |
 | `https://qx.example.com` | 60s |
 | PostgreSQL TCP | 5m |
@@ -83,7 +83,7 @@ See [security-legal.md §3.2](./security-legal.md)
 
 ## 5. Health endpoints
 
-```
+```text
 GET /health        → 200 ok
 GET /health/ready  → DB + Redis + MinIO ping
 ```
@@ -93,7 +93,7 @@ GET /health/ready  → DB + Redis + MinIO ping
 ## 6. Backups
 
 | What | Schedule | Where |
-|------|----------|-------|
+| ------ | ---------- | ------- |
 | PostgreSQL | Daily 03:00 | Restic → second VPS / NAS |
 | MinIO | Daily incremental | same |
 | `.env`, nginx | on change | private git |

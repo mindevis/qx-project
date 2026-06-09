@@ -1,16 +1,17 @@
 # QX Agent Protocol
 
-> Версия: **1.0** · Transport: **WebSocket (WSS)** · Format: **JSON**  
+> Версия: **1.0** · Transport: **WebSocket (WSS)** · Format: **JSON**
 > Shared types: `pkg/protocol` (Go)
 
 ---
 
 ## 1. Обзор
 
-QX Agent — Go daemon на **Linux**, systemd service. Backend разворачивает agent через **SSH** (см. §2). После deploy agent устанавливает **WSS** к Agent Hub и обменивается командами/events.
+QX Agent — Go daemon на **Linux**, systemd service. Backend разворачивает agent через **SSH** (см. §2). После deploy
+agent устанавливает **WSS** к Agent Hub и обменивается командами/events.
 
 | Свойство | Значение |
-|----------|----------|
+| ---------- | ---------- |
 | Platform | **Linux only** (amd64, arm64 TBD) |
 | Transport | WSS (`wss://api.qx.example.com/agent/v1/connect`) |
 | Auth | JWT agent token (issued at deploy) |
@@ -44,7 +45,7 @@ sequenceDiagram
 ### 2.2 Файлы на VPS
 
 | Path | Назначение |
-|------|------------|
+| ------ | ------------ |
 | `/opt/qx/agent/qx-agent` | Binary |
 | `/opt/qx/server/` | Server root (jar, mods, configs) |
 | `/etc/qx/agent.env` | `QX_AGENT_TOKEN`, `QX_API_URL`, `QX_SERVER_ID` |
@@ -82,7 +83,7 @@ WantedBy=multi-user.target
 
 ### 3.1 Handshake
 
-```
+```text
 GET /agent/v1/connect HTTP/1.1
 Upgrade: websocket
 Authorization: Bearer <agent_jwt>
@@ -103,7 +104,7 @@ X-Server-Id: <uuid>
 ### 3.2 Reconnect
 
 | Параметр | Значение |
-|----------|----------|
+| ---------- | ---------- |
 | Initial backoff | 1s |
 | Max backoff | 60s |
 | Jitter | ±20% |
@@ -137,7 +138,7 @@ interface Envelope {
 **Direction prefix:**
 
 | Prefix | Direction |
-|--------|-----------|
+| -------- | ----------- |
 | `cmd.*` | Backend → Agent |
 | `evt.*` | Agent → Backend |
 | `res.*` | Agent → Backend (response to cmd) |
@@ -164,25 +165,26 @@ interface Envelope {
 ```
 
 | type | payload |
-|------|---------|
+| ------ | --------- |
 | `cmd.server.start` | `server_type`, `jar_path`, `jvm_args[]`, `extra_args[]` |
 | `cmd.server.stop` | `{ "graceful": true, "timeout_sec": 30 }` |
 | `cmd.server.restart` | same as start + stop |
 | `cmd.server.kill` | `{}` |
 
-**server_type:** `vanilla` \| `paper` \| `spigot` \| `purpur` \| `forge` \| `neoforge` \| `fabric` \| `quilt` \| `hybrid` + `hybrid_platform` optional.
+**server_type:** `vanilla` \| `paper` \| `spigot` \| `purpur` \| `forge` \| `neoforge` \| `fabric` \| `quilt` \|
+`hybrid` + `hybrid_platform` optional.
 
 ### 5.2 Console & RCON
 
 | type | payload |
-|------|---------|
+| ------ | --------- |
 | `cmd.console.input` | `{ "line": "say hello" }` |
 | `cmd.rcon.command` | `{ "command": "list", "password_from_config": true }` |
 
 ### 5.3 Files
 
 | type | payload |
-|------|---------|
+| ------ | --------- |
 | `cmd.files.list` | `{ "path": "plugins" }` |
 | `cmd.files.read` | `{ "path": "server.properties", "max_bytes": 1048576 }` |
 | `cmd.files.write` | `{ "path": "...", "content_base64": "..." }` |
@@ -207,12 +209,13 @@ Paths relative to server root. Traversal blocked (`..`, absolute paths).
 }
 ```
 
-Agent downloads manifest, verifies hash matches server record, installs to server root (mods/, config/, jar if server-side modpack).
+Agent downloads manifest, verifies hash matches server record, installs to server root (mods/, config/, jar if
+server-side modpack).
 
 ### 5.5 Agent maintenance
 
 | type | payload |
-|------|---------|
+| ------ | --------- |
 | `cmd.agent.update` | `{ "binary_url": "...", "sha256": "..." }` |
 | `cmd.agent.ping` | `{}` |
 
@@ -310,7 +313,7 @@ Error:
 ```
 
 | Error code | Meaning |
-|------------|---------|
+| ------------ | --------- |
 | `PATH_DENIED` | Outside server root |
 | `FILE_TOO_LARGE` | Exceeds max_bytes |
 | `PROCESS_BUSY` | Start while running |
@@ -340,7 +343,7 @@ flowchart TB
 ## 8. Security
 
 | Rule | Implementation |
-|------|----------------|
+| ------ | ---------------- |
 | Agent token rotation | On redeploy; old token revoked |
 | SSH keys encrypted at rest | AES-GCM in PostgreSQL |
 | File sandbox | chroot-like prefix `/opt/qx/server` |
@@ -352,7 +355,7 @@ flowchart TB
 ## 9. Versioning
 
 | Field | Policy |
-|-------|--------|
+| ------- | -------- |
 | `v` in envelope | Breaking change → increment |
 | `X-Agent-Version` | semver; backend may reject outdated |
 

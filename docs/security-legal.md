@@ -1,6 +1,6 @@
 # Security & Legal
 
-> Rate limiting, audit, encryption, compliance.  
+> Rate limiting, audit, encryption, compliance.
 > Self-hosted **без Cloudflare** — [ADR-0009](./adr/0009-pure-self-hosted.md)
 
 ---
@@ -10,7 +10,7 @@
 Implementation: **Redis sliding window** + Gin middleware.
 
 | Endpoint / action | Limit | Window | Key |
-|-------------------|-------|--------|-----|
+| ------------------- | ------- | -------- | ----- |
 | `POST /auth/login` | 10 failures | 15 min | IP + email |
 | `POST /auth/register` | 5 | 1 hour | IP |
 | `POST /auth/guest` | 20 | 1 hour | IP |
@@ -44,7 +44,7 @@ Append-only table `audit_logs`. **Never delete** (retention 2 years, then archiv
 ### 2.1 Events
 
 | `action` | Trigger | Fields |
-|----------|---------|--------|
+| ---------- | --------- | -------- |
 | `auth.login` | Successful login | user_id, ip, user_agent |
 | `auth.login_failed` | Failed login | email hash, ip |
 | `auth.register` | Registration | user_id, ip |
@@ -93,7 +93,7 @@ CREATE INDEX idx_audit_resource ON audit_logs (resource_type, resource_id);
 
 ### 3.1 At rest
 
-```
+```text
 ciphertext = AES-256-GCM(plaintext_key, DEK)
 DEK = HKDF(master_key, server_id)
 master_key = env QX_SECRETS_MASTER_KEY (32 bytes, base64)
@@ -105,7 +105,7 @@ master_key = env QX_SECRETS_MASTER_KEY (32 bytes, base64)
 ### 3.2 Rotation procedure
 
 | Step | Action |
-|------|--------|
+| ------ | -------- |
 | 1 | Generate `QX_SECRETS_MASTER_KEY_V2` |
 | 2 | Run `qx-admin reencrypt-ssh-keys --from v1 --to v2` |
 | 3 | Deploy API with v2, keep v1 read-only 24h |
@@ -127,10 +127,11 @@ master_key = env QX_SECRETS_MASTER_KEY (32 bytes, base64)
 
 ### 4.1 Position
 
-QXProject provides **tools** for Minecraft community. Users responsible for compliance with [Minecraft EULA](https://www.minecraft.net/en-us/eula) and [Usage Guidelines](https://www.minecraft.net/en-us/usage-guidelines).
+QXProject provides **tools** for Minecraft community. Users responsible for compliance with [Minecraft
+EULA](https://www.minecraft.net/en-us/eula) and [Usage Guidelines](https://www.minecraft.net/en-us/usage-guidelines).
 
 | Feature | Legal note |
-|---------|------------|
+| --------- | ------------ |
 | **Microsoft OAuth** | Licensed play — compliant path |
 | **Offline/Local profiles** | User choice; QX does not bypass Mojang auth for online servers with `online-mode=true` |
 | **Cracked servers (`online-mode=false`)** | Server owner responsibility; QX provides panel toggle with **ToS acceptance** checkbox |
@@ -142,7 +143,8 @@ QXProject provides **tools** for Minecraft community. Users responsible for comp
 
 **Server create:** if `online_mode=false`:
 
-> «You confirm you have rights to operate this server and comply with applicable laws and Mojang policies for third-party servers.»
+> «You confirm you have rights to operate this server and comply with applicable laws and Mojang policies for
+> third-party servers.»
 
 ### 4.3 Premium (future billing)
 
@@ -165,7 +167,7 @@ See also [modpacks-pipeline.md](./modpacks-pipeline.md).
 ### 5.2 Restrictions
 
 | Do | Don't |
-|----|-------|
+| ---- | ------- |
 | Cache per-user install copies | Public CDN re-host without permission |
 | Attribute CurseForge as source | Strip mod author metadata |
 | Respect API rate limits | Scrape without API key |
@@ -185,7 +187,7 @@ See also [modpacks-pipeline.md](./modpacks-pipeline.md).
 **Status:** post-MVP, optional.
 
 | Phase | Scope |
-|-------|-------|
+| ------- | ------- |
 | MVP | Email + password only |
 | v2 | TOTP (Google Authenticator) optional per user |
 | v2 | Require 2FA for server deploy / SSH key change (optional org setting) |
@@ -199,7 +201,7 @@ Storage: `users.totp_secret_enc` encrypted with master key.
 No Cloudflare — all security on VPS:
 
 | Control | Implementation |
-|---------|----------------|
+| --------- | ---------------- |
 | TLS 1.2+ | Let's Encrypt, Nginx |
 | HSTS | `Strict-Transport-Security` max-age 31536000 |
 | CSP | Strict policy on `/launcher` |
@@ -214,7 +216,7 @@ No Cloudflare — all security on VPS:
 ## 8. RBAC summary
 
 | Resource | Guest (linked) | Registered | Premium (future) |
-|----------|----------------|------------|------------------|
+| ---------- | ---------------- | ------------ | ------------------ |
 | Vanilla instance | ✓ | ✓ | ✓ |
 | Mods/shaders/resource packs | ✗ | ✓ | ✓ |
 | Modpacks | ✗ | ✓ | ✓ |

@@ -1,6 +1,6 @@
 # Launch Bridge — Site → Tray → JVM
 
-> Решение **B1**: **гибрид** — сайт создаёт launch request в API, Go tray poll'ит и запускает JVM.  
+> Решение **B1**: **гибрид** — сайт создаёт launch request в API, Go tray poll'ит и запускает JVM.
 > ADR: [0008](./adr/0008-launch-bridge-hybrid.md)
 
 ---
@@ -8,7 +8,7 @@
 ## 1. Принцип
 
 | Комponent | Роль |
-|-----------|------|
+| ----------- | ------ |
 | **`/launcher` на сайте** | UI: кнопка «Играть», выбор инстанса/аккаунта |
 | **Backend API** | Очередь `launch_requests`, авторизация, manifest |
 | **Go tray (ПК)** | Poll, скачивание файлов, Mojang Java, spawn JVM |
@@ -46,7 +46,7 @@ sequenceDiagram
 
 ### 3.1 Create (website)
 
-```
+```text
 POST /v1/launcher/launch-requests
 Authorization: Bearer <user_jwt> | Cookie guest + X-Device-Token
 ```
@@ -62,7 +62,7 @@ Authorization: Bearer <user_jwt> | Cookie guest + X-Device-Token
 **RBAC:**
 
 | Owner | Может launch |
-|-------|--------------|
+| ------- | -------------- |
 | Guest (linked) | Vanilla instances only |
 | Registered user | All loaders + mods/shaders/resource packs |
 
@@ -78,7 +78,7 @@ Response `201`:
 
 ### 3.2 Poll pending (tray)
 
-```
+```text
 GET /v1/launcher/launch-requests/pending
 Authorization: Bearer <device_token>
 ```
@@ -87,7 +87,7 @@ Returns **at most one** oldest `queued` request for this device. Atomically mark
 
 ### 3.3 Status update (tray)
 
-```
+```text
 PATCH /v1/launcher/launch-requests/{id}
 Authorization: Bearer <device_token>
 ```
@@ -100,7 +100,7 @@ Authorization: Bearer <device_token>
 
 ### 3.4 UI poll (optional)
 
-```
+```text
 GET /v1/launcher/launch-requests/{id}
 ```
 
@@ -122,7 +122,7 @@ stateDiagram-v2
 ```
 
 | Status | Meaning |
-|--------|---------|
+| -------- | --------- |
 | `queued` | Waiting for tray |
 | `dispatched` | Sent to tray, not started yet |
 | `running` | JVM alive |
@@ -174,7 +174,7 @@ MVP: **online required** for launch.
 ## 8. Security
 
 | Risk | Mitigation |
-|------|------------|
+| ------ | ------------ |
 | Hijack launch request | Bound to `device_id`; only linked tray receives |
 | Spam Play button | Rate limit 5/min per user — [security-legal.md](./security-legal.md) |
 | Malicious manifest | Tray verifies SHA256 from API; API signs manifest server-side |

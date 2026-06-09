@@ -1,7 +1,7 @@
 # ADR Index
 
 | ADR | Title | Status |
-|-----|-------|--------|
+| ----- | ------- | -------- |
 | [0001](./0001-tech-stack.md) | Tech stack: Go backend, React frontend | Accepted |
 | [0002](./0002-launcher-hybrid-ui.md) | Hybrid launcher (historical) | Superseded by 0006 |
 | [0003](./0003-agent-linux-ssh-deploy.md) | Agent Linux-only, SSH deploy | Accepted |

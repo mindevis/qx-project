@@ -1,6 +1,6 @@
 # ADR-0010: Own Launcher (Not GML Fork)
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-06-09
 
 ## Decision

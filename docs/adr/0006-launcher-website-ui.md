@@ -1,11 +1,12 @@
 # ADR-0006: Launcher UI on Website (No WebView)
 
-**Status:** Accepted (supersedes WebView part of ADR-0002)  
+**Status:** Accepted (supersedes WebView part of ADR-0002)
 **Date:** 2026-06-09
 
 ## Context
 
-Изначально рассматривался WebView (Wails) для React UI внутри desktop app. Продуктовое решение: **внешний вид и управление лаунчером — на сайте**.
+Изначально рассматривался WebView (Wails) для React UI внутри desktop app. Продуктовое решение: **внешний вид и
+управление лаунчером — на сайте**.
 
 ## Decision
 

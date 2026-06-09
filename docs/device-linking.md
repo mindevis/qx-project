@@ -1,6 +1,6 @@
 # Device Linking — Связь Launcher ↔ Сайт
 
-> Решение **E6**: обязательная привязка лаунчера к сайту **до** создания инстансов и игры.  
+> Решение **E6**: обязательная привязка лаунчера к сайту **до** создания инстансов и игры.
 > Работает **без регистрации** (guest) и **с аккаунтом** (после login — re-link или merge).
 
 ---
@@ -8,7 +8,7 @@
 ## 1. Принцип
 
 | Правило | Описание |
-|---------|----------|
+| --------- | ---------- |
 | **Обязательно** | Нельзя создавать инстансы и играть, пока `launcher_devices.status ≠ linked` |
 | **Без регистрации** | Guest на сайте + linked device = полный guest-flow |
 | **UI на сайте** | Управление инстансами — **`/launcher`** (React SPA), не в окне tray |
@@ -58,7 +58,7 @@ sequenceDiagram
 ## 3. Tray UI (Go launcher)
 
 | Элемент | Поведение |
-|---------|-----------|
+| --------- | ----------- |
 | Иконка в трее | Статус: 🔴 не связан / 🟢 связан |
 | ЛКМ | Открыть сайт `/launcher` в браузере |
 | ПКМ меню | «Связать лаунчер» (если не linked) · «Открыть сайт» · «Выход» |
@@ -71,9 +71,9 @@ sequenceDiagram
 ## 4. API
 
 | Method | Path | Кто | Описание |
-|--------|------|-----|----------|
+| -------- | ------ | ----- | ---------- |
 | POST | `/launcher/devices/register` | Go app | `{ device_id, os, hostname, launcher_version }` |
-| GET | `/launcher/devices/{id}/status` | Go app | Poll: `pending_link` \| `linked` |
+| GET | `/launcher/devices/{id}/status` | Go app | Poll: `pending_link` or `linked` |
 | POST | `/launcher/devices/link` | Web SPA | `{ device_id, user_code? }` + guest cookie или JWT |
 | POST | `/launcher/devices/unlink` | Web / Go | Отвязка |
 | GET | `/launcher/devices/pending` | Web SPA | Список ожидающих (same browser IP/session) — optional |
@@ -124,7 +124,7 @@ sequenceDiagram
 ```
 
 | Данные | Политика merge |
-|--------|----------------|
+| -------- | ---------------- |
 | `launcher_instances` | `guest_session_id` → `user_id` |
 | `offline_profiles` | Перенос на `user_id` |
 | `launcher_devices` | `guest_session_id` → `user_id` |
@@ -136,7 +136,7 @@ sequenceDiagram
 ## 6. Security
 
 | Риск | Митигация |
-|------|-----------|
+| ------ | ----------- |
 | Hijack device link | `user_code` + короткий TTL (15 min) + confirm на сайте |
 | Stolen device_token | Rotate on re-link; bind to device_id |
 | Fake register | Rate limit по IP; device_id UUID v4 local storage |

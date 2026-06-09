@@ -1,16 +1,17 @@
 # ADR-0001: Tech Stack
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-06-09
 
 ## Context
 
-QXProject — launcher + panel + agent. Команда: 1 senior + 1 junior. Нужен единый язык для backend/agent и зрелая SPA-экосистема для UI.
+QXProject — launcher + panel + agent. Команда: 1 senior + 1 junior. Нужен единый язык для backend/agent и зрелая
+SPA-экосистема для UI.
 
 ## Decision
 
 | Layer | Stack |
-|-------|-------|
+| ------- | ------- |
 | Panel Web | TypeScript, React, Vite, Ant Design (SPA) |
 | Backend API | Go, Gin, GORM |
 | Launcher native | Go |

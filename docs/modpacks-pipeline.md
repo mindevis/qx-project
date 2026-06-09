@@ -1,6 +1,6 @@
 # Modpacks Pipeline & CurseForge Compliance
 
-> **X4:** CurseForge **primary**, Modrinth fallback.  
+> **X4:** CurseForge **primary**, Modrinth fallback.
 > Legal: [security-legal.md §5](./security-legal.md)
 
 ---
@@ -21,7 +21,7 @@ flowchart LR
 
 ### Search order
 
-1. `GET CurseForge /mods/search` 
+1. `GET CurseForge /mods/search`
 2. If empty or loader=quilt-only → `GET Modrinth /search`
 
 ---
@@ -34,7 +34,7 @@ flowchart LR
 ```
 
 | Step | Action |
-|------|--------|
+| ------ | -------- |
 | 1 | User picks modpack in `/launcher` |
 | 2 | API fetch mod + latest file metadata |
 | 3 | Normalize → `QxModpackManifest` + `manifest_sha256` |
@@ -48,7 +48,7 @@ flowchart LR
 ## 3. MinIO cache policy
 
 | Object | Visibility | TTL |
-|--------|------------|-----|
+| -------- | ------------ | ----- |
 | `modpacks/**` | Private | Until project removed from CF |
 | Metadata | PG refresh | 24h revalidate |
 
@@ -72,7 +72,7 @@ Shared `modpack_id`:
 Separate from full modpacks — per-instance attachments:
 
 | Type | Storage | API |
-|------|---------|-----|
+| ------ | --------- | ----- |
 | Mods (.jar) | MinIO `user-content/{user_id}/` | `POST /instances/{id}/mods` |
 | Resource packs | same | `POST /instances/{id}/resourcepacks` |
 | Shaders | same | `POST /instances/{id}/shaders` |

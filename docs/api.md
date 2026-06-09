@@ -1,6 +1,6 @@
 # QX API Specification
 
-> Версия: **1.0** · Base URL: `https://api.qx.example.com/v1`  
+> Версия: **1.0** · Base URL: `https://api.qx.example.com/v1`
 > Backend: **Go + Gin + GORM**
 
 ---
@@ -8,7 +8,7 @@
 ## 1. Auth
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | POST | `/auth/register` | — | `{ email, password, username? }` |
 | POST | `/auth/login` | — | `{ email, password }` → `{ access_token, refresh_token }` |
 | POST | `/auth/refresh` | refresh cookie/body | New access token |
@@ -22,7 +22,7 @@
 ## 2. Users & Skins (registered only)
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | GET | `/users/me` | Bearer | Profile |
 | PATCH | `/users/me` | Bearer | Update profile |
 | POST | `/users/me/skin` | Bearer | Upload skin PNG (max 64KB) |
@@ -36,10 +36,11 @@
 
 ## 3. Instances (client)
 
-RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered** — full loaders + attachments. См. [security-legal.md §8](./security-legal.md).
+RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered** — full loaders + attachments. См.
+[security-legal.md §8](./security-legal.md).
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | GET | `/instances` | Bearer / Guest | List instances |
 | POST | `/instances` | Bearer / Guest | Create `{ name, mc_version, loader, modpack_id? }` — Guest: `loader=vanilla` only |
 | GET | `/instances/{id}` | Bearer / Guest | Detail |
@@ -52,7 +53,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 ## 4. Servers (BYOS)
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | GET | `/servers` | Bearer | List (owned + member) |
 | POST | `/servers` | Bearer | Create `{ name, server_type, ssh, modpack_id? }` |
 | GET | `/servers/{id}` | Bearer | Detail + status |
@@ -66,7 +67,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 ### 4.1 Server members (multi-admin)
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | GET | `/servers/{id}/members` | Bearer | admin+ |
 | POST | `/servers/{id}/members` | Bearer | `{ user_id or email, role }` owner only |
 | PATCH | `/servers/{id}/members/{uid}` | Bearer | Change role (owner) |
@@ -75,7 +76,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 **Roles:** `owner` | `admin` | `viewer`
 
 | Role | start/stop | files | console write | deploy | members |
-|------|------------|-------|---------------|--------|---------|
+| ------ | ------------ | ------- | --------------- | -------- | --------- |
 | owner | ✓ | ✓ | ✓ | ✓ | ✓ |
 | admin | ✓ | ✓ | ✓ | ✓ | read |
 | viewer | — | read | read | — | — |
@@ -85,7 +86,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 ## 5. Modpacks
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | GET | `/modpacks/search` | — / Bearer | `?q=&source=curseforge` (default CF, `modrinth` fallback) |
 | GET | `/modpacks/{id}` | — | Metadata |
 | GET | `/modpacks/{id}/manifest` | Bearer / Guest | QxModpackManifest JSON |
@@ -98,7 +99,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 ## 6. Public servers (launcher UI)
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | GET | `/public/servers` | — | Paginated public server list |
 | GET | `/public/servers/{id}` | — | Detail for launcher card |
 
@@ -127,7 +128,7 @@ Response item:
 ## 7. Device Linking & Launcher Tray
 
 | Method | Path | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | POST | `/launcher/devices/register` | Go tray first launch |
 | GET | `/launcher/devices/{id}/status` | Poll link status |
 | POST | `/launcher/devices/link` | Web confirms link (guest or user) |
@@ -143,7 +144,7 @@ Full spec: [device-linking.md](./device-linking.md)
 Site creates request → Go tray polls → spawns JVM. Full spec: [launch-bridge.md](./launch-bridge.md)
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | POST | `/launcher/launch-requests` | Bearer / Guest + `X-Device-Token` | Create `{ instance_id, offline_profile_id?, jvm_args_override? }` |
 | GET | `/launcher/launch-requests/pending` | `Bearer <device_token>` | Tray poll — returns oldest queued, marks `dispatched` |
 | PATCH | `/launcher/launch-requests/{id}` | `Bearer <device_token>` | Tray update `{ status, pid?, exit_code?, error? }` |
@@ -158,7 +159,7 @@ Site creates request → Go tray polls → spawns JVM. Full spec: [launch-bridge
 ## 9. Launcher updates (tray)
 
 | Method | Path | Auth | Description |
-|--------|------|------|-------------|
+| -------- | ------ | ------ | ------------- |
 | GET | `/launcher/updates/latest` | — | `{ version, url, sha256, mandatory }` |
 | GET | `/launcher/updates/latest.yml` | — | Electron-style (optional) |
 | GET | `/launcher/ui/*` | — | Static SPA assets (or CDN) |
@@ -170,7 +171,7 @@ Site creates request → Go tray polls → spawns JVM. Full spec: [launch-bridge
 ## 10. WebSocket
 
 | Path | Auth | Description |
-|------|------|-------------|
+| ------ | ------ | ------------- |
 | `WS /servers/{id}/console` | Bearer | Live console (admin+ read/write by role) |
 | `WS /agent/v1/connect` | Agent JWT | Agent Hub ([agent-protocol.md](./agent-protocol.md)) |
 
@@ -253,7 +254,7 @@ components:
 ```
 
 | HTTP | code |
-|------|------|
+| ------ | ------ |
 | 400 | VALIDATION_ERROR |
 | 401 | UNAUTHORIZED |
 | 403 | FORBIDDEN |

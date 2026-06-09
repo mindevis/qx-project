@@ -1,6 +1,6 @@
 # SSH Deploy — Agent Provisioning
 
-> **F7:** Backend SSH → Linux VPS → systemd agent.  
+> **F7:** Backend SSH → Linux VPS → systemd agent.
 > Security: [security-legal.md §3](./security-legal.md)
 
 ---
@@ -32,7 +32,7 @@ sequenceDiagram
 ## 2. Prerequisites (user VPS)
 
 | Requirement | Detail |
-|-------------|--------|
+| ------------- | -------- |
 | OS | Linux x86_64 (Ubuntu 22.04+, Debian 12+) |
 | User | sudo without password **or** root (discouraged) |
 | SSH | Port 22 or custom, key-based auth |
@@ -48,7 +48,7 @@ Panel shows **pre-flight checklist** before deploy.
 Go goroutine pool (`internal/deploy/worker.go`):
 
 | Config | Value |
-|--------|-------|
+| -------- | ------- |
 | Max concurrent deploys | 5 global, 1 per server |
 | SSH timeout | 30s connect, 10 min total |
 | Retry | 2 retries exponential backoff |
@@ -90,12 +90,14 @@ On successful deploy:
 
 1. Generate `agent_jwt` scoped to `server_id`
 2. Write to `/etc/qx/agent.env`:
-   ```
+
+   ```env
    QX_API_URL=https://api.qx.example.com
    QX_SERVER_ID=uuid
    QX_AGENT_TOKEN=eyJ...
    QX_SERVER_ROOT=/opt/qx/server
    ```
+
 3. Store `agent_token_hash` in `servers` table
 
 **Re-deploy:** revokes old token, issues new.
@@ -105,7 +107,7 @@ On successful deploy:
 ## 6. Failure handling
 
 | Error | User message | Audit |
-|-------|--------------|-------|
+| ------- | -------------- | ------- |
 | SSH auth failed | Check key and username | `server.deploy.failed` |
 | Timeout | Firewall blocking SSH | same |
 | systemctl failed | View deploy log in panel | same |

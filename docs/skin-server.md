@@ -1,6 +1,6 @@
 # Skin & Cape Server
 
-> **F5:** только **зарегистрированные и авторизованные** пользователи.  
+> **F5:** только **зарегистрированные и авторизованные** пользователи.
 > Guest/offline Local — **без** upload и sync (default Steve/Alex).
 
 ---
@@ -23,7 +23,7 @@ Minecraft client configured (via tray launch args) to use QX skin server URL for
 ## 2. Upload rules
 
 | Rule | Value |
-|------|-------|
+| ------ | ------- |
 | Format | PNG 64×64 (64×32 legacy supported) |
 | Max size | 64 KB |
 | Auth | Bearer JWT required |
@@ -43,20 +43,21 @@ Minecraft client configured (via tray launch args) to use QX skin server URL for
 
 Tray adds JVM arg for offline/QX profile session:
 
-```
+```text
 -Dqx.skinUrl=https://api.qx.example.com/v1/skins/{uuid}.png
 ```
 
 Custom skin mod or authlib injector in classpath for modded — loader-specific (Forge/Fabric post-MVP).
 
-**Vanilla offline:** use established skin override library in QX classpath (implementation detail in `internal/launcher/skin`).
+**Vanilla offline:** use established skin override library in QX classpath (implementation detail in
+`internal/launcher/skin`).
 
 ---
 
 ## 5. vs Guest
 
 | Feature | Guest | Registered |
-|---------|-------|------------|
+| --------- | ------- | ------------ |
 | Upload skin | ✗ | ✓ |
 | Public skin URL | ✗ | ✓ |
 | Cape | ✗ | post-MVP |

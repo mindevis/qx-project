@@ -1,6 +1,6 @@
 # ADR-0008: Hybrid Launch Bridge
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-06-09
 
 ## Decision

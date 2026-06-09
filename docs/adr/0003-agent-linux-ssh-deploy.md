@@ -1,6 +1,6 @@
 # ADR-0003: Agent Linux-only, SSH Deploy
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-06-09
 
 ## Context
