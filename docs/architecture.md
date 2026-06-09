@@ -38,7 +38,7 @@
 
 #### Сценарий 1 — Игра с регистрацией (полный flow)
 
-**Актор:** зарегистрированный пользователь. **Сначала обязательная привязка tray к сайту**
+**Актор:** зарегистрированный пользователь. **Сначала обязательная привязка QXLauncher к сайту**
 ([device-linking.md](./device-linking.md)) — без `linked` нельзя создавать инстансы и запускать игру.
 
 ```mermaid
@@ -51,8 +51,8 @@ sequenceDiagram
 
     U->>Web: Регистрация
     U->>Web: Авторизация / аутентификация
-    U->>Web: Скачивание tray
-    U->>L: Установка и первый запуск
+    U->>Web: Скачивание QXLauncher
+    U->>L: Установка и первый запуск QXLauncher
     L->>API: POST /launcher/devices/register
     API-->>L: pending_link
     L->>U: OS notification + tray «Связать»
@@ -74,14 +74,14 @@ sequenceDiagram
 
 | Шаг | Действие | Где |
 | ----- | ---------- | ----- |
-| 1 | Регистрация | Web |
-| 2 | Авторизация / аутентификация | Web |
-| 3 | Скачивание tray | Web |
-| 4 | Первый запуск tray | ПК |
-| 5 | **Привязка device к аккаунту** | Web confirm + tray poll |
-| 6 | Создание игрового аккаунта | `/launcher` — **QXAccount**, **Local** или **Microsoft** |
-| 7 | Создание инстанса | Web (метаданные) → tray (файлы на ПК) |
-| 8 | Запуск → Игра | `/launcher` → launch-bridge → JVM |
+| 1 | Регистрация | QXWeb |
+| 2 | Авторизация / аутентификация | QXWeb |
+| 3 | Скачивание QXLauncher | QXWeb |
+| 4 | Первый запуск QXLauncher | ПК |
+| 5 | **Привязка device к аккаунту** | QXWeb confirm + QXLauncher poll |
+| 6 | Создание игрового аккаунта | QXWeb `/launcher` — **QXAccount**, **Local** или **Microsoft** |
+| 7 | Создание инстанса | QXWeb (метаданные) → QXLauncher (файлы на ПК) |
+| 8 | Запуск → Игра | QXWeb `/launcher` → launch-bridge → JVM |
 
 ---
 
@@ -207,10 +207,10 @@ flowchart TB
 
     subgraph platform [QXApi — Backend]
         API[REST + WebSocket]
-        Auth[Auth Service — QX + Microsoft OAuth]
-        Billing[Billing — Premium Subscription]
+        AccountMgmt[Account Management]
+        BillingMgmt[Billing Management]
         ServerMgmt[Server Management]
-        InstanceSvc[Instance / Version Catalog]
+        LauncherMgmt[Launcher Management]
         ModpackSvc[Modpack Service]
         AgentHub[Agent Hub — WebSocket]
         FileSvc[File & Backup Service]
@@ -218,7 +218,7 @@ flowchart TB
     end
 
     subgraph data [Data Layer]
-        PG[(PostgreSQL)]
+        MySQL[(MySQL)]
         Redis[(Redis)]
         MinIO[(MinIO — Self-Hosted)]
     end
@@ -231,30 +231,34 @@ flowchart TB
 
     Web --> API
     Launcher --> API
-    Launcher --> InstanceSvc
+    Launcher --> LauncherMgmt
 
-    API --> Auth
-    API --> Billing
+    API --> AccountMgmt
+    API --> BillingMgmt
     API --> ServerMgmt
-    API --> InstanceSvc
+    API --> LauncherMgmt
     API --> ModpackSvc
     API --> FileSvc
 
     ServerMgmt --> AgentHub
+    ServerMgmt --> ModpackSvc
+    LauncherMgmt --> ModpackSvc
+    LauncherMgmt --> AccountMgmt
+    BillingMgmt --> AccountMgmt
     AgentHub <-->|WSS, mTLS| Agent
 
     Agent --> MCServer
     Agent --> NodeFS
 
-    Auth --> PG
-    Billing --> PG
-    ServerMgmt --> PG
-    InstanceSvc --> PG
-    ModpackSvc --> PG
+    AccountMgmt --> MySQL
+    BillingMgmt --> MySQL
+    ServerMgmt --> MySQL
+    LauncherMgmt --> MySQL
+    ModpackSvc --> MySQL
     ModpackSvc --> MinIO
     AgentHub --> Redis
     FileSvc --> MinIO
-    FileSvc --> PG
+    FileSvc --> MySQL
 ```
 
 ---
@@ -274,26 +278,37 @@ flowchart TB
 
 **Ответственность:**
 
-- Регистрация, вход (email/password; Microsoft OAuth — post-MVP).
-- Профиль; Skin/Cape — **только для зарегистрированных** (см. §4.6).
-- CRUD серверов, **SSH deploy agent**, multi-admin invites.
-- CRUD инстансов, modpack picker, **modpack ↔ server sync**.
-- UI **`/launcher`** для QXLauncher (инстансы, аккаунты, «Играть»); см. §3.4.
+- **Account Management:** регистрация, вход, профиль, guest-сессии, игровые аккаунты (QX / Local / Microsoft), skins.
+- CRUD **серверов** (Server Management): SSH deploy QXAgent, multi-admin, консоль.
+- CRUD **инстансов** (Launcher Management): modpack picker, **modpack ↔ server sync**.
+- UI **`/launcher`** (Launcher Management UI в QXWeb): инстансы, выбор аккаунта, «Играть»; см. §3.4.
 - Live-консоль, RCON, файловый менеджер через QXAgent.
-- Каталог modpacks; Premium/billing — **отложено**.
+- Каталог modpacks; **Billing Management** (Premium) — **отложено**, см. §3.5.
 
 ---
 
 ### 3.2 QXApi
 
-**Стек:** Go + Gin + GORM + PostgreSQL + Redis.
+**Стек:** Go + Gin + GORM + MySQL + Redis.
 
 ```text
 cmd/api/                 # QXApi
-internal/  auth/  users/  instances/  servers/  agents/
-           modpacks/  integrations/  deploy/  skinserver/  files/
+internal/
+  auth/  users/  profiles/  skinserver/   # Account Management
+  billing/                               # Billing Management (post-MVP)
+  servers/  agents/  deploy/               # Server Management
+  launcher/  instances/  devices/          # Launcher Management
+  modpacks/  integrations/  files/
 pkg/protocol/
 ```
+
+| Домен | Модули | Ответственность |
+| ------- | -------- | ----------------- |
+| **Account Management** | `auth/`, `users/`, `profiles/`, `skinserver/` | QX-аккаунты, guest, JWT, QXAccount / Local / Microsoft, skins & capes |
+| **Billing Management** | `billing/` | Premium tier, лимиты, подписки, платёжные webhooks (post-MVP) |
+| **Server Management** | `servers/`, `agents/`, `deploy/` | BYOS-серверы, SSH deploy, QXAgent, консоль, файлы на ноде |
+| **Launcher Management** | `launcher/`, `instances/`, `devices/` | Device link, инстансы, launch-requests, manifests, auto-update |
+| **Shared** | `modpacks/`, `files/`, `integrations/` | Modpacks, MinIO, CurseForge / Modrinth / Mojang |
 
 | Канал | Протокол | Документ |
 | ------- | ---------- | ---------- |
@@ -406,9 +421,10 @@ sequenceDiagram
 
 ---
 
-### 3.5 Billing — отложено
+### 3.5 Billing Management — отложено
 
-Premium и платёжка **не в текущей фазе**. Поле `tier` в User — на будущее.
+Premium и платёжка **не в текущей фазе**. Домен **`billing/`**: tier (`free` / `premium`), лимиты серверов,
+webhooks провайдера оплаты. Поле `users.tier` — на будущее; gating через Billing Management → Account Management.
 
 ---
 
@@ -566,7 +582,7 @@ erDiagram
 
 | Данные | Хранилище |
 | -------- | ----------- |
-| Пользователи, серверы, метаданные | PostgreSQL |
+| Пользователи, серверы, метаданные | MySQL |
 | Сессии, pub/sub Agent Hub, кэш | Redis |
 | Бэкапы, большие файлы, modpacks | **MinIO** (Self-Hosted) |
 | Логи (опционально) | Loki / Elasticsearch — TBD |
@@ -615,11 +631,11 @@ Legacy-систем **нет** — проект пишется с нуля. Вс
 flowchart TB
     subgraph qx [QXPlatform]
         Web[QXWeb]
-        Launcher[Launcher]
-        Auth[Auth Service]
+        Launcher[QXLauncher]
+        AccountMgmt[Account Management]
         ModpackSvc[Modpack Service]
         McMeta[mc-manifest]
-        Cache[(PostgreSQL + MinIO cache)]
+        Cache[(MySQL + MinIO cache)]
     end
 
     subgraph external [Внешние API]
@@ -632,9 +648,9 @@ flowchart TB
     Web --> ModpackSvc
     Launcher --> ModpackSvc
     Launcher --> McMeta
-    Launcher --> Auth
+    Launcher --> AccountMgmt
 
-    Auth --> MS
+    AccountMgmt --> MS
     McMeta --> Mojang
     ModpackSvc --> CF
     ModpackSvc --> MR
@@ -644,7 +660,7 @@ flowchart TB
 
 | Интеграция | Назначение | Где используется |
 | ------------ | ------------ | ------------------ |
-| **Microsoft/Mojang** | OAuth, лицензионный вход, version manifest, assets, libraries | Auth, Launcher, `packages/mc-manifest` |
+| **Microsoft/Mojang** | OAuth, лицензионный вход, version manifest, assets, libraries | Account Management, QXLauncher, `internal/mc/manifest` |
 | **Modrinth** | Каталог modpacks (Fabric/Quilt) — **secondary** | Modpack Service |
 | **CurseForge** | Каталог modpacks — **primary** ([ADR-0007](./adr/0007-curseforge-priority.md)) | Modpack Service, Web-каталог |
 
@@ -704,7 +720,7 @@ sequenceDiagram
 **Особенности:**
 
 - **API Key** — есть у команды (env `CURSEFORGE_API_KEY`).
-- Rate limits — обязателен **кэш** на стороне QX (PostgreSQL metadata + MinIO files).
+- Rate limits — обязателен **кэш** на стороне QX (MySQL metadata + MinIO files).
 - Сильная сторона: **Forge / NeoForge** modpacks, крупные сборки.
 
 **Пакет:** `packages/integrations/curseforge`
@@ -765,7 +781,7 @@ flowchart LR
     MR[Modrinth API] --> AdapterMR[MR Adapter]
     AdapterCF --> Normalizer[QX Manifest Normalizer]
     AdapterMR --> Normalizer
-    Normalizer --> PG[(PostgreSQL)]
+    Normalizer --> DB[(MySQL)]
     Normalizer --> MinIO[(MinIO cache)]
     Normalizer --> Launcher[Launcher install]
 ```
@@ -773,7 +789,7 @@ flowchart LR
 | Шаг | Действие |
 | ----- | ---------- |
 | 1 | Поиск modpack: CF API first → MR if not found |
-| 2 | Backend fetch metadata, normalize → `QxModpackManifest`, save to PG |
+| 2 | Backend fetch metadata, normalize → `QxModpackManifest`, save to MySQL |
 | 3 | При install лаунчер запрашивает `GET /modpacks/{id}/manifest` |
 | 4 | Файлы: presigned MinIO URL если cached, иначе proxy-fetch → MinIO → presigned |
 | 5 | Launcher скачивает, verify hash, assemble instance |
@@ -783,7 +799,7 @@ flowchart LR
 | Данные | TTL | Хранилище |
 | -------- | ----- | ----------- |
 | Search results | 1–6 h | Redis |
-| Modpack metadata | 24 h | PostgreSQL |
+| Modpack metadata | 24 h | MySQL |
 | Mod/modpack files | Permanent (until update) | MinIO |
 
 ---
@@ -874,7 +890,7 @@ packages/
 | **Agent Hub (WSS)** | Долгоживущие соединения | 1 conn на сервер; консоль = steady stream |
 | **Web-панель** | REST + WS консоль | Админы (меньше DAU, но тяжёлые WS) |
 | **Auth** | Login, refresh, guest tokens | Волны при релизах / маркетинге |
-| **PostgreSQL** | CRUD users, instances, servers | Линейно с MAU |
+| **MySQL** | CRUD users, instances, servers | Линейно с MAU |
 
 **Вывод:** главный bottleneck при росте — **не API**, а **CDN/объектное хранилище** (modpacks) и **Agent Hub** (тысячи
 одновременных WSS).
@@ -891,14 +907,14 @@ flowchart TB
     subgraph vps [1× Self-Hosted VPS]
         Nginx[Nginx + Let's Encrypt]
         API[API + Agent Hub]
-        PG[(PostgreSQL)]
+        MySQL[(MySQL)]
         Redis[(Redis)]
         MinIO[(MinIO)]
         Web[Web static React SPA]
         Nginx --> API
         Nginx --> Web
         Nginx --> MinIO
-        API --> PG
+        API --> MySQL
         API --> Redis
         API --> MinIO
     end
@@ -912,7 +928,7 @@ flowchart TB
 | **VPS** | 1× 4–8 GB RAM, 2 vCPU, 80+ GB SSD (Hetzner, Timeweb, Selectel, домашний dedicated) |
 | **Orchestration** | **Docker Compose** — один `docker-compose.prod.yml` |
 | **Reverse proxy** | Nginx + Certbot (Let's Encrypt) |
-| **PostgreSQL** | Official Docker image, volume на SSD, **pg_dump cron** → локальный бэкап |
+| **MySQL** | Official Docker image, volume на SSD, **mysqldump cron** → локальный бэкап |
 | **Redis** | Official Docker image, AOF persistence |
 | **Object storage** | **MinIO** (modpacks, бэкапы, launcher builds) |
 | **Web** | React SPA static + Nginx |
@@ -923,9 +939,9 @@ flowchart TB
 
 | Компонент | Self-Hosted изменение |
 | ----------- | ------------------------- |
-| **Topology** | 2× VPS: **app** (API, Nginx, Redis) + **data** (PostgreSQL, MinIO) |
+| **Topology** | 2× VPS: **app** (API, Nginx, Redis) + **data** (MySQL, MinIO) |
 | **Load balancing** | Nginx upstream на 2 app-ноды **или** второй app-VPS |
-| **PostgreSQL** | Отдельный VPS; PgBouncer на app-ноде; daily pg_dump + offsite copy |
+| **MySQL** | Отдельный VPS; pool на app-ноде (GORM / ProxySQL); daily mysqldump + offsite copy |
 | **MinIO** | Dedicated disk / второй VPS; Nginx `proxy_pass` для downloads |
 | **Backups** | Restic → второй VPS / NAS / внешний HDD |
 | **Стоимость** | **$30–80/мес** (2–3 VPS) |
@@ -935,7 +951,7 @@ flowchart TB
 | Компонент | Self-Hosted изменение |
 | ----------- | ------------------------- |
 | **App tier** | 2–3 VPS с API; Redis pub/sub для Agent Hub |
-| **PostgreSQL** | Primary + **streaming replica** на втором VPS (read-only) |
+| **MySQL** | Primary + **replica** на втором VPS (read-only) |
 | **MinIO** | Distributed mode (4 drives) **или** отдельный storage VPS с большим диском |
 | **Modpack mirror** | Nginx cache / второй MinIO node для разгрузки downloads |
 | **Observability** | Prometheus + Grafana (self-hosted stack) |
@@ -956,7 +972,7 @@ flowchart TB
 | Managed-сервис | Self-Hosted замена |
 | ---------------- | ------------------- |
 | AWS S3 / Yandex Object Storage | **MinIO** |
-| RDS / Supabase / Neon | **PostgreSQL** в Docker |
+| Managed cloud DB | **MySQL** в Docker (self-hosted) |
 | ElastiCache | **Redis** в Docker |
 | Kubernetes (EKS/GKE) | **Docker Compose** → позже **k3s** на своих VPS |
 | Vercel / Netlify | Nginx + React static |
@@ -970,8 +986,8 @@ flowchart TB
 | **Presigned URLs для modpacks** | MinIO presigned URL — API не проксирует гигабайты |
 | **Launcher: local cache + delta updates** | Снижает повторные загрузки (как TLauncher/KLauncher) |
 | **Agent: reconnect + backoff** | Устойчивость при кратковременных падениях API |
-| **Guest device token** | Не создавать User row в PG до регистрации — экономия на «скачал и ушёл» |
-| **Connection pooling** | PgBouncer обязателен с Tier 1 |
+| **Guest device token** | Не создавать User row в MySQL до регистрации — экономия на «скачал и ушёл» |
+| **Connection pooling** | Pool обязателен с Tier 1 (GORM / ProxySQL) |
 
 ### 8.6 Метрики для принятия решений о scale-up
 
@@ -981,14 +997,14 @@ flowchart TB
 | --------- | ------------------------------- |
 | API p95 latency | > 500 ms стабильно |
 | CPU VPS / pod | > 70% sustained |
-| PostgreSQL connections | > 80% pool |
+| MySQL connections | > 80% pool |
 | Concurrent Agent WSS | > 500 на одном инстансе |
 | CDN egress | > лимита тарифа или > $X/мес |
 | Modpack download errors | > 1% |
 
 ---
 
-| Disk I/O (MinIO/PG) | > 80% sustained |
+| Disk I/O (MinIO/MySQL) | > 80% sustained |
 | Modpack download errors | > 1% |
 
 ---
@@ -1007,7 +1023,7 @@ infra/
 │       ├── nginx.conf
 │       └── conf.d/qx.conf          # api.*, panel.*, cdn.*
 ├── scripts/
-│   ├── backup.sh                   # pg_dump + restic
+│   ├── backup.sh                   # mysqldump + restic
 │   ├── restore.sh
 │   └── deploy.sh                   # pull + compose up
 └── ansible/                        # Tier 1+: provisioning VPS (TBD)
@@ -1020,7 +1036,7 @@ infra/
 | `nginx` | nginx:alpine | 80, 443 | `./nginx`, certs |
 | `api` | qx-api:latest | 3000 | — |
 | `web` | qx-web:latest | 3001 | — |
-| `postgres` | postgres:16 | 5432 | `pg_data` |
+| `mysql` | mysql:8 | 3306 | `mysql_data` |
 | `redis` | redis:7-alpine | 6379 | `redis_data` |
 | `minio` | minio/minio | 9000, 9001 | `minio_data` |
 | `uptime-kuma` | louislam/uptime-kuma | 3002 | `kuma_data` |
@@ -1039,14 +1055,14 @@ infra/
 - **Let's Encrypt** через Certbot (auto-renew cron).
 - Firewall: только 80/443 наружу; SSH по ключу, non-default port.
 - MinIO: bucket policy public-read только для `cdn/` prefix.
-- PostgreSQL / Redis: **не** expose наружу, только docker network.
+- MySQL / Redis: **не** expose наружу, только docker network.
 - Secrets: `.env` на сервере, не в git; `docker secret` при переходе на swarm/k3s.
 
 ### 9.4 Бэкапы (обязательно для Self-Hosted)
 
 | Что | Как часто | Куда |
 | ----- | ----------- | ------ |
-| PostgreSQL | Daily | Restic → второй VPS / NAS |
+| MySQL | Daily | Restic → второй VPS / NAS |
 | MinIO buckets | Daily incremental | Restic |
 | `.env`, nginx configs | On change | Git (private) + encrypted backup |
 | Launcher builds | On release | MinIO versioning |
@@ -1072,13 +1088,13 @@ flowchart TB
         Nginx[Nginx :443]
         API[qx-api]
         Web[qx-web]
-        PG[(PostgreSQL)]
+        MySQL[(MySQL)]
         Redis[(Redis)]
         MinIO[(MinIO)]
         Nginx --> Web
         Nginx --> API
         Nginx --> MinIO
-        API --> PG
+        API --> MySQL
         API --> Redis
         API --> MinIO
     end
@@ -1211,7 +1227,7 @@ flowchart TB
 
 | Фаза | Scope | Срок (Senior + Junior) | Milestone |
 | ------ | ------- | ------------------------ | ----------- |
-| **Phase 0** | API auth, PG, Web login/register | **6–8 недель** | Можно зарегистрироваться |
+| **Phase 0** | API auth, MySQL, Web login/register | **6–8 недель** | Можно зарегистрироваться |
 | **Phase 1** | Agent MVP + panel start/stop/console | **8–12 недель** | Сервер управляется из web |
 | **Phase 2** | Launcher Win, Vanilla, guest + auth | **10–14 недель** | Скачал → создал инстанс → играет |
 | **Alpha** | Связка всех 3 сценариев, bugfix | **4–6 недель** | Закрытая beta |
@@ -1253,7 +1269,7 @@ gantt
 
 ### Phase 0 — Foundation *(6–8 нед, Senior + Junior UI)*
 
-- [ ] API scaffold + PostgreSQL + Redis *(Senior)*
+- [ ] API scaffold + MySQL + Redis *(Senior)*
 - [ ] Auth: QX register/login *(Senior API + Junior forms)*
 - [ ] Web UI: login, register, profile *(Junior)*
 - [ ] Docker Compose dev env *(Senior)*

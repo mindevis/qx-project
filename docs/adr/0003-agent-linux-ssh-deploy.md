@@ -11,7 +11,7 @@ BYOS серверы — преимущественно Linux VPS. Ручной p
 
 - Agent **только Linux** (systemd).
 - Установка: **backend SSH job** — upload binary, systemd unit, start.
-- SSH private key хранится encrypted в PostgreSQL.
+- SSH private key хранится encrypted в MySQL.
 
 ## Rationale
 

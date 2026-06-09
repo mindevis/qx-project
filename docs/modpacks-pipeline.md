@@ -12,7 +12,7 @@ flowchart LR
     CF[CurseForge API] --> Importer
     MR[Modrinth API] --> Importer
     Importer --> Norm[QX Manifest Normalizer]
-    Norm --> PG[(PostgreSQL)]
+    Norm --> DB[(MySQL)]
     Norm --> MinIO[(Private MinIO)]
     Web[/launcher] --> API
     Tray[QXLauncher] --> API[QXApi]
@@ -50,7 +50,7 @@ flowchart LR
 | Object | Visibility | TTL |
 | -------- | ------------ | ----- |
 | `modpacks/**` | Private | Until project removed from CF |
-| Metadata | PG refresh | 24h revalidate |
+| Metadata | MySQL refresh | 24h revalidate |
 
 Presigned URL TTL: **15 minutes** for tray/agent download.
 

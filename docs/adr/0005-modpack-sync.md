@@ -10,7 +10,7 @@
 ## Decision
 
 - Единый `modpack_id` на `launcher_instances` и `servers`.
-- Один `QxModpackManifest` + `manifest_sha256` в PostgreSQL.
+- Один `QxModpackManifest` + `manifest_sha256` в MySQL.
 - Client: Go launcher install.
 - Server: agent `cmd.modpack.install` with hash verification.
 

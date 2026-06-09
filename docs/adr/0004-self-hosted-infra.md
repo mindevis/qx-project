@@ -5,7 +5,7 @@
 
 ## Decision
 
-Production: **Docker Compose** on own VPS — Nginx, API, Web SPAs, PostgreSQL, Redis, MinIO.
+Production: **Docker Compose** on own VPS — Nginx, API, Web SPAs, MySQL, Redis, MinIO.
 
 ## Rationale
 

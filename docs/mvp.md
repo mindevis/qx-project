@@ -51,7 +51,7 @@ MVP считается готовым, когда:
 | **Agent** | Go, **Linux only**, SSH deploy, systemd |
 | **Launcher tray** | Go — link, launch-bridge poll, JVM, Mojang Java, notifications |
 | **Интеграции** | **Mojang** manifest + assets (Vanilla) |
-| **Infra** | Docker Compose: API, Web, PG, Redis, MinIO, Nginx |
+| **Infra** | Docker Compose: API, Web, MySQL, Redis, MinIO, Nginx |
 
 ### ❌ Вне MVP (v2+)
 
@@ -75,7 +75,7 @@ MVP считается готовым, когда:
 ### Flow A — Registered player
 
 ```text
-Register + Login (Web) → Download tray → Link device (JWT confirm on /launcher/link)
+Register + Login (QXWeb) → Download QXLauncher → Link device (JWT confirm on /launcher/link)
 → Create instance on /launcher (Vanilla) → POST launch-request
 → Local or QX profile → Tray spawns JVM
 ```
@@ -111,7 +111,7 @@ flowchart TB
     end
 
     subgraph mvp_data [MVP Data]
-        PG[(PostgreSQL)]
+        MySQL[(MySQL)]
         Redis[(Redis)]
         MinIO[(MinIO)]
     end
@@ -124,7 +124,7 @@ flowchart TB
     Web --> API
     Launcher --> API
     API --> Auth
-    API --> PG
+    API --> MySQL
     API --> Redis
     API --> MinIO
     API <-->|WSS| Agent
@@ -209,7 +209,7 @@ Agent         — id, server_id, hostname, connected_at
 | `nginx` | TLS, reverse proxy |
 | `api` | Backend + Agent Hub |
 | `web` | Nuxt |
-| `postgres` | Данные |
+| `mysql` | Данные |
 | `redis` | Sessions, pub/sub |
 | `minio` | Launcher builds, instance assets cache |
 
@@ -234,7 +234,7 @@ Agent         — id, server_id, hostname, connected_at
 | --- | -------- | --------------- |
 | 0.1 | Monorepo scaffold (`pnpm`, apps/api, apps/web) | Senior |
 | 0.2 | Docker Compose dev | Senior |
-| 0.3 | PostgreSQL schema: users | Senior |
+| 0.3 | MySQL schema: users | Senior |
 | 0.4 | Auth API: register, login, JWT | Senior |
 | 0.5 | Web: login, register, profile | Junior |
 | 0.6 | CI: lint + build (optional) | Senior |
@@ -345,7 +345,7 @@ gantt
 | [architecture.md](./architecture.md) | Полная архитектура |
 | [api.md](./api.md) | REST + WebSocket API |
 | [agent-protocol.md](./agent-protocol.md) | Agent WSS, SSH deploy, idempotency |
-| [schema.sql](./schema.sql) | PostgreSQL DDL |
+| [schema.sql](./schema.sql) | MySQL DDL |
 | [qa/test-matrix.md](./qa/test-matrix.md) | QA alpha |
 | [adr/](./adr/) | ADR |
 

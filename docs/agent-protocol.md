@@ -345,7 +345,7 @@ flowchart TB
 | Rule | Implementation |
 | ------ | ---------------- |
 | Agent token rotation | On redeploy; old token revoked |
-| SSH keys encrypted at rest | AES-GCM in PostgreSQL |
+| SSH keys encrypted at rest | AES-GCM in MySQL |
 | File sandbox | chroot-like prefix `/opt/qx/server` |
 | Command RBAC | owner/admin: all; viewer: console read-only |
 | TLS | WSS only in production |

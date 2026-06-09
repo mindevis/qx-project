@@ -11,7 +11,7 @@
 | **Nginx** | TLS termination, static, rate limit |
 | **Uptime Kuma** | HTTP/TCP checks, status page |
 | **Netdata** (optional) | VPS metrics |
-| **PostgreSQL** | App + audit logs |
+| **MySQL** | App + audit logs |
 | **MinIO** | Files, releases, modpack cache |
 
 No Prometheus in MVP — add at Tier 1.
@@ -45,7 +45,7 @@ Structured JSON logs from Go (`slog`):
 | ------- | ---------- |
 | `https://api.qx.example.com/health` | 60s |
 | `https://qx.example.com` | 60s |
-| PostgreSQL TCP | 5m |
+| MySQL TCP | 5m |
 | Disk > 85% | daily script |
 
 Notify: Telegram bot / email (SMTP post-MVP).
@@ -59,15 +59,15 @@ Notify: Telegram bot / email (SMTP post-MVP).
 1. `docker compose ps`
 2. `docker compose logs api --tail 100`
 3. Restart: `docker compose restart api`
-4. If PG: check connections
+4. If MySQL: check connections
 
-### 4.2 Restore PostgreSQL
+### 4.2 Restore MySQL
 
 ```bash
-pg_restore -d qx < backup.dump
+mysql -u qx -p qx < backup.sql
 ```
 
-Weekly `pg_dump` via cron → Restic offsite.
+Weekly `mysqldump` via cron → Restic offsite.
 
 ### 4.3 Agent mass disconnect
 
@@ -94,7 +94,7 @@ GET /health/ready  → DB + Redis + MinIO ping
 
 | What | Schedule | Where |
 | ------ | ---------- | ------- |
-| PostgreSQL | Daily 03:00 | Restic → second VPS / NAS |
+| MySQL | Daily 03:00 | Restic → second VPS / NAS |
 | MinIO | Daily incremental | same |
 | `.env`, nginx | on change | private git |
 

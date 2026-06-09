@@ -16,7 +16,7 @@ SPA-экосистема для UI.
 | QXApi | Go, Gin, GORM |
 | QXLauncher | Go |
 | QXAgent | Go |
-| DB | PostgreSQL, Redis, MinIO |
+| DB | MySQL, Redis, MinIO |
 
 ## Rationale
 

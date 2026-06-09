@@ -80,7 +80,7 @@
 | ---- | ---------- | ---------- | ----- |
 | N01 | Docker Compose prod | all services up | ☑ |
 | N02 | TLS | HTTPS valid | ☑ |
-| N03 | PG backup restore | data intact | ⊘ |
+| N03 | MySQL backup restore | data intact | ⊘ |
 | N04 | Agent non-Linux | deploy to Windows — fail gracefully (Linux only) | ☑ |
 
 ---

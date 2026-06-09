@@ -1,123 +1,125 @@
 -- QXProject initial schema
--- PostgreSQL 16+
+-- MySQL 8.0+
 
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
 
 -- ---------------------------------------------------------------------------
 -- Users
 -- ---------------------------------------------------------------------------
 
-CREATE TYPE user_tier AS ENUM ('free', 'premium');
-
 CREATE TABLE users (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     email           VARCHAR(255) NOT NULL UNIQUE,
     password_hash   VARCHAR(255) NOT NULL,
-    username        VARCHAR(32),
-    tier            user_tier NOT NULL DEFAULT 'free',
-    skin_url        TEXT,
-    cape_url        TEXT,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    username        VARCHAR(32) NULL,
+    tier            ENUM('free', 'premium') NOT NULL DEFAULT 'free',
+    skin_url        TEXT NULL,
+    cape_url        TEXT NULL,
+    totp_secret_enc BLOB NULL,
+    totp_enabled    TINYINT(1) NOT NULL DEFAULT 0,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_users_email ON users (email);
-
--- ---------------------------------------------------------------------------
--- Launcher devices (mandatory site linking)
--- ---------------------------------------------------------------------------
-
-CREATE TYPE device_link_status AS ENUM ('pending_link', 'linked', 'expired', 'revoked');
-
-CREATE TABLE launcher_devices (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    device_id       UUID NOT NULL UNIQUE,
-    user_id         UUID REFERENCES users (id) ON DELETE SET NULL,
-    guest_session_id UUID REFERENCES guest_sessions (id) ON DELETE SET NULL,
-    status          device_link_status NOT NULL DEFAULT 'pending_link',
-    user_code       VARCHAR(16),
-    device_token_hash VARCHAR(255),
-    hostname        VARCHAR(255),
-    os              VARCHAR(64),
-    launcher_version VARCHAR(32),
-    link_expires_at TIMESTAMPTZ,
-    linked_at       TIMESTAMPTZ,
-    last_seen_at    TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT device_owner CHECK (
-        (user_id IS NOT NULL AND guest_session_id IS NULL) OR
-        (user_id IS NULL AND guest_session_id IS NOT NULL) OR
-        (user_id IS NULL AND guest_session_id IS NULL AND status = 'pending_link')
-    )
-);
-
-CREATE INDEX idx_launcher_devices_status ON launcher_devices (status);
-CREATE INDEX idx_launcher_devices_user_code ON launcher_devices (user_code) WHERE status = 'pending_link';
 
 -- ---------------------------------------------------------------------------
 -- Guest sessions
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE guest_sessions (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    device_id       VARCHAR(64) NOT NULL UNIQUE,
+    id               CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    device_id        VARCHAR(64) NOT NULL UNIQUE,
     guest_token_hash VARCHAR(255) NOT NULL,
-    expires_at      TIMESTAMPTZ NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    expires_at       TIMESTAMP NOT NULL,
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- Launcher devices (mandatory site linking)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE launcher_devices (
+    id                CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    device_id         CHAR(36) NOT NULL UNIQUE,
+    user_id           CHAR(36) NULL,
+    guest_session_id  CHAR(36) NULL,
+    status            ENUM('pending_link', 'linked', 'expired', 'revoked') NOT NULL DEFAULT 'pending_link',
+    user_code         VARCHAR(16) NULL,
+    device_token_hash VARCHAR(255) NULL,
+    hostname          VARCHAR(255) NULL,
+    os                VARCHAR(64) NULL,
+    launcher_version  VARCHAR(32) NULL,
+    link_expires_at   TIMESTAMP NULL,
+    linked_at         TIMESTAMP NULL,
+    last_seen_at      TIMESTAMP NULL,
+    created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_launcher_devices_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
+    CONSTRAINT fk_launcher_devices_guest FOREIGN KEY (guest_session_id) REFERENCES guest_sessions (id) ON DELETE SET NULL,
+    CONSTRAINT device_owner CHECK (
+        (user_id IS NOT NULL AND guest_session_id IS NULL) OR
+        (user_id IS NULL AND guest_session_id IS NOT NULL) OR
+        (user_id IS NULL AND guest_session_id IS NULL AND status = 'pending_link')
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_launcher_devices_status ON launcher_devices (status);
+CREATE INDEX idx_launcher_devices_user_code ON launcher_devices (user_code, status);
 
 -- ---------------------------------------------------------------------------
 -- Mojang link (post-MVP)
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE mojang_links (
-    user_id         UUID PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
-    minecraft_uuid  UUID NOT NULL,
-    username        VARCHAR(16) NOT NULL,
-    access_token_enc BYTEA,
-    refresh_token_enc BYTEA,
-    linked_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    user_id           CHAR(36) PRIMARY KEY,
+    minecraft_uuid    CHAR(36) NOT NULL,
+    username          VARCHAR(16) NOT NULL,
+    access_token_enc  BLOB NULL,
+    refresh_token_enc BLOB NULL,
+    linked_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_mojang_links_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
 -- Offline profiles (Local accounts in launcher)
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE offline_profiles (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID REFERENCES users (id) ON DELETE CASCADE,
-    guest_session_id UUID REFERENCES guest_sessions (id) ON DELETE CASCADE,
-    username        VARCHAR(16) NOT NULL,
-    offline_uuid    UUID NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    id               CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id          CHAR(36) NULL,
+    guest_session_id CHAR(36) NULL,
+    username         VARCHAR(16) NOT NULL,
+    offline_uuid     CHAR(36) NOT NULL,
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_offline_profiles_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_offline_profiles_guest FOREIGN KEY (guest_session_id) REFERENCES guest_sessions (id) ON DELETE CASCADE,
     CONSTRAINT offline_profile_owner CHECK (
         (user_id IS NOT NULL AND guest_session_id IS NULL) OR
         (user_id IS NULL AND guest_session_id IS NOT NULL)
     )
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
 -- Modpacks
 -- ---------------------------------------------------------------------------
 
-CREATE TYPE modpack_source AS ENUM ('curseforge', 'modrinth', 'qx_custom');
-CREATE TYPE mc_loader AS ENUM ('vanilla', 'forge', 'neoforge', 'fabric', 'quilt');
-
 CREATE TABLE modpacks (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              CHAR(36) PRIMARY KEY DEFAULT (UUID()),
     name            VARCHAR(255) NOT NULL,
-    source          modpack_source NOT NULL,
+    source          ENUM('curseforge', 'modrinth', 'qx_custom') NOT NULL,
     external_id     VARCHAR(64) NOT NULL,
     mc_version      VARCHAR(16) NOT NULL,
-    loader          mc_loader NOT NULL,
-    loader_version  VARCHAR(32),
-    manifest        JSONB NOT NULL DEFAULT '{}',
+    loader          ENUM('vanilla', 'forge', 'neoforge', 'fabric', 'quilt') NOT NULL,
+    loader_version  VARCHAR(32) NULL,
+    manifest        JSON NOT NULL DEFAULT (JSON_OBJECT()),
     manifest_sha256 CHAR(64) NOT NULL,
-    author_id       UUID REFERENCES users (id) ON DELETE SET NULL,
+    author_id       CHAR(36) NULL,
     visibility      VARCHAR(16) NOT NULL DEFAULT 'public',
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_modpacks_author FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_modpacks_source_external ON modpacks (source, external_id);
 
@@ -126,23 +128,29 @@ CREATE INDEX idx_modpacks_source_external ON modpacks (source, external_id);
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE launcher_instances (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID REFERENCES users (id) ON DELETE CASCADE,
-    guest_session_id UUID REFERENCES guest_sessions (id) ON DELETE CASCADE,
-    name            VARCHAR(128) NOT NULL,
-    mc_version      VARCHAR(16) NOT NULL,
-    loader          mc_loader NOT NULL DEFAULT 'vanilla',
-    loader_version  VARCHAR(32),
-    modpack_id      UUID REFERENCES modpacks (id) ON DELETE SET NULL,
-    java_path       TEXT,
-    jvm_args        JSONB NOT NULL DEFAULT '[]',
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    id               CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id          CHAR(36) NULL,
+    guest_session_id CHAR(36) NULL,
+    name             VARCHAR(128) NOT NULL,
+    mc_version       VARCHAR(16) NOT NULL,
+    loader           ENUM('vanilla', 'forge', 'neoforge', 'fabric', 'quilt') NOT NULL DEFAULT 'vanilla',
+    loader_version   VARCHAR(32) NULL,
+    modpack_id       CHAR(36) NULL,
+    java_path        TEXT NULL,
+    jvm_args         JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    mods             JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    resource_packs   JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    shaders          JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_instances_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_instances_guest FOREIGN KEY (guest_session_id) REFERENCES guest_sessions (id) ON DELETE CASCADE,
+    CONSTRAINT fk_instances_modpack FOREIGN KEY (modpack_id) REFERENCES modpacks (id) ON DELETE SET NULL,
     CONSTRAINT instance_owner CHECK (
         (user_id IS NOT NULL AND guest_session_id IS NULL) OR
         (user_id IS NULL AND guest_session_id IS NOT NULL)
     )
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_instances_user ON launcher_instances (user_id);
 CREATE INDEX idx_instances_guest ON launcher_instances (guest_session_id);
@@ -152,54 +160,47 @@ CREATE INDEX idx_instances_modpack ON launcher_instances (modpack_id);
 -- Servers (BYOS)
 -- ---------------------------------------------------------------------------
 
-CREATE TYPE server_type AS ENUM (
-    'vanilla', 'paper', 'spigot', 'purpur',
-    'forge', 'neoforge', 'fabric', 'quilt', 'hybrid'
-);
-
-CREATE TYPE server_status AS ENUM (
-    'pending', 'deploying', 'offline', 'starting', 'online', 'stopping', 'error'
-);
-
 CREATE TABLE servers (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_id        UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    name            VARCHAR(128) NOT NULL,
-    slug            VARCHAR(64) NOT NULL,
-    server_type     server_type NOT NULL DEFAULT 'vanilla',
-    status          server_status NOT NULL DEFAULT 'pending',
-    online_mode     BOOLEAN NOT NULL DEFAULT FALSE,
-    modpack_id      UUID REFERENCES modpacks (id) ON DELETE SET NULL,
-    mc_version      VARCHAR(16),
-    loader          mc_loader,
-    is_public       BOOLEAN NOT NULL DEFAULT FALSE,
-    public_address  VARCHAR(255),
-    public_description TEXT,
-    config          JSONB NOT NULL DEFAULT '{}',
-    agent_token_hash VARCHAR(255),
-    last_seen_at    TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (owner_id, slug)
-);
+    id                 CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    owner_id           CHAR(36) NOT NULL,
+    name               VARCHAR(128) NOT NULL,
+    slug               VARCHAR(64) NOT NULL,
+    server_type        ENUM('vanilla', 'paper', 'spigot', 'purpur', 'forge', 'neoforge', 'fabric', 'quilt', 'hybrid') NOT NULL DEFAULT 'vanilla',
+    status             ENUM('pending', 'deploying', 'offline', 'starting', 'online', 'stopping', 'error') NOT NULL DEFAULT 'pending',
+    online_mode        TINYINT(1) NOT NULL DEFAULT 0,
+    modpack_id         CHAR(36) NULL,
+    mc_version         VARCHAR(16) NULL,
+    loader             ENUM('vanilla', 'forge', 'neoforge', 'fabric', 'quilt') NULL,
+    is_public          TINYINT(1) NOT NULL DEFAULT 0,
+    public_address     VARCHAR(255) NULL,
+    public_description TEXT NULL,
+    config             JSON NOT NULL DEFAULT (JSON_OBJECT()),
+    agent_token_hash   VARCHAR(255) NULL,
+    last_seen_at       TIMESTAMP NULL,
+    created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_servers_owner_slug (owner_id, slug),
+    CONSTRAINT fk_servers_owner FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_servers_modpack FOREIGN KEY (modpack_id) REFERENCES modpacks (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_servers_owner ON servers (owner_id);
-CREATE INDEX idx_servers_public ON servers (is_public) WHERE is_public = TRUE;
+CREATE INDEX idx_servers_public ON servers (is_public);
 CREATE INDEX idx_servers_modpack ON servers (modpack_id);
 
 -- ---------------------------------------------------------------------------
 -- Server members (multi-admin)
 -- ---------------------------------------------------------------------------
 
-CREATE TYPE server_role AS ENUM ('owner', 'admin', 'viewer');
-
 CREATE TABLE server_members (
-    server_id       UUID NOT NULL REFERENCES servers (id) ON DELETE CASCADE,
-    user_id         UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    role            server_role NOT NULL DEFAULT 'viewer',
-    invited_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (server_id, user_id)
-);
+    server_id  CHAR(36) NOT NULL,
+    user_id    CHAR(36) NOT NULL,
+    role       ENUM('owner', 'admin', 'viewer') NOT NULL DEFAULT 'viewer',
+    invited_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (server_id, user_id),
+    CONSTRAINT fk_server_members_server FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE,
+    CONSTRAINT fk_server_members_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_server_members_user ON server_members (user_id);
 
@@ -208,153 +209,116 @@ CREATE INDEX idx_server_members_user ON server_members (user_id);
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE ssh_credentials (
-    server_id       UUID PRIMARY KEY REFERENCES servers (id) ON DELETE CASCADE,
+    server_id       CHAR(36) PRIMARY KEY,
     host            VARCHAR(255) NOT NULL,
     port            INT NOT NULL DEFAULT 22,
     username        VARCHAR(64) NOT NULL,
-    private_key_enc BYTEA NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    private_key_enc BLOB NOT NULL,
+    created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_ssh_credentials_server FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
 -- Agents
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE agents (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    server_id       UUID NOT NULL UNIQUE REFERENCES servers (id) ON DELETE CASCADE,
-    hostname        VARCHAR(255),
-    os              VARCHAR(64) NOT NULL DEFAULT 'linux',
-    agent_version   VARCHAR(32),
-    connected_at    TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    id            CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    server_id     CHAR(36) NOT NULL UNIQUE,
+    hostname      VARCHAR(255) NULL,
+    os            VARCHAR(64) NOT NULL DEFAULT 'linux',
+    agent_version VARCHAR(32) NULL,
+    connected_at  TIMESTAMP NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_agents_server FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
--- Agent command idempotency log (optional server-side mirror)
+-- Agent command idempotency log
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE agent_command_log (
-    request_id      UUID PRIMARY KEY,
-    server_id       UUID NOT NULL REFERENCES servers (id) ON DELETE CASCADE,
-    command_type    VARCHAR(64) NOT NULL,
-    response        JSONB,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    request_id   CHAR(36) PRIMARY KEY,
+    server_id    CHAR(36) NOT NULL,
+    command_type VARCHAR(64) NOT NULL,
+    response     JSON NULL,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_agent_cmd_log_server FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE INDEX idx_agent_cmd_log_server ON agent_command_log (server_id, created_at DESC);
+CREATE INDEX idx_agent_cmd_log_server ON agent_command_log (server_id, created_at);
 
 -- ---------------------------------------------------------------------------
 -- Backups
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE server_backups (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    server_id       UUID NOT NULL REFERENCES servers (id) ON DELETE CASCADE,
-    storage_key     VARCHAR(512) NOT NULL,
-    size_bytes      BIGINT NOT NULL,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    id          CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    server_id   CHAR(36) NOT NULL,
+    storage_key VARCHAR(512) NOT NULL,
+    size_bytes  BIGINT NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_server_backups_server FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
 -- Deploy jobs
 -- ---------------------------------------------------------------------------
 
-CREATE TYPE deploy_status AS ENUM ('queued', 'running', 'success', 'failed');
-
 CREATE TABLE deploy_jobs (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    server_id       UUID NOT NULL REFERENCES servers (id) ON DELETE CASCADE,
-    status          deploy_status NOT NULL DEFAULT 'queued',
-    log             TEXT,
-    started_at      TIMESTAMPTZ,
-    finished_at     TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    id          CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    server_id   CHAR(36) NOT NULL,
+    status      ENUM('queued', 'running', 'success', 'failed') NOT NULL DEFAULT 'queued',
+    log         TEXT NULL,
+    started_at  TIMESTAMP NULL,
+    finished_at TIMESTAMP NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_deploy_jobs_server FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------------
 -- Launch requests (site → tray bridge)
 -- ---------------------------------------------------------------------------
 
-CREATE TYPE launch_status AS ENUM (
-    'queued', 'dispatched', 'running', 'completed', 'failed', 'expired'
-);
-
 CREATE TABLE launch_requests (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    device_id       UUID NOT NULL REFERENCES launcher_devices (device_id),
-    instance_id     UUID NOT NULL REFERENCES launcher_instances (id) ON DELETE CASCADE,
-    offline_profile_id UUID REFERENCES offline_profiles (id),
-    status          launch_status NOT NULL DEFAULT 'queued',
-    pid             INT,
-    exit_code       INT,
-    error_code      VARCHAR(64),
-    expires_at      TIMESTAMPTZ NOT NULL,
-    dispatched_at   TIMESTAMPTZ,
-    completed_at    TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    id                 CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    device_id          CHAR(36) NOT NULL,
+    instance_id        CHAR(36) NOT NULL,
+    offline_profile_id CHAR(36) NULL,
+    status             ENUM('queued', 'dispatched', 'running', 'completed', 'failed', 'expired') NOT NULL DEFAULT 'queued',
+    pid                INT NULL,
+    exit_code          INT NULL,
+    error_code         VARCHAR(64) NULL,
+    expires_at         TIMESTAMP NOT NULL,
+    dispatched_at      TIMESTAMP NULL,
+    completed_at       TIMESTAMP NULL,
+    created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_launch_requests_device FOREIGN KEY (device_id) REFERENCES launcher_devices (device_id),
+    CONSTRAINT fk_launch_requests_instance FOREIGN KEY (instance_id) REFERENCES launcher_instances (id) ON DELETE CASCADE,
+    CONSTRAINT fk_launch_requests_profile FOREIGN KEY (offline_profile_id) REFERENCES offline_profiles (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE INDEX idx_launch_pending ON launch_requests (device_id, status)
-    WHERE status = 'queued';
+CREATE INDEX idx_launch_pending ON launch_requests (device_id, status);
 
 -- ---------------------------------------------------------------------------
 -- Audit log (append-only)
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE audit_logs (
-    id              BIGSERIAL PRIMARY KEY,
-    action          VARCHAR(64) NOT NULL,
-    actor_id        UUID,
-    actor_type      VARCHAR(16),
-    resource_type   VARCHAR(32),
-    resource_id     UUID,
-    metadata        JSONB NOT NULL DEFAULT '{}',
-    ip              INET,
-    user_agent      TEXT,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+    id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    action        VARCHAR(64) NOT NULL,
+    actor_id      CHAR(36) NULL,
+    actor_type    VARCHAR(16) NULL,
+    resource_type VARCHAR(32) NULL,
+    resource_id   CHAR(36) NULL,
+    metadata      JSON NOT NULL DEFAULT (JSON_OBJECT()),
+    ip            VARCHAR(45) NULL,
+    user_agent    TEXT NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE INDEX idx_audit_actor ON audit_logs (actor_id, created_at DESC);
+CREATE INDEX idx_audit_actor ON audit_logs (actor_id, created_at);
 CREATE INDEX idx_audit_resource ON audit_logs (resource_type, resource_id);
 
--- ---------------------------------------------------------------------------
--- User 2FA (post-MVP)
--- ---------------------------------------------------------------------------
-
-ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret_enc BYTEA;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE;
-
--- ---------------------------------------------------------------------------
--- Instance attachments (mods, shaders, resource packs — registered users)
--- ---------------------------------------------------------------------------
-
-ALTER TABLE launcher_instances ADD COLUMN IF NOT EXISTS mods JSONB NOT NULL DEFAULT '[]';
-ALTER TABLE launcher_instances ADD COLUMN IF NOT EXISTS resource_packs JSONB NOT NULL DEFAULT '[]';
-ALTER TABLE launcher_instances ADD COLUMN IF NOT EXISTS shaders JSONB NOT NULL DEFAULT '[]';
-
--- ---------------------------------------------------------------------------
--- Trigger: updated_at
--- ---------------------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER tr_users_updated BEFORE UPDATE ON users
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER tr_instances_updated BEFORE UPDATE ON launcher_instances
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER tr_servers_updated BEFORE UPDATE ON servers
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-CREATE TRIGGER tr_modpacks_updated BEFORE UPDATE ON modpacks
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
--- ---------------------------------------------------------------------------
--- Seed: auto-add owner as server_members row (app layer or trigger TBD)
--- ---------------------------------------------------------------------------
+SET FOREIGN_KEY_CHECKS = 1;
