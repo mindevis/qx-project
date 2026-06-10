@@ -26,6 +26,6 @@ SPA-экосистема для UI.
 
 ## Consequences
 
-- Monorepo Go modules + `web/panel-ui` + `web/launcher-ui`.
+- Monorepo Go modules + `web/panel-ui` (QXWeb, включая маршруты `/launcher/*`).
 - Shared types в `pkg/protocol`.
 - Billing/post-MVP features не блокируют старт.

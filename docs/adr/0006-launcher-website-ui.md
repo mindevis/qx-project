@@ -26,7 +26,7 @@
 
 - Go app обязан: OS notifications, tray menu, poll link status.
 - CORS: site and API same origin or configured.
-- Game launch: site → `POST localhost:PORT/launch` или Go polls «pending launch» from API.
+- Game launch: site → `POST /launcher/launch-requests` → QXLauncher poll ([launch-bridge.md](../launch-bridge.md), [ADR-0008](./0008-launch-bridge-hybrid.md)).
 
 ## Relation to ADR-0002
 

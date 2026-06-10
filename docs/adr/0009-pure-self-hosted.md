@@ -13,7 +13,7 @@
 ## Consequences
 
 - Higher exposure to volumetric attacks — accept for MVP.
-- MinIO + Nginx serve launcher releases and server backups.
+- MinIO + Nginx serve launcher releases, server backups, skins — **not** client/server modpack files ([ADR-0011](./0011-client-local-content-install.md)).
 - Document egress IP for SSH deploy allowlists.
 
 See [observability-ops.md](../observability-ops.md).

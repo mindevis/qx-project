@@ -219,9 +219,10 @@ No Cloudflare — all security on VPS:
 | ---------- | ---------------- | ------------ | ------------------ |
 | Vanilla instance | ✓ | ✓ | ✓ |
 | Mods/shaders/resource packs | ✗ | ✓ | ✓ |
-| Modpacks | ✗ | ✓ | ✓ |
-| Skins upload | ✗ | ✓ | ✓ |
+| Modpacks | ✗ | ✓ (post-MVP) | ✓ |
+| Skins upload | ✗ | ✓ (post-MVP) | ✓ |
 | BYOS servers | ✗ | ✓ | ✓+limits |
+| Server mods/plugins | ✗ | ✓ by `server_type` (post-MVP) | ✓ |
 | Public server list | read | read | read |
 
 ---
@@ -236,4 +237,4 @@ No Cloudflare — all security on VPS:
 
 ---
 
-*См. [ssh-deploy.md](./ssh-deploy.md), [launch-bridge.md](./launch-bridge.md)*
+*См. [ssh-deploy.md](./ssh-deploy.md), [launch-bridge.md](./launch-bridge.md), [server-content-install.md](./server-content-install.md)*

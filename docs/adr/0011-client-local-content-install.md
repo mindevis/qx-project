@@ -35,6 +35,6 @@ QXAgent устанавливает контент **на диск ноды** (п
 
 ## Consequences
 
-- `modpacks-pipeline.md` — без шага «upload to MinIO».
+- `modpacks-pipeline.md` — без шага «upload to MinIO»; server install — [server-content-install.md](../server-content-install.md).
 - CF/MR rate limits — кэш metadata в Redis/MySQL; файлы — retry на клиенте.
 - MVP может обойтись **без MinIO**, если нет auto-update builds и server backups.

@@ -321,7 +321,26 @@ QXAgent скачивает по URL на диск сервера, verify hash. *
 }
 ```
 
-### 6.5 Command result
+### 6.5 Content installed
+
+После `cmd.modpack.install`, `cmd.mods.install` или `cmd.plugins.install`:
+
+```json
+{
+  "v": 1,
+  "type": "evt.content.installed",
+  "request_id": "550e8400-...",
+  "payload": {
+    "kind": "mods",
+    "count": 3,
+    "target_dir": "mods"
+  }
+}
+```
+
+`kind`: `modpack` \| `mods` \| `plugins`
+
+### 6.6 Command result
 
 ```json
 {
@@ -354,6 +373,7 @@ Error:
 | `PROCESS_NOT_RUNNING` | Stop while stopped |
 | `MODPACK_HASH_MISMATCH` | Manifest sha256 mismatch |
 | `DOWNLOAD_FAILED` | Network/hash error |
+| `CONTENT_NOT_ALLOWED` | `server_type` не поддерживает mods/plugins (см. [server-content-install.md](./server-content-install.md)) |
 
 ---
 

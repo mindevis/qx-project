@@ -1,7 +1,7 @@
 # QXProject — Архитектура
 
 > Документ описывает целевую архитектуру платформы.
-> Статус: **v1.3** — стек зафиксирован, см. [adr/](./adr/).
+> Статус: **v1.4** — стек зафиксирован, см. [adr/](./adr/).
 > **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) ·
 > [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) ·
 > [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
@@ -134,10 +134,12 @@ sequenceDiagram
     participant MC as Minecraft Server
 
     U->>Web: Регистрация + авторизация
-    U->>Web: Добавление игрового сервера
-    Web->>API: POST /servers + pairing token
-    U->>A: Установка агента на VPS/домашний ПК
-    A->>API: Pairing (WSS connect)
+    U->>Web: Добавление сервера (SSH creds, server_type)
+    Web->>API: POST /servers
+    U->>Web: Deploy agent
+    Web->>API: POST /servers/{id}/deploy
+    API->>A: SSH: binary + systemd
+    A->>API: WSS connect (Agent Hub)
     API-->>Web: Server online
 
     U->>Web: Настройка (версия, RAM, online-mode, RCON, JVM args)
@@ -154,8 +156,8 @@ sequenceDiagram
 | Шаг | Действие | Где |
 | ----- | ---------- | ----- |
 | 1 | Регистрация + авторизация | Web |
-| 2 | Добавление игрового сервера | Web (генерация pairing token) |
-| 3 | Установка агента + pairing | VPS / домашний ПК |
+| 2 | Добавление сервера (SSH, `server_type`) | Web |
+| 3 | SSH deploy QXAgent | Backend → Linux VPS |
 | 4 | Настройка сервера | Web-панель |
 | 5 | Запуск игрового сервера | Web → Agent → JAR |
 
@@ -357,7 +359,7 @@ binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
 | ----------- | --------- |
 | **Deploy** | Установка через SSH job с backend (не ручной pairing token) |
 | **Связь** | WSS к Agent Hub, heartbeat, reconnect + idempotency |
-| **Lifecycle** | start/stop/restart/kill — **все типы JAR** (см. §4.7) |
+| **Lifecycle** | start/stop/restart/kill — **все типы JAR** (см. §3.7) |
 | **Modpack** | `modpack.install` — manifest на диск сервера (см. [server-content-install.md](./server-content-install.md)) |
 | **Mods / Plugins** | `mods.install` / `plugins.install` — по `server_type` |
 | **Консоль / RCON / Файлы / Метрики** | Полный набор (A2) |
@@ -627,14 +629,15 @@ erDiagram
 | Сессии, pub/sub Agent Hub, кэш metadata | Redis |
 | **Платформенные файлы** (launcher builds, server backups, skins) | **MinIO** |
 | Mods / modpacks / shaders / RP инстанса | **Диск ПК** (QXLauncher) |
+| Mods / plugins / modpack на BYOS-сервере | **Диск ноды** (QXAgent), см. [server-content-install.md](./server-content-install.md) |
 | Логи (опционально) | Loki / Elasticsearch — TBD |
 
 ---
 
 ## 5. Протокол Agent ↔ Platform
 
-Детальная спецификация: **[agent-protocol.md](./agent-protocol.md)** (pairing via SSH deploy, reconnect, idempotency,
-modpack.install).
+Детальная спецификация: **[agent-protocol.md](./agent-protocol.md)** (SSH deploy, WSS connect, reconnect, idempotency,
+modpack / mods / plugins install).
 
 Краткая сводка типов сообщений:
 
@@ -650,7 +653,10 @@ type Command =
   | { type: "files.read"; payload: { path: string } }
   | { type: "files.write"; payload: { path: string; content: string } }
   | { type: "files.upload"; payload: { path: string; url: string } }
-  | { type: "files.delete"; payload: { path: string } };
+  | { type: "files.delete"; payload: { path: string } }
+  | { type: "modpack.install"; payload: { manifestUrl: string; manifestSha256: string } }
+  | { type: "mods.install"; payload: { items: FileItem[] } }
+  | { type: "plugins.install"; payload: { items: FileItem[] } };
 
 // Agent → Platform
 type Event =
@@ -658,7 +664,8 @@ type Event =
   | { type: "server.status"; payload: { status: string; pid?: number } }
   | { type: "console.output"; payload: { stream: "stdout"|"stderr"|"rcon"; line: string } }
   | { type: "metrics"; payload: { tps?: number; playersOnline: number; playerList?: string[] } }
-  | { type: "files.result"; payload: { requestId: string; data: unknown } };
+  | { type: "files.result"; payload: { requestId: string; data: unknown } }
+  | { type: "evt.content.installed"; payload: { kind: "modpack"|"mods"|"plugins"; count: number } };
 ```
 
 ---
@@ -1091,7 +1098,7 @@ infra/
 | `qx.example.com` | `web:3001` | Лендинг, ЛК, панель |
 | `api.qx.example.com` | `api:3000` | REST API |
 | `ws.qx.example.com` | `api:3000` | WebSocket (Agent Hub, консоль) |
-| `cdn.qx.example.com` | `minio:9000` | Modpacks, launcher builds, assets |
+| `cdn.qx.example.com` | `minio:9000` | Launcher builds, skins, backups (не modpacks) |
 
 ### 9.3 TLS и безопасность
 
@@ -1145,7 +1152,7 @@ flowchart TB
     Users --> Nginx
 ```
 
-**MVP:** один VPS + Docker Compose — см. §9.3 Tier 0.
+**MVP:** один VPS + Docker Compose — см. §8.3 Tier 0, §9.6.
 **Масштабирование:** добавление VPS, без перехода на public cloud — см. Tier 1–3.
 
 ### 9.7 Ops-нагрузка на команду (Self-Hosted)
@@ -1175,11 +1182,15 @@ QXProject/
 ├── internal/
 ├── pkg/protocol/
 ├── docs/
-│   ├── device-linking.md
 │   ├── architecture.md
 │   ├── mvp.md
 │   ├── api.md
 │   ├── agent-protocol.md
+│   ├── device-linking.md
+│   ├── launch-bridge.md
+│   ├── server-content-install.md
+│   ├── modpacks-pipeline.md
+│   ├── security-legal.md
 │   ├── schema.sql
 │   ├── qa/test-matrix.md
 │   └── adr/
@@ -1261,7 +1272,7 @@ flowchart TB
 | Guest flow + Local-аккаунт | QXAccount sync между устройствами |
 | Vanilla only в лаунчере | Forge / NeoForge / Fabric / Quilt |
 | Web: создание инстанса → sync → запуск | Modpacks |
-| Agent: pairing, start/stop, консоль | RCON, файловый менеджер, моды |
+| Agent: SSH deploy, start/stop, консоль | RCON, файловый менеджер, mods/plugins |
 | 1 сервер на пользователя (Free) | Premium, billing |
 | Windows launcher only | macOS / Linux |
 | Tier 0 infra (1 Self-Hosted VPS) | Multi-VPS, MinIO cluster |
@@ -1271,8 +1282,8 @@ flowchart TB
 | Фаза | Scope | Срок (Senior + Junior) | Milestone |
 | ------ | ------- | ------------------------ | ----------- |
 | **Phase 0** | API auth, MySQL, Web login/register | **6–8 недель** | Можно зарегистрироваться |
-| **Phase 1** | Agent MVP + panel start/stop/console | **8–12 недель** | Сервер управляется из web |
-| **Phase 2** | Launcher Win, Vanilla, guest + auth | **10–14 недель** | Скачал → создал инстанс → играет |
+| **Phase 1** | Launcher Win, device link, Vanilla, guest + auth | **10–14 недель** | Скачал → связал → играет |
+| **Phase 2** | Agent SSH deploy + panel start/stop/console | **8–12 недель** | Сервер управляется из web |
 | **Alpha** | Связка всех 3 сценариев, bugfix | **4–6 недель** | Закрытая beta |
 | **Phase 3+** | Modloaders, modpacks, billing, cross-platform | **+6–12 мес** | Public launch |
 
@@ -1285,12 +1296,12 @@ gantt
     dateFormat YYYY-MM
     section Foundation
     Phase 0 API + Web auth     :p0, 2026-06, 2M
-    section Server
-    Phase 1 Agent + Panel      :p1, after p0, 3M
     section Launcher
-    Phase 2 Launcher MVP       :p2, after p0, 3M
+    Phase 1 Launcher MVP       :p1, after p0, 3M
+    section Server
+    Phase 2 Agent + Panel      :p2, after p1, 3M
     section Alpha
-    Integration + Beta           :alpha, after p1, 2M
+    Integration + Beta           :alpha, after p2, 2M
     section v2
     Modloaders + Modpacks        :p3, after alpha, 4M
     Premium + Billing            :p4, after p3, 2M
@@ -1317,18 +1328,18 @@ gantt
 - [ ] Web UI: login, register, profile *(Junior)*
 - [ ] Docker Compose dev env *(Senior)*
 
-### Phase 1 — Agent + Panel *(8–12 нед, mostly Senior)*
+### Phase 1 — Launcher MVP *(10–14 нед, mostly Senior)*
 
-- [ ] Agent: pairing, heartbeat, start/stop/restart
-- [ ] Live-консоль (stdout/stderr)
-- [ ] Web: добавление сервера, статус, кнопки start/stop *(Junior UI)*
-
-### Phase 2 — Launcher MVP *(10–14 нед, mostly Senior)*
-
-- [ ] Windows launcher, Vanilla only
+- [ ] Windows QXLauncher tray, device link, Vanilla only
 - [ ] Guest flow + QX auth + Local-аккаунт
-- [ ] Web: создание инстанса → sync → launch
+- [ ] QXWeb `/launcher`: создание инстанса → launch-bridge → JVM
 - [ ] Forge / NeoForge / Fabric / Quilt — отложено на **v2**
+
+### Phase 2 — Agent + Panel *(8–12 нед, mostly Senior)*
+
+- [ ] SSH deploy QXAgent, WSS connect, heartbeat
+- [ ] start/stop/restart, live-консоль (stdout/stderr)
+- [ ] QXWeb: сервер (SSH, `server_type`), deploy, start/stop *(Junior UI)*
 
 ### Phase Alpha — Integration *(4–6 нед)*
 
@@ -1338,7 +1349,8 @@ gantt
 ### Phase 3 — Modloaders & Modpacks *(+4–6 мес)*
 
 - [ ] Forge + NeoForge + Fabric + Quilt
-- [ ] Modpack catalog
+- [ ] Modpack catalog + client↔server sync
+- [ ] Server mods/plugins по `server_type` ([server-content-install.md](./server-content-install.md))
 - [ ] macOS / Linux launcher
 
 ### Phase 4 — Premium & Polish *(+2–4 мес)*

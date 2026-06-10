@@ -57,7 +57,7 @@ Go goroutine pool (`internal/deploy/worker.go`):
 
 No user-supplied shell. Worker executes fixed script template:
 
-1. `mkdir -p /opt/qx/agent /opt/qx/server`
+1. `mkdir -p /opt/qx/agent /opt/qx/server` (`plugins/`, `mods/` — по [server-content-install.md](./server-content-install.md))
 2. `install -m 755` agent binary to `/opt/qx/agent/qx-agent`
 3. Write `/etc/qx/agent.env` (0600 root)
 4. Write `/etc/systemd/system/qx-agent.service`

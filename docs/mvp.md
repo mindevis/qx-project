@@ -3,9 +3,10 @@
 > Минимально жизнеспособный продукт для закрытой alpha.
 > Полная архитектура: [architecture.md](./architecture.md)
 
-**Статус:** v1.2
+**Статус:** v1.4 (синхрон с [architecture.md](./architecture.md))
 **Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → tray → JVM
-**RBAC:** [security-legal.md §8](./security-legal.md) — Guest: Vanilla; Registered: mods/shaders/RP
+**RBAC:** [security-legal.md §8](./security-legal.md) — MVP: Guest и Registered — **Vanilla only**; mods/shaders/RP — v2+
+**Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)
 
 ---
 
@@ -43,13 +44,13 @@ MVP считается готовым, когда:
 
 | Область | Функционал |
 | --------- | ------------ |
-| **Web (panel-ui)** | React + Vite + Ant Design — лендинг, auth, instances, servers |
-| **Launcher UI** | React на сайте `/launcher` (не WebView) |
+| **QXWeb** (`web/panel-ui/`) | React + Vite + Ant Design — лендинг, auth, instances, servers, `/launcher` |
+| **Launcher UI** | React на QXWeb `/launcher` (не WebView, [ADR-0006](./adr/0006-launcher-website-ui.md)) |
 | **Guest (linked)** | Vanilla, Local profile, базовые инстансы |
-| **Registered** | То же + mods/shaders/resource packs (post-MVP loaders) |
+| **Registered** | MVP: то же (Vanilla); mods/shaders/RP/modpacks — **v2+** |
 | **API** | Go + Gin + GORM |
 | **Agent** | Go, **Linux only**, SSH deploy, systemd |
-| **Launcher tray** | Go — link, launch-bridge poll, JVM, Mojang Java, notifications |
+| **QXLauncher** (`cmd/launcher/`) | Go tray — device link, launch-bridge poll, JVM, Mojang Java, notifications |
 | **Интеграции** | **Mojang** manifest + assets (Vanilla) |
 | **Infra** | Docker Compose: API, Web, MySQL, Redis, MinIO, Nginx |
 
@@ -61,7 +62,7 @@ MVP считается готовым, когда:
 | Modpacks | CurseForge, Modrinth |
 | Auth | Microsoft OAuth, QXAccount sync между устройствами |
 | Launcher | macOS, Linux |
-| Agent | RCON, файловый менеджер, плагины/моды, метрики TPS |
+| Agent | RCON, файловый менеджер, mods/plugins по `server_type`, метрики TPS |
 | Skin/Cape server | Только registered users |
 | Public server list | Launcher UI → GET /public/servers |
 | Modpack client↔server sync | Shared modpack_id + agent install |
@@ -101,12 +102,12 @@ Add Linux VPS (SSH creds) → POST /servers/{id}/deploy → Agent online → Sta
 ```mermaid
 flowchart TB
     subgraph mvp_clients [MVP Clients]
-        Web[Nuxt Web]
-        Launcher[Launcher Win]
+        Web[QXWeb]
+        Launcher[QXLauncher Win]
     end
 
     subgraph mvp_backend [MVP Backend]
-        API[API + Agent Hub]
+        API[QXApi + Agent Hub]
         Auth[JWT Auth]
     end
 
@@ -132,31 +133,34 @@ flowchart TB
     Launcher --> Mojang[Mojang CDN]
 ```
 
-### 5.1 Web (Junior + Senior review)
+### 5.1 QXWeb (Junior + Senior review)
 
 | Страница | Функции |
 | ---------- | --------- |
-| `/` | Лендинг, ссылка на скачивание лаунчера |
+| `/` | Лендинг, ссылка на скачивание QXLauncher |
 | `/auth/register`, `/auth/login` | Email + password |
 | `/profile` | Имя, email, смена пароля |
-| `/instances` | Список, создать (mc version dropdown), удалить |
-| `/servers` | Список, добавить (pairing token), статус badge |
+| `/launcher`, `/launcher/link` | Инстансы, device link, «Играть» |
+| `/servers` | Список, добавить (SSH creds, `server_type`), deploy, статус |
 | `/servers/:id` | Start / Stop / Restart, live-консоль |
 
-**Стек:** Nuxt 4 + Nuxt UI.
+**Стек:** TypeScript + React + Vite + Ant Design ([ADR-0001](./adr/0001-tech-stack.md)).
 
-### 5.2 API (Senior)
+### 5.2 QXApi (Senior)
 
 | Модуль | MVP endpoints |
 | -------- | --------------- |
 | Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/guest` |
+| Devices | `POST /launcher/devices/register`, `link`, `GET .../status` |
 | Instances | `GET/POST/DELETE /instances`, `GET /instances/:id/manifest` |
 | Launch | `POST /launcher/launch-requests`, tray `GET .../pending`, `PATCH .../{id}` |
-| Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/start`, `stop`, `restart` |
-| Agent | WSS `/agent/connect`, pairing `POST /agent/pair` |
+| Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/deploy`, `start`, `stop`, `restart` |
+| Agent | WSS `/agent/v1/connect` (JWT at SSH deploy) |
 | Console | WSS `/servers/:id/console` (proxy → agent) |
 
-### 5.3 Launcher (Senior)
+Полная спецификация: [api.md](./api.md). Server mods/plugins — post-MVP: [server-content-install.md](./server-content-install.md).
+
+### 5.3 QXLauncher (Senior)
 
 | Функция | MVP |
 | --------- | ----- |
@@ -171,7 +175,7 @@ flowchart TB
 **Codebase:** свой QXLauncher — **не GML fork** ([ADR-0010](./adr/0010-own-launcher-not-gml.md)); Prism/GML — референс
 алгоритмов.
 
-### 5.4 Agent (Senior)
+### 5.4 QXAgent (Senior)
 
 | Команда | MVP |
 | --------- | ----- |
@@ -184,7 +188,7 @@ flowchart TB
 | `rcon.*` | ❌ v2 |
 | `files.*` | ❌ v2 |
 
-**Платформы agent:** Linux + Windows (server OS).
+**Платформа agent:** **Linux only** ([ADR-0003](./adr/0003-agent-linux-ssh-deploy.md)); Windows server OS — не поддерживается.
 
 ---
 
@@ -208,17 +212,17 @@ Agent         — id, server_id, hostname, connected_at
 | --------- | ------------ |
 | `nginx` | TLS, reverse proxy |
 | `api` | Backend + Agent Hub |
-| `web` | Nuxt |
-| `mysql` | Данные |
+| `web` | QXWeb static (React SPA) |
+| `mysql` | Данные, manifests |
 | `redis` | Sessions, pub/sub |
-| `minio` | Launcher builds, instance assets cache |
+| `minio` | Launcher builds, server backups, skins (не client/server modpack files) |
 
 **Домены (пример):**
 
 - `qx.example.com` — web
 - `api.qx.example.com` — REST + WSS
 
-Детали: [architecture.md §9](./architecture.md).
+Детали: [architecture.md §8.3 Tier 0](./architecture.md).
 
 **Бюджет:** $5–30/мес.
 
@@ -232,7 +236,7 @@ Agent         — id, server_id, hostname, connected_at
 
 | # | Задача | Ответственный |
 | --- | -------- | --------------- |
-| 0.1 | Monorepo scaffold (`pnpm`, apps/api, apps/web) | Senior |
+| 0.1 | Monorepo scaffold (`go.mod`, `cmd/api`, `web/panel-ui`) | Senior |
 | 0.2 | Docker Compose dev | Senior |
 | 0.3 | MySQL schema: users | Senior |
 | 0.4 | Auth API: register, login, JWT | Senior |
@@ -347,8 +351,9 @@ gantt
 | [agent-protocol.md](./agent-protocol.md) | Agent WSS, SSH deploy, idempotency |
 | [schema.sql](./schema.sql) | MySQL DDL |
 | [qa/test-matrix.md](./qa/test-matrix.md) | QA alpha |
+| [server-content-install.md](./server-content-install.md) | Server mods/plugins by type |
 | [adr/](./adr/) | ADR |
 
 ---
 
-Последнее обновление: 2026-06-09 (v1.1 — стек Go + React)
+Последнее обновление: 2026-06-10 (v1.4 — синхрон с architecture.md)

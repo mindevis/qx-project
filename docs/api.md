@@ -52,6 +52,8 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 
 ## 4. Servers (BYOS)
 
+### 4.1 Lifecycle
+
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |
 | GET | `/servers` | Bearer | List (owned + member) |
@@ -104,7 +106,8 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | GET | `/modpacks/{id}/manifest` | Bearer / Guest | QxModpackManifest JSON |
 | POST | `/modpacks/import` | Bearer | Import from CF/MR external id |
 
-**Modpack sync:** same `modpack_id` on `instances` and `servers` → client + agent install.
+**Modpack sync:** same `modpack_id` on `instances` and `servers` → QXLauncher (ПК) + QXAgent (сервер).
+На сервере состав путей по `server_type`: [server-content-install.md](./server-content-install.md).
 
 ---
 
@@ -174,9 +177,9 @@ Site creates request → QXLauncher polls → spawns JVM. Full spec: [launch-bri
 | -------- | ------ | ------ | ------------- |
 | GET | `/launcher/updates/latest` | — | `{ version, url, sha256, mandatory }` |
 | GET | `/launcher/updates/latest.yml` | — | Electron-style (optional) |
-| GET | `/launcher/ui/*` | — | Static SPA assets (or CDN) |
 
-**QXLauncher** polls update endpoint on startup. **UI** at `https://qx.example.com/launcher` (QXWeb, no WebView).
+**QXLauncher** polls update endpoint on startup. **UI** — QXWeb static на `https://qx.example.com/launcher` (не WebView,
+не через API).
 
 ---
 
@@ -269,7 +272,7 @@ components:
 | ------ | ------ |
 | 400 | VALIDATION_ERROR |
 | 401 | UNAUTHORIZED |
-| 403 | FORBIDDEN |
+| 403 | FORBIDDEN, CONTENT_NOT_ALLOWED |
 | 404 | NOT_FOUND |
 | 409 | CONFLICT |
 | 429 | RATE_LIMITED |

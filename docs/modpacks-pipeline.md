@@ -13,7 +13,7 @@
 | **QXApi / MySQL** | Метаданные modpack, `QxModpackManifest`, `manifest_sha256`, ссылки на файлы |
 | **ПК пользователя** | Mods, modpacks, shaders, resource packs — **файлы в папке инстанса** |
 | **QXLauncher** | Скачивание, verify hash, assemble, локальный cache |
-| **MinIO** | **Не** для client content — только platform assets (см. [architecture.md §5](./architecture.md)) |
+| **MinIO** | **Не** для client/server mod content — только platform blobs (см. [architecture.md §4](./architecture.md), [ADR-0011](./adr/0011-client-local-content-install.md)) |
 
 ```mermaid
 flowchart LR

@@ -2,6 +2,7 @@
 
 > Для закрытой beta / MVP Definition of Done.
 > Статус теста: ☐ не пройден · ☑ пройден · ⊘ N/A (post-MVP)
+> Server content (mods/plugins): [server-content-install.md](../server-content-install.md)
 
 ---
 
