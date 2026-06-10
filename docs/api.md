@@ -1,7 +1,72 @@
 # QXApi Specification
 
-> Версия: **1.0** · Base URL: `https://api.qx.example.com/v1`
-> Backend: **Go + Gin + GORM**
+> Версия: **1.4** · Base URL: `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`)
+> Backend: **Go + Gin + GORM** · Код: `services/qxapi/`
+
+Все REST-эндпоинты QXApi (включая health) живут под префиксом **`/api/v1`**.  
+В таблицах ниже пути **относительные** к base URL (например `/auth/login` → `…/api/v1/auth/login`).  
+**Исключение:** Agent Hub — `WS /agent/v1/connect` на корне хоста API, без `/api/v1`.
+
+---
+
+## 0. Implementation status (Phase 0)
+
+| Method | Path | Статус |
+| -------- | ------ | -------- |
+| POST | `/auth/register` | ✅ |
+| POST | `/auth/login` | ✅ |
+| POST | `/auth/refresh` | ✅ |
+| POST | `/auth/guest` | ✅ (`guest_token`, TTL 24h) |
+| POST | `/auth/logout` | ✅ (204, Bearer required) |
+| GET | `/users/me` | ✅ |
+| PATCH | `/users/me/password` | ✅ (`current_password`, `new_password` → 204) |
+| PATCH | `/users/me/email` | ✅ (`current_password`, `email` → profile) |
+| GET | `/health` | ✅ (liveness) |
+| GET | `/health/ready` | ✅ (DB ping) |
+| Остальные разделы ниже | — | 🔲 Phase 1+ |
+
+**Ответ токенов (register / login / refresh):**
+
+```json
+{
+  "access_token": "…",
+  "refresh_token": "…",
+  "token_type": "Bearer",
+  "expires_in": 900
+}
+```
+
+**Ответ guest:**
+
+```json
+{
+  "guest_token": "…",
+  "expires_in": 86400
+}
+```
+
+**Профиль (`GET /users/me`):**
+
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "username": "optional",
+  "tier": "free",
+  "created_at": "2026-06-10T12:00:00Z"
+}
+```
+
+CORS: `CORS_ORIGIN` (default `http://localhost:5173`). Конфиг: `.env.example`.
+
+### Health (Phase 0 ✅)
+
+| Method | Path | Auth | Description |
+| -------- | ------ | ------ | ------------- |
+| GET | `/health` | — | Liveness (`{"status":"ok"}`) |
+| GET | `/health/ready` | — | Readiness (DB ping) |
+
+Полные URL: `GET {base}/health`, `GET {base}/health/ready`.
 
 ---
 
@@ -24,7 +89,9 @@
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |
 | GET | `/users/me` | Bearer | Profile |
-| PATCH | `/users/me` | Bearer | Update profile |
+| PATCH | `/users/me/password` | Bearer | Change password (Phase 0 ✅) |
+| PATCH | `/users/me/email` | Bearer | Change email (Phase 0 ✅) |
+| PATCH | `/users/me` | Bearer | Update profile (name, etc.) — 🔲 post-MVP |
 | POST | `/users/me/skin` | Bearer | Upload skin PNG (max 64KB) |
 | DELETE | `/users/me/skin` | Bearer | Reset skin |
 | GET | `/skins/{uuid}.png` | — | Public skin texture |
@@ -208,7 +275,7 @@ info:
   title: QXProject API
   version: 1.0.0
 servers:
-  - url: https://api.qx.example.com/v1
+  - url: https://api.qx.example.com/api/v1
 paths:
   /auth/login:
     post:
@@ -281,3 +348,7 @@ components:
 ---
 
 *См. [schema.sql](./schema.sql), [agent-protocol.md](./agent-protocol.md), [security-legal.md](./security-legal.md)*
+
+---
+
+Последнее обновление: 2026-06-10 (v1.3 — `/api/v1` для всего REST, включая health)

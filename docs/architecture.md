@@ -1,10 +1,39 @@
 # QXProject — Архитектура
 
-> Документ описывает целевую архитектуру платформы.
-> Статус: **v1.4** — стек зафиксирован, см. [adr/](./adr/).
+> Документ описывает целевую архитектуру платформы и **текущий статус реализации**.
+> Версия: **v1.7** (2026-06-10) — Phase 0 завершён (auth + profile + 100% unit coverage), см. [adr/](./adr/).
 > **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) ·
 > [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) ·
 > [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
+
+## Статус реализации
+
+| Компонент | Фаза | Статус |
+| ----------- | ------ | -------- |
+| **QXApi** — auth, users | Phase 0 | ✅ `register`, `login`, `refresh`, `guest`, `logout`, `GET /users/me`, `PATCH /users/me/password`, `PATCH /users/me/email` |
+| **QXApi** — health | Phase 0 | ✅ `GET /api/v1/health`, `GET /api/v1/health/ready` |
+| **QXWeb** | Phase 0 | ✅ `/`, auth modal (`/auth/*` → redirect), `/profile`, `/launcher` (Phase 1 UI); placeholder `/servers` |
+| **Infra dev** | Phase 0 | ✅ Docker Compose: MySQL, Redis, MinIO (`infra/docker/`) |
+| **CI / тесты** | Phase 0 | ✅ GitHub Actions; Go и web — **100% unit coverage** |
+| **QXLauncher** | Phase 1 | 🔲 stub (`services/qxlauncher/cmd`) |
+| **QXAgent** | Phase 2 | 🔲 stub (`services/qxagent/cmd`) |
+| **pkg/protocol** | — | 🔲 placeholder (типы WSS — Phase 2) |
+| Device link, instances, launch-bridge | Phase 1 | 🔲 spec only |
+| Agent SSH deploy, servers panel | Phase 2 | 🔲 spec only |
+
+Следующий шаг: **Phase 1** — device linking, instances CRUD, `/launcher`, QXLauncher tray (Windows, Vanilla).
+
+### URL и префиксы API
+
+| Контекст | Base URL (dev) | Пример |
+| ---------- | ---------------- | -------- |
+| **REST (QXApi)** | `http://localhost:3000/api/v1` | `POST …/api/v1/auth/login` |
+| **Health** | тот же префикс | `GET …/api/v1/health`, `GET …/api/v1/health/ready` |
+| **QXWeb (Vite)** | `http://localhost:5173` | `VITE_API_BASE_URL` → API base |
+| **Agent Hub (WSS)** | `wss://api.qx.example.com` | `WS /agent/v1/connect` — **вне** `/api/v1` |
+
+В спецификации [api.md](./api.md) пути REST указаны **относительно** `/api/v1` (например `/auth/login` = `/api/v1/auth/login`).
+Исключение: WebSocket агента и внешние API (CurseForge, Modrinth) — свои base URL.
 
 ## Специализированные docs
 
@@ -55,20 +84,20 @@ sequenceDiagram
     U->>Web: Авторизация / аутентификация
     U->>Web: Скачивание QXLauncher
     U->>L: Установка и первый запуск QXLauncher
-    L->>API: POST /launcher/devices/register
+    L->>API: POST /api/v1/launcher/devices/register
     API-->>L: pending_link
     L->>U: OS notification + tray «Связать»
     U->>Web: Подтвердить link (JWT-сессия)
-    Web->>API: POST /launcher/devices/link
+    Web->>API: POST /api/v1/launcher/devices/link
     API-->>L: linked + device_token (user_id)
 
     U->>Web: Создание инстанса (версия, loader, modpack)
-    Web->>API: POST /instances
+    Web->>API: POST /api/v1/instances
     API-->>Web: instance_id, manifest
 
     U->>Web: «Играть» на /launcher
-    Web->>API: POST /launcher/launch-requests
-    L->>API: GET /launcher/launch-requests/pending
+    Web->>API: POST /api/v1/launcher/launch-requests
+    L->>API: GET /api/v1/launcher/launch-requests/pending
     L->>PC: Download assets, materialize instance
     L->>PC: Spawn JVM (Minecraft client)
     U->>PC: Игра
@@ -100,11 +129,11 @@ sequenceDiagram
 
     U->>Web: Скачать лаунчер
     U->>L: Запуск
-    L->>API: POST /launcher/devices/register
+    L->>API: POST /api/v1/launcher/devices/register
     API-->>L: pending_link
     L->>U: OS notification + tray «Связать»
     U->>Web: Подтвердить link (guest session)
-    Web->>API: POST /launcher/devices/link
+    Web->>API: POST /api/v1/launcher/devices/link
     API-->>L: linked + device_token
     U->>Web: Создание инстанса
     L->>API: Sync instances
@@ -135,19 +164,19 @@ sequenceDiagram
 
     U->>Web: Регистрация + авторизация
     U->>Web: Добавление сервера (SSH creds, server_type)
-    Web->>API: POST /servers
+    Web->>API: POST /api/v1/servers
     U->>Web: Deploy agent
-    Web->>API: POST /servers/{id}/deploy
+    Web->>API: POST /api/v1/servers/{id}/deploy
     API->>A: SSH: binary + systemd
     A->>API: WSS connect (Agent Hub)
     API-->>Web: Server online
 
     U->>Web: Настройка (версия, RAM, online-mode, RCON, JVM args)
-    Web->>API: PATCH /servers/{id}
+    Web->>API: PATCH /api/v1/servers/{id}
     API->>A: Config update
 
     U->>Web: Запуск сервера
-    Web->>API: POST /servers/{id}/start
+    Web->>API: POST /api/v1/servers/{id}/start
     API->>A: server.start
     A->>MC: Spawn server JAR
     A-->>Web: Live-консоль, метрики (WebSocket)
@@ -290,10 +319,10 @@ flowchart TB
 
 | Имя | Репозиторий | Описание |
 | ----- | ------------- | ---------- |
-| **QXWeb** | `web/panel-ui/` | Личный кабинет, панель серверов, UI `/launcher` |
-| **QXApi** | `cmd/api/` | Backend REST + WebSocket |
-| **QXLauncher** | `cmd/launcher/` | Desktop tray (Go), без встроенного UI |
-| **QXAgent** | `cmd/agent/` | Linux daemon на BYOS-сервере пользователя |
+| **QXWeb** | `web/qxweb/` | Личный кабинет, панель серверов, UI `/launcher` |
+| **QXApi** | `services/qxapi/` | Backend REST + WebSocket |
+| **QXLauncher** | `services/qxlauncher/` | Desktop tray (Go), без встроенного UI |
+| **QXAgent** | `services/qxagent/` | Linux daemon на BYOS-сервере пользователя |
 
 ### 3.1 QXWeb — личный кабинет и панель управления
 
@@ -317,15 +346,30 @@ flowchart TB
 **Слои QXApi** (сверху вниз): **REST + WebSocket** → **Management** (Account, Server, Billing, Launcher) →
 **Services** (Modpack, Agent Hub, Files, Notify) → **Data Layer** (MySQL, Redis, MinIO).
 
+**Phase 0 (реализовано):**
+
 ```text
-cmd/api/                 # QXApi
-internal/
+services/qxapi/          # QXApi (отдельный go.mod)
+  cmd/main.go, run.go
+  internal/
+    api/         # Gin router, handlers, middleware, JSON responses
+    auth/        # JWT, bcrypt, Register/Login Service
+    config/      # env: API_ADDR, DATABASE_DSN, JWT_*, CORS
+    database/    # GORM Open, migrate users, Ping
+    models/      # User
+    testutil/    # SQLite helpers для тестов
+pkg/protocol/            # doc.go — типы WSS (Phase 2)
+```
+
+**Целевая структура (Phase 1+):**
+
+```text
+services/qxapi/internal/
   auth/  users/  profiles/  skinserver/   # Account Management
-  servers/  agents/  deploy/               # Server Management
-  billing/                               # Billing Management (post-MVP)
-  launcher/  instances/  devices/          # Launcher Management
+  servers/  agents/  deploy/             # Server Management
+  billing/                               # post-MVP
+  launcher/  instances/  devices/        # Launcher Management
   modpacks/  integrations/  files/
-pkg/protocol/
 ```
 
 | Домен | Модули | Ответственность |
@@ -339,12 +383,12 @@ pkg/protocol/
 Связи между доменами: **Billing / Launcher → Account**; **Server / Launcher → Modpack Service**;
 **Server → Agent Hub**.
 
-| Канал | Протокол | Документ |
-| ------- | ---------- | ---------- |
-| QXWeb ↔ QXApi | HTTPS REST + WS | [api.md](./api.md) |
-| QXLauncher UI (`/launcher`) ↔ QXApi | HTTPS REST | [api.md](./api.md) |
-| QXLauncher tray ↔ QXApi | HTTPS REST | auth, sync, auto-update |
-| QXAgent ↔ QXApi | WSS + JWT | [agent-protocol.md](./agent-protocol.md) |
+| Канал | Протокол | Base / prefix | Документ |
+| ------- | ---------- | --------------- | ---------- |
+| QXWeb ↔ QXApi | HTTPS REST + WS | `/api/v1` | [api.md](./api.md) |
+| QXLauncher UI (`/launcher`) ↔ QXApi | HTTPS REST | `/api/v1` | [api.md](./api.md) |
+| QXLauncher tray ↔ QXApi | HTTPS REST | `/api/v1` | auth, sync, auto-update |
+| QXAgent ↔ QXApi | WSS + JWT | `/agent/v1/connect` | [agent-protocol.md](./agent-protocol.md) |
 
 ---
 
@@ -370,14 +414,14 @@ binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
 - QXAgent привязан к одному серверу/владельцу.
 - Sandbox: whitelist путей (server root), лимиты размера файлов.
 
-**Предлагаемый стек:** ~~Go или Rust~~ **Go** — `cmd/agent/`.
+**Предлагаемый стек:** ~~Go или Rust~~ **Go** — `services/qxagent/`.
 
 ```text
-cmd/agent/               # QXAgent
-internal/
-  connector/      process/        console/
-  filesystem/     modpack/        metrics/
-  protocol/
+services/qxagent/          # QXAgent (отдельный go.mod)
+  cmd/
+  internal/
+    connector/      process/        console/
+    filesystem/     modpack/        metrics/
 ```
 
 ---
@@ -411,8 +455,8 @@ flowchart LR
 **Tray:** ПКМ → «Связать лаунчер» · ЛКМ → открыть `/launcher` в браузере.
 
 ```text
-cmd/launcher/            # QXLauncher tray
-web/panel-ui/            # QXWeb (+ /launcher routes)
+services/qxlauncher/     # QXLauncher tray (отдельный go.mod)
+web/qxweb/               # QXWeb (+ /launcher routes)
 ```
 
 **Поддерживаемые modloader'ы (целевой продукт):**
@@ -437,11 +481,11 @@ sequenceDiagram
     participant CDN as CDN / Mojang
     participant JVM as Java Process
 
-    L->>API: GET /instances/{id}/manifest
+    L->>API: GET /api/v1/instances/{id}/manifest
     API-->>L: version, libraries, mainClass, assetsIndex
     L->>CDN: Download missing assets & libraries
     L->>L: Verify checksums, assemble classpath
-    L->>API: GET /modpacks/{id}/manifest
+    L->>API: GET /api/v1/modpacks/{id}/manifest
     API-->>L: mcVersion, loader, files[] with download URLs
     L->>CDN: Download mods/assets direct to instance dir on PC
     L->>L: Verify hashes, run modloader processors
@@ -741,7 +785,7 @@ sequenceDiagram
     Xbox-->>L: XBL token
     L->>MC: Minecraft login with XBL
     MC-->>L: MC access token + profile (uuid, name)
-    L->>API: POST /auth/mojang/link (optional, для QX-профиля)
+    L->>API: POST /api/v1/auth/mojang/link (optional, для QX-профиля)
 ```
 
 **Mojang manifest flow (Vanilla + база для modloaders):**
@@ -839,7 +883,7 @@ flowchart LR
 | ----- | ---------- |
 | 1 | Поиск modpack: CF API first → MR if not found |
 | 2 | QXApi fetch metadata, normalize → `QxModpackManifest`, save to **MySQL** |
-| 3 | QXLauncher: `GET /modpacks/{id}/manifest` |
+| 3 | QXLauncher: `GET /api/v1/modpacks/{id}/manifest` |
 | 4 | Скачивание по authorized URLs **на диск ПК**, verify hash |
 | 5 | Локальный cache на ПК при повторных install |
 
@@ -1173,31 +1217,32 @@ flowchart TB
 
 ```text
 QXProject/
-├── cmd/
-│   ├── api/                 # QXApi
-│   ├── agent/               # QXAgent
-│   └── launcher/            # QXLauncher tray
+├── services/
+│   ├── qxapi/               # QXApi (go.mod, cmd/, internal/)
+│   ├── qxagent/             # QXAgent (stub)
+│   └── qxlauncher/          # QXLauncher tray (stub)
 ├── web/
-│   └── panel-ui/            # QXWeb (+ /launcher)
-├── internal/
-├── pkg/protocol/
-├── docs/
-│   ├── architecture.md
-│   ├── mvp.md
-│   ├── api.md
-│   ├── agent-protocol.md
-│   ├── device-linking.md
-│   ├── launch-bridge.md
-│   ├── server-content-install.md
-│   ├── modpacks-pipeline.md
-│   ├── security-legal.md
-│   ├── schema.sql
-│   ├── qa/test-matrix.md
-│   └── adr/
-├── infra/docker/
-├── go.mod
+│   ├── qxweb/               # QXWeb — React SPA (+ Vitest)
+│   └── README.md
+├── pkg/protocol/            # общие типы Agent ↔ API (placeholder)
+├── docs/                    # архитектура, API, ADR, schema.sql
+├── infra/docker/            # docker-compose: MySQL, Redis, MinIO
+├── .github/workflows/ci.yml # Go test + web test:coverage + build
+├── go.work                  # Go workspace (без корневого go.mod)
+├── Makefile                 # dev-up, api, web, test, test-coverage
+├── .env.example
 └── README.md
 ```
+
+### 10.1 Тестирование
+
+| Область | Инструмент | Покрытие | Команда |
+| --------- | ------------ | ---------- | --------- |
+| QXApi + stubs | `go test` | 100% statements | `cd services/qxapi && go test ./...` |
+| QXWeb | Vitest + Testing Library | 100% (stmts/branches) | `cd web/qxweb && npm run test:coverage` |
+| E2E / alpha | [qa/test-matrix.md](./qa/test-matrix.md) | manual | Phase Alpha |
+
+`make test` — все unit-тесты; `make test-coverage` — с отчётом покрытия.
 
 ---
 
@@ -1254,9 +1299,9 @@ flowchart TB
 | Неделя | Задача | Результат |
 | -------- | -------- | ----------- |
 | 1–2 | Git, TypeScript, React + Ant Design tutorial | Первый PR: тексты / стили |
-| 3–4 | Ant Design: login/register (mock API) | Статичные страницы auth |
-| 5–6 | Подключение к real API (read-only) | Страница профиля, список серверов |
-| 7–8 | CRUD инстанса (UI only) | Форма создания инстанса на сайте |
+| 3–4 | Ant Design: auth modal (login/register) | ✅ Phase 0 — real API |
+| 5–6 | Профиль (email, смена email/пароля в модалках) | ✅ Phase 0 — `/profile` |
+| 7–8 | CRUD инстанса (UI only) | Phase 1 — `/launcher` |
 
 > Senior не должен тратить >30% времени на обучение — иначе MVP сдвигается на месяцы. Junior берёт **UI и docs**, не Agent/Launcher.
 
@@ -1281,7 +1326,7 @@ flowchart TB
 
 | Фаза | Scope | Срок (Senior + Junior) | Milestone |
 | ------ | ------- | ------------------------ | ----------- |
-| **Phase 0** | API auth, MySQL, Web login/register | **6–8 недель** | Можно зарегистрироваться |
+| **Phase 0** | API auth + profile, MySQL, Web auth modal + profile | **6–8 недель** | ✅ **Готово** (2026-06) — регистрация, вход, профиль |
 | **Phase 1** | Launcher Win, device link, Vanilla, guest + auth | **10–14 недель** | Скачал → связал → играет |
 | **Phase 2** | Agent SSH deploy + panel start/stop/console | **8–12 недель** | Сервер управляется из web |
 | **Alpha** | Связка всех 3 сценариев, bugfix | **4–6 недель** | Закрытая beta |
@@ -1321,12 +1366,14 @@ gantt
 
 ## 12. Roadmap по фазам
 
-### Phase 0 — Foundation *(6–8 нед, Senior + Junior UI)*
+### Phase 0 — Foundation *(6–8 нед, Senior + Junior UI)* ✅
 
-- [ ] API scaffold + MySQL + Redis *(Senior)*
-- [ ] Auth: QX register/login *(Senior API + Junior forms)*
-- [ ] Web UI: login, register, profile *(Junior)*
-- [ ] Docker Compose dev env *(Senior)*
+- [x] API scaffold + MySQL + Redis/MinIO dev *(Senior)*
+- [x] Auth: register, login, refresh, guest, logout; `/users/me`, change password/email *(Senior)*
+- [x] Web UI: auth modal, profile (модалки), `/launcher` (Phase 1 UI), placeholder `/servers` *(Junior)*
+- [x] Docker Compose dev env (`infra/docker/`) *(Senior)*
+- [x] CI: `go test`, web `test:coverage`, build *(Senior)*
+- [x] Unit tests 100% (qxapi, qxweb) *(Senior)*
 
 ### Phase 1 — Launcher MVP *(10–14 нед, mostly Senior)*
 
@@ -1441,4 +1488,4 @@ QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и
 
 ---
 
-Последнее обновление: 2026-06-09 (v1.3 — launch bridge, security-legal, own launcher, pure self-hosted)
+Последнее обновление: 2026-06-10 (v1.6 — REST prefix `/api/v1`, health под тем же префиксом)

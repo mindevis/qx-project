@@ -21,6 +21,6 @@
 
 ## Consequences
 
-- ~~Два frontend apps: `web/panel-ui`, `web/launcher-ui`~~ → один `web/panel-ui` с `/launcher/*` ([ADR-0006](./0006-launcher-website-ui.md)).
+- ~~Два frontend apps: `web/panel-ui`, `web/launcher-ui`~~ → один `web/qxweb` с `/launcher/*` ([ADR-0006](./0006-launcher-website-ui.md)).
 - CORS/auth: launcher UI uses same API; Go injects tokens into WebView storage on login.
 - Local bridge: `POST http://127.0.0.1:<port>/launch` for game start only.

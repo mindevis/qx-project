@@ -44,7 +44,7 @@ Minecraft client configured (via tray launch args) to use QX skin server URL for
 Tray adds JVM arg for offline/QX profile session:
 
 ```text
--Dqx.skinUrl=https://api.qx.example.com/v1/skins/{uuid}.png
+-Dqx.skinUrl=https://api.qx.example.com/api/v1/skins/{uuid}.png
 ```
 
 Custom skin mod or authlib injector in classpath for modded — loader-specific (Forge/Fabric post-MVP).

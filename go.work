@@ -1,0 +1,10 @@
+go 1.22
+
+use (
+	./pkg/log
+	./pkg/protocol
+	./scripts/gen-jwt-secret
+	./services/qxagent
+	./services/qxapi
+	./services/qxlauncher
+)

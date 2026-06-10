@@ -1,6 +1,7 @@
 # Launcher Auto-Update
 
-> **F2:** QXLauncher checks updates on startup + every 6h.
+> **F2:** QXLauncher checks updates on startup + every 6h.  
+> REST base: `/api/v1` (пути ниже относительные, если не указан полный URL).
 
 ---
 
@@ -32,7 +33,7 @@ Path: `releases/launcher/latest.json`
 
 ```mermaid
 flowchart TD
-    A[Tray startup] --> B[GET /launcher/updates/latest]
+    A[Tray startup] --> B[GET /api/v1/launcher/updates/latest]
     B --> C{version > current?}
     C -->|no| D[Continue]
     C -->|yes| E{mandatory?}
@@ -78,7 +79,7 @@ Keep previous binary at `qx-agent.prev` / `qx-launcher.prev`. If new version cra
 ## 6. API
 
 ```text
-GET /v1/launcher/updates/latest?platform=windows-x64&current=1.1.0
+GET /api/v1/launcher/updates/latest?platform=windows-x64&current=1.1.0
 ```
 
 Returns manifest or `304` if up to date.

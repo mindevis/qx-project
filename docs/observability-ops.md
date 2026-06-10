@@ -1,6 +1,7 @@
 # Observability & Operations
 
 > **I9:** Pure **self-hosted**, no Cloudflare. **I8:** VPS TBD.
+> **Dev (Phase 0):** `infra/docker/docker-compose.yml` — только MySQL, Redis, MinIO; API и web запускаются локально (`make api`, `npm run dev`).
 
 ---
 
@@ -43,7 +44,8 @@ Structured JSON logs from Go (`slog`):
 
 | Check | Interval |
 | ------- | ---------- |
-| `https://api.qx.example.com/health` | 60s |
+| `https://api.qx.example.com/api/v1/health` | 60s (liveness) |
+| `https://api.qx.example.com/api/v1/health/ready` | 60s (readiness) |
 | `https://qx.example.com` | 60s |
 | MySQL TCP | 5m |
 | Disk > 85% | daily script |
@@ -84,8 +86,8 @@ See [security-legal.md §3.2](./security-legal.md)
 ## 5. Health endpoints
 
 ```text
-GET /health        → 200 ok
-GET /health/ready  → DB + Redis + MinIO ping
+GET /api/v1/health        → 200 ok (liveness)
+GET /api/v1/health/ready  → DB ping (Phase 0); + Redis + MinIO — prod
 ```
 
 ---

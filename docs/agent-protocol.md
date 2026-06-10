@@ -1,7 +1,8 @@
 # QXAgent Protocol
 
 > Версия: **1.0** · Transport: **WebSocket (WSS)** · Format: **JSON**
-> Shared types: `pkg/protocol` (Go)
+> Shared types: `pkg/protocol` (Go, placeholder)
+> **Статус реализации:** 🔲 spec only — **Phase 2** (`services/qxagent` — stub)
 
 ---
 
@@ -33,8 +34,8 @@ sequenceDiagram
     participant VPS as Linux VPS
     participant A as QXAgent
 
-    U->>API: POST /servers {ssh, server_type, modpack_id?}
-    U->>API: POST /servers/{id}/deploy
+    U->>API: POST /api/v1/servers {ssh, server_type, modpack_id?}
+    U->>API: POST /api/v1/servers/{id}/deploy
     API->>VPS: SSH: upload qx-agent binary
     API->>VPS: SSH: write systemd unit + env
     API->>VPS: SSH: systemctl enable --now qx-agent

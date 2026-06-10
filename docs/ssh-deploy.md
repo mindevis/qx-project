@@ -2,6 +2,7 @@
 
 > **F7:** Backend SSH → Linux VPS → systemd agent.
 > Security: [security-legal.md §3](./security-legal.md)
+> **Статус:** 🔲 Phase 2. REST: base `/api/v1` (пути ниже относительные).
 
 ---
 
@@ -15,8 +16,8 @@ sequenceDiagram
     participant VPS as Linux VPS
     participant A as QXAgent
 
-    U->>API: POST /servers + ssh_credentials
-    U->>API: POST /servers/{id}/deploy
+    U->>API: POST /api/v1/servers + ssh_credentials
+    U->>API: POST /api/v1/servers/{id}/deploy
     API->>Q: Enqueue deploy_job
     Q->>VPS: SSH connect (key from DB decrypted)
     Q->>VPS: Upload agent binary
@@ -92,7 +93,7 @@ On successful deploy:
 2. Write to `/etc/qx/agent.env`:
 
    ```env
-   QX_API_URL=https://api.qx.example.com
+   QX_API_URL=https://api.qx.example.com   # host; WSS /agent/v1/connect; tray REST /api/v1
    QX_SERVER_ID=uuid
    QX_AGENT_TOKEN=eyJ...
    QX_SERVER_ROOT=/opt/qx/server

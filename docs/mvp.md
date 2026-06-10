@@ -3,7 +3,19 @@
 > Минимально жизнеспособный продукт для закрытой alpha.
 > Полная архитектура: [architecture.md](./architecture.md)
 
-**Статус:** v1.4 (синхрон с [architecture.md](./architecture.md))
+**Статус:** v1.7 (синхрон с [architecture.md](./architecture.md))
+**Реализация:** Phase 0 ✅ · Phase 1+ — в работе / spec only
+
+### Что уже в репозитории (Phase 0)
+
+| Область | Готово |
+| --------- | -------- |
+| Monorepo | `go.work`, `services/*`, `web/qxweb`, `pkg/protocol` |
+| QXApi | Auth API, GORM + MySQL; REST base `/api/v1` (включая health) |
+| QXWeb | Landing, auth modal, profile (email/пароль), `/launcher` (Phase 1 UI), placeholder `/servers` |
+| Infra | `make dev-up` — MySQL, Redis, MinIO |
+| Тесты | Go + React — 100% unit coverage, CI |
+| Stubs | `qxlauncher`, `qxagent` — `cmd` only |
 **Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → tray → JVM
 **RBAC:** [security-legal.md §8](./security-legal.md) — MVP: Guest и Registered — **Vanilla only**; mods/shaders/RP — v2+
 **Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)
@@ -30,7 +42,7 @@ MVP считается готовым, когда:
 - [ ] Пользователь регистрируется, логинится, скачивает tray, **связывает device с аккаунтом**, создаёт инстанс на
   `/launcher`, играет.
 - [ ] Пользователь скачивает tray, **связывает с сайтом** (guest или logged-in), создаёт инстанс на `/launcher`, играет.
-- [ ] На сайте создаётся инстанс (Vanilla) → `POST /launcher/launch-requests` → tray poll → JVM.
+- [ ] На сайте создаётся инстанс (Vanilla) → `POST /api/v1/launcher/launch-requests` → tray poll → JVM.
 - [ ] Админ добавляет Linux VPS (SSH), backend deploy agent, start/stop JAR из panel.
 - [ ] Live-консоль сервера в web (WebSocket).
 - [ ] Launcher UI на сайте **`/launcher`** (React, не WebView) показывает инстансы и кнопку «Играть».
@@ -44,13 +56,13 @@ MVP считается готовым, когда:
 
 | Область | Функционал |
 | --------- | ------------ |
-| **QXWeb** (`web/panel-ui/`) | React + Vite + Ant Design — лендинг, auth, instances, servers, `/launcher` |
+| **QXWeb** (`web/qxweb/`) | React + Vite + Ant Design — лендинг, auth, instances, servers, `/launcher` |
 | **Launcher UI** | React на QXWeb `/launcher` (не WebView, [ADR-0006](./adr/0006-launcher-website-ui.md)) |
 | **Guest (linked)** | Vanilla, Local profile, базовые инстансы |
 | **Registered** | MVP: то же (Vanilla); mods/shaders/RP/modpacks — **v2+** |
 | **API** | Go + Gin + GORM |
 | **Agent** | Go, **Linux only**, SSH deploy, systemd |
-| **QXLauncher** (`cmd/launcher/`) | Go tray — device link, launch-bridge poll, JVM, Mojang Java, notifications |
+| **QXLauncher** (`services/qxlauncher/`) | Go tray — device link, launch-bridge poll, JVM, Mojang Java, notifications |
 | **Интеграции** | **Mojang** manifest + assets (Vanilla) |
 | **Infra** | Docker Compose: API, Web, MySQL, Redis, MinIO, Nginx |
 
@@ -92,7 +104,7 @@ Download tray (Web) → Link device (guest session)
 ### Flow C — Server admin
 
 ```text
-Add Linux VPS (SSH creds) → POST /servers/{id}/deploy → Agent online → Start/Stop → Console
+Add Linux VPS (SSH creds) → `POST /api/v1/servers/{id}/deploy` → Agent online → Start/Stop → Console
 ```
 
 ---
@@ -138,9 +150,9 @@ flowchart TB
 | Страница | Функции |
 | ---------- | --------- |
 | `/` | Лендинг, ссылка на скачивание QXLauncher |
-| `/auth/register`, `/auth/login` | Email + password |
-| `/profile` | Имя, email, смена пароля |
-| `/launcher`, `/launcher/link` | Инстансы, device link, «Играть» |
+| `/auth/:mode` | Редирект → модалка входа/регистрации (email + password) |
+| `/profile` | Email, смена email и пароля (модалки); имя недоступно |
+| `/launcher`, `/launcher/link` | Страница лаунчера (Phase 1: инстансы, device link, «Играть») |
 | `/servers` | Список, добавить (SSH creds, `server_type`), deploy, статус |
 | `/servers/:id` | Start / Stop / Restart, live-консоль |
 
@@ -148,15 +160,20 @@ flowchart TB
 
 ### 5.2 QXApi (Senior)
 
-| Модуль | MVP endpoints |
-| -------- | --------------- |
-| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/guest` |
-| Devices | `POST /launcher/devices/register`, `link`, `GET .../status` |
-| Instances | `GET/POST/DELETE /instances`, `GET /instances/:id/manifest` |
-| Launch | `POST /launcher/launch-requests`, tray `GET .../pending`, `PATCH .../{id}` |
-| Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/deploy`, `start`, `stop`, `restart` |
-| Agent | WSS `/agent/v1/connect` (JWT at SSH deploy) |
-| Console | WSS `/servers/:id/console` (proxy → agent) |
+**REST base:** `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`).  
+Пути ниже — относительно base. Agent WSS: `/agent/v1/connect` (вне `/api/v1`).
+
+| Модуль | MVP endpoints | Phase 0 |
+| -------- | --------------- | --------- |
+| Health | `GET /health`, `GET /health/ready` | ✅ |
+| Auth | `POST /auth/register`, `/login`, `/refresh`, `/guest`, `/logout` | ✅ |
+| Users | `GET /users/me`, `PATCH /users/me/password`, `PATCH /users/me/email` | ✅ |
+| Devices | `POST /launcher/devices/register`, `link`, `GET .../status` | 🔲 |
+| Instances | `GET/POST/DELETE /instances`, `GET /instances/:id/manifest` | 🔲 |
+| Launch | `POST /launcher/launch-requests`, tray `GET .../pending`, `PATCH .../{id}` | 🔲 |
+| Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/deploy`, `start`, `stop`, `restart` | 🔲 |
+| Agent | WSS `/agent/v1/connect` (JWT at SSH deploy) | 🔲 |
+| Console | WSS `/servers/:id/console` (proxy → agent) | 🔲 |
 
 Полная спецификация: [api.md](./api.md). Server mods/plugins — post-MVP: [server-content-install.md](./server-content-install.md).
 
@@ -206,7 +223,9 @@ Agent         — id, server_id, hostname, connected_at
 
 ## 7. Инфраструктура MVP
 
-Один VPS (4–8 GB RAM), Docker Compose:
+**Dev (Phase 0, сейчас):** `make dev-up` — MySQL, Redis, MinIO. API и QXWeb — на хосте.
+
+**Prod MVP** — один VPS (4–8 GB RAM), Docker Compose:
 
 | Service | Назначение |
 | --------- | ------------ |
@@ -220,7 +239,8 @@ Agent         — id, server_id, hostname, connected_at
 **Домены (пример):**
 
 - `qx.example.com` — web
-- `api.qx.example.com` — REST + WSS
+- `api.qx.example.com/api/v1` — REST
+- `api.qx.example.com/agent/v1/connect` — Agent WSS
 
 Детали: [architecture.md §8.3 Tier 0](./architecture.md).
 
@@ -230,18 +250,19 @@ Agent         — id, server_id, hostname, connected_at
 
 ## 8. Фазы и чеклист
 
-### Phase 0 — Foundation *(6–8 нед)*
+### Phase 0 — Foundation *(6–8 нед)* ✅
 
-**Milestone:** можно зарегистрироваться и войти.
+**Milestone:** можно зарегистрироваться и войти — **достигнут** (2026-06).
 
-| # | Задача | Ответственный |
-| --- | -------- | --------------- |
-| 0.1 | Monorepo scaffold (`go.mod`, `cmd/api`, `web/panel-ui`) | Senior |
-| 0.2 | Docker Compose dev | Senior |
-| 0.3 | MySQL schema: users | Senior |
-| 0.4 | Auth API: register, login, JWT | Senior |
-| 0.5 | Web: login, register, profile | Junior |
-| 0.6 | CI: lint + build (optional) | Senior |
+| # | Задача | Ответственный | Статус |
+| --- | -------- | --------------- | -------- |
+| 0.1 | Monorepo scaffold (`go.work`, `services/qxapi`, `web/qxweb`) | Senior | ✅ |
+| 0.2 | Docker Compose dev | Senior | ✅ |
+| 0.3 | MySQL schema: users | Senior | ✅ |
+| 0.4 | Auth API: register, login, refresh, guest, logout, JWT | Senior | ✅ |
+| 0.5 | Web: login, register, profile | Junior | ✅ |
+| 0.6 | CI: lint, test, build | Senior | ✅ |
+| 0.7 | Unit tests 100% (qxapi, qxweb) | Senior | ✅ |
 
 ### Phase 1 — Launcher first *(10–14 нед)*
 
@@ -356,4 +377,4 @@ gantt
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.4 — синхрон с architecture.md)
+Последнее обновление: 2026-06-10 (v1.7 — Phase 0: 100% coverage, profile modals, change email/password API)

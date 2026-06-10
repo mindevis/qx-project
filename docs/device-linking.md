@@ -1,5 +1,7 @@
 # Device Linking — Связь Launcher ↔ Сайт
 
+> **Статус реализации:** 🔲 spec only — **Phase 1** (`POST /api/v1/launcher/devices/*` ещё не в коде).  
+> REST base: `/api/v1` — пути в §3 API относительные к base.
 > Решение **E6**: обязательная привязка лаунчера к сайту **до** создания инстансов и игры.
 > Работает **без регистрации** (guest) и **с аккаунтом** (после login — re-link или merge).
 
@@ -29,16 +31,16 @@ sequenceDiagram
 
     U->>Web: Раздел «Лаунчер» → Скачать
     U->>L: Запуск qx-launcher
-    L->>API: POST /launcher/devices/register
+    L->>API: POST /api/v1/launcher/devices/register
     API-->>L: pending_link, user_code, link_url
     L->>U: OS notification «Свяжите лаунчер с сайтом»
     U->>Web: Открыть link_url (или /launcher/link)
     U->>Web: Подтвердить привязку (guest cookie или login)
-    Web->>API: POST /launcher/devices/link
+    Web->>API: POST /api/v1/launcher/devices/link
     API-->>L: poll: status=linked, device_token
     L->>U: Notification «Лаунчер связан»
     U->>Web: Создать инстанс
-    L->>API: GET /instances (device_token)
+    L->>API: GET /api/v1/instances (device_token)
     L->>L: Install + Launch
 ```
 
@@ -119,7 +121,7 @@ sequenceDiagram
 
     Note over L: device linked to guest_session G1
     U->>Web: Register / Login
-    Web->>API: POST /auth/register { ..., device_id }
+    Web->>API: POST /api/v1/auth/register { ..., device_id }
     API->>API: Merge G1 → user: instances, profiles
     API-->>L: new device_token (owner=user)
 ```
