@@ -2,6 +2,8 @@
 
 > Rate limiting, audit, encryption, compliance.
 > Self-hosted **без Cloudflare** — [ADR-0009](./adr/0009-pure-self-hosted.md)
+> **Phase 0:** JWT + bcrypt реализованы; Redis rate limit и audit log — Phase Alpha+.  
+> Пути rate limit ниже — относительно REST base `/api/v1`.
 
 ---
 

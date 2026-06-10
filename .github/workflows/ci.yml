@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - run: cd services/qxapi && go mod tidy && go vet ./... && go test ./... -coverprofile=coverage.out
+      - run: cd services/qxapi && go tool cover -func=coverage.out | tail -1 | grep '100.0%'
+      - run: cd services/qxagent && go test ./... -coverprofile=coverage.out
+      - run: cd services/qxlauncher && go test ./... -coverprofile=coverage.out
+      - run: cd pkg/log && go test ./...
+      - run: cd pkg/protocol && go test ./...
+      - run: cd services/qxapi && go build -o /dev/null ./cmd
+      - run: cd services/qxagent && go vet ./... && go build -o /dev/null ./cmd
+      - run: cd services/qxlauncher && go vet ./... && go build -o /dev/null ./cmd
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/qxweb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web/qxweb/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:coverage
+      - run: npm run build

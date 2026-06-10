@@ -26,6 +26,7 @@ SPA-экосистема для UI.
 
 ## Consequences
 
-- Monorepo Go modules + `web/panel-ui` (QXWeb, включая маршруты `/launcher/*`).
+- Go workspace: `services/qxapi`, `services/qxagent`, `services/qxlauncher` + `web/qxweb` (маршруты `/launcher/*`).
 - Shared types в `pkg/protocol`.
 - Billing/post-MVP features не блокируют старт.
+- Phase 0: Vitest (web) + `go test` (qxapi) — 100% unit coverage в CI.

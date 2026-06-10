@@ -11,7 +11,7 @@
 ## Decision
 
 - **Go launcher** — tray daemon only: JVM, Mojang Java, sync, notifications, localhost bridge.
-- **Launcher UI** — React SPA на сайте, маршрут `/launcher/*` (тот же `web/panel-ui` или shared layout).
+- **Launcher UI** — React SPA на сайте, маршрут `/launcher/*` (тот же `web/qxweb`).
 - **Browser** — пользователь открывает сайт для инстансов; tray ЛКМ → `/launcher`.
 - **WebView — не используется.**
 
@@ -26,7 +26,7 @@
 
 - Go app обязан: OS notifications, tray menu, poll link status.
 - CORS: site and API same origin or configured.
-- Game launch: site → `POST /launcher/launch-requests` → QXLauncher poll ([launch-bridge.md](../launch-bridge.md), [ADR-0008](./0008-launch-bridge-hybrid.md)).
+- Game launch: site → `POST /api/v1/launcher/launch-requests` → QXLauncher poll ([launch-bridge.md](../launch-bridge.md), [ADR-0008](./0008-launch-bridge-hybrid.md)).
 
 ## Relation to ADR-0002
 

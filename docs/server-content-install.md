@@ -1,5 +1,6 @@
 # Server Content Install — Mods & Plugins by server_type
 
+> **Статус реализации:** 🔲 post-MVP / Phase 2+ (см. [mvp.md](./mvp.md)). REST paths — относительно `/api/v1`.
 > **BYOS:** QXAgent ставит контент **на диск сервера** (прямые URL из manifest), не в MinIO.  
 > Параллель клиенту: [ADR-0011](./adr/0011-client-local-content-install.md), [modpacks-pipeline.md](./modpacks-pipeline.md).
 
@@ -73,7 +74,7 @@ sequenceDiagram
     participant A as QXAgent
     participant VPS as Server disk
 
-    Web->>API: POST /servers/{id}/plugins {plugin_id}
+    Web->>API: POST /api/v1/servers/{id}/plugins {plugin_id}
     API->>API: Validate server_type allows plugins
     API->>A: cmd.plugins.install { manifest, target: plugins/ }
     A->>VPS: Download from CF/MR URL → plugins/

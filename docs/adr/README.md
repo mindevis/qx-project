@@ -1,5 +1,8 @@
 # ADR Index
 
+> Архитектурные решения зафиксированы до Phase 0. Реализация: [architecture.md §Статус реализации](../architecture.md).  
+> REST API: единый префикс `/api/v1` (v1.6 docs).
+
 | ADR | Title | Status |
 | ----- | ------- | -------- |
 | [0001](./0001-tech-stack.md) | Tech stack: Go backend, React frontend | Accepted |

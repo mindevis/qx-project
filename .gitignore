@@ -1,0 +1,39 @@
+# Go
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+coverage.out
+cov.txt
+authcov
+*_cov
+**/coverage/
+services/qxapi/ac
+services/qxapi/coverage
+services/qxapi/internal/auth/coverage
+
+# Env
+.env
+.env.local
+
+# Node
+node_modules/
+web/qxweb/dist/
+web/qxweb/node_modules/
+web/qxweb/coverage/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+*.swp
+.DS_Store
+
+# Docker
+infra/docker/mysql_data/

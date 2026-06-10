@@ -1,5 +1,7 @@
 # Launch Bridge — Site → Tray → JVM
 
+> **Статус реализации:** 🔲 spec only — **Phase 1** (`/api/v1/launcher/launch-requests` ещё не в коде).
+> REST base: `/api/v1`.
 > Решение **B1**: **гибрид** — QXWeb создаёт launch request в QXApi, QXLauncher poll'ит и запускает JVM.
 > ADR: [0008](./adr/0008-launch-bridge-hybrid.md)
 
@@ -27,16 +29,16 @@ sequenceDiagram
     participant JVM as Minecraft
 
     Note over T: linked device_token, poll every 2s
-    UI->>API: POST /launcher/launch-requests { instance_id, profile_id }
+    UI->>API: POST /api/v1/launcher/launch-requests { instance_id, profile_id }
     API->>API: Validate: device linked, user/guest RBAC
     API-->>UI: { request_id, status: queued }
-    T->>API: GET /launcher/launch-requests/pending
+    T->>API: GET /api/v1/launcher/launch-requests/pending
     API-->>T: { request_id, instance manifest, profile }
     T->>T: Ensure files, Java, classpath
-    T->>API: PATCH /launcher/launch-requests/{id} { status: running }
+    T->>API: PATCH /api/v1/launcher/launch-requests/{id} { status: running }
     T->>JVM: exec java ...
     T->>API: PATCH ... { status: completed | failed }
-    UI->>API: GET /launcher/launch-requests/{id} (poll optional)
+    UI->>API: GET /api/v1/launcher/launch-requests/{id} (poll optional)
     API-->>UI: running / completed / failed
 ```
 
@@ -47,7 +49,7 @@ sequenceDiagram
 ### 3.1 Create (website)
 
 ```text
-POST /v1/launcher/launch-requests
+POST /api/v1/launcher/launch-requests
 Authorization: Bearer <user_jwt> | Cookie guest + X-Device-Token
 ```
 
@@ -79,7 +81,7 @@ Response `201`:
 ### 3.2 Poll pending (tray)
 
 ```text
-GET /v1/launcher/launch-requests/pending
+GET /api/v1/launcher/launch-requests/pending
 Authorization: Bearer <device_token>
 ```
 
@@ -88,7 +90,7 @@ Returns **at most one** oldest `queued` request for this device. Atomically mark
 ### 3.3 Status update (tray)
 
 ```text
-PATCH /v1/launcher/launch-requests/{id}
+PATCH /api/v1/launcher/launch-requests/{id}
 Authorization: Bearer <device_token>
 ```
 
@@ -101,7 +103,7 @@ Authorization: Bearer <device_token>
 ### 3.4 UI poll (optional)
 
 ```text
-GET /v1/launcher/launch-requests/{id}
+GET /api/v1/launcher/launch-requests/{id}
 ```
 
 For progress spinner on website.
