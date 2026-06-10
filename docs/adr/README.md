@@ -12,3 +12,4 @@
 | [0008](./0008-launch-bridge-hybrid.md) | Hybrid launch: site POST + tray poll | Accepted |
 | [0009](./0009-pure-self-hosted.md) | Pure self-hosted, no Cloudflare | Accepted |
 | [0010](./0010-own-launcher-not-gml.md) | Own Go launcher, not GML fork | Accepted |
+| [0011](./0011-client-local-content-install.md) | Client content on PC via QXLauncher, not MinIO | Accepted |

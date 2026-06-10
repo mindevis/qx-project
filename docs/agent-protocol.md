@@ -172,7 +172,9 @@ interface Envelope {
 | `cmd.server.kill` | `{}` |
 
 **server_type:** `vanilla` \| `paper` \| `spigot` \| `purpur` \| `forge` \| `neoforge` \| `fabric` \| `quilt` \|
-`hybrid` + `hybrid_platform` optional.
+`hybrid` (требует `hybrid_platform`: `mohist` \| `magma` \| `arclight`).
+
+См. [server-content-install.md](./server-content-install.md).
 
 ### 5.2 Console & RCON
 
@@ -193,7 +195,9 @@ interface Envelope {
 
 Paths relative to server root. Traversal blocked (`..`, absolute paths).
 
-### 5.4 Modpack
+### 5.4 Modpack, mods & plugins
+
+**Modpack** — полная сборка; пути зависят от `server_type` ([server-content-install.md](../server-content-install.md)).
 
 ```json
 {
@@ -209,8 +213,38 @@ Paths relative to server root. Traversal blocked (`..`, absolute paths).
 }
 ```
 
-Agent downloads manifest, verifies hash matches server record, installs to server root (mods/, config/, jar if
-server-side modpack).
+**Отдельные моды** — только если `server_type` поддерживает mods (`forge`, `neoforge`, `fabric`, `quilt`, `hybrid`):
+
+```json
+{
+  "type": "cmd.mods.install",
+  "payload": {
+    "items": [{ "url": "...", "sha256": "...", "filename": "mod.jar" }],
+    "target_dir": "mods"
+  }
+}
+```
+
+**Плагины** — только если `server_type` поддерживает plugins (`paper`, `spigot`, `purpur`, `hybrid`):
+
+```json
+{
+  "type": "cmd.plugins.install",
+  "payload": {
+    "items": [{ "url": "...", "sha256": "...", "filename": "plugin.jar" }],
+    "target_dir": "plugins"
+  }
+}
+```
+
+QXAgent скачивает по URL на диск сервера, verify hash. **Не MinIO.**
+
+| server_type | `cmd.mods.install` | `cmd.plugins.install` |
+| ------------- | :----------------: | :-------------------: |
+| paper, spigot, purpur | ✗ | ✓ |
+| forge, neoforge, fabric, quilt | ✓ | ✗ |
+| hybrid (Mohist, …) | ✓ | ✓ |
+| vanilla | ✗ | ✗ |
 
 ### 5.5 Agent maintenance
 

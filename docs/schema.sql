@@ -175,6 +175,7 @@ CREATE TABLE servers (
     public_address     VARCHAR(255) NULL,
     public_description TEXT NULL,
     config             JSON NOT NULL DEFAULT (JSON_OBJECT()),
+    hybrid_platform    VARCHAR(32) NULL,
     agent_token_hash   VARCHAR(255) NULL,
     last_seen_at       TIMESTAMP NULL,
     created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -12,7 +12,7 @@
 | **Uptime Kuma** | HTTP/TCP checks, status page |
 | **Netdata** (optional) | VPS metrics |
 | **MySQL** | App + audit logs |
-| **MinIO** | Files, releases, modpack cache |
+| **MinIO** | Launcher releases, server backups, skins |
 
 No Prometheus in MVP — add at Tier 1.
 

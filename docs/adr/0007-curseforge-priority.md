@@ -13,4 +13,4 @@
 
 - `ModpackSvc` импорт: CF adapter первым в pipeline.
 - UI: badge «CurseForge» default source filter.
-- Cache warming: популярные CF modpacks в MinIO.
+- Metadata cache в Redis/MySQL; файлы — **QXLauncher → PC** ([ADR-0011](./0011-client-local-content-install.md)).

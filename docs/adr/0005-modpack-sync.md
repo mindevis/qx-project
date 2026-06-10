@@ -11,8 +11,8 @@
 
 - Единый `modpack_id` на `launcher_instances` и `servers`.
 - Один `QxModpackManifest` + `manifest_sha256` в MySQL.
-- Client: Go launcher install.
-- Server: agent `cmd.modpack.install` with hash verification.
+- Client: QXLauncher install to PC.
+- Server: QXAgent install to server disk; **mods vs plugins** by `server_type` ([server-content-install.md](../server-content-install.md)).
 
 ## Rationale
 

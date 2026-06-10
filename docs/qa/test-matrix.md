@@ -57,8 +57,13 @@
 | S06 | Console input | type command | executed in MC | ☑ |
 | S07 | Multi-admin invite | add admin user | admin can start | ⊘ |
 | S08 | Viewer read-only | viewer login | console read, no start | ⊘ |
-| S09 | Modpack server sync | same modpack_id | agent installs mods | ⊘ |
-| S10 | Hybrid jar (Mohist) | server_type hybrid | starts correctly | ⊘ |
+| S09 | Modpack server sync | same modpack_id | agent installs to correct dirs by loader | ⊘ |
+| S10 | Hybrid jar (Mohist) | server_type hybrid + mohist | starts; mods/ + plugins/ | ⊘ |
+| S10a | Plugins on Paper | POST /servers/{id}/plugins | installed to plugins/ | ⊘ |
+| S10b | Mods on NeoForge | POST /servers/{id}/mods | installed to mods/ | ⊘ |
+| S10c | Reject mods on Paper | POST /servers/{id}/mods | 403 CONTENT_NOT_ALLOWED | ⊘ |
+| S10d | Reject plugins on NeoForge | POST /servers/{id}/plugins | 403 CONTENT_NOT_ALLOWED | ⊘ |
+| S10e | Hybrid both content types | mods + plugins on Mohist | both dirs populated | ⊘ |
 | S11 | Agent reconnect | restart API | agent reconnects ≤60s | ☑ |
 | S12 | Idempotent start | duplicate request_id | no double process | ☑ |
 

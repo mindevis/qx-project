@@ -154,24 +154,24 @@ EULA](https://www.minecraft.net/en-us/eula) and [Usage Guidelines](https://www.m
 
 ---
 
-## 5. CurseForge ToS & MinIO cache
+## 5. CurseForge ToS & direct client install
 
-See also [modpacks-pipeline.md](./modpacks-pipeline.md).
+See also [modpacks-pipeline.md](./modpacks-pipeline.md), [ADR-0011](./adr/0011-client-local-content-install.md).
 
 ### 5.1 Allowed (typical CF API usage)
 
 - Fetch metadata and **authorized download URLs** via API.
-- Cache files on **private MinIO** for install to user machine / BYOS server.
-- Serve via **presigned URLs** to linked client/agent — not public hotlinking.
+- **QXLauncher** downloads directly to user PC instance — **no re-hosting** mod/modpack binaries on MinIO.
+- **QXAgent** downloads to BYOS server disk from same manifest URLs.
 
 ### 5.2 Restrictions
 
 | Do | Don't |
 | ---- | ------- |
-| Cache per-user install copies | Public CDN re-host without permission |
+| Use CF API download URLs per install | Mirror modpacks on public CDN / MinIO for redistribution |
 | Attribute CurseForge as source | Strip mod author metadata |
 | Respect API rate limits | Scrape without API key |
-| Honor takedown requests | Cache mods removed from CF indefinitely |
+| Honor takedown requests | Keep serving removed projects |
 
 ### 5.3 Compliance checklist
 

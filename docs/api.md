@@ -55,7 +55,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |
 | GET | `/servers` | Bearer | List (owned + member) |
-| POST | `/servers` | Bearer | Create `{ name, server_type, ssh, modpack_id? }` |
+| POST | `/servers` | Bearer | Create `{ name, server_type, hybrid_platform?, ssh, modpack_id? }` |
 | GET | `/servers/{id}` | Bearer | Detail + status |
 | PATCH | `/servers/{id}` | Bearer | Update config |
 | DELETE | `/servers/{id}` | Bearer | owner only |
@@ -64,7 +64,19 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | POST | `/servers/{id}/stop` | Bearer | admin+ |
 | POST | `/servers/{id}/restart` | Bearer | admin+ |
 
-### 4.1 Server members (multi-admin)
+### 4.2 Server content (mods / plugins)
+
+По `server_type` — см. [server-content-install.md](./server-content-install.md).  
+Ошибка `403 CONTENT_NOT_ALLOWED` если тип не поддерживает контент.
+
+| Method | Path | Auth | Allowed `server_type` |
+| -------- | ------ | ------ | ----------------------- |
+| POST | `/servers/{id}/mods` | Bearer admin+ | forge, neoforge, fabric, quilt, hybrid |
+| POST | `/servers/{id}/plugins` | Bearer admin+ | paper, spigot, purpur, hybrid |
+| POST | `/servers/{id}/modpack` | Bearer admin+ | compatible loader |
+| GET | `/servers/{id}/content` | Bearer admin+ | List installed mods/plugins metadata |
+
+### 4.3 Server members (multi-admin)
 
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |

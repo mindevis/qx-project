@@ -14,7 +14,8 @@
 | [ssh-deploy.md](./ssh-deploy.md) | SSH agent provisioning |
 | [auto-update.md](./auto-update.md) | Tray updates |
 | [skin-server.md](./skin-server.md) | Skins (registered) |
-| [modpacks-pipeline.md](./modpacks-pipeline.md) | CF/MR, mods/shaders |
+| [modpacks-pipeline.md](./modpacks-pipeline.md) | CF/MR, client install |
+| [server-content-install.md](./server-content-install.md) | Server mods/plugins by type |
 | [observability-ops.md](./observability-ops.md) | Self-hosted ops |
 
 ## 1. Видение продукта
@@ -31,7 +32,8 @@
 ### Ключевые сценарии использования
 
 Инстанс **создаётся на сайте** (метаданные, версия, modloader, модпак), но **физически разворачивается на ПК
-пользователя** через tray. Перед инстансами и игрой **обязательна привязка device к сайту** (guest и registered) —
+пользователя** через QXLauncher.
+Перед инстансами и игрой **обязательна привязка QXLauncher к Backend сайта** (guest и registered) —
 [device-linking.md](./device-linking.md).
 
 ---
@@ -78,7 +80,7 @@ sequenceDiagram
 | 2 | Авторизация / аутентификация | QXWeb |
 | 3 | Скачивание QXLauncher | QXWeb |
 | 4 | Первый запуск QXLauncher | ПК |
-| 5 | **Привязка device к аккаунту** | QXWeb confirm + QXLauncher poll |
+| 5 | **Привязка QXLauncher к аккаунту** | QXWeb confirm + QXLauncher poll |
 | 6 | Создание игрового аккаунта | QXWeb `/launcher` — **QXAccount**, **Local** или **Microsoft** |
 | 7 | Создание инстанса | QXWeb (метаданные) → QXLauncher (файлы на ПК) |
 | 8 | Запуск → Игра | QXWeb `/launcher` → launch-bridge → JVM |
@@ -111,7 +113,7 @@ sequenceDiagram
 
 | Шаг | Действие |
 | ----- | ---------- |
-| 1 | Скачать → запустить tray launcher |
+| 1 | Скачать → запустить QXLauncher |
 | 2 | **Связать** с сайтом (уведомление или ПКМ в трее) |
 | 3 | Local-аккаунт · инстанс на сайте · sync · игра |
 
@@ -190,9 +192,11 @@ flowchart LR
     Launcher -->|launch| JVM
 ```
 
-- **Web** — CRUD инстансов, выбор версии/modpack, настройки.
-- **API** — хранит манифест, отдаёт лаунчеру при sync.
-- **Launcher** — скачивает файлы, собирает classpath, запускает JVM на локальной машине.
+- **QXWeb** — CRUD инстансов, выбор версии/modpack, настройки.
+- **QXApi** — хранит **манифест** (метаданные, URLs, hashes), не файлы модов.
+- **QXLauncher** — скачивает mods/modpacks/shaders/RP **на диск ПК** (CF/MR/Mojang), verify hash, launch JVM.
+
+> Файлы инстанса **не** проходят через MinIO — [ADR-0011](./adr/0011-client-local-content-install.md).
 
 ---
 
@@ -201,65 +205,82 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph clients [Клиенты]
+        direction LR
         Web[QXWeb]
         Launcher[QXLauncher]
     end
 
     subgraph platform [QXApi — Backend]
+        direction TB
+
         API[REST + WebSocket]
-        AccountMgmt[Account Management]
-        BillingMgmt[Billing Management]
-        ServerMgmt[Server Management]
-        LauncherMgmt[Launcher Management]
-        ModpackSvc[Modpack Service]
-        AgentHub[Agent Hub — WebSocket]
-        FileSvc[File & Backup Service]
-        Notify[Notification Service]
+
+        subgraph mgmt [Management]
+            direction LR
+            AccountMgmt[Account Management]
+            ServerMgmt[Server Management]
+            BillingMgmt[Billing Management]
+            LauncherMgmt[Launcher Management]
+        end
+
+        subgraph svc [Services]
+            direction LR
+            ModpackSvc[Modpack Service]
+            AgentHub[Agent Hub]
+            FileSvc[File & Backup]
+            Notify[Notifications]
+        end
     end
 
-    subgraph data [Data Layer]
-        MySQL[(MySQL)]
-        Redis[(Redis)]
-        MinIO[(MinIO — Self-Hosted)]
-    end
-
-    subgraph remote [Инфраструктура пользователя]
+    subgraph byos [BYOS — инфраструктура пользователя]
+        direction TB
         Agent[QXAgent]
         MCServer[Minecraft Server JAR]
         NodeFS[Файловая система ноды]
     end
 
+    subgraph data [Data Layer]
+        direction LR
+        MySQL[(MySQL)]
+        Redis[(Redis)]
+        MinIO[(MinIO)]
+    end
+
     Web --> API
     Launcher --> API
-    Launcher --> LauncherMgmt
-
-    API --> AccountMgmt
-    API --> BillingMgmt
-    API --> ServerMgmt
-    API --> LauncherMgmt
-    API --> ModpackSvc
-    API --> FileSvc
+    API --> mgmt
+    mgmt --> svc
 
     ServerMgmt --> AgentHub
-    ServerMgmt --> ModpackSvc
     LauncherMgmt --> ModpackSvc
-    LauncherMgmt --> AccountMgmt
-    BillingMgmt --> AccountMgmt
-    AgentHub <-->|WSS, mTLS| Agent
 
+    AgentHub <-->|WSS| Agent
     Agent --> MCServer
     Agent --> NodeFS
 
-    AccountMgmt --> MySQL
-    BillingMgmt --> MySQL
-    ServerMgmt --> MySQL
-    LauncherMgmt --> MySQL
+    mgmt --> MySQL
     ModpackSvc --> MySQL
-    ModpackSvc --> MinIO
-    AgentHub --> Redis
     FileSvc --> MinIO
-    FileSvc --> MySQL
+    AgentHub --> Redis
+    Notify --> Redis
+
+    classDef client fill:#1e3a5f,stroke:#60a5fa,color:#e0f2fe
+    classDef api fill:#0f2744,stroke:#38bdf8,color:#f0f9ff,stroke-width:2px
+    classDef mgmt fill:#134e4a,stroke:#2dd4bf,color:#ecfdf5
+    classDef service fill:#312e81,stroke:#a78bfa,color:#f5f3ff
+    classDef byos fill:#422006,stroke:#fbbf24,color:#fffbeb
+    classDef store fill:#1e293b,stroke:#94a3b8,color:#f1f5f9
+
+    class Web,Launcher client
+    class API api
+    class AccountMgmt,ServerMgmt,BillingMgmt,LauncherMgmt mgmt
+    class ModpackSvc,AgentHub,FileSvc,Notify service
+    class Agent,MCServer,NodeFS byos
+    class MySQL,Redis,MinIO store
 ```
+
+> Связи Management ↔ Management (Billing/Launcher → Account) и Server → Modpack — в §3.2; на схеме только
+> вертикальный поток и ключевые вызовы.
 
 ---
 
@@ -291,12 +312,15 @@ flowchart TB
 
 **Стек:** Go + Gin + GORM + MySQL + Redis.
 
+**Слои QXApi** (сверху вниз): **REST + WebSocket** → **Management** (Account, Server, Billing, Launcher) →
+**Services** (Modpack, Agent Hub, Files, Notify) → **Data Layer** (MySQL, Redis, MinIO).
+
 ```text
 cmd/api/                 # QXApi
 internal/
   auth/  users/  profiles/  skinserver/   # Account Management
-  billing/                               # Billing Management (post-MVP)
   servers/  agents/  deploy/               # Server Management
+  billing/                               # Billing Management (post-MVP)
   launcher/  instances/  devices/          # Launcher Management
   modpacks/  integrations/  files/
 pkg/protocol/
@@ -305,10 +329,13 @@ pkg/protocol/
 | Домен | Модули | Ответственность |
 | ------- | -------- | ----------------- |
 | **Account Management** | `auth/`, `users/`, `profiles/`, `skinserver/` | QX-аккаунты, guest, JWT, QXAccount / Local / Microsoft, skins & capes |
-| **Billing Management** | `billing/` | Premium tier, лимиты, подписки, платёжные webhooks (post-MVP) |
 | **Server Management** | `servers/`, `agents/`, `deploy/` | BYOS-серверы, SSH deploy, QXAgent, консоль, файлы на ноде |
+| **Billing Management** | `billing/` | Premium tier, лимиты, подписки, платёжные webhooks (post-MVP) |
 | **Launcher Management** | `launcher/`, `instances/`, `devices/` | Device link, инстансы, launch-requests, manifests, auto-update |
-| **Shared** | `modpacks/`, `files/`, `integrations/` | Modpacks, MinIO, CurseForge / Modrinth / Mojang |
+| **Shared (Services)** | `modpacks/`, `files/`, `integrations/`, Agent Hub, Notify | Catalog + manifest (MySQL); MinIO — только platform blobs |
+
+Связи между доменами: **Billing / Launcher → Account**; **Server / Launcher → Modpack Service**;
+**Server → Agent Hub**.
 
 | Канал | Протокол | Документ |
 | ------- | ---------- | ---------- |
@@ -331,7 +358,8 @@ binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
 | **Deploy** | Установка через SSH job с backend (не ручной pairing token) |
 | **Связь** | WSS к Agent Hub, heartbeat, reconnect + idempotency |
 | **Lifecycle** | start/stop/restart/kill — **все типы JAR** (см. §4.7) |
-| **Modpack** | `modpack.install` — тот же manifest, что у client instance |
+| **Modpack** | `modpack.install` — manifest на диск сервера (см. [server-content-install.md](./server-content-install.md)) |
+| **Mods / Plugins** | `mods.install` / `plugins.install` — по `server_type` |
 | **Консоль / RCON / Файлы / Метрики** | Полный набор (A2) |
 
 **Безопасность:**
@@ -412,8 +440,8 @@ sequenceDiagram
     L->>CDN: Download missing assets & libraries
     L->>L: Verify checksums, assemble classpath
     L->>API: GET /modpacks/{id}/manifest
-    API-->>L: mcVersion, loader, mods[], overrides
-    L->>CDN: Download mods, libraries, assets
+    API-->>L: mcVersion, loader, files[] with download URLs
+    L->>CDN: Download mods/assets direct to instance dir on PC
     L->>L: Verify hashes, run modloader processors
     L->>JVM: spawn with modded classpath
     JVM-->>L: Game running
@@ -437,16 +465,29 @@ webhooks провайдера оплаты. Поле `users.tier` — на бу�
 
 ---
 
-### 3.7 Server JAR types
+### 3.7 Server JAR types & content
 
-Vanilla, Paper, Spigot, Purpur, Forge, NeoForge, Fabric, Quilt, **hybrid** (Mohist, Magma, Arclight…).
-Config: `server_type` + `jar_path` + `jvm_args`.
+Тип сервера задаёт, **что можно ставить на BYOS-ноду** через QXAgent:
+
+| Категория | `server_type` | Контент на диске |
+| ----------- | --------------- | ------------------ |
+| Vanilla | `vanilla` | только jar + configs |
+| Plugins | `paper`, `spigot`, `purpur` | **`plugins/`** только |
+| Mods | `forge`, `neoforge`, `fabric`, `quilt` | **`mods/`** только |
+| Hybrid | `hybrid` + `hybrid_platform` (Mohist, Magma, Arclight) | **`mods/` + `plugins/`** |
+
+Примеры: **Paper** — только плагины; **NeoForge** — только моды; **Mohist** — и моды, и плагины.
+
+Полная матрица и команды агента: **[server-content-install.md](./server-content-install.md)**.
+
+Config: `server_type`, `hybrid_platform?`, `jar_path`, `jvm_args`.
 
 ---
 
 ### 3.8 Modpack sync
 
-Shared `modpack_id` on `launcher_instances` and `servers` → client install (Go) + `modpack.install` (agent).
+Shared `modpack_id` на `launcher_instances` и `servers` → QXLauncher (ПК) + QXAgent (сервер).
+QXApi проверяет совместимость loader modpack с `server_type` до install.
 
 ---
 
@@ -582,9 +623,10 @@ erDiagram
 
 | Данные | Хранилище |
 | -------- | ----------- |
-| Пользователи, серверы, метаданные | MySQL |
-| Сессии, pub/sub Agent Hub, кэш | Redis |
-| Бэкапы, большие файлы, modpacks | **MinIO** (Self-Hosted) |
+| Пользователи, серверы, метаданные, manifests | MySQL |
+| Сессии, pub/sub Agent Hub, кэш metadata | Redis |
+| **Платформенные файлы** (launcher builds, server backups, skins) | **MinIO** |
+| Mods / modpacks / shaders / RP инстанса | **Диск ПК** (QXLauncher) |
 | Логи (опционально) | Loki / Elasticsearch — TBD |
 
 ---
@@ -635,7 +677,7 @@ flowchart TB
         AccountMgmt[Account Management]
         ModpackSvc[Modpack Service]
         McMeta[mc-manifest]
-        Cache[(MySQL + MinIO cache)]
+        Cache[(MySQL + Redis metadata)]
     end
 
     subgraph external [Внешние API]
@@ -720,7 +762,7 @@ sequenceDiagram
 **Особенности:**
 
 - **API Key** — есть у команды (env `CURSEFORGE_API_KEY`).
-- Rate limits — обязателен **кэш** на стороне QX (MySQL metadata + MinIO files).
+- Rate limits — кэш **metadata** в Redis/MySQL; файлы качает **QXLauncher** с CF/MR/Mojang.
 - Сильная сторона: **Forge / NeoForge** modpacks, крупные сборки.
 
 **Пакет:** `packages/integrations/curseforge`
@@ -782,25 +824,25 @@ flowchart LR
     AdapterCF --> Normalizer[QX Manifest Normalizer]
     AdapterMR --> Normalizer
     Normalizer --> DB[(MySQL)]
-    Normalizer --> MinIO[(MinIO cache)]
-    Normalizer --> Launcher[Launcher install]
+    Normalizer --> QXLauncher[QXLauncher]
+    QXLauncher --> PC[Instance dir on PC]
 ```
 
 | Шаг | Действие |
 | ----- | ---------- |
 | 1 | Поиск modpack: CF API first → MR if not found |
-| 2 | Backend fetch metadata, normalize → `QxModpackManifest`, save to MySQL |
-| 3 | При install лаунчер запрашивает `GET /modpacks/{id}/manifest` |
-| 4 | Файлы: presigned MinIO URL если cached, иначе proxy-fetch → MinIO → presigned |
-| 5 | Launcher скачивает, verify hash, assemble instance |
+| 2 | QXApi fetch metadata, normalize → `QxModpackManifest`, save to **MySQL** |
+| 3 | QXLauncher: `GET /modpacks/{id}/manifest` |
+| 4 | Скачивание по authorized URLs **на диск ПК**, verify hash |
+| 5 | Локальный cache на ПК при повторных install |
 
-**Кэш-политика (Self-Hosted):**
+**Кэш-политика:**
 
 | Данные | TTL | Хранилище |
 | -------- | ----- | ----------- |
 | Search results | 1–6 h | Redis |
 | Modpack metadata | 24 h | MySQL |
-| Mod/modpack files | Permanent (until update) | MinIO |
+| Mod/modpack/shader/RP **files** | На ПК пользователя | QXLauncher local cache |
 
 ---
 
@@ -823,7 +865,7 @@ packages/
 │       ├── manifest.ts       # version_manifest_v2
 │       ├── assets.ts
 │       └── microsoft-auth.ts # OAuth helpers (shared Web + Launcher)
-└── modpacks/                 # Normalizer, cache, install orchestration
+└── modpacks/                 # Catalog, manifest normalizer (metadata only)
 ```
 
 ---
@@ -834,7 +876,7 @@ packages/
 | ------ | ------------------ | ------------ | ---------- |
 | Phase 2 (Launcher MVP) | Mojang manifest + assets (Vanilla) | — | — |
 | Phase 3 (Modpacks) | + modloader libraries | Каталог + install | Каталог + install |
-| Phase 4 (Premium) | Microsoft OAuth login | Premium modpack cache priority | То же |
+| Phase 4 (Premium) | Microsoft OAuth login | — | То же |
 
 ---
 
@@ -848,7 +890,7 @@ packages/
 | Audit log | security-legal §2 |
 | SSH encryption & rotation | security-legal §3, [ssh-deploy.md](./ssh-deploy.md) |
 | Mojang EULA / offline | security-legal §4 |
-| CurseForge / MinIO | security-legal §5, [modpacks-pipeline.md](./modpacks-pipeline.md) |
+| CurseForge / client install | security-legal §5, [modpacks-pipeline.md](./modpacks-pipeline.md), [ADR-0011](./adr/0011-client-local-content-install.md) |
 | 2FA (post-MVP) | security-legal §6 |
 | TLS без Cloudflare | security-legal §7, [observability-ops.md](./observability-ops.md) |
 | Guest vs Registered RBAC | security-legal §8 |
@@ -886,14 +928,15 @@ packages/
 | Источник нагрузки | Характер | Пик |
 | ------------------- | ---------- | ----- |
 | **Launcher sync** | REST: список инстансов, манифесты | При каждом запуске лаунчера |
-| **Modpack / assets CDN** | Исходящий трафик, большие файлы | Первый install modpack, обновления |
+| **Modpack / game assets download** | Трафик **ПК ↔ CF/MR/Mojang** (не через QX VPS) | Первый install modpack |
+| **Launcher auto-update** | Исходящий с MinIO/Nginx | Релизы QXLauncher |
 | **Agent Hub (WSS)** | Долгоживущие соединения | 1 conn на сервер; консоль = steady stream |
 | **Web-панель** | REST + WS консоль | Админы (меньше DAU, но тяжёлые WS) |
 | **Auth** | Login, refresh, guest tokens | Волны при релизах / маркетинге |
 | **MySQL** | CRUD users, instances, servers | Линейно с MAU |
 
-**Вывод:** главный bottleneck при росте — **не API**, а **CDN/объектное хранилище** (modpacks) и **Agent Hub** (тысячи
-одновременных WSS).
+**Вывод:** bottleneck VPS — **Agent Hub** (WSS) и **platform** downloads (launcher builds, backups), не modpack-трафик
+(он идёт напрямую на ПК пользователя).
 
 ### 8.3 Инфраструктурные tier'ы (Self-Hosted)
 
@@ -930,7 +973,7 @@ flowchart TB
 | **Reverse proxy** | Nginx + Certbot (Let's Encrypt) |
 | **MySQL** | Official Docker image, volume на SSD, **mysqldump cron** → локальный бэкап |
 | **Redis** | Official Docker image, AOF persistence |
-| **Object storage** | **MinIO** (modpacks, бэкапы, launcher builds) |
+| **Object storage** | **MinIO** — launcher builds, server backups, skins (не client mods/modpacks) |
 | **Web** | React SPA static + Nginx |
 | **Мониторинг** | Uptime Kuma + (опц.) Netdata на том же VPS |
 | **Стоимость** | **$5–30/мес** (VPS) + electricity если домашний сервер |
@@ -942,7 +985,7 @@ flowchart TB
 | **Topology** | 2× VPS: **app** (API, Nginx, Redis) + **data** (MySQL, MinIO) |
 | **Load balancing** | Nginx upstream на 2 app-ноды **или** второй app-VPS |
 | **MySQL** | Отдельный VPS; pool на app-ноде (GORM / ProxySQL); daily mysqldump + offsite copy |
-| **MinIO** | Dedicated disk / второй VPS; Nginx `proxy_pass` для downloads |
+| **MinIO** | Dedicated disk / второй VPS; Nginx для launcher releases |
 | **Backups** | Restic → второй VPS / NAS / внешний HDD |
 | **Стоимость** | **$30–80/мес** (2–3 VPS) |
 
@@ -953,7 +996,7 @@ flowchart TB
 | **App tier** | 2–3 VPS с API; Redis pub/sub для Agent Hub |
 | **MySQL** | Primary + **replica** на втором VPS (read-only) |
 | **MinIO** | Distributed mode (4 drives) **или** отдельный storage VPS с большим диском |
-| **Modpack mirror** | Nginx cache / второй MinIO node для разгрузки downloads |
+| **Modpack mirror** | Не нужен — файлы на ПК клиента ([ADR-0011](./adr/0011-client-local-content-install.md)) |
 | **Observability** | Prometheus + Grafana (self-hosted stack) |
 | **Стоимость** | **$80–200/мес** (4–6 VPS / dedicated) |
 
@@ -983,7 +1026,7 @@ flowchart TB
 | Решение | Зачем |
 | --------- | ------- |
 | **Stateless API** | Горизонтальное масштабирование с первого дня |
-| **Presigned URLs для modpacks** | MinIO presigned URL — API не проксирует гигабайты |
+| **Presigned URLs** | MinIO — backups, skins; **не** для modpack redistribution |
 | **Launcher: local cache + delta updates** | Снижает повторные загрузки (как TLauncher/KLauncher) |
 | **Agent: reconnect + backoff** | Устойчивость при кратковременных падениях API |
 | **Guest device token** | Не создавать User row в MySQL до регистрации — экономия на «скачал и ушёл» |

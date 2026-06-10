@@ -13,7 +13,7 @@
 ## Consequences
 
 - Higher exposure to volumetric attacks — accept for MVP.
-- MinIO + Nginx serve launcher releases and modpack cache.
+- MinIO + Nginx serve launcher releases and server backups.
 - Document egress IP for SSH deploy allowlists.
 
 See [observability-ops.md](../observability-ops.md).

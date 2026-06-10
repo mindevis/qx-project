@@ -1,32 +1,36 @@
-# Modpacks Pipeline & CurseForge Compliance
+# Modpacks Pipeline & Client Content Install
 
-> **X4:** CurseForge **primary**, Modrinth fallback.
+> **X4:** CurseForge **primary**, Modrinth fallback.  
+> **ADR-0011:** файлы инстанса — **на ПК через QXLauncher**, не в MinIO.  
 > Legal: [security-legal.md §5](./security-legal.md)
 
 ---
 
-## 1. Import pipeline
+## 1. Принцип
+
+| Где | Что |
+| ----- | ----- |
+| **QXApi / MySQL** | Метаданные modpack, `QxModpackManifest`, `manifest_sha256`, ссылки на файлы |
+| **ПК пользователя** | Mods, modpacks, shaders, resource packs — **файлы в папке инстанса** |
+| **QXLauncher** | Скачивание, verify hash, assemble, локальный cache |
+| **MinIO** | **Не** для client content — только platform assets (см. [architecture.md §5](./architecture.md)) |
 
 ```mermaid
 flowchart LR
-    CF[CurseForge API] --> Importer
-    MR[Modrinth API] --> Importer
-    Importer --> Norm[QX Manifest Normalizer]
-    Norm --> DB[(MySQL)]
-    Norm --> MinIO[(Private MinIO)]
-    Web[/launcher] --> API
-    Tray[QXLauncher] --> API[QXApi]
-    Agent[Linux agent] --> API
+    CF[CurseForge API] --> QXApi
+    MR[Modrinth API] --> QXApi
+    Mojang[Mojang assets] --> QXLauncher
+    QXWeb[/launcher] --> QXApi
+    QXApi --> MySQL[(MySQL manifest)]
+    QXLauncher --> QXApi
+    QXLauncher --> CF
+    QXLauncher --> MR
+    QXLauncher --> Disk[Instance dir on PC]
 ```
-
-### Search order
-
-1. `GET CurseForge /mods/search`
-2. If empty or loader=quilt-only → `GET Modrinth /search`
 
 ---
 
-## 2. CurseForge integration
+## 2. Import / catalog (QXApi)
 
 ```go
 // internal/integrations/curseforge/client.go
@@ -35,51 +39,58 @@ flowchart LR
 
 | Step | Action |
 | ------ | -------- |
-| 1 | User picks modpack in `/launcher` |
-| 2 | API fetch mod + latest file metadata |
+| 1 | User picks modpack in QXWeb `/launcher` |
+| 2 | QXApi fetch mod + file metadata from CF/MR |
 | 3 | Normalize → `QxModpackManifest` + `manifest_sha256` |
-| 4 | Download files to MinIO `modpacks/{id}/{sha256}/...` |
-| 5 | Store row in `modpacks` |
+| 4 | Save row in `modpacks` (**MySQL only**, no file upload) |
 
 **Registered users only** for modpack install (B2).
 
----
+### Search order
 
-## 3. MinIO cache policy
-
-| Object | Visibility | TTL |
-| -------- | ------------ | ----- |
-| `modpacks/**` | Private | Until project removed from CF |
-| Metadata | MySQL refresh | 24h revalidate |
-
-Presigned URL TTL: **15 minutes** for tray/agent download.
+1. `GET CurseForge /mods/search`
+2. If empty or loader=quilt-only → `GET Modrinth /search`
 
 ---
 
-## 4. Client ↔ Server sync
+## 3. Install on PC (QXLauncher)
 
-Shared `modpack_id`:
+| Step | Action |
+| ------ | -------- |
+| 1 | `GET /instances/{id}/manifest` or `GET /modpacks/{id}/manifest` |
+| 2 | QXLauncher resolves download URLs (CF `download-url`, MR CDN, Mojang) |
+| 3 | Download to `{instance_root}/mods/`, `resourcepacks/`, `shaderpacks/` |
+| 4 | Verify SHA256 / MD5 from manifest |
+| 5 | Local cache: `%AppData%/QX/cache/` (or `~/.local/share/qx/cache`) — delta on re-install |
+
+Guest: **Vanilla only**, no mods/shaders/resource packs.
+
+---
+
+## 4. Mods / shaders / resource packs (registered)
+
+Per-instance attachments — metadata в MySQL (`launcher_instances.mods`, `resource_packs`, `shaders` JSON),
+**файлы на диске ПК**:
+
+| Type | On disk | API |
+| ------ | --------- | ----- |
+| Mods (.jar) | `{instance}/mods/` | `POST /instances/{id}/mods` → manifest entry |
+| Resource packs | `{instance}/resourcepacks/` | `POST /instances/{id}/resourcepacks` |
+| Shaders | `{instance}/shaderpacks/` | `POST /instances/{id}/shaders` |
+
+QXLauncher materializes files at sync / pre-launch; QXApi не хранит `.jar` / `.zip`.
+
+---
+
+## 5. Client ↔ Server sync (BYOS)
+
+Shared `modpack_id` + `manifest_sha256`:
 
 1. User assigns modpack to **instance** and **server** in `/launcher`
-2. Tray: `modpack.install` on client
-3. Agent: `cmd.modpack.install` with same `manifest_sha256`
-4. Mismatch → audit alert + UI warning
-
----
-
-## 5. Mods / shaders / resource packs (registered users)
-
-Separate from full modpacks — per-instance attachments:
-
-| Type | Storage | API |
-| ------ | --------- | ----- |
-| Mods (.jar) | MinIO `user-content/{user_id}/` | `POST /instances/{id}/mods` |
-| Resource packs | same | `POST /instances/{id}/resourcepacks` |
-| Shaders | same | `POST /instances/{id}/shaders` |
-
-Guest: **Vanilla only**, no attachments.
-
-Manifest merged at launch time in tray.
+2. **QXLauncher:** install to PC instance dir (client loader)
+3. **QXAgent:** install to server disk — **mods/** and/or **plugins/** per [server-content-install.md](./server-content-install.md)
+4. QXApi rejects incompatible pairs (e.g. Fabric modpack + Paper server) before deploy
+5. Mismatch hash → audit alert + UI warning
 
 ---
 
