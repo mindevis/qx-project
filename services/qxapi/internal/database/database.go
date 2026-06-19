@@ -43,7 +43,17 @@ func Open(dialector gorm.Dialector) (*gorm.DB, error) {
 
 var migrateUsers = func(db *gorm.DB) error {
 	dropRedundantUsersEmailIndex(db)
-	return db.AutoMigrate(&models.User{})
+	return db.AutoMigrate(
+		&models.User{},
+		&models.GuestSession{},
+		&models.LauncherDevice{},
+		&models.LauncherInstance{},
+		&models.OfflineProfile{},
+		&models.LaunchRequest{},
+		&models.Server{},
+		&models.SSHCredential{},
+		&models.Agent{},
+	)
 }
 
 // dropRedundantUsersEmailIndex removes a legacy non-unique index from docs/schema.sql

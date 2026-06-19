@@ -1,0 +1,362 @@
+package servers
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/qxproject/qx/pkg/protocol"
+	"github.com/qxproject/qx/services/qxapi/internal/agenthub"
+	"github.com/qxproject/qx/services/qxapi/internal/auth"
+	"github.com/qxproject/qx/services/qxapi/internal/crypto"
+	"github.com/qxproject/qx/services/qxapi/internal/models"
+	"github.com/qxproject/qx/services/qxapi/internal/testutil"
+)
+
+const testSSHKey = `-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACDExampleKeyForTestsOnlyDoNotUseInProduction==
+-----END OPENSSH PRIVATE KEY-----`
+
+func devKey() string {
+	return "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+}
+
+func newServersService(t *testing.T) (*Service, *auth.TokenService, *agenthub.Hub) {
+	t.Helper()
+	db := testutil.OpenSQLiteDB(t)
+	tokens := auth.NewTokenService("test-secret", time.Minute, time.Hour)
+	enc, err := crypto.NewEncryptor(devKey())
+	if err != nil {
+		t.Fatalf("encryptor: %v", err)
+	}
+	hub := agenthub.New(nil)
+	svc := NewService(db, tokens, enc, hub, NoopDeployer{})
+	hub.SetOnEvent(svc.OnAgentEvent)
+	return svc, tokens, hub
+}
+
+func createTestServer(t *testing.T, svc *Service, ownerID string) *ServerView {
+	t.Helper()
+	view, err := svc.Create(context.Background(), ownerID, CreateServerInput{
+		Name: "Test Server",
+		SSH: SSHInput{
+			Host:       "10.0.0.1",
+			Port:       22,
+			Username:   "root",
+			PrivateKey: testSSHKey,
+		},
+		Config: ServerConfig{JarPath: "/opt/qx/server/server.jar"},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	return view
+}
+
+func TestCreateListGetDelete(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	owner := "owner-1"
+
+	view := createTestServer(t, svc, owner)
+	if view.Name != "Test Server" || view.Status != models.ServerStatusPending {
+		t.Fatalf("view: %+v", view)
+	}
+
+	items, err := svc.List(ctx, owner)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("list: err=%v len=%d", err, len(items))
+	}
+
+	got, err := svc.Get(ctx, owner, view.ID)
+	if err != nil || got.ID != view.ID {
+		t.Fatalf("get: err=%v got=%+v", err, got)
+	}
+
+	if err := svc.Delete(ctx, owner, view.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if err := svc.Delete(ctx, owner, view.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("delete again: %v", err)
+	}
+}
+
+func TestCreateValidation(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+
+	_, err := svc.Create(ctx, "owner", CreateServerInput{Name: "  "})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("empty name: %v", err)
+	}
+
+	_, err = svc.Create(ctx, "owner", CreateServerInput{
+		Name: "Srv",
+		SSH:  SSHInput{Host: "h", Username: "u", PrivateKey: ""},
+	})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("empty key: %v", err)
+	}
+}
+
+func TestForbiddenAccess(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+
+	_, err := svc.Get(ctx, "other", view.ID)
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("get forbidden: %v", err)
+	}
+
+	if err := svc.Delete(ctx, "other", view.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("delete forbidden: %v", err)
+	}
+}
+
+func TestDeployAndAgentToken(t *testing.T) {
+	svc, tokens, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+
+	deployed, err := svc.Deploy(ctx, "owner-1", view.ID)
+	if err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+	if deployed.Status != models.ServerStatusOffline {
+		t.Fatalf("status: %s", deployed.Status)
+	}
+
+	token, err := tokens.IssueAgentToken(view.ID, time.Hour)
+	if err != nil {
+		t.Fatalf("issue token: %v", err)
+	}
+	hash := auth.HashToken(token)
+	if err := svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Update("agent_token_hash", hash).Error; err != nil {
+		t.Fatalf("set hash: %v", err)
+	}
+	if err := svc.ValidateAgentToken(ctx, view.ID, token); err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if err := svc.ValidateAgentToken(ctx, view.ID, "wrong"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("wrong token: %v", err)
+	}
+}
+
+func TestLifecycleAgentOffline(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+
+	if _, err := svc.Deploy(ctx, "owner-1", view.ID); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+
+	if err := svc.Start(ctx, "owner-1", view.ID); !errors.Is(err, ErrAgentOffline) {
+		t.Fatalf("start offline: %v", err)
+	}
+	if err := svc.Stop(ctx, "owner-1", view.ID); !errors.Is(err, ErrAgentOffline) {
+		t.Fatalf("stop offline: %v", err)
+	}
+}
+
+func TestStartNotDeployed(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+
+	if err := svc.Start(ctx, "owner-1", view.ID); !errors.Is(err, ErrNotDeployed) {
+		t.Fatalf("start not deployed: %v", err)
+	}
+}
+
+func TestAgentConnectDisconnect(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+
+	if err := svc.AgentConnected(ctx, view.ID, "vps-1", "0.1.0"); err != nil {
+		t.Fatalf("connected: %v", err)
+	}
+	got, err := svc.Get(ctx, "owner-1", view.ID)
+	if err != nil || got.Status != models.ServerStatusOnline {
+		t.Fatalf("online: err=%v status=%s", err, got.Status)
+	}
+
+	if err := svc.AgentDisconnected(ctx, view.ID); err != nil {
+		t.Fatalf("disconnected: %v", err)
+	}
+	got, err = svc.Get(ctx, "owner-1", view.ID)
+	if err != nil || got.Status != models.ServerStatusOffline {
+		t.Fatalf("offline: err=%v status=%s", err, got.Status)
+	}
+}
+
+func TestOnAgentEvent(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+
+	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeEvtAgentHeartbeat})
+	got, _ := svc.Get(ctx, "owner-1", view.ID)
+	if got.Status != models.ServerStatusOnline || got.LastSeenAt == nil {
+		t.Fatalf("heartbeat: %+v", got)
+	}
+
+	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStart})
+	got, _ = svc.Get(ctx, "owner-1", view.ID)
+	if got.Status != models.ServerStatusOnline {
+		t.Fatalf("start res: %s", got.Status)
+	}
+
+	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStop})
+	got, _ = svc.Get(ctx, "owner-1", view.ID)
+	if got.Status != models.ServerStatusOffline {
+		t.Fatalf("stop res: %s", got.Status)
+	}
+
+	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeEvtConsoleOutput})
+}
+
+func TestSendConsoleInput(t *testing.T) {
+	svc, _, hub := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+	if _, err := svc.Deploy(ctx, "owner-1", view.ID); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+
+	server := httptestWSServer(t, func(conn *websocket.Conn) {
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		var env protocol.Envelope
+		if json.Unmarshal(data, &env) == nil && env.Type == protocol.TypeCmdConsoleInput {
+			payload, _ := json.Marshal(protocol.ConsoleOutputPayload{Stream: "stdout", Line: "ok"})
+			_ = conn.WriteJSON(protocol.Envelope{Type: protocol.TypeEvtConsoleOutput, Payload: payload})
+		}
+	})
+	defer server.Close()
+
+	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer wsConn.Close()
+	agentConn := hub.Register(view.ID, wsConn)
+	go hub.ReadLoop(agentConn)
+
+	if err := svc.SendConsoleInput(ctx, "owner-1", view.ID, "say hi"); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+}
+
+func TestSendCommandWhenOnline(t *testing.T) {
+	svc, tokens, hub := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+	if _, err := svc.Deploy(ctx, "owner-1", view.ID); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+
+	server := httptestWSServer(t, func(conn *websocket.Conn) {
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		var env protocol.Envelope
+		if json.Unmarshal(data, &env) != nil {
+			return
+		}
+		if env.Type == protocol.TypeCmdServerStart {
+			resPayload, _ := json.Marshal(protocol.ServerStartResult{PID: 1234})
+			_ = conn.WriteJSON(protocol.Envelope{
+				V:         protocol.Version,
+				Type:      protocol.TypeResServerStart,
+				RequestID: env.RequestID,
+				Payload:   resPayload,
+			})
+		}
+	})
+	defer server.Close()
+
+	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer wsConn.Close()
+
+	agentConn := hub.Register(view.ID, wsConn)
+	go hub.ReadLoop(agentConn)
+
+	if err := svc.Start(ctx, "owner-1", view.ID); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	_ = tokens
+	time.Sleep(50 * time.Millisecond)
+	got, _ := svc.Get(ctx, "owner-1", view.ID)
+	if got.Status != models.ServerStatusStarting && got.Status != models.ServerStatusOnline {
+		t.Fatalf("status after start: %s", got.Status)
+	}
+}
+
+func TestSlugifyAndParseConfig(t *testing.T) {
+	if slugify("My Cool Server!!!") != "my-cool-server" {
+		t.Fatalf("slugify")
+	}
+	if slugify("   ") != "server" {
+		t.Fatalf("empty slug")
+	}
+
+	cfg, err := parseConfig(`{"jar_path":"/jar","jvm_args":["-Xmx1G"]}`)
+	if err != nil || cfg.JarPath != "/jar" || len(cfg.JVMArgs) != 1 {
+		t.Fatalf("parse: err=%v cfg=%+v", err, cfg)
+	}
+	_, err = parseConfig("{bad")
+	if err == nil {
+		t.Fatal("expected parse error")
+	}
+}
+
+func TestDeployFailure(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+
+	failSvc := NewService(svc.db, svc.tokens, svc.enc, svc.hub, deployFail{})
+	_, err := failSvc.Deploy(ctx, "owner-1", view.ID)
+	if err == nil {
+		t.Fatal("expected deploy error")
+	}
+}
+
+type deployFail struct{}
+
+func (deployFail) Deploy(context.Context, string, models.SSHCredential, string) error {
+	return errors.New("ssh failed")
+}
+
+func httptestWSServer(t *testing.T, handler func(*websocket.Conn)) *httptest.Server {
+	t.Helper()
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		handler(conn)
+	}))
+}
+
+func wsURL(httpURL string) string {
+	return strings.Replace(httpURL, "http://", "ws://", 1)
+}

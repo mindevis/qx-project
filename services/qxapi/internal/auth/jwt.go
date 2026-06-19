@@ -13,13 +13,18 @@ const (
 	TokenAccess  TokenKind = "access"
 	TokenRefresh TokenKind = "refresh"
 	TokenGuest   TokenKind = "guest"
+	TokenDevice  TokenKind = "device"
+	TokenAgent   TokenKind = "agent"
 )
 
 type Claims struct {
 	jwt.RegisteredClaims
-	Kind   TokenKind `json:"kind"`
-	UserID string    `json:"user_id,omitempty"`
-	Email  string    `json:"email,omitempty"`
+	Kind           TokenKind `json:"kind"`
+	UserID         string    `json:"user_id,omitempty"`
+	Email          string    `json:"email,omitempty"`
+	DeviceID       string    `json:"device_id,omitempty"`
+	GuestSessionID string    `json:"guest_session_id,omitempty"`
+	ServerID       string    `json:"server_id,omitempty"`
 }
 
 type TokenPair struct {
@@ -59,11 +64,19 @@ func (s *TokenService) IssueUserTokens(userID, email string) (*TokenPair, error)
 }
 
 func (s *TokenService) IssueGuestToken(guestSessionID string) (string, time.Duration, error) {
-	token, err := signToken(s, TokenGuest, guestSessionID, "", 24*time.Hour)
+	token, err := signGuestToken(s, guestSessionID, 24*time.Hour)
 	if err != nil {
 		return "", 0, err
 	}
 	return token, 24 * time.Hour, nil
+}
+
+func (s *TokenService) IssueDeviceToken(deviceID string, ttl time.Duration) (string, error) {
+	return signDeviceToken(s, deviceID, ttl)
+}
+
+func (s *TokenService) IssueAgentToken(serverID string, ttl time.Duration) (string, error) {
+	return signAgentToken(s, serverID, ttl)
 }
 
 var newParseClaims = func() jwt.Claims { return &Claims{} }
@@ -98,6 +111,52 @@ func (s *TokenService) Refresh(refreshToken string) (*TokenPair, error) {
 	return s.IssueUserTokens(claims.UserID, claims.Email)
 }
 
+var signGuestToken = func(s *TokenService, guestSessionID string, ttl time.Duration) (string, error) {
+	now := time.Now().UTC()
+	claims := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   guestSessionID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+		},
+		Kind:           TokenGuest,
+		UserID:         guestSessionID,
+		GuestSessionID: guestSessionID,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secret)
+}
+
+var signDeviceToken = func(s *TokenService, deviceID string, ttl time.Duration) (string, error) {
+	now := time.Now().UTC()
+	claims := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   deviceID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+		},
+		Kind:     TokenDevice,
+		DeviceID: deviceID,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secret)
+}
+
+var signAgentToken = func(s *TokenService, serverID string, ttl time.Duration) (string, error) {
+	now := time.Now().UTC()
+	claims := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   "agent:" + serverID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+		},
+		Kind:     TokenAgent,
+		ServerID: serverID,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secret)
+}
+
 var signToken = func(s *TokenService, kind TokenKind, userID, email string, ttl time.Duration) (string, error) {
 	now := time.Now().UTC()
 	claims := Claims{
@@ -121,4 +180,22 @@ func BreakSigningForTest(t interface{ Cleanup(func()) }) {
 		return "", fmt.Errorf("sign failed")
 	}
 	t.Cleanup(func() { signToken = old })
+
+	oldGuest := signGuestToken
+	signGuestToken = func(*TokenService, string, time.Duration) (string, error) {
+		return "", fmt.Errorf("sign failed")
+	}
+	t.Cleanup(func() { signGuestToken = oldGuest })
+
+	oldDevice := signDeviceToken
+	signDeviceToken = func(*TokenService, string, time.Duration) (string, error) {
+		return "", fmt.Errorf("sign failed")
+	}
+	t.Cleanup(func() { signDeviceToken = oldDevice })
+
+	oldAgent := signAgentToken
+	signAgentToken = func(*TokenService, string, time.Duration) (string, error) {
+		return "", fmt.Errorf("sign failed")
+	}
+	t.Cleanup(func() { signAgentToken = oldAgent })
 }

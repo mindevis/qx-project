@@ -9,6 +9,8 @@ import {
 } from 'react';
 import {
   api,
+  clearGuestSession,
+  clearLinkedDevice,
   clearTokens,
   loadTokens,
   saveTokens,
@@ -62,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyTokens = useCallback(
     async (tokens: TokenResponse) => {
+      clearGuestSession();
       saveTokens(tokens);
       await refreshProfile();
     },
@@ -92,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logger.debug('logout request failed');
     } finally {
       clearTokens();
+      clearLinkedDevice();
       setUser(null);
       logger.info('user logged out');
     }

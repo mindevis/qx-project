@@ -30,12 +30,17 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument());
   });
 
-  it('renders launcher and servers placeholders', async () => {
+  it('renders launcher and servers pages', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ items: [] }), { status: 200 }),
+    );
     renderApp('/launcher');
     await waitFor(() => expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument());
 
     renderApp('/servers');
-    await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Управление серверами доступно после входа.')).toBeInTheDocument(),
+    );
   });
 
   it('redirects unknown paths to home', async () => {

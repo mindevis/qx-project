@@ -25,7 +25,78 @@ export type UserProfile = {
   created_at: string;
 };
 
+export type GuestSession = {
+  guest_token: string;
+  expires_in: number;
+};
+
+export type LauncherInstance = {
+  id: string;
+  name: string;
+  mc_version: string;
+  loader: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OfflineProfile = {
+  id: string;
+  username: string;
+  offline_uuid: string;
+  created_at: string;
+};
+
+export type LaunchRequest = {
+  id: string;
+  status: string;
+  instance_id: string;
+  offline_profile_id?: string;
+  expires_at: string;
+  pid?: number;
+  exit_code?: number;
+  error_code?: string;
+};
+
+export type GameServer = {
+  id: string;
+  name: string;
+  slug: string;
+  server_type: string;
+  status: string;
+  mc_version?: string;
+  config: {
+    jar_path?: string;
+    jvm_args?: string[];
+    extra_args?: string[];
+  };
+  ssh: {
+    host: string;
+    port: number;
+    username: string;
+  };
+  agent_online: boolean;
+  last_seen_at?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LinkDeviceResult = {
+  status: string;
+  guest_token?: string;
+  guest_expires_in?: number;
+  owner_type: string;
+};
+
+export type UserLauncherDevice = {
+  linked: boolean;
+  device_id?: string;
+  status?: string;
+  owner_type?: string;
+};
+
 const STORAGE_KEY = 'qx.auth';
+const GUEST_KEY = 'qx.guest';
+const DEVICE_KEY = 'qx.device';
 
 export function loadTokens(): TokenResponse | null {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -45,18 +116,65 @@ export function clearTokens() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+export function loadGuestSession(): GuestSession | null {
+  const raw = localStorage.getItem(GUEST_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as GuestSession;
+  } catch {
+    return null;
+  }
+}
+
+export function saveGuestSession(session: GuestSession) {
+  localStorage.setItem(GUEST_KEY, JSON.stringify(session));
+}
+
+export function clearGuestSession() {
+  localStorage.removeItem(GUEST_KEY);
+}
+
+export function saveLinkedDevice(deviceId: string) {
+  localStorage.setItem(DEVICE_KEY, deviceId);
+}
+
+export function loadLinkedDevice(): string | null {
+  return localStorage.getItem(DEVICE_KEY);
+}
+
+export function clearLinkedDevice() {
+  localStorage.removeItem(DEVICE_KEY);
+}
+
+export function hasLauncherAccess(): boolean {
+  return !!loadTokens()?.access_token || !!loadGuestSession()?.guest_token;
+}
+
+function launcherAuthHeader(): string | null {
+  const user = loadTokens()?.access_token;
+  if (user) return `Bearer ${user}`;
+  const guest = loadGuestSession()?.guest_token;
+  if (guest) return `Bearer ${guest}`;
+  return null;
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
-  auth = true,
+  auth: boolean | 'launcher' = true,
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
 
-  if (auth) {
+  if (auth === true) {
     const tokens = loadTokens();
     if (tokens?.access_token) {
       headers.set('Authorization', `Bearer ${tokens.access_token}`);
+    }
+  } else if (auth === 'launcher') {
+    const header = launcherAuthHeader();
+    if (header) {
+      headers.set('Authorization', header);
     }
   }
 
@@ -96,9 +214,127 @@ export const api = {
 
   me: () => request<UserProfile>('/users/me'),
 
+  myLauncherDevice: () => request<UserLauncherDevice>('/users/me/launcher-device'),
+
   changePassword: (body: { current_password: string; new_password: string }) =>
     request<void>('/users/me/password', { method: 'PATCH', body: JSON.stringify(body) }),
 
   changeEmail: (body: { current_password: string; email: string }) =>
     request<UserProfile>('/users/me/email', { method: 'PATCH', body: JSON.stringify(body) }),
+
+  linkDevice: (body: { device_id: string; user_code?: string }) =>
+    request<LinkDeviceResult>('/launcher/devices/link', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  unlinkDevice: () =>
+    request<{ status: string }>('/launcher/devices/unlink', { method: 'POST' }, 'launcher'),
+
+  listInstances: () =>
+    request<{ items: LauncherInstance[] }>('/instances', { method: 'GET' }, 'launcher'),
+
+  createInstance: (body: { name: string; mc_version: string; loader?: string }) =>
+    request<LauncherInstance>('/instances', { method: 'POST', body: JSON.stringify(body) }, 'launcher'),
+
+  deleteInstance: (id: string) =>
+    request<void>(`/instances/${id}`, { method: 'DELETE' }, 'launcher'),
+
+  listProfiles: () =>
+    request<{ items: OfflineProfile[] }>('/launcher/profiles', { method: 'GET' }, 'launcher'),
+
+  createProfile: (body: { username: string }) =>
+    request<OfflineProfile>('/launcher/profiles', { method: 'POST', body: JSON.stringify(body) }, 'launcher'),
+
+  deleteProfile: (id: string) =>
+    request<void>(`/launcher/profiles/${id}`, { method: 'DELETE' }, 'launcher'),
+
+  createLaunchRequest: (body: { instance_id: string; offline_profile_id?: string }) =>
+    request<LaunchRequest>('/launcher/launch-requests', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }, 'launcher'),
+
+  getLaunchRequest: (id: string) =>
+    request<LaunchRequest>(`/launcher/launch-requests/${id}`, { method: 'GET' }, 'launcher'),
+
+  listServers: () => request<{ items: GameServer[] }>('/servers'),
+
+  createServer: (body: {
+    name: string;
+    server_type?: string;
+    mc_version?: string;
+    ssh: { host: string; port?: number; username: string; private_key: string };
+    config?: { jar_path?: string; jvm_args?: string[]; extra_args?: string[] };
+  }) => request<GameServer>('/servers', { method: 'POST', body: JSON.stringify(body) }),
+
+  getServer: (id: string) => request<GameServer>(`/servers/${id}`),
+
+  deleteServer: (id: string) => request<void>(`/servers/${id}`, { method: 'DELETE' }),
+
+  deployServer: (id: string) =>
+    request<GameServer>(`/servers/${id}/deploy`, { method: 'POST' }),
+
+  startServer: (id: string) =>
+    request<{ status: string }>(`/servers/${id}/start`, { method: 'POST' }),
+
+  stopServer: (id: string) =>
+    request<{ status: string }>(`/servers/${id}/stop`, { method: 'POST' }),
+
+  restartServer: (id: string) =>
+    request<{ status: string }>(`/servers/${id}/restart`, { method: 'POST' }),
 };
+
+export type ConsoleMessage = {
+  type: string;
+  stream?: string;
+  line?: string;
+  status?: string;
+  detail?: string;
+};
+
+function wsBaseUrl(apiBase: string = API_BASE): string {
+  const raw = apiBase;
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    const u = new URL(raw);
+    u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
+    u.pathname = '';
+    u.search = '';
+    return u.origin;
+  }
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${window.location.host}`;
+}
+
+export { wsBaseUrl };
+
+export function openServerConsole(
+  serverId: string,
+  handlers: {
+    onMessage: (msg: ConsoleMessage) => void;
+    onClose?: () => void;
+  },
+) {
+  const token = loadTokens()?.access_token;
+  const url = `${wsBaseUrl()}/api/v1/servers/${serverId}/console?access_token=${encodeURIComponent(token ?? '')}`;
+  const ws = new WebSocket(url);
+  ws.onmessage = (ev) => {
+    try {
+      handlers.onMessage(JSON.parse(String(ev.data)) as ConsoleMessage);
+    } catch {
+      /* ignore malformed frame */
+    }
+  };
+  ws.onclose = () => handlers.onClose?.();
+  ws.onerror = () => logger.warn('server console websocket error', { serverId });
+  return {
+    send(line: string) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', line }));
+      }
+    },
+    close() {
+      ws.close();
+    },
+  };
+}

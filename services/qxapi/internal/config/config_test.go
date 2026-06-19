@@ -41,6 +41,9 @@ func TestLoadFromEnv(t *testing.T) {
 	t.Setenv("GIN_MODE", "release")
 	t.Setenv("LOG_LEVEL", "warning")
 	t.Setenv("LOG_FORMAT", "json")
+	t.Setenv("QX_PUBLIC_API_URL", "https://api.example.com")
+	t.Setenv("QX_AGENT_BINARY_PATH", "/opt/qx/qx-agent")
+	t.Setenv("QX_SSH_DEPLOY_DRY_RUN", "1")
 
 	cfg := Load()
 	if cfg.Addr != ":4000" || cfg.DatabaseDSN != "custom-dsn" || cfg.JWTSecret != "jwt" {
@@ -57,6 +60,9 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if cfg.LogLevel != "warning" || cfg.LogFormat != "json" {
 		t.Fatalf("log env: %+v", cfg)
+	}
+	if cfg.PublicAPIURL != "https://api.example.com" || cfg.AgentBinaryPath != "/opt/qx/qx-agent" || !cfg.SSHDeployDryRun {
+		t.Fatalf("deploy env: %+v", cfg)
 	}
 }
 

@@ -2,10 +2,11 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthModalProvider } from '@/auth/AuthModalContext';
 import { AppLayout } from '@/layouts/AppLayout';
 import { HomePage } from '@/pages/HomePage';
+import { LauncherLinkPage } from '@/pages/LauncherLinkPage';
 import { LauncherPage } from '@/pages/LauncherPage';
 import { AuthRedirect } from '@/pages/AuthRedirect';
 import { ProfilePage } from '@/pages/ProfilePage';
-import { PlaceholderPage } from '@/pages/PlaceholderPage';
+import { ServersPage } from '@/pages/ServersPage';
 
 export default function App() {
   return (
@@ -16,11 +17,9 @@ export default function App() {
             <Route index element={<HomePage />} />
               <Route path="auth/:mode" element={<AuthRedirect />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="launcher/link" element={<LauncherLinkPage />} />
             <Route path="launcher/*" element={<LauncherPage />} />
-            <Route
-              path="servers/*"
-              element={<PlaceholderPage title="Серверы" phase="Phase 2" />}
-            />
+            <Route path="servers/*" element={<ServersPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

@@ -7,15 +7,19 @@ import (
 )
 
 type Config struct {
-	Addr           string
-	DatabaseDSN    string
-	JWTSecret      string
-	AccessTokenTTL time.Duration
+	Addr            string
+	DatabaseDSN     string
+	JWTSecret       string
+	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
-	CORSOrigin     string
-	GinMode        string
-	LogLevel       string
-	LogFormat      string
+	CORSOrigin      string
+	SSHMasterKey    string
+	PublicAPIURL    string
+	AgentBinaryPath string
+	SSHDeployDryRun bool
+	GinMode         string
+	LogLevel        string
+	LogFormat       string
 }
 
 func Load() Config {
@@ -26,6 +30,10 @@ func Load() Config {
 		AccessTokenTTL:  durationEnv("ACCESS_TOKEN_TTL", 15*time.Minute),
 		RefreshTokenTTL: durationEnv("REFRESH_TOKEN_TTL", 7*24*time.Hour),
 		CORSOrigin:      getenv("CORS_ORIGIN", "http://localhost:5173"),
+		SSHMasterKey:    getenv("SSH_MASTER_KEY", devSSHMasterKey()),
+		PublicAPIURL:    getenv("QX_PUBLIC_API_URL", "http://localhost:3000"),
+		AgentBinaryPath: getenv("QX_AGENT_BINARY_PATH", ""),
+		SSHDeployDryRun: os.Getenv("QX_SSH_DEPLOY_DRY_RUN") == "1",
 		GinMode:         getenv("GIN_MODE", "debug"),
 		LogLevel:        getenv("LOG_LEVEL", "info"),
 		LogFormat:       getenv("LOG_FORMAT", "text"),
@@ -51,4 +59,8 @@ func durationEnv(key string, fallback time.Duration) time.Duration {
 		return d
 	}
 	return fallback
+}
+
+func devSSHMasterKey() string {
+	return "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 }

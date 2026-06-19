@@ -15,13 +15,13 @@
 | **QXWeb** | Phase 0 | ✅ `/`, auth modal (`/auth/*` → redirect), `/profile`, `/launcher` (Phase 1 UI); placeholder `/servers` |
 | **Infra dev** | Phase 0 | ✅ Docker Compose: MySQL, Redis, MinIO (`infra/docker/`) |
 | **CI / тесты** | Phase 0 | ✅ GitHub Actions; Go и web — **100% unit coverage** |
-| **QXLauncher** | Phase 1 | 🔲 stub (`services/qxlauncher/cmd`) |
-| **QXAgent** | Phase 2 | 🔲 stub (`services/qxagent/cmd`) |
-| **pkg/protocol** | — | 🔲 placeholder (типы WSS — Phase 2) |
-| Device link, instances, launch-bridge | Phase 1 | 🔲 spec only |
-| Agent SSH deploy, servers panel | Phase 2 | 🔲 spec only |
+| **QXLauncher** | Phase 1 | ✅ device link, tray loop, Vanilla launch |
+| **QXAgent** | Phase 2 | ✅ WSS client, start/stop JAR |
+| **pkg/protocol** | Phase 2 | ✅ WSS envelope types |
+| Device link, instances, launch-bridge | Phase 1 | ✅ |
+| Agent SSH deploy, servers panel | Phase 2 | ✅ |
 
-Следующий шаг: **Phase 1** — device linking, instances CRUD, `/launcher`, QXLauncher tray (Windows, Vanilla).
+Следующий шаг: **Phase Alpha** — E2E, prod deploy, bug bash ([mvp.md §8](./mvp.md)).
 
 ### URL и префиксы API
 
@@ -1377,9 +1377,9 @@ gantt
 
 ### Phase 1 — Launcher MVP *(10–14 нед, mostly Senior)*
 
-- [ ] Windows QXLauncher tray, device link, Vanilla only
-- [ ] Guest flow + QX auth + Local-аккаунт
-- [ ] QXWeb `/launcher`: создание инстанса → launch-bridge → JVM
+- [x] Windows QXLauncher tray loop, device link, Vanilla only
+- [x] Guest flow + QX auth + Local-аккаунт
+- [x] QXWeb `/launcher`: создание инстанса → launch-bridge → JVM
 - [ ] Forge / NeoForge / Fabric / Quilt — отложено на **v2**
 
 ### Phase 2 — Agent + Panel *(8–12 нед, mostly Senior)*

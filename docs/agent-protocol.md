@@ -1,8 +1,8 @@
 # QXAgent Protocol
 
 > Версия: **1.0** · Transport: **WebSocket (WSS)** · Format: **JSON**
-> Shared types: `pkg/protocol` (Go, placeholder)
-> **Статус реализации:** 🔲 spec only — **Phase 2** (`services/qxagent` — stub)
+> Shared types: `pkg/protocol` (Go)
+> **Статус реализации:** ✅ Phase 2 — `pkg/protocol`, QXApi hub, QXAgent WSS client; idempotency cache (`request_id` replay); SSH deploy — dry-run / optional binary
 
 ---
 

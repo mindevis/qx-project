@@ -22,7 +22,11 @@ func bootstrap(cfg config.Config) (*gin.Engine, error) {
 	}
 	tokens := auth.NewTokenService(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
 	authSvc := auth.NewService(db, tokens)
-	return api.NewRouter(db, authSvc, cfg.CORSOrigin), nil
+	return api.NewRouter(db, authSvc, cfg.CORSOrigin, cfg.SSHMasterKey, api.DeploySettings{
+		PublicAPIURL:    cfg.PublicAPIURL,
+		AgentBinaryPath: cfg.AgentBinaryPath,
+		DryRun:          cfg.SSHDeployDryRun,
+	}), nil
 }
 
 func run() error {

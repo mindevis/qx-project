@@ -14,14 +14,23 @@ jobs:
         with:
           go-version: '1.22'
       - run: cd services/qxapi && go mod tidy && go vet ./... && go test ./... -coverprofile=coverage.out
+      - run: cd services/qxapi && go test ./internal/api -run "TestRouterFlow" -count=1
+      - run: cd services/qxlauncher && go test ./internal/tray -run "TestRunLoop_DryLaunchOnce|TestExecuteLaunchDryRun" -count=1
       - run: cd services/qxapi && go tool cover -func=coverage.out | tail -1 | grep '100.0%'
       - run: cd services/qxagent && go test ./... -coverprofile=coverage.out
       - run: cd services/qxlauncher && go test ./... -coverprofile=coverage.out
       - run: cd pkg/log && go test ./...
+      - run: cd pkg/mcmanifest && go test ./...
       - run: cd pkg/protocol && go test ./...
       - run: cd services/qxapi && go build -o /dev/null ./cmd
       - run: cd services/qxagent && go vet ./... && go build -o /dev/null ./cmd
       - run: cd services/qxlauncher && go vet ./... && go build -o /dev/null ./cmd
+      - run: cd services/qxlauncher && GOOS=windows GOARCH=amd64 go build -o qx-launcher.exe ./cmd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qx-launcher-windows-amd64
+          path: services/qxlauncher/qx-launcher.exe
+          if-no-files-found: error
 
   web:
     runs-on: ubuntu-latest
@@ -38,4 +47,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run test:coverage
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - run: npm run build

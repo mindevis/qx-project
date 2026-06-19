@@ -1,6 +1,6 @@
 # Launch Bridge — Site → Tray → JVM
 
-> **Статус реализации:** 🔲 spec only — **Phase 1** (`/api/v1/launcher/launch-requests` ещё не в коде).
+> **Статус реализации:** ✅ Phase 1 — API + QXLauncher tray loop + QXWeb «Играть» (MVP: dry-run / local Java).
 > REST base: `/api/v1`.
 > Решение **B1**: **гибрид** — QXWeb создаёт launch request в QXApi, QXLauncher poll'ит и запускает JVM.
 > ADR: [0008](./adr/0008-launch-bridge-hybrid.md)

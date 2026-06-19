@@ -16,12 +16,15 @@ services/qxapi/internal/auth/coverage
 # Env
 .env
 .env.local
+.env.prod
 
 # Node
 node_modules/
 web/qxweb/dist/
 web/qxweb/node_modules/
 web/qxweb/coverage/
+web/qxweb/playwright-report/
+web/qxweb/test-results/
 *.tsbuildinfo
 *.log
 npm-debug.log*

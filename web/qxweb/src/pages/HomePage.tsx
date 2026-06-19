@@ -1,4 +1,5 @@
 import { Card, Space, Typography } from 'antd';
+import { LauncherDownloadButton } from '@/components/LauncherDownloadButton';
 
 export function HomePage() {
   return (
@@ -8,6 +9,8 @@ export function HomePage() {
         QXProject объединяет веб-панель, десктопный лаунчер и агент для управления сервером — один
         аккаунт, общие модпаки и настройки.
       </Typography.Paragraph>
+
+      <LauncherDownloadButton type="primary" />
 
       <Card title="QXWeb">
         <Typography.Paragraph style={{ marginBottom: 0 }}>

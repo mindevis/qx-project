@@ -18,6 +18,17 @@ func TestHashPasswordAndCheck(t *testing.T) {
 	}
 }
 
+func TestHashTokenDeterministic(t *testing.T) {
+	a := HashToken("token-a")
+	b := HashToken("token-a")
+	if a != b || a == "" {
+		t.Fatalf("expected stable hash, got %q %q", a, b)
+	}
+	if HashToken("token-b") == a {
+		t.Fatal("expected different tokens to hash differently")
+	}
+}
+
 func TestHashPasswordError(t *testing.T) {
 	old := hashPasswordFn
 	hashPasswordFn = func(_ []byte, _ int) ([]byte, error) {

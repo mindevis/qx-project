@@ -25,7 +25,7 @@
       "console": "integratedTerminal"
     },
     {
-      "name": "QXLauncher",
+      "name": "QXLauncher (dry-run)",
       "type": "go",
       "request": "launch",
       "mode": "debug",
@@ -33,6 +33,10 @@
       "program": "${workspaceFolder}/services/qxlauncher/cmd",
       "cwd": "${workspaceFolder}/services/qxlauncher",
       "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "QX_SKIP_TRAY": "1",
+        "QX_LAUNCH_DRY_RUN": "1"
+      },
       "console": "integratedTerminal"
     },
     {
@@ -81,6 +85,24 @@
       "cwd": "${workspaceFolder}/web/qxweb",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "QX Dev Stack",
+      "configurations": ["QXApi", "QXWeb", "QXLauncher"],
+      "stopAll": true,
+      "presentation": {
+        "order": 1
+      }
+    },
+    {
+      "name": "QX Dev Stack (dry-run)",
+      "configurations": ["QXApi", "QXWeb", "QXLauncher (dry-run)"],
+      "stopAll": true,
+      "presentation": {
+        "order": 2
+      }
     }
   ]
 }

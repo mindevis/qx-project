@@ -31,7 +31,7 @@ func TestConnectInvalidDSN(t *testing.T) {
 }
 
 func TestDropRedundantUsersEmailIndex(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:dropidx?mode=memory&cache=shared"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(testutil.MemoryDSN(t)), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestDropRedundantUsersEmailIndex(t *testing.T) {
 }
 
 func TestOpenSQLiteAndPing(t *testing.T) {
-	db, err := Open(sqlite.Open("file:dbtest?mode=memory&cache=shared"))
+	db, err := Open(sqlite.Open(testutil.MemoryDSN(t)))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -67,8 +67,8 @@ func TestOpenSQLiteAndPing(t *testing.T) {
 	}
 	// Trigger GORM NowFunc configured in Open.
 	if err := db.Create(&models.User{
-		ID:           "now-func-user",
-		Email:        "now@test.com",
+		ID:           "now-func-user-" + t.Name(),
+		Email:        "now-" + t.Name() + "@test.com",
 		PasswordHash: "hash",
 		Tier:         "free",
 	}).Error; err != nil {

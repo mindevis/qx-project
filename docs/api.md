@@ -1,6 +1,6 @@
 # QXApi Specification
 
-> Версия: **1.4** · Base URL: `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`)
+> Версия: **1.5** · Base URL: `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`)
 > Backend: **Go + Gin + GORM** · Код: `services/qxapi/`
 
 Все REST-эндпоинты QXApi (включая health) живут под префиксом **`/api/v1`**.  
@@ -9,21 +9,44 @@
 
 ---
 
-## 0. Implementation status (Phase 0)
+## 0. Implementation status
 
 | Method | Path | Статус |
 | -------- | ------ | -------- |
 | POST | `/auth/register` | ✅ |
 | POST | `/auth/login` | ✅ |
 | POST | `/auth/refresh` | ✅ |
-| POST | `/auth/guest` | ✅ (`guest_token`, TTL 24h) |
-| POST | `/auth/logout` | ✅ (204, Bearer required) |
+| POST | `/auth/guest` | ✅ |
+| POST | `/auth/logout` | ✅ |
 | GET | `/users/me` | ✅ |
-| PATCH | `/users/me/password` | ✅ (`current_password`, `new_password` → 204) |
-| PATCH | `/users/me/email` | ✅ (`current_password`, `email` → profile) |
-| GET | `/health` | ✅ (liveness) |
-| GET | `/health/ready` | ✅ (DB ping) |
-| Остальные разделы ниже | — | 🔲 Phase 1+ |
+| GET | `/users/me/launcher-device` | ✅ |
+| PATCH | `/users/me/password` | ✅ |
+| PATCH | `/users/me/email` | ✅ |
+| GET | `/health` | ✅ |
+| GET | `/health/ready` | ✅ |
+| POST | `/launcher/devices/register` | ✅ |
+| GET | `/launcher/devices/:id/status` | ✅ |
+| POST | `/launcher/devices/link` | ✅ |
+| POST | `/launcher/devices/unlink` | ✅ device JWT |
+| GET | `/launcher/devices/me` | ✅ device JWT |
+| GET | `/launcher/devices/me/instances` | ✅ device JWT |
+| GET | `/instances` | ✅ Bearer / guest |
+| POST | `/instances` | ✅ |
+| GET | `/instances/:id` | ✅ |
+| GET | `/instances/:id/manifest` | ✅ |
+| DELETE | `/instances/:id` | ✅ |
+| GET | `/launcher/profiles` | ✅ |
+| POST | `/launcher/profiles` | ✅ |
+| DELETE | `/launcher/profiles/:id` | ✅ |
+| POST | `/launcher/launch-requests` | ✅ |
+| GET | `/launcher/launch-requests/:id` | ✅ |
+| GET | `/launcher/launch-requests/pending` | ✅ device JWT |
+| PATCH | `/launcher/launch-requests/:id` | ✅ device JWT |
+| GET/POST/DELETE | `/servers` … | ✅ Phase 2 |
+| POST | `/servers/:id/deploy|start|stop|restart` | ✅ |
+| GET | `/servers/:id/console` | ✅ WebSocket |
+| WS | `/agent/v1/connect` | ✅ Agent Hub |
+| Skins, billing, public servers | — | 🔲 post-MVP |
 
 **Ответ токенов (register / login / refresh):**
 
@@ -89,6 +112,7 @@ CORS: `CORS_ORIGIN` (default `http://localhost:5173`). Конфиг: `.env.examp
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |
 | GET | `/users/me` | Bearer | Profile |
+| GET | `/users/me/launcher-device` | Bearer | Linked QXLauncher device (`{ linked: false }` or device info) |
 | PATCH | `/users/me/password` | Bearer | Change password (Phase 0 ✅) |
 | PATCH | `/users/me/email` | Bearer | Change email (Phase 0 ✅) |
 | PATCH | `/users/me` | Bearer | Update profile (name, etc.) — 🔲 post-MVP |
@@ -111,7 +135,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | GET | `/instances` | Bearer / Guest | List instances |
 | POST | `/instances` | Bearer / Guest | Create `{ name, mc_version, loader, modpack_id? }` — Guest: `loader=vanilla` only |
 | GET | `/instances/{id}` | Bearer / Guest | Detail |
-| PATCH | `/instances/{id}` | Bearer / Guest | Update — Guest: no mod attachments |
+| PATCH | `/instances/{id}` | Bearer / Guest | Update — **post-MVP** (not implemented) |
 | DELETE | `/instances/{id}` | Bearer / Guest | Delete |
 | GET | `/instances/{id}/manifest` | Bearer / Guest | Launch manifest (QXLauncher) |
 
@@ -215,6 +239,7 @@ Response item:
 | GET | `/launcher/devices/{id}/status` | Poll link status |
 | POST | `/launcher/devices/link` | Web confirms link (guest or user) |
 | POST | `/launcher/devices/unlink` | Unlink device |
+| GET | `/launcher/devices/me/instances` | `Bearer <device_token>` | Tray sync — instances for linked owner |
 | GET | `/launcher/devices/me` | Current device (device_token) |
 
 Full spec: [device-linking.md](./device-linking.md)
@@ -342,6 +367,7 @@ components:
 | 403 | FORBIDDEN, CONTENT_NOT_ALLOWED |
 | 404 | NOT_FOUND |
 | 409 | CONFLICT |
+| 422 | HOST_NOT_LINUX |
 | 429 | RATE_LIMITED |
 | 500 | INTERNAL |
 

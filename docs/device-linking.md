@@ -1,6 +1,6 @@
 # Device Linking — Связь Launcher ↔ Сайт
 
-> **Статус реализации:** 🔲 spec only — **Phase 1** (`POST /api/v1/launcher/devices/*` ещё не в коде).  
+> **Статус реализации:** ✅ Phase 1+ — `POST /api/v1/launcher/devices/*`, web `/launcher/link`, tray poll.
 > REST base: `/api/v1` — пути в §3 API относительные к base.
 > Решение **E6**: обязательная привязка лаунчера к сайту **до** создания инстансов и игры.
 > Работает **без регистрации** (guest) и **с аккаунтом** (после login — re-link или merge).
@@ -63,7 +63,7 @@ sequenceDiagram
 | Элемент | Поведение |
 | --------- | ----------- |
 | Иконка в трее | Статус: 🔴 не связан / 🟢 связан |
-| ЛКМ | Открыть сайт `/launcher` в браузере |
+| ЛКМ | Открыть сайт `/launcher` в браузере *(Windows: через пункт меню «Открыть сайт» — ограничение `fyne.io/systray`)* |
 | ПКМ меню | «Связать лаунчер» (если не linked) · «Открыть сайт» · «Выход» |
 | Уведомления | pending_link · linked · update available · instance ready |
 

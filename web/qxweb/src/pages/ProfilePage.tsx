@@ -54,8 +54,8 @@ export function ProfilePage() {
         open={emailModalOpen}
         currentEmail={user.email}
         onClose={() => setEmailModalOpen(false)}
-        onSuccess={async () => {
-          await refreshProfile();
+        onSuccess={() => {
+          void refreshProfile();
           message.success('Email изменён');
         }}
       />

@@ -66,7 +66,7 @@ export function AppLayout() {
         <Outlet />
       </Content>
       <Footer style={{ textAlign: 'center' }}>
-        QXProject — Minecraft ecosystem (MVP Phase 0)
+        QXProject — Minecraft ecosystem (MVP Phase 2)
       </Footer>
     </Layout>
   );

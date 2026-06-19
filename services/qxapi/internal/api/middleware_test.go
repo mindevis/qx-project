@@ -99,3 +99,61 @@ func TestCORSMiddleware(t *testing.T) {
 		}
 	})
 }
+
+func TestDeviceOrLauncherOwnerMiddleware(t *testing.T) {
+	tokens := auth.NewTokenService("secret", time.Minute, time.Hour)
+	pair, _ := tokens.IssueUserTokens("user-1", "u@test.com")
+	deviceTok, _ := tokens.IssueDeviceToken("dev-1", time.Hour)
+
+	t.Run("device token", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		_, r := gin.CreateTestContext(w)
+		var gotID string
+		r.Use(DeviceOrLauncherOwnerMiddleware(tokens))
+		r.POST("/", func(c *gin.Context) {
+			id, ok := deviceIDFromContext(c)
+			if ok {
+				gotID = id
+			}
+			c.Status(200)
+		})
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+deviceTok)
+		r.ServeHTTP(w, req)
+		if w.Code != 200 || gotID != "dev-1" {
+			t.Fatalf("status=%d id=%q", w.Code, gotID)
+		}
+	})
+
+	t.Run("user token", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		_, r := gin.CreateTestContext(w)
+		var gotID string
+		r.Use(DeviceOrLauncherOwnerMiddleware(tokens))
+		r.POST("/", func(c *gin.Context) {
+			owner, ok := ownerFromContext(c)
+			if ok {
+				gotID = owner.UserID
+			}
+			c.Status(200)
+		})
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+		r.ServeHTTP(w, req)
+		if w.Code != 200 || gotID != "user-1" {
+			t.Fatalf("status=%d id=%q", w.Code, gotID)
+		}
+	})
+
+	t.Run("missing auth", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		_, r := gin.CreateTestContext(w)
+		r.Use(DeviceOrLauncherOwnerMiddleware(tokens))
+		r.POST("/", func(c *gin.Context) { c.Status(200) })
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("status: %d", w.Code)
+		}
+	})
+}

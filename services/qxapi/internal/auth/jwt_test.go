@@ -100,8 +100,21 @@ func TestTokenServiceSignErrors(t *testing.T) {
 	if _, err := svc.IssueUserTokens("u", "e@e.com"); err == nil {
 		t.Fatal("expected access sign error")
 	}
+	oldGuest := signGuestToken
+	signGuestToken = func(*TokenService, string, time.Duration) (string, error) {
+		return "", errors.New("sign failed")
+	}
+	t.Cleanup(func() { signGuestToken = oldGuest })
 	if _, _, err := svc.IssueGuestToken("d"); err == nil {
 		t.Fatal("expected guest sign error")
+	}
+	oldDevice := signDeviceToken
+	signDeviceToken = func(*TokenService, string, time.Duration) (string, error) {
+		return "", errors.New("sign failed")
+	}
+	t.Cleanup(func() { signDeviceToken = oldDevice })
+	if _, err := svc.IssueDeviceToken("dev", time.Hour); err == nil {
+		t.Fatal("expected device sign error")
 	}
 }
 

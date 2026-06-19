@@ -3,19 +3,20 @@
 > Минимально жизнеспособный продукт для закрытой alpha.
 > Полная архитектура: [architecture.md](./architecture.md)
 
-**Статус:** v1.7 (синхрон с [architecture.md](./architecture.md))
-**Реализация:** Phase 0 ✅ · Phase 1+ — в работе / spec only
+**Статус:** v1.13 (Phase Alpha — Playwright Flow A+B)
+**Реализация:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase Alpha 🔄
 
-### Что уже в репозитории (Phase 0)
+### Что уже в репозитории
 
 | Область | Готово |
 | --------- | -------- |
-| Monorepo | `go.work`, `services/*`, `web/qxweb`, `pkg/protocol` |
-| QXApi | Auth API, GORM + MySQL; REST base `/api/v1` (включая health) |
-| QXWeb | Landing, auth modal, profile (email/пароль), `/launcher` (Phase 1 UI), placeholder `/servers` |
+| Monorepo | `go.work`, `services/*`, `web/qxweb`, `pkg/mcmanifest`, `pkg/protocol` |
+| QXApi | Auth, launcher, **servers CRUD/deploy/start/stop**, agent WSS hub |
+| QXWeb | `/launcher`, **`/servers`** — форма SSH, deploy, start/stop |
+| QXLauncher | Device register/link, **systray UI**, tray loop, Vanilla download |
+| QXAgent | WSS client, start/stop JAR (`QX_AGENT_DRY_RUN=1` для dev) |
 | Infra | `make dev-up` — MySQL, Redis, MinIO |
-| Тесты | Go + React — 100% unit coverage, CI |
-| Stubs | `qxlauncher`, `qxagent` — `cmd` only |
+| Тесты | Go + React — unit coverage, CI |
 **Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → tray → JVM
 **RBAC:** [security-legal.md §8](./security-legal.md) — MVP: Guest и Registered — **Vanilla only**; mods/shaders/RP — v2+
 **Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)
@@ -40,13 +41,14 @@ agent (RCON, files).
 MVP считается готовым, когда:
 
 - [ ] Пользователь регистрируется, логинится, скачивает tray, **связывает device с аккаунтом**, создаёт инстанс на
-  `/launcher`, играет.
+  `/launcher`, играет. *(код + API/Playwright E2E Flow A ☑ — manual tray + JVM)*
 - [ ] Пользователь скачивает tray, **связывает с сайтом** (guest или logged-in), создаёт инстанс на `/launcher`, играет.
-- [ ] На сайте создаётся инстанс (Vanilla) → `POST /api/v1/launcher/launch-requests` → tray poll → JVM.
-- [ ] Админ добавляет Linux VPS (SSH), backend deploy agent, start/stop JAR из panel.
-- [ ] Live-консоль сервера в web (WebSocket).
-- [ ] Launcher UI на сайте **`/launcher`** (React, не WebView) показывает инстансы и кнопку «Играть».
-- [ ] Test matrix: [qa/test-matrix.md](./qa/test-matrix.md).
+  *(код + API/Playwright E2E Flow B ☑ — manual tray + JVM)*
+- [x] На сайте создаётся инстанс (Vanilla) → `POST /api/v1/launcher/launch-requests` → tray poll → JVM. *(API + `make e2e-dry-run` без реального JVM)*
+- [x] Админ добавляет Linux VPS (SSH), backend deploy agent, start/stop JAR из panel.
+- [x] Live-консоль сервера в web (WebSocket).
+- [x] Launcher UI на сайте **`/launcher`** (React, не WebView) показывает инстансы и кнопку «Играть».
+- [ ] Test matrix: [qa/test-matrix.md](./qa/test-matrix.md) — manual pass (A.2).
 
 ---
 
@@ -168,12 +170,12 @@ flowchart TB
 | Health | `GET /health`, `GET /health/ready` | ✅ |
 | Auth | `POST /auth/register`, `/login`, `/refresh`, `/guest`, `/logout` | ✅ |
 | Users | `GET /users/me`, `PATCH /users/me/password`, `PATCH /users/me/email` | ✅ |
-| Devices | `POST /launcher/devices/register`, `link`, `GET .../status` | 🔲 |
-| Instances | `GET/POST/DELETE /instances`, `GET /instances/:id/manifest` | 🔲 |
-| Launch | `POST /launcher/launch-requests`, tray `GET .../pending`, `PATCH .../{id}` | 🔲 |
-| Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/deploy`, `start`, `stop`, `restart` | 🔲 |
-| Agent | WSS `/agent/v1/connect` (JWT at SSH deploy) | 🔲 |
-| Console | WSS `/servers/:id/console` (proxy → agent) | 🔲 |
+| Devices | `POST /launcher/devices/register`, `link`, `GET .../status`, `GET /users/me/launcher-device` | ✅ |
+| Instances | `GET/POST/DELETE /instances`, `GET /instances/:id/manifest` | ✅ |
+| Launch | `POST /launcher/launch-requests`, tray `GET .../pending`, `PATCH .../{id}` | ✅ |
+| Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/deploy`, `start`, `stop`, `restart` | ✅ |
+| Agent | WSS `/agent/v1/connect` (JWT at SSH deploy) | ✅ |
+| Console | WSS `/servers/:id/console` (proxy → agent) | ✅ |
 
 Полная спецификация: [api.md](./api.md). Server mods/plugins — post-MVP: [server-content-install.md](./server-content-install.md).
 
@@ -270,51 +272,52 @@ Agent         — id, server_id, hostname, connected_at
 
 > **Порядок:** Launcher до Agent — быстрее видимый результат.
 
-| # | Задача | Ответственный |
-| --- | -------- | --------------- |
-| 1.1 | QXLauncher + device register/link poll | Senior |
-| 1.2 | Web `/launcher/link` page + API | Junior |
-| 1.3 | internal/minecraft: Mojang manifest | Senior |
-| 1.4 | Download assets/libraries, launch Vanilla | Senior |
-| 1.5 | Local profile (offline username) | Senior |
-| 1.6 | API: instances CRUD (linked device) | Senior |
-| 1.7 | Web: /launcher pages, create instance | Junior |
-| 1.8 | Tray sync instances | Senior |
+| # | Задача | Ответственный | Статус |
+| --- | -------- | --------------- | -------- |
+| 1.1 | QXLauncher + device register/link poll | Senior | ✅ |
+| 1.2 | Web `/launcher/link` page + API | Junior | ✅ |
+| 1.3 | `pkg/mcmanifest`: Mojang manifest | Senior | ✅ |
+| 1.4 | Download assets/libraries, launch Vanilla | Senior | ✅ jar + libs + natives + assets |
+| 1.5 | Local profile (offline username) | Senior | ✅ |
+| 1.6 | API: instances CRUD (linked device) | Senior | ✅ |
+| 1.7 | Web: /launcher pages, create instance | Junior | ✅ |
+| 1.8 | Tray sync instances | Senior | ✅ poll → `~/.qx/instances.json` |
+| 1.9 | Tray systray UI (icon, menu, OS notify) | Senior | ✅ `fyne.io/systray` |
 
 ### Phase 2 — Agent + Panel *(8–12 нед)*
 
 **Milestone:** сервер управляется из web.
 
-| # | Задача | Ответственный |
-| --- | -------- | --------------- |
-| 2.1 | SSH deploy job + agent WSS connect | Senior |
-| 2.2 | Agent: start/stop/restart JAR | Senior |
-| 2.3 | Agent: console stream | Senior |
-| 2.4 | API: servers CRUD, deploy, agent routing | Senior |
-| 2.5 | Web: server form (SSH), deploy button | Junior |
-| 2.6 | Web: server detail, start/stop, console WS | Junior + Senior |
+| # | Задача | Ответственный | Статус |
+| --- | -------- | --------------- | -------- |
+| 2.1 | SSH deploy job + agent WSS connect | Senior | ✅ `internal/deploy` SSH + dry-run (`QX_SSH_DEPLOY_DRY_RUN` / no binary) |
+| 2.2 | Agent: start/stop/restart JAR | Senior | ✅ QXAgent + `cmd.server.*` |
+| 2.3 | Agent: console stream | Senior | ✅ stdout/stderr → agent, `cmd.console.input` |
+| 2.4 | API: servers CRUD, deploy, agent routing | Senior | ✅ |
+| 2.5 | Web: server form (SSH), deploy button | Junior | ✅ |
+| 2.6 | Web: server detail, start/stop, console WS | Junior + Senior | ✅ |
 
 ### Phase 3 — Auth bridge *(2–4 нед)*
 
 **Milestone:** registered user flow полный.
 
-| # | Задача | Ответственный |
-| --- | -------- | --------------- |
-| 3.1 | Launcher: QX login (JWT) | Senior |
-| 3.2 | Instances привязаны к user_id | Senior |
-| 3.3 | Web: «Мои инстансы» для auth user | Junior |
+| # | Задача | Ответственный | Статус |
+| --- | -------- | --------------- | -------- |
+| 3.1 | Launcher: QX login (JWT) + refresh | Senior | ✅ `user_auth.json`, `EnsureFreshAccessToken` |
+| 3.2 | Instances привязаны к user_id | Senior | ✅ `FindLinkedDevice`, device owner scope |
+| 3.3 | Web: «Мои инстансы» + статус device | Junior | ✅ `/users/me/launcher-device`, UI alert |
 
 ### Phase Alpha — Integration *(4–6 нед)*
 
 **Milestone:** закрытая beta.
 
-| # | Задача | Ответственный |
-| --- | -------- | --------------- |
-| A.1 | E2E: Flow A, B, C | Senior |
-| A.2 | Test matrix + bug bash | Junior |
-| A.3 | Prod deploy на VPS | Senior |
-| A.4 | User docs (README, FAQ) | Junior |
-| A.5 | Fix P0/P1 bugs | Senior |
+| # | Задача | Ответственный | Статус |
+| --- | -------- | --------------- | -------- |
+| A.1 | E2E: Flow A, B, C | Senior | ✅ `TestRouterFlowA_*`, `TestRouterFlowB_*`, `TestRouterFlowC_*` |
+| A.2 | Test matrix + bug bash | Junior | 🔄 `make e2e-alpha` (API + dry-run + Playwright); `make e2e-jvm` (Mojang + JVM smoke); manual tray/JVM (A09, L03, I04 full MC) — `make e2e-manual` |
+| A.3 | Prod deploy на VPS | Senior | ✅ `docker-compose.prod.yml`, `infra/scripts/deploy.sh` |
+| A.4 | User docs (README, FAQ) | Junior | ✅ [faq.md](./faq.md), README |
+| A.5 | Fix P0/P1 bugs | Senior | ✅ Play без обязательного профиля (Player по умолчанию) |
 
 ---
 
@@ -377,4 +380,4 @@ gantt
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.7 — Phase 0: 100% coverage, profile modals, change email/password API)
+Последнее обновление: 2026-06-10 (v1.15 — GET /instances/:id, make e2e-jvm)

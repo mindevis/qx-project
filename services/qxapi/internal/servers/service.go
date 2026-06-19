@@ -1,0 +1,454 @@
+package servers
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"github.com/qxproject/qx/pkg/protocol"
+	"github.com/qxproject/qx/services/qxapi/internal/agenthub"
+	"github.com/qxproject/qx/services/qxapi/internal/auth"
+	"github.com/qxproject/qx/services/qxapi/internal/crypto"
+	"github.com/qxproject/qx/services/qxapi/internal/models"
+)
+
+var (
+	ErrNotFound      = errors.New("not found")
+	ErrValidation    = errors.New("validation error")
+	ErrForbidden     = errors.New("forbidden")
+	ErrAgentOffline  = errors.New("agent offline")
+	ErrNotDeployed   = errors.New("agent not deployed")
+)
+
+const agentTokenTTL = 365 * 24 * time.Hour
+
+type Service struct {
+	db       *gorm.DB
+	tokens   *auth.TokenService
+	enc      *crypto.Encryptor
+	hub      *agenthub.Hub
+	deployer DeployExecutor
+}
+
+type DeployExecutor interface {
+	Deploy(ctx context.Context, serverID string, cred models.SSHCredential, agentToken string) error
+}
+
+type NoopDeployer struct{}
+
+func (NoopDeployer) Deploy(context.Context, string, models.SSHCredential, string) error {
+	return nil
+}
+
+func NewService(db *gorm.DB, tokens *auth.TokenService, enc *crypto.Encryptor, hub *agenthub.Hub, deployer DeployExecutor) *Service {
+	if deployer == nil {
+		deployer = NoopDeployer{}
+	}
+	return &Service{db: db, tokens: tokens, enc: enc, hub: hub, deployer: deployer}
+}
+
+func (s *Service) Hub() *agenthub.Hub {
+	return s.hub
+}
+
+func (s *Service) OnAgentEvent(serverID string, env protocol.Envelope) {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	switch env.Type {
+	case protocol.TypeEvtAgentHeartbeat:
+		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Updates(map[string]any{
+			"status":       models.ServerStatusOnline,
+			"last_seen_at": now,
+		}).Error
+	case protocol.TypeResServerStart:
+		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOnline).Error
+	case protocol.TypeResServerStop:
+		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
+	case protocol.TypeEvtConsoleOutput:
+		var payload protocol.ConsoleOutputPayload
+		if err := json.Unmarshal(env.Payload, &payload); err == nil && s.hub != nil {
+			s.hub.BroadcastConsole(serverID, payload)
+		}
+	}
+}
+
+type SSHInput struct {
+	Host       string
+	Port       int
+	Username   string
+	PrivateKey string
+}
+
+type ServerConfig struct {
+	JarPath  string   `json:"jar_path"`
+	JVMArgs  []string `json:"jvm_args"`
+	ExtraArgs []string `json:"extra_args"`
+}
+
+type CreateServerInput struct {
+	Name       string
+	ServerType string
+	MCVersion  string
+	SSH        SSHInput
+	Config     ServerConfig
+}
+
+type ServerView struct {
+	ID         string        `json:"id"`
+	Name       string        `json:"name"`
+	Slug       string        `json:"slug"`
+	ServerType string        `json:"server_type"`
+	Status     string        `json:"status"`
+	MCVersion  *string       `json:"mc_version,omitempty"`
+	Config     ServerConfig  `json:"config"`
+	SSH        SSHPublicView `json:"ssh"`
+	AgentOnline bool         `json:"agent_online"`
+	LastSeenAt *time.Time    `json:"last_seen_at,omitempty"`
+	CreatedAt  time.Time     `json:"created_at"`
+	UpdatedAt  time.Time     `json:"updated_at"`
+}
+
+type SSHPublicView struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+}
+
+func (s *Service) List(ctx context.Context, ownerID string) ([]ServerView, error) {
+	var items []models.Server
+	if err := s.db.WithContext(ctx).Where("owner_id = ?", ownerID).Order("created_at desc").Find(&items).Error; err != nil {
+		return nil, err
+	}
+	out := make([]ServerView, 0, len(items))
+	for _, item := range items {
+		view, err := s.viewFromModel(ctx, &item)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *view)
+	}
+	return out, nil
+}
+
+func (s *Service) Create(ctx context.Context, ownerID string, in CreateServerInput) (*ServerView, error) {
+	name := strings.TrimSpace(in.Name)
+	if name == "" || strings.TrimSpace(in.SSH.Host) == "" || strings.TrimSpace(in.SSH.Username) == "" || strings.TrimSpace(in.SSH.PrivateKey) == "" {
+		return nil, ErrValidation
+	}
+	serverType := strings.TrimSpace(in.ServerType)
+	if serverType == "" {
+		serverType = models.ServerTypeVanilla
+	}
+	port := in.SSH.Port
+	if port <= 0 {
+		port = 22
+	}
+
+	cfgBytes, err := json.Marshal(in.Config)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := s.enc.Encrypt([]byte(in.SSH.PrivateKey))
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	slug := uniqueSlug(ctx, s.db, ownerID, slugify(name))
+	server := models.Server{
+		ID:         uuid.NewString(),
+		OwnerID:    ownerID,
+		Name:       name,
+		Slug:       slug,
+		ServerType: serverType,
+		Status:     models.ServerStatusPending,
+		ConfigJSON: string(cfgBytes),
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	if v := strings.TrimSpace(in.MCVersion); v != "" {
+		server.MCVersion = &v
+	}
+	cred := models.SSHCredential{
+		ServerID:      server.ID,
+		Host:          strings.TrimSpace(in.SSH.Host),
+		Port:          port,
+		Username:      strings.TrimSpace(in.SSH.Username),
+		PrivateKeyEnc: encKey,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&server).Error; err != nil {
+			return err
+		}
+		return tx.Create(&cred).Error
+	}); err != nil {
+		return nil, err
+	}
+	return s.viewFromModel(ctx, &server)
+}
+
+func (s *Service) Get(ctx context.Context, ownerID, serverID string) (*ServerView, error) {
+	server, err := s.getOwned(ctx, ownerID, serverID)
+	if err != nil {
+		return nil, err
+	}
+	return s.viewFromModel(ctx, server)
+}
+
+func (s *Service) Delete(ctx context.Context, ownerID, serverID string) error {
+	server, err := s.getOwned(ctx, ownerID, serverID)
+	if err != nil {
+		return err
+	}
+	res := s.db.WithContext(ctx).Delete(server)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Service) Deploy(ctx context.Context, ownerID, serverID string) (*ServerView, error) {
+	server, err := s.getOwned(ctx, ownerID, serverID)
+	if err != nil {
+		return nil, err
+	}
+	var cred models.SSHCredential
+	if err := s.db.WithContext(ctx).Where("server_id = ?", serverID).First(&cred).Error; err != nil {
+		return nil, err
+	}
+
+	token, err := s.tokens.IssueAgentToken(serverID, agentTokenTTL)
+	if err != nil {
+		return nil, err
+	}
+	hash := auth.HashToken(token)
+
+	now := time.Now().UTC()
+	if err := s.db.WithContext(ctx).Model(server).Updates(map[string]any{
+		"status":           models.ServerStatusDeploying,
+		"agent_token_hash": hash,
+		"updated_at":       now,
+	}).Error; err != nil {
+		return nil, err
+	}
+
+	agent := models.Agent{
+		ID:        uuid.NewString(),
+		ServerID:  serverID,
+		OS:        "linux",
+		CreatedAt: now,
+	}
+	_ = s.db.WithContext(ctx).Where("server_id = ?", serverID).Delete(&models.Agent{}).Error
+	if err := s.db.WithContext(ctx).Create(&agent).Error; err != nil {
+		return nil, err
+	}
+
+	if err := s.deployer.Deploy(ctx, serverID, cred, token); err != nil {
+		_ = s.db.WithContext(ctx).Model(server).Update("status", models.ServerStatusError).Error
+		return nil, err
+	}
+
+	_ = s.db.WithContext(ctx).Model(server).Update("status", models.ServerStatusOffline).Error
+	server.Status = models.ServerStatusOffline
+	hashCopy := hash
+	server.AgentTokenHash = &hashCopy
+	return s.viewFromModel(ctx, server)
+}
+
+func (s *Service) ValidateAgentToken(ctx context.Context, serverID, token string) error {
+	server, err := s.getByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+	if server.AgentTokenHash == nil || auth.HashToken(token) != *server.AgentTokenHash {
+		return ErrForbidden
+	}
+	return nil
+}
+
+func (s *Service) AgentConnected(ctx context.Context, serverID, hostname, version string) error {
+	now := time.Now().UTC()
+	updates := map[string]any{
+		"status":       models.ServerStatusOnline,
+		"last_seen_at": now,
+	}
+	if err := s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Updates(updates).Error; err != nil {
+		return err
+	}
+	agentUpdates := map[string]any{"connected_at": now}
+	if hostname != "" {
+		agentUpdates["hostname"] = hostname
+	}
+	if version != "" {
+		agentUpdates["agent_version"] = version
+	}
+	return s.db.WithContext(ctx).Model(&models.Agent{}).Where("server_id = ?", serverID).Updates(agentUpdates).Error
+}
+
+func (s *Service) AgentDisconnected(ctx context.Context, serverID string) error {
+	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
+}
+
+func (s *Service) Start(ctx context.Context, ownerID, serverID string) error {
+	server, err := s.getOwned(ctx, ownerID, serverID)
+	if err != nil {
+		return err
+	}
+	if server.AgentTokenHash == nil {
+		return ErrNotDeployed
+	}
+	if s.hub == nil || !s.hub.IsOnline(serverID) {
+		return ErrAgentOffline
+	}
+	cfg, err := parseConfig(server.ConfigJSON)
+	if err != nil {
+		return err
+	}
+	payload, _ := json.Marshal(protocol.ServerStartPayload{
+		ServerType: server.ServerType,
+		JarPath:    cfg.JarPath,
+		JVMArgs:    cfg.JVMArgs,
+		ExtraArgs:  cfg.ExtraArgs,
+	})
+	_ = s.db.WithContext(ctx).Model(server).Update("status", models.ServerStatusStarting).Error
+	return s.hub.SendCommand(ctx, serverID, protocol.Envelope{
+		Type:    protocol.TypeCmdServerStart,
+		Payload: payload,
+	})
+}
+
+func (s *Service) Stop(ctx context.Context, ownerID, serverID string) error {
+	server, err := s.getOwned(ctx, ownerID, serverID)
+	if err != nil {
+		return err
+	}
+	if s.hub == nil || !s.hub.IsOnline(serverID) {
+		return ErrAgentOffline
+	}
+	payload, _ := json.Marshal(protocol.ServerStopPayload{Graceful: true, TimeoutSec: 30})
+	_ = s.db.WithContext(ctx).Model(server).Update("status", models.ServerStatusStopping).Error
+	return s.hub.SendCommand(ctx, serverID, protocol.Envelope{
+		Type:    protocol.TypeCmdServerStop,
+		Payload: payload,
+	})
+}
+
+func (s *Service) Restart(ctx context.Context, ownerID, serverID string) error {
+	if err := s.Stop(ctx, ownerID, serverID); err != nil && !errors.Is(err, ErrAgentOffline) {
+		return err
+	}
+	return s.Start(ctx, ownerID, serverID)
+}
+
+func (s *Service) SendConsoleInput(ctx context.Context, ownerID, serverID, line string) error {
+	if strings.TrimSpace(line) == "" {
+		return ErrValidation
+	}
+	if _, err := s.getOwned(ctx, ownerID, serverID); err != nil {
+		return err
+	}
+	if s.hub == nil || !s.hub.IsOnline(serverID) {
+		return ErrAgentOffline
+	}
+	return s.hub.SendConsoleInput(ctx, serverID, line)
+}
+
+func (s *Service) getOwned(ctx context.Context, ownerID, serverID string) (*models.Server, error) {
+	server, err := s.getByID(ctx, serverID)
+	if err != nil {
+		return nil, err
+	}
+	if server.OwnerID != ownerID {
+		return nil, ErrForbidden
+	}
+	return server, nil
+}
+
+func (s *Service) getByID(ctx context.Context, serverID string) (*models.Server, error) {
+	var server models.Server
+	if err := s.db.WithContext(ctx).Where("id = ?", serverID).First(&server).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &server, nil
+}
+
+func (s *Service) viewFromModel(ctx context.Context, server *models.Server) (*ServerView, error) {
+	cfg, err := parseConfig(server.ConfigJSON)
+	if err != nil {
+		return nil, err
+	}
+	var cred models.SSHCredential
+	sshView := SSHPublicView{}
+	if err := s.db.WithContext(ctx).Where("server_id = ?", server.ID).First(&cred).Error; err == nil {
+		sshView = SSHPublicView{Host: cred.Host, Port: cred.Port, Username: cred.Username}
+	}
+	online := s.hub != nil && s.hub.IsOnline(server.ID)
+	return &ServerView{
+		ID:          server.ID,
+		Name:        server.Name,
+		Slug:        server.Slug,
+		ServerType:  server.ServerType,
+		Status:      server.Status,
+		MCVersion:   server.MCVersion,
+		Config:      cfg,
+		SSH:         sshView,
+		AgentOnline: online,
+		LastSeenAt:  server.LastSeenAt,
+		CreatedAt:   server.CreatedAt,
+		UpdatedAt:   server.UpdatedAt,
+	}, nil
+}
+
+func parseConfig(raw string) (ServerConfig, error) {
+	if raw == "" {
+		return ServerConfig{}, nil
+	}
+	var cfg ServerConfig
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return ServerConfig{}, err
+	}
+	return cfg, nil
+}
+
+var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
+
+func slugify(name string) string {
+	s := strings.ToLower(strings.TrimSpace(name))
+	s = slugRe.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if s == "" {
+		return "server"
+	}
+	if len(s) > 48 {
+		s = s[:48]
+	}
+	return s
+}
+
+func uniqueSlug(ctx context.Context, db *gorm.DB, ownerID, base string) string {
+	slug := base
+	for i := 0; i < 100; i++ {
+		var count int64
+		db.WithContext(ctx).Model(&models.Server{}).Where("owner_id = ? AND slug = ?", ownerID, slug).Count(&count)
+		if count == 0 {
+			return slug
+		}
+		slug = base + "-" + uuid.NewString()[:8]
+	}
+	return base + "-" + uuid.NewString()
+}

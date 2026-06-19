@@ -13,6 +13,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     testTimeout: 15000,
+    fileParallelism: false,
+    exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**'],
     setupFiles: ['./src/test/setup.ts'],
     coverage: {
       provider: 'v8',
@@ -32,6 +34,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        ws: true,
       },
     },
   },
