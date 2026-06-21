@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Input, Modal, Typography } from 'antd';
 import { api } from '@/api/client';
+import { useI18n } from '@/i18n/I18nContext';
 import { modalMotionProps } from '@/lib/modal';
 
 type EmailFormValues = {
@@ -21,6 +22,7 @@ export function ChangeEmailModal({
   onClose,
   onSuccess,
 }: ChangeEmailModalProps) {
+  const { t } = useI18n();
   const [form] = Form.useForm<EmailFormValues>();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,7 +50,7 @@ export function ChangeEmailModal({
       handleClose();
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось сменить email');
+      setError(e instanceof Error ? e.message : t('profile.changeEmailError'));
     } finally {
       setSubmitting(false);
     }
@@ -56,7 +58,7 @@ export function ChangeEmailModal({
 
   return (
     <Modal
-      title="Смена email"
+      title={t('profile.changeEmailTitle')}
       open={open}
       onCancel={handleClose}
       footer={null}
@@ -65,26 +67,24 @@ export function ChangeEmailModal({
       {...modalMotionProps}
     >
       {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
-      <Typography.Paragraph type="secondary">
-        Для подтверждения потребуется текущий пароль.
-      </Typography.Paragraph>
+      <Typography.Paragraph type="secondary">{t('profile.changeEmailHint')}</Typography.Paragraph>
       <Form form={form} layout="vertical" onFinish={onFinish}>
         <Form.Item
-          label="Новый email"
+          label={t('profile.newEmail')}
           name="email"
-          rules={[{ required: true, type: 'email', message: 'Введите корректный email' }]}
+          rules={[{ required: true, type: 'email', message: t('profile.emailInvalid') }]}
         >
           <Input autoComplete="email" />
         </Form.Item>
         <Form.Item
-          label="Текущий пароль"
+          label={t('profile.currentPassword')}
           name="current_password"
-          rules={[{ required: true, message: 'Введите текущий пароль' }]}
+          rules={[{ required: true, message: t('auth.passwordRequired') }]}
         >
           <Input.Password autoComplete="current-password" />
         </Form.Item>
         <Button type="primary" htmlType="submit" block loading={submitting}>
-          Сохранить
+          {t('common.save')}
         </Button>
       </Form>
     </Modal>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Form, Input, Modal, Tabs } from 'antd';
 import { useAuth } from '@/auth/AuthContext';
 import type { AuthMode } from '@/auth/AuthModalContext';
+import { useI18n } from '@/i18n/I18nContext';
 import { modalMotionProps } from '@/lib/modal';
 
 type LoginFormValues = {
@@ -25,6 +26,7 @@ type AuthModalProps = {
 
 export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps) {
   const { login, register } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [loginForm] = Form.useForm<LoginFormValues>();
   const [registerForm] = Form.useForm<RegisterFormValues>();
@@ -53,7 +55,7 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
       await login(values.email, values.password);
       handleSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка входа');
+      setError(e instanceof Error ? e.message : t('auth.loginError'));
     } finally {
       setSubmitting(false);
     }
@@ -66,7 +68,7 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
       await register(values.email, values.password);
       handleSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка регистрации');
+      setError(e instanceof Error ? e.message : t('auth.registerError'));
     } finally {
       setSubmitting(false);
     }
@@ -74,7 +76,7 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
 
   return (
     <Modal
-      title="Аккаунт"
+      title={t('auth.account')}
       open={open}
       onCancel={handleClose}
       footer={null}
@@ -93,63 +95,63 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
         items={[
           {
             key: 'login',
-            label: 'Вход',
+            label: t('auth.loginTab'),
             children: (
               <Form form={loginForm} layout="vertical" onFinish={onLoginFinish}>
                 <Form.Item
-                  label="Email"
+                  label={t('common.email')}
                   name="email"
-                  rules={[{ required: true, type: 'email', message: 'Введите email' }]}
+                  rules={[{ required: true, type: 'email', message: t('auth.emailRequired') }]}
                 >
                   <Input autoComplete="email" />
                 </Form.Item>
                 <Form.Item
-                  label="Пароль"
+                  label={t('common.password')}
                   name="password"
-                  rules={[{ required: true, message: 'Введите пароль' }]}
+                  rules={[{ required: true, message: t('auth.passwordRequired') }]}
                 >
                   <Input.Password autoComplete="current-password" />
                 </Form.Item>
                 <Button type="primary" htmlType="submit" block loading={submitting}>
-                  Войти
+                  {t('auth.signIn')}
                 </Button>
               </Form>
             ),
           },
           {
             key: 'register',
-            label: 'Регистрация',
+            label: t('auth.registerTab'),
             children: (
               <Form form={registerForm} layout="vertical" onFinish={onRegisterFinish}>
                 <Form.Item
-                  label="Email"
+                  label={t('common.email')}
                   name="email"
-                  rules={[{ required: true, type: 'email', message: 'Введите email' }]}
+                  rules={[{ required: true, type: 'email', message: t('auth.emailRequired') }]}
                 >
                   <Input autoComplete="email" />
                 </Form.Item>
                 <Form.Item
-                  label="Пароль"
+                  label={t('common.password')}
                   name="password"
                   rules={[
-                    { required: true, message: 'Введите пароль' },
-                    { min: 8, message: 'Минимум 8 символов' },
+                    { required: true, message: t('auth.passwordRequired') },
+                    { min: 8, message: t('auth.passwordMin8') },
                   ]}
                 >
                   <Input.Password autoComplete="new-password" />
                 </Form.Item>
                 <Form.Item
-                  label="Повтор пароля"
+                  label={t('auth.confirmPassword')}
                   name="confirmPassword"
                   dependencies={['password']}
                   rules={[
-                    { required: true, message: 'Повторите пароль' },
+                    { required: true, message: t('auth.confirmPasswordRequired') },
                     ({ getFieldValue }) => ({
                       validator(_, value) {
                         if (!value || getFieldValue('password') === value) {
                           return Promise.resolve();
                         }
-                        return Promise.reject(new Error('Пароли не совпадают'));
+                        return Promise.reject(new Error(t('auth.passwordsMismatch')));
                       },
                     }),
                   ]}
@@ -157,7 +159,7 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
                   <Input.Password autoComplete="new-password" />
                 </Form.Item>
                 <Button type="primary" htmlType="submit" block loading={submitting}>
-                  Создать аккаунт
+                  {t('auth.createAccount')}
                 </Button>
               </Form>
             ),

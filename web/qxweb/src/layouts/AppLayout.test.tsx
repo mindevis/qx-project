@@ -5,6 +5,7 @@ import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '@/test/test-utils';
 import { AppLayout } from './AppLayout';
 import { HomePage } from '@/pages/HomePage';
+import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { saveTokens } from '@/api/client';
 
 describe('AppLayout', () => {
@@ -117,5 +118,40 @@ describe('AppLayout', () => {
     await user.click(screen.getByRole('button', { name: 'Меню аккаунта' }));
     await user.click(await screen.findByText('Выйти'));
     await waitFor(() => expect(screen.queryByText('US')).not.toBeInTheDocument());
+  });
+
+  it('applies transparent home header that solidifies on scroll', async () => {
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<HomePage />} />
+        </Route>
+      </Routes>,
+      '/',
+    );
+
+    const header = document.querySelector('header');
+    expect(header?.className).toContain('app-header--home');
+    expect(header?.className).not.toContain('app-header--scrolled');
+
+    Object.defineProperty(window, 'scrollY', { value: 32, configurable: true });
+    window.dispatchEvent(new Event('scroll'));
+
+    await waitFor(() => expect(header?.className).toContain('app-header--scrolled'));
+  });
+
+  it('uses standard sticky header on inner routes', () => {
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="launcher" element={<PlaceholderPage title="L" phase="P1" />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    const header = document.querySelector('header');
+    expect(header?.className).not.toContain('app-header--home');
+    expect(header?.className).toContain('app-header--sticky');
   });
 });

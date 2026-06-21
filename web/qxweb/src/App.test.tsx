@@ -2,17 +2,23 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import { AuthProvider } from '@/auth/AuthContext';
+import { BackendStatusProvider } from '@/backend/BackendStatusContext';
+import { I18nProvider } from '@/i18n/I18nContext';
 import { ThemeProvider } from '@/theme/ThemeContext';
 import App from './App';
 
 function renderApp(path = '/') {
   window.history.pushState({}, '', path);
   return render(
-    <ThemeProvider>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </ThemeProvider>,
+    <I18nProvider>
+      <ThemeProvider>
+        <BackendStatusProvider pollIntervalMs={50}>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BackendStatusProvider>
+      </ThemeProvider>
+    </I18nProvider>,
   );
 }
 
@@ -26,8 +32,13 @@ describe('App', () => {
   });
 
   it('renders home route', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+    );
     renderApp('/');
-    await waitFor(() => expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument(),
+    );
   });
 
   it('renders launcher and servers pages', async () => {
@@ -35,7 +46,9 @@ describe('App', () => {
       new Response(JSON.stringify({ items: [] }), { status: 200 }),
     );
     renderApp('/launcher');
-    await waitFor(() => expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument(),
+    );
 
     renderApp('/servers');
     await waitFor(() =>
@@ -44,11 +57,19 @@ describe('App', () => {
   });
 
   it('redirects unknown paths to home', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+    );
     renderApp('/unknown-route');
-    await waitFor(() => expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument(),
+    );
   });
 
   it('opens auth modal from legacy auth routes', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+    );
     renderApp('/auth/register');
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
     expect(screen.getByRole('tab', { name: 'Регистрация' })).toHaveAttribute('aria-selected', 'true');

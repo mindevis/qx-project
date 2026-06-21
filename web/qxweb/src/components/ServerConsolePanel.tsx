@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Input, Space, Typography } from 'antd';
 import { openServerConsole, type ConsoleMessage } from '@/api/client';
+import { useI18n } from '@/i18n/I18nContext';
 
 type ServerConsolePanelProps = {
   serverId: string;
@@ -8,6 +9,7 @@ type ServerConsolePanelProps = {
 };
 
 export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanelProps) {
+  const { t } = useI18n();
   const [lines, setLines] = useState<string[]>([]);
   const [connected, setConnected] = useState(false);
   const [command, setCommand] = useState('');
@@ -31,7 +33,7 @@ export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanel
             if (msg.detail) {
               appendLine(`[status] ${msg.detail}`);
             } else if (msg.status === 'error') {
-              appendLine('[status] ошибка консоли');
+              appendLine(`[status] ${t('console.error')}`);
             }
           }
         },
@@ -46,7 +48,7 @@ export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanel
       sessionRef.current = null;
       setConnected(false);
     };
-  }, [serverId, appendLine]);
+  }, [serverId, appendLine, t]);
 
   useEffect(() => {
     const el = preRef.current;
@@ -66,7 +68,7 @@ export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanel
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
       <Typography.Text type={connected && agentOnline ? 'success' : 'secondary'}>
-        {connected && agentOnline ? 'Консоль подключена' : 'Подключение…'}
+        {connected && agentOnline ? t('console.connected') : t('console.connecting')}
       </Typography.Text>
       <pre
         ref={preRef}
@@ -87,14 +89,14 @@ export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanel
       </pre>
       <Space.Compact style={{ width: '100%' }}>
         <Input
-          placeholder="Команда сервера (Enter)"
+          placeholder={t('console.commandPlaceholder')}
           value={command}
           disabled={!connected || !agentOnline}
           onChange={(e) => setCommand(e.target.value)}
           onPressEnter={send}
         />
         <Button type="primary" disabled={!connected || !agentOnline} onClick={send}>
-          Отправить
+          {t('console.send')}
         </Button>
       </Space.Compact>
     </Space>

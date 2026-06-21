@@ -5,9 +5,11 @@ import { CheckCircleOutlined, LinkOutlined } from '@ant-design/icons';
 import { api, clearGuestSession, saveGuestSession, saveLinkedDevice } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useAuthModal } from '@/auth/AuthModalContext';
+import { useI18n } from '@/i18n/I18nContext';
 import { logger } from '@/lib/logger';
 
 export function LauncherLinkPage() {
+  const { t } = useI18n();
   const [params] = useSearchParams();
   const deviceId = params.get('device')?.trim() ?? '';
   const { isAuthenticated } = useAuth();
@@ -19,9 +21,9 @@ export function LauncherLinkPage() {
 
   useEffect(() => {
     if (!deviceId) {
-      setError('Не указан идентификатор устройства (параметр device).');
+      setError(t('launcherLink.missingDevice'));
     }
-  }, [deviceId]);
+  }, [deviceId, t]);
 
   const handleLink = async () => {
     setLoading(true);
@@ -41,7 +43,7 @@ export function LauncherLinkPage() {
       }
       logger.info('device linked', { deviceId, ownerType: result.owner_type });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось связать устройство');
+      setError(e instanceof Error ? e.message : t('launcherLink.linkFailed'));
     } finally {
       setLoading(false);
     }
@@ -51,11 +53,11 @@ export function LauncherLinkPage() {
     return (
       <Alert
         type="error"
-        message="Ошибка связывания"
-        description={error ?? 'Некорректная ссылка.'}
+        message={t('launcherLink.linkError')}
+        description={error ?? t('launcherLink.invalidLink')}
         action={
           <Link to="/launcher">
-            <Button size="small">К лаунчеру</Button>
+            <Button size="small">{t('launcherLink.toLauncher')}</Button>
           </Link>
         }
       />
@@ -68,15 +70,13 @@ export function LauncherLinkPage() {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Typography.Title level={3}>
             <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-            Устройство связано
+            {t('launcherLink.deviceLinked')}
           </Typography.Title>
           <Typography.Paragraph>
-            {ownerType === 'user'
-              ? 'QXLauncher привязан к вашему аккаунту. Можно создавать инстансы на сайте.'
-              : 'Гостевая сессия создана. Можно создавать Vanilla-инстансы на сайте.'}
+            {ownerType === 'user' ? t('launcherLink.linkedAsUser') : t('launcherLink.linkedAsGuest')}
           </Typography.Paragraph>
           <Link to="/launcher">
-            <Button type="primary">Перейти к инстансам</Button>
+            <Button type="primary">{t('launcherLink.goToInstances')}</Button>
           </Link>
         </Space>
       </Card>
@@ -85,19 +85,16 @@ export function LauncherLinkPage() {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 520 }}>
-      <Typography.Title level={2}>Связать QXLauncher</Typography.Title>
-      <Typography.Paragraph type="secondary">
-        Подтвердите привязку этого компьютера к аккаунту на сайте. Ссылка содержит уникальный
-        идентификатор вашего ПК — её открыл QXLauncher автоматически.
-      </Typography.Paragraph>
+      <Typography.Title level={2}>{t('launcherLink.title')}</Typography.Title>
+      <Typography.Paragraph type="secondary">{t('launcherLink.intro')}</Typography.Paragraph>
 
       {error && <Alert type="error" message={error} showIcon />}
 
       {isAuthenticated ? (
-        <Card title="Привязать к аккаунту">
+        <Card title={t('launcherLink.linkToAccount')}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Typography.Paragraph style={{ marginBottom: 0 }}>
-              Вы вошли в аккаунт. Нажмите кнопку, чтобы связать устройство.
+              {t('launcherLink.linkToAccountHint')}
             </Typography.Paragraph>
             <Button
               type="primary"
@@ -105,16 +102,16 @@ export function LauncherLinkPage() {
               loading={loading}
               onClick={() => handleLink()}
             >
-              Связать устройство
+              {t('launcherLink.linkDevice')}
             </Button>
           </Space>
         </Card>
       ) : (
         <>
-          <Card title="Гостевой режим">
+          <Card title={t('launcherLink.guestMode')}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <Typography.Paragraph style={{ marginBottom: 0 }}>
-                Без регистрации — только Vanilla-инстансы.
+                {t('launcherLink.guestHint')}
               </Typography.Paragraph>
               <Button
                 type="primary"
@@ -122,12 +119,12 @@ export function LauncherLinkPage() {
                 icon={<LinkOutlined />}
                 onClick={() => handleLink()}
               >
-                Продолжить как гость
+                {t('launcherLink.continueAsGuest')}
               </Button>
             </Space>
           </Card>
-          <Card title="Или войдите в аккаунт">
-            <Button onClick={() => openAuthModal('login')}>Войти</Button>
+          <Card title={t('launcherLink.orSignIn')}>
+            <Button onClick={() => openAuthModal('login')}>{t('auth.signIn')}</Button>
           </Card>
         </>
       )}

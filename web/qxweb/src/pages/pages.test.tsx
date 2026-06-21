@@ -9,7 +9,7 @@ import { HomePage } from './HomePage';
 import { LauncherPage } from './LauncherPage';
 import { ProfilePage } from './ProfilePage';
 import { PlaceholderPage } from './PlaceholderPage';
-import { clearGuestSession, clearTokens, saveTokens } from '@/api/client';
+import { clearGuestSession, clearTokens, saveGuestSession, saveTokens } from '@/api/client';
 
 function requestUrl(input: RequestInfo | URL): string {
   return typeof input === 'string'
@@ -79,7 +79,34 @@ describe('pages', () => {
     expect(screen.getByText('QXWeb')).toBeInTheDocument();
     expect(screen.getByText('QXLauncher')).toBeInTheDocument();
     expect(screen.getByText('QXAgent')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Открыть лаунчер/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Скачать QXLauncher/ }).length).toBeGreaterThan(0);
+  });
+
+  it('shows servers CTA on home for authenticated users', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: '1',
+          email: 'user@test.com',
+          tier: 'free',
+          created_at: 'now',
+        }),
+        { status: 200 },
+      ),
+    );
+
+    renderWithProviders(<HomePage />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Управление серверами' })).toBeInTheDocument(),
+    );
   });
 
   it('opens auth modal from guest launcher alert', async () => {
@@ -1366,6 +1393,78 @@ describe('pages', () => {
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'), {
       timeout: 8000,
     });
+    infoSpy.mockRestore();
+    successSpy.mockRestore();
+  });
+
+  it('shows raw message for unknown launch status', async () => {
+    saveGuestSession({ guest_token: 'g', expires_in: 3600 });
+    const user = userEvent.setup({ delay: null });
+    const infoSpy = vi.spyOn(message, 'info');
+    const successSpy = vi.spyOn(message, 'success');
+    const instance = {
+      id: 'inst-unknown',
+      name: 'Unknown',
+      loader: 'vanilla',
+      mc_version: '1.21',
+      created_at: 'now',
+    };
+    const profile = {
+      id: 'prof-1',
+      username: 'Steve',
+      offline_uuid: 'uuid',
+      created_at: 'now',
+    };
+    let poll = 0;
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: [profile] }), { status: 200 });
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              id: 'lr-unknown',
+              status: 'queued',
+              instance_id: instance.id,
+              expires_at: '2099-01-01T00:00:00Z',
+            }),
+            { status: 201 },
+          );
+        }
+        if (url.includes('/launcher/launch-requests/lr-unknown')) {
+          poll += 1;
+          const status = poll === 1 ? 'custom_xyz' : 'completed';
+          return new Response(
+            JSON.stringify({
+              id: 'lr-unknown',
+              status,
+              instance_id: instance.id,
+              expires_at: '2099-01-01T00:00:00Z',
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Unknown')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Играть/ }));
+    await waitFor(() => expect(infoSpy).toHaveBeenCalledWith('custom_xyz', 2), { timeout: 8000 });
+    await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'), { timeout: 8000 });
     infoSpy.mockRestore();
     successSpy.mockRestore();
   });

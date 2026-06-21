@@ -3,9 +3,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { render } from '@testing-library/react';
 import { AuthProvider } from '@/auth/AuthContext';
-import { ThemeProvider } from '@/theme/ThemeContext';
+import { renderWithTheme } from '@/test/test-utils';
 import { AuthModal } from './AuthModal';
 
 function renderAuthModal(props: Partial<ComponentProps<typeof AuthModal>> = {}) {
@@ -14,20 +13,18 @@ function renderAuthModal(props: Partial<ComponentProps<typeof AuthModal>> = {}) 
   return {
     onClose,
     onModeChange,
-    ...render(
-      <ThemeProvider>
-        <MemoryRouter>
-          <AuthProvider>
-            <AuthModal
-              open
-              mode="login"
-              onModeChange={onModeChange}
-              onClose={onClose}
-              {...props}
-            />
-          </AuthProvider>
-        </MemoryRouter>
-      </ThemeProvider>,
+    ...renderWithTheme(
+      <MemoryRouter>
+        <AuthProvider>
+          <AuthModal
+            open
+            mode="login"
+            onModeChange={onModeChange}
+            onClose={onClose}
+            {...props}
+          />
+        </AuthProvider>
+      </MemoryRouter>,
     ),
   };
 }

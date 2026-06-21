@@ -1,6 +1,7 @@
 import { Button } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useMessage } from '@/hooks/useMessage';
+import { useI18n } from '@/i18n/I18nContext';
 
 type LauncherDownloadButtonProps = {
   type?: 'primary' | 'default';
@@ -8,6 +9,8 @@ type LauncherDownloadButtonProps = {
 
 export function LauncherDownloadButton({ type = 'default' }: LauncherDownloadButtonProps) {
   const message = useMessage();
+  const { t } = useI18n();
+
   return (
     <Button
       icon={<DownloadOutlined />}
@@ -18,13 +21,10 @@ export function LauncherDownloadButton({ type = 'default' }: LauncherDownloadBut
           window.open(url, '_blank', 'noopener,noreferrer');
           return;
         }
-        message.info(
-          'Сборка из исходников: make build-launcher (см. README). URL релиза — launcher_download_url в web.toml.',
-          6,
-        );
+        message.info(t('home.downloadHint'), 6);
       }}
     >
-      Скачать QXLauncher
+      {t('home.downloadLauncher')}
     </Button>
   );
 }

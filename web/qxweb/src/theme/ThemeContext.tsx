@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { App, ConfigProvider, theme } from 'antd';
-import ruRU from 'antd/locale/ru_RU';
+import { useI18n } from '@/i18n/I18nContext';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -38,6 +38,7 @@ function readStoredMode(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const { antdLocale } = useI18n();
   const [mode, setModeState] = useState<ThemeMode>(readStoredMode);
 
   const setMode = useCallback((nextMode: ThemeMode) => {
@@ -72,7 +73,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={value}>
-      <ConfigProvider locale={ruRU} theme={antTheme}>
+      <ConfigProvider locale={antdLocale} theme={antTheme}>
         <App>{children}</App>
       </ConfigProvider>
     </ThemeContext.Provider>

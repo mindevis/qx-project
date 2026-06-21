@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, Form, Input, Modal } from 'antd';
 import { api } from '@/api/client';
+import { useI18n } from '@/i18n/I18nContext';
 import { modalMotionProps } from '@/lib/modal';
 
 type PasswordFormValues = {
@@ -16,6 +17,7 @@ type ChangePasswordModalProps = {
 };
 
 export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePasswordModalProps) {
+  const { t } = useI18n();
   const [form] = Form.useForm<PasswordFormValues>();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -37,7 +39,7 @@ export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePassword
       handleClose();
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось сменить пароль');
+      setError(e instanceof Error ? e.message : t('profile.changePasswordError'));
     } finally {
       setSubmitting(false);
     }
@@ -45,7 +47,7 @@ export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePassword
 
   return (
     <Modal
-      title="Смена пароля"
+      title={t('profile.changePasswordTitle')}
       open={open}
       onCancel={handleClose}
       footer={null}
@@ -56,34 +58,34 @@ export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePassword
       {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
       <Form form={form} layout="vertical" onFinish={onFinish}>
         <Form.Item
-          label="Текущий пароль"
+          label={t('profile.currentPassword')}
           name="current_password"
-          rules={[{ required: true, message: 'Введите текущий пароль' }]}
+          rules={[{ required: true, message: t('auth.passwordRequired') }]}
         >
           <Input.Password autoComplete="current-password" />
         </Form.Item>
         <Form.Item
-          label="Новый пароль"
+          label={t('profile.newPassword')}
           name="new_password"
           rules={[
-            { required: true, message: 'Введите новый пароль' },
-            { min: 8, message: 'Минимум 8 символов' },
+            { required: true, message: t('profile.newPasswordRequired') },
+            { min: 8, message: t('auth.passwordMin8') },
           ]}
         >
           <Input.Password autoComplete="new-password" />
         </Form.Item>
         <Form.Item
-          label="Повтор нового пароля"
+          label={t('profile.confirmNewPassword')}
           name="confirm_password"
           dependencies={['new_password']}
           rules={[
-            { required: true, message: 'Повторите новый пароль' },
+            { required: true, message: t('profile.confirmNewPasswordRequired') },
             ({ getFieldValue }) => ({
               validator(_, value) {
                 if (!value || getFieldValue('new_password') === value) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error('Пароли не совпадают'));
+                return Promise.reject(new Error(t('auth.passwordsMismatch')));
               },
             }),
           ]}
@@ -91,7 +93,7 @@ export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePassword
           <Input.Password autoComplete="new-password" />
         </Form.Item>
         <Button type="primary" htmlType="submit" block loading={submitting}>
-          Сохранить
+          {t('common.save')}
         </Button>
       </Form>
     </Modal>

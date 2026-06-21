@@ -9,6 +9,12 @@ vi.mock('@/hooks/useMessage', () => ({
   useMessage: () => message,
 }));
 
+vi.mock('@/backend/BackendStatusContext', () => ({
+  BackendStatusProvider: ({ children }: { children: React.ReactNode }) => children,
+  useBackendStatus: () => ({ available: true }),
+  BACKEND_HEALTH_POLL_MS: 10_000,
+}));
+
 function mockMatchMedia() {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,

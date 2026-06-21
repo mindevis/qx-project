@@ -159,6 +159,19 @@ function launcherAuthHeader(): string | null {
   return null;
 }
 
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/health`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    return res.ok;
+  } catch {
+    logger.warn('backend health check failed');
+    return false;
+  }
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},

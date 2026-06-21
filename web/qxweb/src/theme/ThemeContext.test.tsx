@@ -1,8 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import { ThemeProvider, useTheme } from './ThemeContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { I18nProvider } from '@/i18n/I18nContext';
+
+function renderWithI18n(ui: ReactNode) {
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
 
 function ThemeProbe() {
   const { mode } = useTheme();
@@ -34,7 +40,7 @@ describe('ThemeProvider', () => {
       dispatchEvent: vi.fn(),
     }));
 
-    render(
+    renderWithI18n(
       <ThemeProvider>
         <ThemeProbe />
       </ThemeProvider>,
@@ -50,7 +56,7 @@ describe('ThemeProvider', () => {
   it('toggles theme and persists preference', async () => {
     const user = userEvent.setup();
 
-    render(
+    renderWithI18n(
       <ThemeProvider>
         <ThemeProbe />
         <ThemeToggle />

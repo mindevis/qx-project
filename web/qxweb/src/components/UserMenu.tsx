@@ -3,6 +3,7 @@ import { Avatar, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import type { UserProfile } from '@/api/client';
+import { useI18n } from '@/i18n/I18nContext';
 
 type UserMenuProps = {
   user: UserProfile;
@@ -15,19 +16,20 @@ export function emailInitials(email: string): string {
 
 export function UserMenu({ user, onLogout }: UserMenuProps) {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const items: MenuProps['items'] = [
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: 'Профиль',
+      label: t('common.profile'),
       onClick: () => navigate('/profile'),
     },
     { type: 'divider' },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: 'Выйти',
+      label: t('common.logout'),
       onClick: () => {
         void onLogout();
       },
@@ -39,7 +41,7 @@ export function UserMenu({ user, onLogout }: UserMenuProps) {
       <span
         role="button"
         tabIndex={0}
-        aria-label="Меню аккаунта"
+        aria-label={t('common.accountMenu')}
         style={{ cursor: 'pointer', lineHeight: 0 }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {

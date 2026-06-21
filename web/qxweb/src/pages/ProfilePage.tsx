@@ -6,10 +6,12 @@ import { useAuth } from '@/auth/AuthContext';
 import { ChangeEmailModal } from '@/components/ChangeEmailModal';
 import { ChangePasswordModal } from '@/components/ChangePasswordModal';
 import { useMessage } from '@/hooks/useMessage';
+import { useI18n } from '@/i18n/I18nContext';
 
 export function ProfilePage() {
   const { user, loading, isAuthenticated, refreshProfile } = useAuth();
   const message = useMessage();
+  const { t } = useI18n();
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
@@ -22,33 +24,33 @@ export function ProfilePage() {
 
   return (
     <>
-      <Card title="Профиль" style={{ maxWidth: 560 }}>
+      <Card title={t('profile.title')} style={{ maxWidth: 560 }}>
         <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="ID">{user.id}</Descriptions.Item>
-          <Descriptions.Item label="Email">
+          <Descriptions.Item label={t('common.id')}>{user.id}</Descriptions.Item>
+          <Descriptions.Item label={t('common.email')}>
             <Space>
               <span>{user.email}</span>
-              <Tooltip title="Сменить email">
+              <Tooltip title={t('profile.changeEmail')}>
                 <Button
                   type="text"
                   size="small"
                   icon={<EditOutlined />}
-                  aria-label="Сменить email"
+                  aria-label={t('profile.changeEmail')}
                   onClick={() => setEmailModalOpen(true)}
                 />
               </Tooltip>
             </Space>
           </Descriptions.Item>
-          <Descriptions.Item label="Пароль">
+          <Descriptions.Item label={t('common.password')}>
             <Space>
               <span>••••••••</span>
               <Button size="small" onClick={() => setPasswordModalOpen(true)}>
-                Сменить пароль
+                {t('profile.changePassword')}
               </Button>
             </Space>
           </Descriptions.Item>
-          <Descriptions.Item label="Тариф">{user.tier}</Descriptions.Item>
-          <Descriptions.Item label="Создан">{user.created_at}</Descriptions.Item>
+          <Descriptions.Item label={t('common.tier')}>{user.tier}</Descriptions.Item>
+          <Descriptions.Item label={t('common.created')}>{user.created_at}</Descriptions.Item>
         </Descriptions>
       </Card>
 
@@ -58,13 +60,13 @@ export function ProfilePage() {
         onClose={() => setEmailModalOpen(false)}
         onSuccess={() => {
           void refreshProfile();
-          message.success('Email изменён');
+          message.success(t('profile.emailChanged'));
         }}
       />
       <ChangePasswordModal
         open={passwordModalOpen}
         onClose={() => setPasswordModalOpen(false)}
-        onSuccess={() => message.success('Пароль изменён')}
+        onSuccess={() => message.success(t('profile.passwordChanged'))}
       />
     </>
   );

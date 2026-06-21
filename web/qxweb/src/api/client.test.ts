@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   api,
+  checkBackendHealth,
   clearGuestSession,
   clearLinkedDevice,
   clearTokens,
@@ -489,5 +490,27 @@ describe('api client', () => {
     vi.stubGlobal('WebSocket', MockWS);
     openServerConsole('s1', { onMessage: vi.fn() });
     expect(instances).toHaveLength(1);
+  });
+
+  it('checkBackendHealth returns true for ok response', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+    );
+
+    await expect(checkBackendHealth()).resolves.toBe(true);
+  });
+
+  it('checkBackendHealth returns false for failed response', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 503 }));
+
+    await expect(checkBackendHealth()).resolves.toBe(false);
+  });
+
+  it('checkBackendHealth returns false when fetch throws', async () => {
+    const warn = vi.spyOn(logger, 'warn');
+    vi.mocked(fetch).mockRejectedValue(new Error('network down'));
+
+    await expect(checkBackendHealth()).resolves.toBe(false);
+    expect(warn).toHaveBeenCalledWith('backend health check failed');
   });
 });

@@ -4,8 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/auth/AuthContext';
 import { AuthModalProvider, useAuthModal } from '@/auth/AuthModalContext';
-import { ThemeProvider } from '@/theme/ThemeContext';
-import { waitForNoDialog } from '@/test/test-utils';
+import { waitForNoDialog, renderWithTheme } from '@/test/test-utils';
 
 function Probe() {
   const { openAuthModal, closeAuthModal } = useAuthModal();
@@ -25,16 +24,14 @@ function Probe() {
 }
 
 function renderProbe() {
-  return render(
-    <ThemeProvider>
-      <MemoryRouter>
-        <AuthProvider>
-          <AuthModalProvider>
-            <Probe />
-          </AuthModalProvider>
-        </AuthProvider>
-      </MemoryRouter>
-    </ThemeProvider>,
+  return renderWithTheme(
+    <MemoryRouter>
+      <AuthProvider>
+        <AuthModalProvider>
+          <Probe />
+        </AuthModalProvider>
+      </AuthProvider>
+    </MemoryRouter>,
   );
 }
 

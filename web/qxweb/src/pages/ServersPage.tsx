@@ -26,6 +26,8 @@ import { ServerConsolePanel, shouldShowMinecraftControls, shouldShowServerConsol
 import { useAuth } from '@/auth/AuthContext';
 import { modalMotionProps } from '@/lib/modal';
 import { useAuthModal } from '@/auth/AuthModalContext';
+import { getServerStatusKey } from '@/i18n';
+import { useI18n } from '@/i18n/I18nContext';
 import { logger } from '@/lib/logger';
 import { useMessage } from '@/hooks/useMessage';
 
@@ -47,20 +49,8 @@ function statusColor(status: string): string {
   }
 }
 
-function statusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    pending: 'Ожидает',
-    deploying: 'Deploy…',
-    offline: 'Оффлайн',
-    starting: 'Запуск…',
-    online: 'Онлайн',
-    stopping: 'Остановка…',
-    error: 'Ошибка',
-  };
-  return labels[status] ?? status;
-}
-
 function ServersList() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const message = useMessage();
   const [servers, setServers] = useState<GameServer[]>([]);
@@ -69,6 +59,12 @@ function ServersList() {
   const [creating, setCreating] = useState(false);
   const [form] = Form.useForm();
 
+  const statusLabel = (status: string) => {
+    const key = getServerStatusKey(status);
+    const msg = t(key);
+    return msg === key ? status : msg;
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -76,11 +72,11 @@ function ServersList() {
       setServers(res.items ?? []);
     } catch (e) {
       logger.warn('failed to load servers', { error: String(e) });
-      message.error('Не удалось загрузить серверы');
+      message.error(t('servers.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [message, t]);
 
   useEffect(() => {
     void load();
@@ -106,7 +102,7 @@ function ServersList() {
             : [],
         },
       });
-      message.success('Сервер добавлен');
+      message.success(t('servers.added'));
       setCreateOpen(false);
       form.resetFields();
       navigate(`/servers/${server.id}`);
@@ -127,21 +123,21 @@ function ServersList() {
     <>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <Typography.Title level={3} style={{ margin: 0 }}>
-          Серверы
+          {t('servers.title')}
         </Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          Добавить VPS
+          {t('servers.addVps')}
         </Button>
       </Space>
 
       <List
         dataSource={servers}
-        locale={{ emptyText: 'Нет серверов — добавьте Linux VPS с SSH-доступом' }}
+        locale={{ emptyText: t('servers.empty') }}
         renderItem={(item) => (
           <List.Item
             actions={[
               <Link key="open" to={`/servers/${item.id}`}>
-                Открыть
+                {t('common.open')}
               </Link>,
             ]}
           >
@@ -151,7 +147,7 @@ function ServersList() {
                 <Space>
                   {item.name}
                   <Tag color={statusColor(item.status)}>{statusLabel(item.status)}</Tag>
-                  {item.agent_online && <Tag color="blue">Agent</Tag>}
+                  {item.agent_online && <Tag color="blue">{t('common.agent')}</Tag>}
                 </Space>
               }
               description={`${item.ssh.host}:${item.ssh.port} · ${item.server_type}`}
@@ -161,7 +157,7 @@ function ServersList() {
       />
 
       <Modal
-        title="Добавить сервер (BYOS)"
+        title={t('servers.addByos')}
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         onOk={() => void onCreate()}
@@ -171,28 +167,32 @@ function ServersList() {
         {...modalMotionProps}
       >
         <Form form={form} layout="vertical" initialValues={{ port: 22 }}>
-          <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите название' }]}>
+          <Form.Item
+            name="name"
+            label={t('common.name')}
+            rules={[{ required: true, message: t('servers.nameRequired') }]}
+          >
             <Input placeholder="Survival VPS" />
           </Form.Item>
-          <Form.Item name="mc_version" label="Версия Minecraft">
+          <Form.Item name="mc_version" label={t('servers.mcVersion')}>
             <Input placeholder="1.21" />
           </Form.Item>
-          <Form.Item name="host" label="SSH Host" rules={[{ required: true }]}>
+          <Form.Item name="host" label={t('servers.sshHost')} rules={[{ required: true }]}>
             <Input placeholder="203.0.113.10" />
           </Form.Item>
-          <Form.Item name="port" label="SSH Port">
+          <Form.Item name="port" label={t('servers.sshPort')}>
             <InputNumber min={1} max={65535} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="username" label="SSH User" rules={[{ required: true }]}>
+          <Form.Item name="username" label={t('servers.sshUser')} rules={[{ required: true }]}>
             <Input placeholder="root" />
           </Form.Item>
-          <Form.Item name="private_key" label="SSH Private Key" rules={[{ required: true }]}>
+          <Form.Item name="private_key" label={t('servers.sshKey')} rules={[{ required: true }]}>
             <TextArea rows={4} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" />
           </Form.Item>
-          <Form.Item name="jar_path" label="Путь к server.jar на VPS">
+          <Form.Item name="jar_path" label={t('servers.jarPath')}>
             <Input placeholder="/opt/qx/server/server.jar" />
           </Form.Item>
-          <Form.Item name="jvm_args" label="JVM args (по одному на строку)">
+          <Form.Item name="jvm_args" label={t('servers.jvmArgs')}>
             <TextArea rows={2} placeholder="-Xmx2G" />
           </Form.Item>
         </Form>
@@ -202,12 +202,19 @@ function ServersList() {
 }
 
 function ServerDetail() {
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const message = useMessage();
   const [server, setServer] = useState<GameServer | null>(null);
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<string | null>(null);
+
+  const statusLabel = (status: string) => {
+    const key = getServerStatusKey(status);
+    const msg = t(key);
+    return msg === key ? status : msg;
+  };
 
   const load = useCallback(async () => {
     /* v8 ignore next 3 -- @preserve */
@@ -218,12 +225,12 @@ function ServerDetail() {
       setServer(data);
     } catch (e) {
       logger.warn('failed to load server', { error: String(e) });
-      message.error('Сервер не найден');
+      message.error(t('servers.notFound'));
       navigate('/servers');
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, message, navigate, t]);
 
   useEffect(() => {
     void load();
@@ -239,7 +246,7 @@ function ServerDetail() {
       if (name === 'deploy') {
         const updated = await api.deployServer(id);
         setServer(updated);
-        message.success('Deploy выполнен — ожидаем подключение агента');
+        message.success(t('servers.deployDone'));
       } else if (name === 'stop') {
         await api.stopServer(id);
         await load();
@@ -248,10 +255,10 @@ function ServerDetail() {
         await load();
       }
       if (name !== 'deploy') {
-        message.success('Готово');
+        message.success(t('common.done'));
       }
     } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Ошибка');
+      message.error(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setAction(null);
     }
@@ -262,10 +269,10 @@ function ServerDetail() {
     if (!id) return;
     try {
       await api.deleteServer(id);
-      message.success('Сервер удалён');
+      message.success(t('servers.deleted'));
       navigate('/servers');
     } catch (e) {
-      message.error(e instanceof Error ? e.message : 'Ошибка');
+      message.error(e instanceof Error ? e.message : t('common.error'));
     }
   };
 
@@ -281,19 +288,19 @@ function ServerDetail() {
         <Typography.Title level={3} style={{ margin: 0 }}>
           {server.name}
         </Typography.Title>
-        <Link to="/servers">← К списку</Link>
+        <Link to="/servers">{t('servers.backToList')}</Link>
       </Space>
 
       <Card>
         <Space wrap>
           <Tag color={statusColor(server.status)}>{statusLabel(server.status)}</Tag>
           {server.minecraft_running ? (
-            <Tag color="green">Minecraft</Tag>
+            <Tag color="green">{t('servers.minecraft')}</Tag>
           ) : null}
           {server.agent_online ? (
-            <Tag color="blue">Agent подключён</Tag>
+            <Tag color="blue">{t('servers.agentOnline')}</Tag>
           ) : (
-            <Tag>Agent оффлайн</Tag>
+            <Tag>{t('servers.agentOffline')}</Tag>
           )}
           {server.mc_version && <Tag>MC {server.mc_version}</Tag>}
         </Space>
@@ -305,14 +312,14 @@ function ServerDetail() {
         )}
       </Card>
 
-      <Card title="Управление">
+      <Card title={t('servers.management')}>
         <Space wrap>
           <Button
             icon={<RocketOutlined />}
             loading={busy && action === 'deploy'}
             onClick={() => void runAction('deploy')}
           >
-            Deploy agent
+            {t('servers.deployAgent')}
           </Button>
           {shouldShowMinecraftControls(server) && (
             <>
@@ -321,7 +328,7 @@ function ServerDetail() {
                 disabled={!server.agent_online}
                 onClick={() => void runAction('stop')}
               >
-                Stop
+                {t('servers.stop')}
               </Button>
               <Button
                 icon={<ReloadOutlined />}
@@ -329,25 +336,25 @@ function ServerDetail() {
                 disabled={!server.agent_online}
                 onClick={() => void runAction('restart')}
               >
-                Restart
+                {t('servers.restart')}
               </Button>
             </>
           )}
-          <Popconfirm title="Удалить сервер?" onConfirm={() => void onDelete()}>
+          <Popconfirm title={t('servers.deleteConfirm')} onConfirm={() => void onDelete()}>
             <Button danger icon={<DeleteOutlined />}>
-              Удалить
+              {t('common.delete')}
             </Button>
           </Popconfirm>
         </Space>
         {!server.agent_online && (
           <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
-            После Deploy агент подключится по WSS автоматически — обычно в течение нескольких секунд.
+            {t('servers.deployHint')}
           </Typography.Paragraph>
         )}
       </Card>
 
       {shouldShowServerConsole(server) && (
-        <Card title="Консоль">
+        <Card title={t('servers.console')}>
           <ServerConsolePanel serverId={server.id} agentOnline={server.agent_online} />
         </Card>
       )}
@@ -356,6 +363,7 @@ function ServerDetail() {
 }
 
 export function ServersPage() {
+  const { t } = useI18n();
   const { isAuthenticated, loading } = useAuth();
   const { openAuthModal } = useAuthModal();
 
@@ -366,9 +374,9 @@ export function ServersPage() {
   if (!isAuthenticated) {
     return (
       <Card>
-        <Typography.Paragraph>Управление серверами доступно после входа.</Typography.Paragraph>
+        <Typography.Paragraph>{t('servers.authRequired')}</Typography.Paragraph>
         <Button type="primary" onClick={() => openAuthModal('login')}>
-          Войти
+          {t('auth.signIn')}
         </Button>
       </Card>
     );

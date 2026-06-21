@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { I18nProvider } from '@/i18n/I18nContext';
 import { emailInitials, UserMenu } from './UserMenu';
 
 const user = {
@@ -15,15 +16,17 @@ const user = {
 function renderMenu(props: Partial<ComponentProps<typeof UserMenu>> = {}) {
   const onLogout = vi.fn().mockResolvedValue(undefined);
   render(
-    <MemoryRouter initialEntries={['/']}>
-      <Routes>
-        <Route
-          path="/"
-          element={<UserMenu user={user} onLogout={onLogout} {...props} />}
-        />
-        <Route path="/profile" element={<div>Profile page</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route
+            path="/"
+            element={<UserMenu user={user} onLogout={onLogout} {...props} />}
+          />
+          <Route path="/profile" element={<div>Profile page</div>} />
+        </Routes>
+      </MemoryRouter>
+    </I18nProvider>,
   );
   return { onLogout };
 }

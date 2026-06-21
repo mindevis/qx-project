@@ -352,17 +352,18 @@ Infra-скрипты есть (`docker-compose.prod.yml`, `infra/scripts/deploy.
 ```mermaid
 gantt
     title QXProject MVP
-    dateFormat YYYY-MM
+    dateFormat YYYY-MM-DD
+    axisFormat %Y-%m
     section P0
-    Foundation           :p0, 2026-06, 2M
+    Foundation           :p0, 2026-06-01, 60d
     section P1
-    Launcher MVP         :p1, after p0, 3M
+    Launcher MVP         :p1, after p0, 90d
     section P2
-    Agent + Panel        :p2, after p1, 3M
+    Agent and Panel      :p2, after p1, 90d
     section P3
-    Auth bridge          :p3, after p1, 1M
+    Auth bridge          :p3, after p1, 30d
     section Alpha
-    Integration + Beta   :alpha, after p2, 2M
+    Integration and Beta :alpha, after p2, 60d
 ```
 
 ---

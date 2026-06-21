@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { saveTokens } from '@/api/client';
-import { ThemeProvider } from '@/theme/ThemeContext';
+import { renderWithTheme } from '@/test/test-utils';
 import { ChangeEmailModal } from './ChangeEmailModal';
 
 const tokens = {
@@ -14,16 +14,14 @@ const tokens = {
 };
 
 function renderModal(props: Partial<ComponentProps<typeof ChangeEmailModal>> = {}) {
-  return render(
-    <ThemeProvider>
-      <ChangeEmailModal
+  return renderWithTheme(
+    <ChangeEmailModal
         open
         currentEmail="old@test.com"
         onClose={vi.fn()}
         onSuccess={vi.fn()}
         {...props}
-      />
-    </ThemeProvider>,
+    />,
   );
 }
 

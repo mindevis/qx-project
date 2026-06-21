@@ -459,7 +459,31 @@ describe('ServersPage', () => {
     renderServers('/servers');
     await waitFor(() => expect(screen.getByText('Server online')).toBeInTheDocument());
     expect(screen.getByText('Server custom')).toBeInTheDocument();
+    expect(screen.getByText('custom')).toBeInTheDocument();
     expect(screen.getByText('Deploy…')).toBeInTheDocument();
+  });
+
+  it('shows raw status label on detail for unknown status', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1')) {
+          return new Response(
+            JSON.stringify({ ...sampleServer, status: 'custom_detail' }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('custom_detail')).toBeInTheDocument());
   });
 
   it('deletes server from detail page', async () => {

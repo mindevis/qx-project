@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { saveTokens } from '@/api/client';
-import { ThemeProvider } from '@/theme/ThemeContext';
+import { renderWithTheme } from '@/test/test-utils';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
 const tokens = {
@@ -14,10 +14,8 @@ const tokens = {
 };
 
 function renderModal(props: Partial<ComponentProps<typeof ChangePasswordModal>> = {}) {
-  return render(
-    <ThemeProvider>
-      <ChangePasswordModal open onClose={vi.fn()} onSuccess={vi.fn()} {...props} />
-    </ThemeProvider>,
+  return renderWithTheme(
+    <ChangePasswordModal open onClose={vi.fn()} onSuccess={vi.fn()} {...props} />,
   );
 }
 

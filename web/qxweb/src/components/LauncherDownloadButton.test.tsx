@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
-import { ThemeProvider } from '@/theme/ThemeContext';
+import { renderWithTheme } from '@/test/test-utils';
 import { LauncherDownloadButton } from './LauncherDownloadButton';
 
 describe('LauncherDownloadButton', () => {
@@ -20,11 +20,7 @@ describe('LauncherDownloadButton', () => {
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     vi.stubEnv('VITE_LAUNCHER_DOWNLOAD_URL', 'https://releases.example/qx-launcher.exe');
 
-    render(
-      <ThemeProvider>
-        <LauncherDownloadButton type="primary" />
-      </ThemeProvider>,
-    );
+    renderWithTheme(<LauncherDownloadButton type="primary" />);
 
     await user.click(screen.getByRole('button', { name: /Скачать QXLauncher/ }));
     expect(openSpy).toHaveBeenCalledWith(
@@ -38,11 +34,7 @@ describe('LauncherDownloadButton', () => {
     const user = userEvent.setup({ delay: null });
     const infoSpy = vi.spyOn(message, 'info');
 
-    render(
-      <ThemeProvider>
-        <LauncherDownloadButton />
-      </ThemeProvider>,
-    );
+    renderWithTheme(<LauncherDownloadButton />);
 
     await user.click(screen.getByRole('button', { name: /Скачать QXLauncher/ }));
     expect(infoSpy).toHaveBeenCalled();

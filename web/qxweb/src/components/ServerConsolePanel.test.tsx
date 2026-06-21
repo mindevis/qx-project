@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as apiClient from '@/api/client';
+import { renderWithTheme, I18nThemeWrapper } from '@/test/test-utils';
 import { ServerConsolePanel, shouldShowMinecraftControls, shouldShowServerConsole } from './ServerConsolePanel';
 
 class MockWebSocket {
@@ -73,7 +74,7 @@ describe('ServerConsolePanel', () => {
   });
 
   it('shows status error detail', async () => {
-    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -86,7 +87,7 @@ describe('ServerConsolePanel', () => {
   });
 
   it('shows generic status error without detail', async () => {
-    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -102,7 +103,7 @@ describe('ServerConsolePanel', () => {
 
   it('connects and sends console input', async () => {
     const user = userEvent.setup({ delay: null });
-    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -119,7 +120,7 @@ describe('ServerConsolePanel', () => {
   });
 
   it('renders streamed console output', async () => {
-    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -134,7 +135,9 @@ describe('ServerConsolePanel', () => {
   });
 
   it('reconnects when server id changes', async () => {
-    const { rerender } = render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    const { rerender } = render(<ServerConsolePanel serverId="srv-1" agentOnline />, {
+      wrapper: I18nThemeWrapper,
+    });
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -150,7 +153,7 @@ describe('ServerConsolePanel', () => {
   });
 
   it('renders output without stream as out', async () => {
-    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -163,7 +166,7 @@ describe('ServerConsolePanel', () => {
   });
 
   it('scrolls console output when new lines arrive', async () => {
-    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -183,7 +186,9 @@ describe('ServerConsolePanel', () => {
 
   it('ignores empty commands and closes on unmount', async () => {
     const user = userEvent.setup({ delay: null });
-    const { unmount } = render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    const { unmount } = render(<ServerConsolePanel serverId="srv-1" agentOnline />, {
+      wrapper: I18nThemeWrapper,
+    });
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),

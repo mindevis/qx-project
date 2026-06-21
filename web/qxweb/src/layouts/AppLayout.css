@@ -1,0 +1,63 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding-inline: 24px;
+  line-height: 1;
+}
+
+.app-header--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease,
+    backdrop-filter 0.3s ease;
+}
+
+.app-header--home {
+  background: transparent !important;
+  border-bottom-color: transparent !important;
+  box-shadow: none;
+}
+
+.app-header--home.app-header--scrolled {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.07);
+}
+
+html[data-theme='dark'] .app-header--home.app-header--scrolled {
+  background: rgba(20, 20, 20, 0.82) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
+}
+
+.app-header--sticky:not(.app-header--home) {
+  border-bottom: 1px solid var(--app-header-border);
+  background: var(--app-header-bg) !important;
+}
+
+.app-header--sticky:not(.app-header--home).app-header--scrolled {
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme='dark'] .app-header--sticky:not(.app-header--home).app-header--scrolled {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.app-content--home {
+  padding-top: 0 !important;
+}
+
+@media (max-width: 768px) {
+  .app-content--home {
+    padding-inline: 24px !important;
+  }
+}
