@@ -4,10 +4,10 @@ import { openServerConsole, type ConsoleMessage } from '@/api/client';
 
 type ServerConsolePanelProps = {
   serverId: string;
-  enabled: boolean;
+  agentOnline: boolean;
 };
 
-export function ServerConsolePanel({ serverId, enabled }: ServerConsolePanelProps) {
+export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanelProps) {
   const [lines, setLines] = useState<string[]>([]);
   const [connected, setConnected] = useState(false);
   const [command, setCommand] = useState('');
@@ -19,35 +19,34 @@ export function ServerConsolePanel({ serverId, enabled }: ServerConsolePanelProp
   }, []);
 
   useEffect(() => {
-    if (!enabled) {
-      /* v8 ignore next */
-      sessionRef.current?.close();
-      sessionRef.current = null;
-      setConnected(false);
-      return;
-    }
-
-    const session = openServerConsole(serverId, {
-      onMessage: (msg: ConsoleMessage) => {
-        if (msg.type === 'output' && msg.line) {
-          appendLine(`[${msg.stream ?? 'out'}] ${msg.line}`);
-        }
-        if (msg.type === 'status') {
-          setConnected(msg.status === 'connected');
-          if (msg.detail) {
-            appendLine(`[status] ${msg.detail}`);
+    let session: ReturnType<typeof openServerConsole> | null = null;
+    const timer = window.setTimeout(() => {
+      session = openServerConsole(serverId, {
+        onMessage: (msg: ConsoleMessage) => {
+          if (msg.type === 'output' && msg.line) {
+            appendLine(`[${msg.stream ?? 'out'}] ${msg.line}`);
           }
-        }
-      },
-      onClose: () => setConnected(false),
-    });
-    sessionRef.current = session;
+          if (msg.type === 'status') {
+            setConnected(msg.status === 'connected');
+            if (msg.detail) {
+              appendLine(`[status] ${msg.detail}`);
+            } else if (msg.status === 'error') {
+              appendLine('[status] ошибка консоли');
+            }
+          }
+        },
+        onClose: () => setConnected(false),
+      });
+      sessionRef.current = session;
+    }, 0);
 
     return () => {
-      session.close();
+      window.clearTimeout(timer);
+      session?.close();
       sessionRef.current = null;
+      setConnected(false);
     };
-  }, [enabled, serverId, appendLine]);
+  }, [serverId, appendLine]);
 
   useEffect(() => {
     const el = preRef.current;
@@ -66,8 +65,8 @@ export function ServerConsolePanel({ serverId, enabled }: ServerConsolePanelProp
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
-      <Typography.Text type={connected ? 'success' : 'secondary'}>
-        {connected ? 'Консоль подключена' : 'Консоль отключена — agent должен быть online'}
+      <Typography.Text type={connected && agentOnline ? 'success' : 'secondary'}>
+        {connected && agentOnline ? 'Консоль подключена' : 'Подключение…'}
       </Typography.Text>
       <pre
         ref={preRef}
@@ -84,20 +83,37 @@ export function ServerConsolePanel({ serverId, enabled }: ServerConsolePanelProp
           fontFamily: 'Consolas, monospace',
         }}
       >
-        {lines.length === 0 ? 'Ожидание вывода…' : lines.join('\n')}
+        {lines.join('\n')}
       </pre>
       <Space.Compact style={{ width: '100%' }}>
         <Input
           placeholder="Команда сервера (Enter)"
           value={command}
-          disabled={!connected}
+          disabled={!connected || !agentOnline}
           onChange={(e) => setCommand(e.target.value)}
           onPressEnter={send}
         />
-        <Button type="primary" disabled={!connected} onClick={send}>
+        <Button type="primary" disabled={!connected || !agentOnline} onClick={send}>
           Отправить
         </Button>
       </Space.Compact>
     </Space>
+  );
+}
+
+/** Stop/Restart only when Minecraft process is actually running. */
+export function shouldShowMinecraftControls(server: { minecraft_running?: boolean }): boolean {
+  return server.minecraft_running === true;
+}
+
+/** Console is meaningful only after Start (or while a start attempt is in progress). */
+export function shouldShowServerConsole(server: {
+  status: string;
+  minecraft_running?: boolean;
+}): boolean {
+  return (
+    server.minecraft_running === true ||
+    server.status === 'starting' ||
+    server.status === 'error'
   );
 }

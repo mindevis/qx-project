@@ -7,6 +7,21 @@ import (
 	"github.com/qxproject/qx/pkg/protocol"
 )
 
+func TestWriteInputWhenServerNotRunning(t *testing.T) {
+	r := &ProcessRunner{}
+	var lines []string
+	r.SetOutputHandler(func(stream, line string) {
+		lines = append(lines, stream+":"+line)
+	})
+	err := r.WriteInput("list")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if len(lines) != 1 || lines[0] != "stderr:server process not running" {
+		t.Fatalf("got lines %v", lines)
+	}
+}
+
 func TestWriteInputDryRun(t *testing.T) {
 	r := &ProcessRunner{DryRun: true}
 	var lines []string

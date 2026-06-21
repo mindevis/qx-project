@@ -75,6 +75,7 @@ export type GameServer = {
     username: string;
   };
   agent_online: boolean;
+  minecraft_running?: boolean;
   last_seen_at?: string;
   created_at: string;
   updated_at: string;
@@ -317,7 +318,30 @@ export function openServerConsole(
 ) {
   const token = loadTokens()?.access_token;
   const url = `${wsBaseUrl()}/api/v1/servers/${serverId}/console?access_token=${encodeURIComponent(token ?? '')}`;
-  const ws = new WebSocket(url);
+  let closedByClient = false;
+  let ws: WebSocket | null = null;
+
+  const close = () => {
+    closedByClient = true;
+    const socket = ws;
+    if (!socket) return;
+    if (socket.readyState === WebSocket.CONNECTING) {
+      // Avoid "closed before connection established" (React StrictMode cleanup).
+      socket.addEventListener(
+        'open',
+        () => {
+          socket.close();
+        },
+        { once: true },
+      );
+      return;
+    }
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.close();
+    }
+  };
+
+  ws = new WebSocket(url);
   ws.onmessage = (ev) => {
     try {
       handlers.onMessage(JSON.parse(String(ev.data)) as ConsoleMessage);
@@ -326,15 +350,18 @@ export function openServerConsole(
     }
   };
   ws.onclose = () => handlers.onClose?.();
-  ws.onerror = () => logger.warn('server console websocket error', { serverId });
+  ws.onerror = () => {
+    if (!closedByClient) {
+      logger.warn('server console websocket error', { serverId });
+    }
+  };
+
   return {
     send(line: string) {
-      if (ws.readyState === WebSocket.OPEN) {
+      if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'input', line }));
       }
     },
-    close() {
-      ws.close();
-    },
+    close,
   };
 }

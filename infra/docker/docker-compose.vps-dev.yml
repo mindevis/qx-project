@@ -1,0 +1,17 @@
+# Dev Linux VPS — Flow C manual testing (SSH deploy + QXAgent).
+# Usage: make dev-vps-up
+services:
+  vps-dev:
+    build:
+      context: ./vps-dev
+    container_name: qx-vps-dev
+    hostname: qx-vps-dev
+    privileged: true
+    cgroup: host
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    volumes:
+      - ./vps-dev/keys/authorized_keys:/mnt/authorized_keys:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

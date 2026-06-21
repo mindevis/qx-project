@@ -11,6 +11,7 @@ import (
 
 	"github.com/qxproject/qx/services/qxlauncher/internal/apiclient"
 	"github.com/qxproject/qx/services/qxlauncher/internal/cache"
+	"github.com/qxproject/qx/services/qxlauncher/internal/device"
 	"github.com/qxproject/qx/services/qxlauncher/internal/minecraft"
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
 )
@@ -18,6 +19,8 @@ import (
 type Config struct {
 	APIBase      string
 	DeviceToken  string
+	TokenPath    string
+	DeviceClient *device.Client
 	DataDir      string
 	LaunchDryRun bool
 	LaunchPoll   time.Duration
@@ -44,7 +47,7 @@ func RunLoop(ctx context.Context, cfg Config) {
 	syncTicker := time.NewTicker(cfg.InstancePoll)
 	defer syncTicker.Stop()
 
-	slog.Info("tray loop started", "launch_poll", cfg.LaunchPoll, "sync_poll", cfg.InstancePoll)
+	slog.Info("QXLauncher loop started", "launch_poll", cfg.LaunchPoll, "sync_poll", cfg.InstancePoll)
 
 	for {
 		select {
@@ -52,13 +55,25 @@ func RunLoop(ctx context.Context, cfg Config) {
 			return
 		case <-syncTicker.C:
 			if err := syncInstances(ctx, api, cfg.DataDir); err != nil {
-				slog.Warn("instance sync failed", "err", err)
+				if apiclient.IsUnauthorized(err) && tryRefreshDeviceToken(ctx, api, cfg, err) {
+					if err := syncInstances(ctx, api, cfg.DataDir); err != nil {
+						slog.Warn("instance sync failed", "err", err)
+					}
+				} else {
+					slog.Warn("instance sync failed", "err", err)
+				}
 			}
 		case <-launchTicker.C:
 			item, err := api.FetchPendingLaunch(ctx)
 			if err != nil {
-				slog.Warn("launch poll failed", "err", err)
-				continue
+				if apiclient.IsUnauthorized(err) {
+					tryRefreshDeviceToken(ctx, api, cfg, err)
+					item, err = api.FetchPendingLaunch(ctx)
+				}
+				if err != nil {
+					slog.Warn("launch poll failed", "err", err)
+					continue
+				}
 			}
 			if item == nil || item.Manifest == nil {
 				continue
@@ -169,6 +184,20 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		"exit_code": exitCode,
 	})
 	slog.Info("launch finished", "pid", strconv.Itoa(pid), "exit", exitCode)
+}
+
+func tryRefreshDeviceToken(ctx context.Context, api *apiclient.Client, cfg Config, err error) bool {
+	if !apiclient.IsUnauthorized(err) || cfg.DeviceClient == nil || cfg.TokenPath == "" {
+		return false
+	}
+	token, refreshErr := device.RefreshDeviceToken(ctx, cfg.DeviceClient, cfg.TokenPath)
+	if refreshErr != nil {
+		slog.Warn("device token refresh failed", "err", refreshErr)
+		return false
+	}
+	api.SetDeviceToken(token)
+	slog.Info("device token refreshed")
+	return true
 }
 
 func syncInstances(ctx context.Context, api *apiclient.Client, dataDir string) error {

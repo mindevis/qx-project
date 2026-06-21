@@ -10,7 +10,7 @@ Frontend отделён от Go-сервисов в `services/`.
 
 **Стек:** TypeScript, React, Vite, Ant Design.
 
-**Phase 0:** `/` (лендинг), модалка входа/регистрации (`/auth/:mode` → redirect), `/profile` (email + смена email/пароля в модалках), `/launcher` (UI Phase 1), placeholder `/servers`. Тема light/dark, меню аккаунта в шапке.
+**Phase 0–2:** `/` (лендинг), модалка входа/регистрации (`/auth/:mode` → redirect), `/profile`, `/launcher` (инстансы, device link), **`/servers`** (SSH, deploy agent; Stop/Restart/консоль при `minecraft_running`). Тема light/dark, меню аккаунта в шапке.
 
 ```bash
 cd qxweb

@@ -280,7 +280,7 @@ describe('ServersPage', () => {
     });
     let server = { ...sampleServer, agent_online: true };
     vi.mocked(fetch).mockImplementation(
-      mockAuthedFetch((url, init) => {
+      mockAuthedFetch((url) => {
         if (url.includes('/servers/srv-1/deploy')) {
           server = { ...server, status: 'offline' };
           return new Response(JSON.stringify(server), { status: 200 });
@@ -308,9 +308,9 @@ describe('ServersPage', () => {
     expect(screen.getByText('Agent подключён')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Deploy agent/i }));
-    await user.click(screen.getByRole('button', { name: 'Start' }));
-
     await waitFor(() => expect(message.success).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Stop' })).not.toBeInTheDocument();
     view.unmount();
   });
 
@@ -332,7 +332,7 @@ describe('ServersPage', () => {
 
     renderServers('/servers/srv-1');
     await waitFor(() => expect(screen.getByText('Agent оффлайн')).toBeInTheDocument());
-    expect(screen.getByText(/После Deploy запустите QXAgent/)).toBeInTheDocument();
+    expect(screen.getByText(/После Deploy агент подключится по WSS автоматически/)).toBeInTheDocument();
   });
 
   it('stops server from detail page', async () => {
@@ -343,13 +343,18 @@ describe('ServersPage', () => {
       expires_in: 60,
     });
     vi.mocked(fetch).mockImplementation(
-      mockAuthedFetch((url, init) => {
+      mockAuthedFetch((url) => {
         if (url.includes('/servers/srv-1/stop')) {
           return new Response(JSON.stringify({ status: 'stopping' }), { status: 200 });
         }
         if (url.includes('/servers/srv-1')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, agent_online: true, status: 'online' }),
+            JSON.stringify({
+              ...sampleServer,
+              agent_online: true,
+              status: 'online',
+              minecraft_running: true,
+            }),
             { status: 200 },
           );
         }
@@ -372,13 +377,18 @@ describe('ServersPage', () => {
       expires_in: 60,
     });
     vi.mocked(fetch).mockImplementation(
-      mockAuthedFetch((url, init) => {
+      mockAuthedFetch((url) => {
         if (url.includes('/servers/srv-1/restart')) {
           return new Response(JSON.stringify({ status: 'starting' }), { status: 200 });
         }
         if (url.includes('/servers/srv-1')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, agent_online: true, status: 'online' }),
+            JSON.stringify({
+              ...sampleServer,
+              agent_online: true,
+              status: 'online',
+              minecraft_running: true,
+            }),
             { status: 200 },
           );
         }
@@ -561,7 +571,7 @@ describe('ServersPage', () => {
         }
         if (url.includes('/servers/srv-1')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, agent_online: true, config: {} }),
+            JSON.stringify({ ...sampleServer, agent_online: true, minecraft_running: true, config: {} }),
             { status: 200 },
           );
         }
@@ -603,7 +613,7 @@ describe('ServersPage', () => {
         }
         if (url.includes('/servers/srv-1')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, agent_online: true, config: {} }),
+            JSON.stringify({ ...sampleServer, agent_online: true, minecraft_running: true, config: {} }),
             { status: 200 },
           );
         }

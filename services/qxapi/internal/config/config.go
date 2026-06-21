@@ -16,7 +16,6 @@ type Config struct {
 	SSHMasterKey    string
 	PublicAPIURL    string
 	AgentBinaryPath string
-	SSHDeployDryRun bool
 	GinMode         string
 	LogLevel        string
 	LogFormat       string
@@ -32,8 +31,7 @@ func Load() Config {
 		CORSOrigin:      getenv("CORS_ORIGIN", "http://localhost:5173"),
 		SSHMasterKey:    getenv("SSH_MASTER_KEY", devSSHMasterKey()),
 		PublicAPIURL:    getenv("QX_PUBLIC_API_URL", "http://localhost:3000"),
-		AgentBinaryPath: getenv("QX_AGENT_BINARY_PATH", ""),
-		SSHDeployDryRun: os.Getenv("QX_SSH_DEPLOY_DRY_RUN") == "1",
+		AgentBinaryPath: resolveAgentBinaryPath(),
 		GinMode:         getenv("GIN_MODE", "debug"),
 		LogLevel:        getenv("LOG_LEVEL", "info"),
 		LogFormat:       getenv("LOG_FORMAT", "text"),

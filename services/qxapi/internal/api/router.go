@@ -17,7 +17,6 @@ import (
 type DeploySettings struct {
 	PublicAPIURL    string
 	AgentBinaryPath string
-	DryRun          bool
 	DeployExecutor  servers.DeployExecutor // optional; tests inject a capturer
 }
 
@@ -36,12 +35,10 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	hub := agenthub.New(nil)
 	deployer := deployCfg.DeployExecutor
 	if deployer == nil {
-		dryRun := deployCfg.DryRun || deployCfg.AgentBinaryPath == ""
 		deployer = deploy.NewSSH(deploy.SSHConfig{
 			Encryptor:  enc,
 			APIBaseURL: deployCfg.PublicAPIURL,
 			BinaryPath: deployCfg.AgentBinaryPath,
-			DryRun:     dryRun,
 		})
 	}
 	serversSvc := servers.NewService(db, tokens, enc, hub, deployer)
@@ -69,6 +66,9 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 		v1.POST("/auth/guest", authH.Guest)
 		v1.POST("/auth/logout", AuthMiddleware(tokens), authH.Logout)
 
+		// WebSocket clients pass access_token as a query param (no Authorization header).
+		v1.GET("/servers/:id/console", consoleH.Connect)
+
 		v1.POST("/launcher/devices/register", devicesH.Register)
 		v1.GET("/launcher/devices/:id/status", devicesH.Status)
 
@@ -94,7 +94,6 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.POST("/servers/:id/start", serversH.Start)
 			authed.POST("/servers/:id/stop", serversH.Stop)
 			authed.POST("/servers/:id/restart", serversH.Restart)
-			authed.GET("/servers/:id/console", consoleH.Connect)
 		}
 
 		launcherOwner := v1.Group("")

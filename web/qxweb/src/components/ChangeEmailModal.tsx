@@ -53,7 +53,7 @@ export function ChangeEmailModal({
       open={open}
       onCancel={handleClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       width={420}
       afterOpenChange={(visible) => {
         if (visible) {

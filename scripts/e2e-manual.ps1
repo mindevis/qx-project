@@ -55,7 +55,7 @@ Write-Host "  1. Register + login at http://localhost:5173"
 Write-Host "  2. make launcher (or bin/qx-launcher) - copy link_url from console"
 Write-Host "  3. Confirm link on /launcher/link (logged in)"
 Write-Host "  4. /launcher - create Vanilla instance + offline profile - Play"
-Write-Host "  5. Tray receives launch-request; JVM starts (or QX_LAUNCH_DRY_RUN=1)"
+Write-Host "  5. QXLauncher получает launch-request; JVM starts (or QX_LAUNCH_DRY_RUN=1)"
 
 Write-Host "--- Flow B (guest) ---" -ForegroundColor Green
 Write-Host "  1. make launcher - open link_url without login"
@@ -63,12 +63,17 @@ Write-Host "  2. Guest confirm on /launcher/link"
 Write-Host "  3. Create instance - Play (default nick Player)"
 
 Write-Host "--- Flow C (server admin) ---" -ForegroundColor Green
-Write-Host "  1. Servers - add VPS (SSH) - Deploy (dry-run OK in dev)"
-Write-Host "  2. make agent (QX_AGENT_DRY_RUN=1) with token from deploy logs"
-Write-Host "  3. Start/Stop - live console"
+Write-Host "  Dev VPS (Debian 13 + SSH): make dev-vps-up"
+Write-Host "  SSH: localhost:2222, user root, key infra/docker/vps-dev/keys/dev_id_ed25519"
+Write-Host "  .env: QX_PUBLIC_API_URL=http://host.docker.internal:3000"
+Write-Host "        QX_PUBLIC_API_URL=http://host.docker.internal:3000 (make dev-vps-up builds agent binary)"
+Write-Host "  1. Servers - add VPS (SSH creds from make dev-vps-info) - Deploy agent"
+Write-Host "  2. Agent auto-starts in container via systemd after deploy (tag Agent)"
+Write-Host "  3. MC offline until JAR started - Stop/Restart + console only when minecraft_running"
+Write-Host "  Alt: POST /servers/{id}/start via API; QX_AGENT_DRY_RUN=1 on VPS for dry MC"
 
-Write-Host "--- Tray manual (test matrix A09, L03) ---" -ForegroundColor Green
-Write-Host "  Systray - Link launcher - browser opens /launcher/link"
+Write-Host "--- QXLauncher manual (test matrix A09, L03) ---" -ForegroundColor Green
+Write-Host "  Icon in system tray - Link QXLauncher - browser opens /launcher/link"
 Write-Host "  Do NOT set QX_SKIP_TRAY=1 for this check."
 
 Write-Host ""
@@ -81,8 +86,8 @@ Write-Host "Automated API smoke (Flow A/B/C):" -ForegroundColor Yellow
 Write-Host "  make e2e-api-smoke   - go test router Flow A/B/C against in-memory API"
 Write-Host "  make e2e-web         - Playwright: Flow A + B + C (mock API)"
 Write-Host "  make e2e-alpha       - API smoke + dry-run + Playwright (all automated E2E)"
-Write-Host "  make e2e-dry-run     - API smoke + tray launch-bridge dry-run (I04 partial)"
-Write-Host "  make e2e-jvm         - Mojang manifest + java -version on PATH (I04/I05 partial)"
+Write-Host "  make e2e-dry-run     - API smoke + QXLauncher launch-bridge dry-run (I04 partial)"
+Write-Host "  make e2e-jvm         - Mojang manifest + java -version (I04/I05 automated smoke)"
 Write-Host ""
 Write-Host "Full unit suite: make test"
 Write-Host ""
@@ -95,7 +100,7 @@ if ($RunAll) {
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         Write-Host "e2e-alpha: OK" -ForegroundColor Green
         Write-Host ""
-        Write-Host "Next: manual tray (A09, L03) and real JVM (I04, I05) — steps above." -ForegroundColor Cyan
+        Write-Host "Manual pass (A09, L03, I04, I05, Flow C): see docs/qa/test-matrix.md" -ForegroundColor Cyan
     } finally {
         Pop-Location
     }
@@ -107,12 +112,12 @@ if ($RunAll) {
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         Write-Host "e2e-jvm: OK" -ForegroundColor Green
         Write-Host ""
-        Write-Host "Next: manual tray (A09, L03) and full MC client launch (I04) — steps above." -ForegroundColor Cyan
+        Write-Host "Next: manual QXLauncher (A09, L03) and full MC client launch (I04) — steps above." -ForegroundColor Cyan
     } finally {
         Pop-Location
     }
 } elseif ($RunDryRun) {
-    Write-Host "Running e2e-dry-run (API + tray dry launch)..." -ForegroundColor Yellow
+    Write-Host "Running e2e-dry-run (API + QXLauncher dry launch)..." -ForegroundColor Yellow
     Push-Location $root
     try {
         make e2e-dry-run

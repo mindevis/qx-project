@@ -120,7 +120,7 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await user.click(screen.getByRole('button', { name: 'Войти' }));
+    await user.click(screen.getByRole('button', { name: 'Войти в аккаунт' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 
@@ -135,7 +135,8 @@ describe('pages', () => {
     );
 
     expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
+    expect(screen.getByText('Сначала свяжите QXLauncher')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Проверить связь/ })).toBeInTheDocument();
   });
 
   it('renders launcher page for authenticated users', async () => {

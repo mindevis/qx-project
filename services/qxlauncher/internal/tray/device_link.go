@@ -3,6 +3,7 @@ package tray
 import (
 	"context"
 	"log/slog"
+	"path/filepath"
 	"time"
 
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
@@ -41,6 +42,7 @@ func completeDeviceLink(
 	if err := client.SaveDeviceToken(cfg.TokenPath, token); err != nil {
 		return "", err
 	}
+	_ = device.SaveDeviceID(filepath.Dir(cfg.TokenPath), reg.DeviceID)
 	return token, nil
 }
 

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -137,7 +138,7 @@ func (h *ServersHandler) Deploy(c *gin.Context) {
 		JSONUnauthorized(c)
 		return
 	}
-	view, err := h.Service.Deploy(c.Request.Context(), userID.(string), c.Param("id"))
+	out, err := h.Service.Deploy(c.Request.Context(), userID.(string), c.Param("id"))
 	if err != nil {
 		switch {
 		case errors.Is(err, servers.ErrNotFound):
@@ -148,12 +149,19 @@ func (h *ServersHandler) Deploy(c *gin.Context) {
 			JSONError(c, http.StatusUnprocessableEntity, "HOST_NOT_LINUX", "QX agent requires a Linux VPS")
 		case errors.Is(err, deploy.ErrInvalidSSHKey):
 			JSONValidation(c, "invalid ssh private key")
+		case errors.Is(err, deploy.ErrBinaryNotConfigured):
+			JSONError(c, http.StatusFailedDependency, "AGENT_BINARY_MISSING", "set QX_AGENT_BINARY_PATH on the API server")
 		default:
-			JSONInternal(c)
+			slog.Error("deploy failed", "error", err, "server_id", c.Param("id"))
+			msg := "deploy failed"
+			if err != nil {
+				msg = err.Error()
+			}
+			JSONError(c, http.StatusBadGateway, "DEPLOY_FAILED", msg)
 		}
 		return
 	}
-	c.JSON(http.StatusOK, view)
+	c.JSON(http.StatusOK, out.View)
 }
 
 func (h *ServersHandler) Start(c *gin.Context) {

@@ -1,6 +1,11 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { message } from 'antd';
+
+vi.mock('@/hooks/useMessage', () => ({
+  useMessage: () => message,
+}));
 
 Object.defineProperty(window, 'getComputedStyle', {
   value: () => ({

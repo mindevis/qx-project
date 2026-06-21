@@ -30,9 +30,15 @@ func (c *captureDeployer) Deploy(_ context.Context, serverID string, _ models.SS
 	return nil
 }
 
+type noopDeployer struct{}
+
+func (noopDeployer) Deploy(context.Context, string, models.SSHCredential, string) error {
+	return nil
+}
+
 func setupRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	return setupRouterWithDeploy(t, DeploySettings{DryRun: true})
+	return setupRouterWithDeploy(t, DeploySettings{DeployExecutor: noopDeployer{}})
 }
 
 func setupRouterWithDeploy(t *testing.T, deploy DeploySettings) *gin.Engine {
@@ -452,6 +458,14 @@ func TestRouterServersFlow(t *testing.T) {
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("deploy: %d %s", w.Code, w.Body.String())
+	}
+
+	// WebSocket auth uses query param; must not require Authorization header.
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/servers/"+serverID+"/console?access_token="+tokens.AccessToken, nil)
+	r.ServeHTTP(w, req)
+	if w.Code == http.StatusUnauthorized {
+		t.Fatalf("console with query access_token should not be blocked by Bearer middleware")
 	}
 }
 

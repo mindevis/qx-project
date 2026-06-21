@@ -9,6 +9,11 @@ cov.txt
 authcov
 *_cov
 **/coverage/
+**/cov
+services/qxapi/api
+services/qxapi/auth
+services/qxapi/launcher
+services/qxapi/cov-func.txt
 services/qxapi/ac
 services/qxapi/coverage
 services/qxapi/internal/auth/coverage
@@ -40,3 +45,4 @@ npm-debug.log*
 
 # Docker
 infra/docker/mysql_data/
+infra/docker/vps-dev/keys/

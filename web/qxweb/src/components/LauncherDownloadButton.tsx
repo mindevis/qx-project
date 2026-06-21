@@ -1,11 +1,13 @@
-import { Button, message } from 'antd';
+import { Button } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
+import { useMessage } from '@/hooks/useMessage';
 
 type LauncherDownloadButtonProps = {
   type?: 'primary' | 'default';
 };
 
 export function LauncherDownloadButton({ type = 'default' }: LauncherDownloadButtonProps) {
+  const message = useMessage();
   return (
     <Button
       icon={<DownloadOutlined />}

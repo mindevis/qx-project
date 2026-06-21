@@ -2,7 +2,7 @@
 
 > **F7:** Backend SSH → Linux VPS → systemd agent.
 > Security: [security-legal.md §3](./security-legal.md)
-> **Статус:** 🔲 Phase 2. REST: base `/api/v1` (пути ниже относительные).
+> **Статус:** ✅ Phase 2. REST: base `/api/v1` (пути ниже относительные).
 
 ---
 
@@ -12,21 +12,23 @@
 sequenceDiagram
     participant U as Admin (Panel)
     participant API as Backend
-    participant Q as Deploy Worker
+    participant D as SSH Deployer
     participant VPS as Linux VPS
     participant A as QXAgent
 
     U->>API: POST /api/v1/servers + ssh_credentials
     U->>API: POST /api/v1/servers/{id}/deploy
-    API->>Q: Enqueue deploy_job
-    Q->>VPS: SSH connect (key from DB decrypted)
-    Q->>VPS: Upload agent binary
-    Q->>VPS: Write env + systemd unit
-    Q->>VPS: systemctl enable --now
+    API->>D: Run deploy (sync in request)
+    D->>VPS: SSH connect (key from DB decrypted)
+    D->>VPS: Upload agent binary
+    D->>VPS: Write agent.toml + systemd unit
+    D->>VPS: systemctl enable + restart qx-agent
     A->>API: WSS connect
-    Q->>API: job success + audit
-    API-->>U: server status online
+    D->>API: deploy success
+    API-->>U: agent_online true (MC still offline)
 ```
+
+После deploy сервер **не** считается «Minecraft online» — только `agent_online`. Статус MC (`minecraft_running`, `status`) меняется после `POST …/start` или heartbeat с `mc_pid`.
 
 ---
 
@@ -37,32 +39,35 @@ sequenceDiagram
 | OS | Linux x86_64 (Ubuntu 22.04+, Debian 12+) |
 | User | sudo without password **or** root (discouraged) |
 | SSH | Port 22 or custom, key-based auth |
-| Firewall | Outbound **443** to QXApi; inbound MC port user-defined |
+| Firewall | Outbound **443** (or dev HTTP) to QXApi; inbound MC port user-defined |
 | Allowlist | Optional: QX platform egress IP in `ufw` |
 
 Panel shows **pre-flight checklist** before deploy.
+
+**Dev VPS:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. API на хосте: `QX_PUBLIC_API_URL=http://host.docker.internal:3000` (agent в Docker достучится до API).
 
 ---
 
 ## 3. Deploy worker
 
-Go goroutine pool (`internal/deploy/worker.go`):
+Go SSH deployer (`internal/deploy/ssh_deployer.go`):
 
 | Config | Value |
 | -------- | ------- |
-| Max concurrent deploys | 5 global, 1 per server |
 | SSH timeout | 30s connect, 10 min total |
-| Retry | 2 retries exponential backoff |
+| Retry | handled at API layer |
 
 ### 3.1 Whitelisted remote commands
 
-No user-supplied shell. Worker executes fixed script template:
+No user-supplied shell. Deployer executes fixed script template:
 
 1. `mkdir -p /opt/qx/agent /opt/qx/server` (`plugins/`, `mods/` — по [server-content-install.md](./server-content-install.md))
 2. `install -m 755` agent binary to `/opt/qx/agent/qx-agent`
-3. Write `/etc/qx/agent.env` (0600 root)
+3. Write `/etc/qx-agent/agent.toml` (0600 root)
 4. Write `/etc/systemd/system/qx-agent.service`
-5. `systemctl daemon-reload && systemctl enable --now qx-agent`
+5. `systemctl daemon-reload && systemctl enable qx-agent && systemctl restart qx-agent`
+
+**Re-deploy:** `restart` (не только `enable --now`) — новый `agent_token` подхватывается без ручного restart на VPS.
 
 ---
 
@@ -90,18 +95,20 @@ API validates key format, **never** returns private key in GET.
 On successful deploy:
 
 1. Generate `agent_jwt` scoped to `server_id`
-2. Write to `/etc/qx/agent.env`:
+2. Write to `/etc/qx-agent/agent.toml`:
 
-   ```env
-   QX_API_URL=https://api.qx.example.com   # host; WSS /agent/v1/connect; tray REST /api/v1
-   QX_SERVER_ID=uuid
-   QX_AGENT_TOKEN=eyJ...
-   QX_SERVER_ROOT=/opt/qx/server
+   ```toml
+   api_base_url = "https://api.qx.example.com/api/v1"
+   server_id = "uuid"
+   agent_token = "eyJ..."
+   server_root = "/opt/qx/server"
    ```
 
 3. Store `agent_token_hash` in `servers` table
 
-**Re-deploy:** revokes old token, issues new.
+**Re-deploy:** revokes old token, issues new, **restarts** systemd unit.
+
+**Dev localhost SSH:** `agent_api_url` в deploy → `http://host.docker.internal:3000/api/v1` (см. `internal/deploy/agent_api_url.go`).
 
 ---
 
@@ -112,9 +119,9 @@ On successful deploy:
 | SSH auth failed | Check key and username | `server.deploy.failed` |
 | Timeout | Firewall blocking SSH | same |
 | systemctl failed | View deploy log in panel | same |
-| Agent no WSS 5min | Check outbound HTTPS | `server.deploy.partial` |
+| Agent no WSS 5min | Check outbound HTTPS to API | `server.deploy.partial` |
 
-Deploy log stored in `deploy_jobs.log` (last 64 KB).
+Deploy log stored in deploy response / server detail (last error).
 
 ---
 

@@ -18,6 +18,7 @@ export type GameServer = {
     username: string;
   };
   agent_online: boolean;
+  minecraft_running?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -133,12 +134,14 @@ export async function installServersApiMock(page: Page, state: ServersMockState)
       }
       if (action === 'start' && method === 'POST') {
         server.status = 'online';
+        server.minecraft_running = true;
         server.updated_at = '2026-06-10T00:02:00Z';
         state.servers.set(id, server);
         return json(route, 200, { status: 'online' });
       }
       if (action === 'stop' && method === 'POST') {
         server.status = 'offline';
+        server.minecraft_running = false;
         server.updated_at = '2026-06-10T00:03:00Z';
         state.servers.set(id, server);
         return json(route, 200, { status: 'offline' });

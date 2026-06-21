@@ -13,7 +13,6 @@ import {
   Spin,
   Tag,
   Typography,
-  message,
 } from 'antd';
 import {
   CloudServerOutlined,
@@ -23,10 +22,11 @@ import {
   RocketOutlined,
 } from '@ant-design/icons';
 import { api, type GameServer } from '@/api/client';
-import { ServerConsolePanel } from '@/components/ServerConsolePanel';
+import { ServerConsolePanel, shouldShowMinecraftControls, shouldShowServerConsole } from '@/components/ServerConsolePanel';
 import { useAuth } from '@/auth/AuthContext';
 import { useAuthModal } from '@/auth/AuthModalContext';
 import { logger } from '@/lib/logger';
+import { useMessage } from '@/hooks/useMessage';
 
 const { TextArea } = Input;
 
@@ -61,6 +61,7 @@ function statusLabel(status: string): string {
 
 function ServersList() {
   const navigate = useNavigate();
+  const message = useMessage();
   const [servers, setServers] = useState<GameServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -165,7 +166,7 @@ function ServersList() {
         onOk={() => void onCreate()}
         confirmLoading={creating}
         width={560}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" initialValues={{ port: 22 }}>
           <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите название' }]}>
@@ -201,6 +202,7 @@ function ServersList() {
 function ServerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const message = useMessage();
   const [server, setServer] = useState<GameServer | null>(null);
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<string | null>(null);
@@ -227,7 +229,7 @@ function ServerDetail() {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  const runAction = async (name: 'deploy' | 'start' | 'stop' | 'restart') => {
+  const runAction = async (name: 'deploy' | 'stop' | 'restart') => {
     /* v8 ignore next 3 */
     if (!id) return;
     setAction(name);
@@ -235,9 +237,7 @@ function ServerDetail() {
       if (name === 'deploy') {
         const updated = await api.deployServer(id);
         setServer(updated);
-      } else if (name === 'start') {
-        await api.startServer(id);
-        await load();
+        message.success('Deploy выполнен — ожидаем подключение агента');
       } else if (name === 'stop') {
         await api.stopServer(id);
         await load();
@@ -245,7 +245,9 @@ function ServerDetail() {
         await api.restartServer(id);
         await load();
       }
-      message.success('Готово');
+      if (name !== 'deploy') {
+        message.success('Готово');
+      }
     } catch (e) {
       message.error(e instanceof Error ? e.message : 'Ошибка');
     } finally {
@@ -283,6 +285,9 @@ function ServerDetail() {
       <Card>
         <Space wrap>
           <Tag color={statusColor(server.status)}>{statusLabel(server.status)}</Tag>
+          {server.minecraft_running ? (
+            <Tag color="green">Minecraft</Tag>
+          ) : null}
           {server.agent_online ? (
             <Tag color="blue">Agent подключён</Tag>
           ) : (
@@ -307,29 +312,25 @@ function ServerDetail() {
           >
             Deploy agent
           </Button>
-          <Button
-            type="primary"
-            loading={busy && action === 'start'}
-            disabled={!server.agent_online}
-            onClick={() => void runAction('start')}
-          >
-            Start
-          </Button>
-          <Button
-            loading={busy && action === 'stop'}
-            disabled={!server.agent_online}
-            onClick={() => void runAction('stop')}
-          >
-            Stop
-          </Button>
-          <Button
-            icon={<ReloadOutlined />}
-            loading={busy && action === 'restart'}
-            disabled={!server.agent_online}
-            onClick={() => void runAction('restart')}
-          >
-            Restart
-          </Button>
+          {shouldShowMinecraftControls(server) && (
+            <>
+              <Button
+                loading={busy && action === 'stop'}
+                disabled={!server.agent_online}
+                onClick={() => void runAction('stop')}
+              >
+                Stop
+              </Button>
+              <Button
+                icon={<ReloadOutlined />}
+                loading={busy && action === 'restart'}
+                disabled={!server.agent_online}
+                onClick={() => void runAction('restart')}
+              >
+                Restart
+              </Button>
+            </>
+          )}
           <Popconfirm title="Удалить сервер?" onConfirm={() => void onDelete()}>
             <Button danger icon={<DeleteOutlined />}>
               Удалить
@@ -338,14 +339,16 @@ function ServerDetail() {
         </Space>
         {!server.agent_online && (
           <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
-            После Deploy запустите QXAgent на VPS с выданным токеном или дождитесь подключения по WSS.
+            После Deploy агент подключится по WSS автоматически — обычно в течение нескольких секунд.
           </Typography.Paragraph>
         )}
       </Card>
 
-      <Card title="Консоль">
-        <ServerConsolePanel serverId={server.id} enabled={server.agent_online} />
-      </Card>
+      {shouldShowServerConsole(server) && (
+        <Card title="Консоль">
+          <ServerConsolePanel serverId={server.id} agentOnline={server.agent_online} />
+        </Card>
+      )}
     </Space>
   );
 }

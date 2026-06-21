@@ -17,7 +17,7 @@
 
 Войдите на сайте → откройте `/launcher/link?device=…` → «Связать устройство». Статус виден в профиле и на `/launcher`.
 
-### Почему кнопка «Играть» зависает на «ожидание tray»?
+### Почему кнопка «Играть» зависает на «Запрос в очереди…»?
 
 QXLauncher должен быть запущен и связан с тем же аккаунтом/guest-сессией. Проверьте иконку в системном трее и переменную `QX_API_BASE_URL`.
 
@@ -35,15 +35,34 @@ Linux x86_64 (Ubuntu 22.04+, Debian 12+), SSH по ключу. Подробне�
 
 ### Deploy не подключает agent
 
-- Проверьте SSH-ключ и firewall (исходящий 443 к API).
-- В dev без бинарника агента включён dry-run (`QX_SSH_DEPLOY_DRY_RUN=1`).
+- Проверьте SSH-ключ и firewall (исходящий HTTPS/HTTP к API).
+- Deploy всегда выполняет SSH на VPS. Нужен бинарник агента (`make build-agent-linux` или `make dev-vps-up`).
 - Укажите `QX_AGENT_BINARY_PATH` на сервере API для реального deploy.
+- **Dev VPS:** в `.env` API — `QX_PUBLIC_API_URL=http://host.docker.internal:3000` (не `localhost` из контейнера).
+- После **повторного Deploy** agent перезапускается через `systemctl restart` — ждите тег **Agent** в panel.
+
+### Почему нет кнопки Start и консоли?
+
+MVP UI показывает **Stop/Restart** и live-консоль только когда `minecraft_running === true`. Deploy agent ≠ запущенный Minecraft.
+
+- Тег **Agent** (синий) — QXAgent подключён по WSS (`agent_online`).
+- Статус MC — **offline**, пока JAR не запущен (вручную на VPS или через API `POST …/start`; кнопка Start в UI — post-MVP).
+
+### Agent online, но Minecraft offline — это нормально?
+
+Да. `agent_online` и `minecraft_running` — разные поля. После Deploy ожидайте Agent ☑ и MC offline до start JAR.
 
 ---
 
 ## Prod / Self-Hosted
 
-### Как поднять prod на одном VPS?
+> **Статус:** infra-скрипты есть, **к production пока не готовы**. Чеклист: [mvp §7.1](./mvp.md).
+
+### Мы готовы к prod?
+
+**Нет.** MVP alpha (Flow A/B/C в dev) пройден; prod требует TLS, реальный VPS, секреты и smoke — см. [test-matrix §8](./qa/test-matrix.md).
+
+### Как поднять prod на одном VPS? *(когда будете готовы)*
 
 ```bash
 cp infra/docker/.env.prod.example infra/docker/.env.prod
@@ -68,6 +87,6 @@ make test           # unit
 make test-coverage  # 100% порог для qxapi и qxweb
 make e2e-alpha        # API + dry-run + Playwright (всё автоматизированное)
 make e2e-api-smoke  # API Flow A/B/C (router_test)
-make e2e-dry-run    # API smoke + tray launch-bridge dry-run
-make e2e-manual     # чеклист manual tray + JVM (Windows); -RunAll для e2e-alpha
+make e2e-dry-run    # API smoke + QXLauncher launch-bridge dry-run
+make e2e-manual     # чеклист manual QXLauncher + JVM (Windows); -RunAll для e2e-alpha
 ```

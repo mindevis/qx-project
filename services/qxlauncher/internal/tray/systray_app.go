@@ -53,7 +53,7 @@ func RunSystrayApp(cfg SystrayConfig) {
 		}
 		systray.SetTitle("QXLauncher")
 
-		mLink := systray.AddMenuItem("Связать лаунчер", "Открыть страницу привязки")
+		mLink := systray.AddMenuItem("Связать QXLauncher", "Открыть страницу привязки")
 		mOpen := systray.AddMenuItem("Открыть сайт", launcherURL)
 		mUnlink := systray.AddMenuItem("Отвязать", "Снять привязку с сайтом")
 		systray.AddSeparator()
@@ -75,6 +75,8 @@ func RunSystrayApp(cfg SystrayConfig) {
 			go RunLoop(ctx, Config{
 				APIBase:      cfg.APIBase,
 				DeviceToken:  token,
+				TokenPath:    cfg.TokenPath,
+				DeviceClient: cfg.DeviceClient,
 				DataDir:      cfg.DataDir,
 				LaunchDryRun: cfg.LaunchDryRun,
 			})

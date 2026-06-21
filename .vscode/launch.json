@@ -14,18 +14,7 @@
       "showLog": true
     },
     {
-      "name": "QXAgent",
-      "type": "go",
-      "request": "launch",
-      "mode": "debug",
-      "debugAdapter": "legacy",
-      "program": "${workspaceFolder}/services/qxagent/cmd",
-      "cwd": "${workspaceFolder}/services/qxagent",
-      "envFile": "${workspaceFolder}/.env",
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "QXLauncher (dry-run)",
+      "name": "QXLauncher",
       "type": "go",
       "request": "launch",
       "mode": "debug",
@@ -33,10 +22,6 @@
       "program": "${workspaceFolder}/services/qxlauncher/cmd",
       "cwd": "${workspaceFolder}/services/qxlauncher",
       "envFile": "${workspaceFolder}/.env",
-      "env": {
-        "QX_SKIP_TRAY": "1",
-        "QX_LAUNCH_DRY_RUN": "1"
-      },
       "console": "integratedTerminal"
     },
     {
@@ -46,6 +31,56 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "cwd": "${workspaceFolder}/web/qxweb",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Dev VPS: up",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/dev-vps.ps1"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Dev VPS: down",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/dev-vps.ps1",
+        "-Down"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Dev VPS: info",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/dev-vps.ps1",
+        "-Info"
+      ],
+      "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     },
@@ -94,14 +129,6 @@
       "stopAll": true,
       "presentation": {
         "order": 1
-      }
-    },
-    {
-      "name": "QX Dev Stack (dry-run)",
-      "configurations": ["QXApi", "QXWeb", "QXLauncher (dry-run)"],
-      "stopAll": true,
-      "presentation": {
-        "order": 2
       }
     }
   ]

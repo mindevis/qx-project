@@ -33,7 +33,11 @@ func (r *ProcessRunner) WriteInput(line string) error {
 		return nil
 	}
 	if r.stdin == nil {
-		return fmt.Errorf("server process not running")
+		err := fmt.Errorf("server process not running")
+		if r.onOutput != nil {
+			r.onOutput("stderr", err.Error())
+		}
+		return err
 	}
 	_, err := fmt.Fprintln(r.stdin, line)
 	return err

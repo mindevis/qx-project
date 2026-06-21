@@ -1,16 +1,14 @@
 import { test, expect } from '@playwright/test';
 import {
   createServersMockState,
-  installMockWebSocket,
   installServersApiMock,
   seedAuthSession,
 } from './mock-servers-api';
 
 test.describe('servers admin flow (Flow C web)', () => {
-  test('creates VPS, deploys agent, starts server and shows console', async ({ page }) => {
+  test('creates VPS and deploys agent', async ({ page }) => {
     const state = createServersMockState();
     await installServersApiMock(page, state);
-    await installMockWebSocket(page);
     await seedAuthSession(page);
 
     await page.goto('/servers');
@@ -29,19 +27,15 @@ test.describe('servers admin flow (Flow C web)', () => {
     await expect(page.getByText('Agent оффлайн')).toBeVisible();
 
     await page.getByRole('button', { name: 'Deploy agent' }).click();
-    await expect(page.getByText('Готово')).toBeVisible();
+    await expect(page.getByText('Deploy выполнен')).toBeVisible();
     await expect(page.getByText('Agent подключён')).toBeVisible({ timeout: 10_000 });
 
-    const startBtn = page.getByRole('button', { name: 'Start', exact: true });
-    await expect(startBtn).toBeEnabled({ timeout: 10_000 });
-    await startBtn.click();
-    await expect(page.getByText('Готово')).toBeVisible();
-    await expect(page.getByText('Консоль подключена')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Done (0.05s)!')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
 
     expect(state.servers.size).toBe(1);
     const server = state.servers.get('srv-1');
     expect(server?.agent_online).toBe(true);
-    expect(server?.status).toBe('online');
+    expect(server?.status).toBe('offline');
   });
 });

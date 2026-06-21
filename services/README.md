@@ -2,9 +2,9 @@
 
 | Папка | Компонент | Статус |
 | ------- | ----------- | -------- |
-| [qxapi](./qxapi/) | QXApi — backend | Phase 0–2 🟡 |
-| [qxlauncher](./qxlauncher/) | QXLauncher — tray | Phase 1 ✅ |
-| [qxagent](./qxagent/) | QXAgent — BYOS | Phase 2 🟡 |
+| [qxapi](./qxapi/) | QXApi — backend | Phase 0–2 ✅ |
+| [qxlauncher](./qxlauncher/) | QXLauncher | Phase 1 ✅ |
+| [qxagent](./qxagent/) | QXAgent — BYOS | Phase 2 ✅ |
 
 Каждый сервис — отдельный Go-модуль в [go.work](../go.work).
 
@@ -23,7 +23,7 @@ internal/
   database/    GORM Open, migrate, Ping
   launcher/    device link, instances, launch-requests
   models/      User, Server, Agent, …
-  servers/     CRUD, deploy, start/stop via agent hub
+  servers/     CRUD, deploy, start/stop via agent hub (`agent_online` / `minecraft_running`)
   testutil/    SQLite helpers для тестов
 ```
 
@@ -37,7 +37,7 @@ internal/
 
 ## QXLauncher (`services/qxlauncher/`)
 
-Device register/link, tray loop, Mojang Vanilla download + JVM launch.
+Device register/link, launch-bridge poll, Mojang Vanilla download + JVM launch.
 
 Env: `QX_API_BASE_URL`, `QX_DEVICE_ID`, `QX_LAUNCH_DRY_RUN=1`.
 
@@ -45,11 +45,12 @@ Env: `QX_API_BASE_URL`, `QX_DEVICE_ID`, `QX_LAUNCH_DRY_RUN=1`.
 
 WSS client к QXApi; обрабатывает `cmd.server.start/stop`, шлёт heartbeat и `res.server.*`.
 
-Env:
+Config: `/etc/qx-agent/agent.toml` on VPS (written by SSH deploy). Local dev: env vars.
 
 | Variable | Description |
 | -------- | ----------- |
-| `QX_AGENT_TOKEN` | JWT от deploy (required) |
+| `QX_AGENT_CONFIG` | path to TOML (default `/etc/qx-agent/agent.toml`) |
+| `QX_AGENT_TOKEN` | JWT от deploy (env override / local dev) |
 | `QX_API_BASE_URL` | e.g. `http://localhost:3000/api/v1` |
 | `QX_AGENT_WS_URL` | override WSS URL |
 | `QX_AGENT_DRY_RUN=1` | не запускать java, только лог |

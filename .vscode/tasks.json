@@ -28,6 +28,47 @@
       "problemMatcher": []
     },
     {
+      "label": "Docker: dev-vps-up",
+      "type": "shell",
+      "command": "make dev-vps-up",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: dev-vps-down",
+      "type": "shell",
+      "command": "make dev-vps-down",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: dev-vps-info",
+      "type": "shell",
+      "command": "make dev-vps-info",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "qxweb: dev",
       "type": "npm",
       "script": "dev",

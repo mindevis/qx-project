@@ -1,7 +1,7 @@
 # QXProject — Архитектура
 
 > Документ описывает целевую архитектуру платформы и **текущий статус реализации**.
-> Версия: **v1.7** (2026-06-10) — Phase 0 завершён (auth + profile + 100% unit coverage), см. [adr/](./adr/).
+> **Версия:** v1.8 (2026-06-10) — Phase 0–2 в коде; Flow C manual dev deploy ☑; см. [adr/](./adr/).
 > **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) ·
 > [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) ·
 > [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
@@ -12,7 +12,7 @@
 | ----------- | ------ | -------- |
 | **QXApi** — auth, users | Phase 0 | ✅ `register`, `login`, `refresh`, `guest`, `logout`, `GET /users/me`, `PATCH /users/me/password`, `PATCH /users/me/email` |
 | **QXApi** — health | Phase 0 | ✅ `GET /api/v1/health`, `GET /api/v1/health/ready` |
-| **QXWeb** | Phase 0 | ✅ `/`, auth modal (`/auth/*` → redirect), `/profile`, `/launcher` (Phase 1 UI); placeholder `/servers` |
+| **QXWeb** | Phase 0–2 | ✅ `/`, auth modal, `/profile`, `/launcher`, **`/servers`** (SSH, deploy agent, MC controls при `minecraft_running`) |
 | **Infra dev** | Phase 0 | ✅ Docker Compose: MySQL, Redis, MinIO (`infra/docker/`) |
 | **CI / тесты** | Phase 0 | ✅ GitHub Actions; Go и web — **100% unit coverage** |
 | **QXLauncher** | Phase 1 | ✅ device link, tray loop, Vanilla launch |
@@ -21,7 +21,7 @@
 | Device link, instances, launch-bridge | Phase 1 | ✅ |
 | Agent SSH deploy, servers panel | Phase 2 | ✅ |
 
-Следующий шаг: **Phase Alpha** — E2E, prod deploy, bug bash ([mvp.md §8](./mvp.md)).
+Следующий шаг: **Prod readiness** — VPS, TLS, smoke на prod ([mvp §7.1](./mvp.md)); MVP alpha flows в dev — ✅.
 
 ### URL и префиксы API
 
@@ -167,19 +167,19 @@ sequenceDiagram
     Web->>API: POST /api/v1/servers
     U->>Web: Deploy agent
     Web->>API: POST /api/v1/servers/{id}/deploy
-    API->>A: SSH: binary + systemd
+    API->>A: SSH: binary + systemd + restart
     A->>API: WSS connect (Agent Hub)
-    API-->>Web: Server online
+    API-->>Web: agent_online (MC offline)
 
     U->>Web: Настройка (версия, RAM, online-mode, RCON, JVM args)
     Web->>API: PATCH /api/v1/servers/{id}
     API->>A: Config update
 
-    U->>Web: Запуск сервера
+    U->>Web: Запуск сервера (API или post-MVP UI Start)
     Web->>API: POST /api/v1/servers/{id}/start
     API->>A: server.start
     A->>MC: Spawn server JAR
-    A-->>Web: Live-консоль, метрики (WebSocket)
+    A-->>Web: minecraft_running, live-консоль (WebSocket)
 ```
 
 | Шаг | Действие | Где |
@@ -188,7 +188,7 @@ sequenceDiagram
 | 2 | Добавление сервера (SSH, `server_type`) | Web |
 | 3 | SSH deploy QXAgent | Backend → Linux VPS |
 | 4 | Настройка сервера | Web-панель |
-| 5 | Запуск игрового сервера | Web → Agent → JAR |
+| 5 | Запуск игрового сервера | API/UI → Agent → JAR (UI Start — post-MVP) |
 
 ---
 
@@ -452,7 +452,7 @@ flowchart LR
 | **Tray daemon** | QXLauncher (Win / macOS / Linux) | Device link, sync, Mojang Java, JVM, auto-update, notifications |
 | **Связь** | [device-linking.md](./device-linking.md) | Обязательна до первого инстанса |
 
-**Tray:** ПКМ → «Связать лаунчер» · ЛКМ → открыть `/launcher` в браузере.
+**QXLauncher:** ПКМ → «Связать QXLauncher» · «Открыть сайт» → `/launcher` в браузере.
 
 ```text
 services/qxlauncher/     # QXLauncher tray (отдельный go.mod)
@@ -1328,7 +1328,7 @@ flowchart TB
 | ------ | ------- | ------------------------ | ----------- |
 | **Phase 0** | API auth + profile, MySQL, Web auth modal + profile | **6–8 недель** | ✅ **Готово** (2026-06) — регистрация, вход, профиль |
 | **Phase 1** | Launcher Win, device link, Vanilla, guest + auth | **10–14 недель** | Скачал → связал → играет |
-| **Phase 2** | Agent SSH deploy + panel start/stop/console | **8–12 недель** | Сервер управляется из web |
+| **Phase 2** | Agent SSH deploy + panel Stop/Restart/console (при MC running) | **8–12 недель** | Agent из web; Start UI — post-MVP |
 | **Alpha** | Связка всех 3 сценариев, bugfix | **4–6 недель** | Закрытая beta |
 | **Phase 3+** | Modloaders, modpacks, billing, cross-platform | **+6–12 мес** | Public launch |
 
@@ -1370,7 +1370,7 @@ gantt
 
 - [x] API scaffold + MySQL + Redis/MinIO dev *(Senior)*
 - [x] Auth: register, login, refresh, guest, logout; `/users/me`, change password/email *(Senior)*
-- [x] Web UI: auth modal, profile (модалки), `/launcher` (Phase 1 UI), placeholder `/servers` *(Junior)*
+- [x] Web UI: auth modal, profile (модалки), `/launcher`, **`/servers`** (SSH, deploy agent) *(Junior)*
 - [x] Docker Compose dev env (`infra/docker/`) *(Senior)*
 - [x] CI: `go test`, web `test:coverage`, build *(Senior)*
 - [x] Unit tests 100% (qxapi, qxweb) *(Senior)*
@@ -1385,8 +1385,9 @@ gantt
 ### Phase 2 — Agent + Panel *(8–12 нед, mostly Senior)*
 
 - [ ] SSH deploy QXAgent, WSS connect, heartbeat
-- [ ] start/stop/restart, live-консоль (stdout/stderr)
-- [ ] QXWeb: сервер (SSH, `server_type`), deploy, start/stop *(Junior UI)*
+- [x] Stop/Restart + live-консоль при `minecraft_running` (stdout/stderr)
+- [x] QXWeb: сервер (SSH, `server_type`), deploy agent *(Junior UI)*
+- [ ] Start + install JAR из UI *(post-MVP)*
 
 ### Phase Alpha — Integration *(4–6 нед)*
 

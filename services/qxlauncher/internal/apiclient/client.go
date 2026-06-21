@@ -68,18 +68,20 @@ func (c *Client) UpdateLaunch(ctx context.Context, id string, payload map[string
 	return err
 }
 
-func (c *Client) ListInstances(ctx context.Context, userToken string) ([]InstanceItem, error) {
-	body, err := c.requestWithToken(ctx, http.MethodGet, "/instances", nil, userToken)
-	if err != nil {
-		return nil, err
+func (c *Client) SetDeviceToken(token string) {
+	c.DeviceToken = strings.TrimSpace(token)
+}
+
+func (c *Client) PingDevice(ctx context.Context) error {
+	_, err := c.request(ctx, http.MethodGet, "/launcher/devices/me", nil, true)
+	return err
+}
+
+func IsUnauthorized(err error) bool {
+	if err == nil {
+		return false
 	}
-	var resp struct {
-		Items []InstanceItem `json:"items"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
+	return strings.Contains(err.Error(), ": 401 ")
 }
 
 func (c *Client) FetchDeviceInstances(ctx context.Context) ([]InstanceItem, error) {

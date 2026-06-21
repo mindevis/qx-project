@@ -83,9 +83,11 @@ func (h *ServerConsoleHandler) Connect(c *gin.Context) {
 			continue
 		}
 		if err := h.Servers.SendConsoleInput(c.Request.Context(), claims.UserID, serverID, msg.Line); err != nil {
+			detail := "command failed"
 			if errors.Is(err, servers.ErrAgentOffline) {
-				_ = conn.WriteJSON(agenthubConsoleStatus("error", "agent offline"))
+				detail = "agent offline"
 			}
+			_ = conn.WriteJSON(agenthubConsoleStatus("error", detail))
 		}
 	}
 }

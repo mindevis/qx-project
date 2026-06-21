@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -17,7 +16,7 @@ import (
 
 const (
 	agentInstallPath = "/opt/qx/agent/qx-agent"
-	agentEnvPath     = "/etc/qx/agent.env"
+	agentConfigPath  = "/etc/qx-agent/agent.toml"
 	agentUnitPath    = "/etc/systemd/system/qx-agent.service"
 	uploadPath       = "/tmp/qx-agent-upload"
 )
@@ -32,7 +31,6 @@ type SSHConfig struct {
 	Encryptor  *crypto.Encryptor
 	APIBaseURL string
 	BinaryPath string
-	DryRun     bool
 	Dial       func(ctx context.Context, addr string, config *ssh.ClientConfig) (any, error)
 	VerifyOS   func(client any) error
 	RunRemote  func(client any, apiURL, serverID, agentToken string, binary []byte) error
@@ -56,16 +54,6 @@ func NewSSH(cfg SSHConfig) *SSHDeployer {
 }
 
 func (d *SSHDeployer) Deploy(ctx context.Context, serverID string, cred models.SSHCredential, agentToken string) error {
-	if d.cfg.DryRun {
-		slog.Info("ssh deploy dry-run",
-			"server_id", serverID,
-			"host", cred.Host,
-			"port", cred.Port,
-			"username", cred.Username,
-		)
-		return nil
-	}
-
 	if strings.TrimSpace(d.cfg.BinaryPath) == "" {
 		return ErrBinaryNotConfigured
 	}
@@ -109,8 +97,9 @@ func (d *SSHDeployer) Deploy(ctx context.Context, serverID string, cred models.S
 	defer cancel()
 
 	done := make(chan error, 1)
+	remoteAPI := agentAPIURL(d.cfg.APIBaseURL, cred)
 	go func() {
-		done <- d.cfg.RunRemote(client, d.cfg.APIBaseURL, serverID, agentToken, binary)
+		done <- d.cfg.RunRemote(client, remoteAPI, serverID, agentToken, binary)
 	}()
 
 	select {
@@ -157,21 +146,22 @@ func runRemoteProvision(clientAny any, apiURL, serverID, agentToken string, bina
 		return err
 	}
 
-	envBody := buildAgentEnv(apiURL, serverID, agentToken)
+	envBody := buildAgentConfig(apiURL, serverID, agentToken)
 	unitBody := buildSystemdUnit()
 	script := fmt.Sprintf(`set -e
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
-$SUDO mkdir -p /opt/qx/agent /opt/qx/server
+$SUDO mkdir -p /opt/qx/agent /opt/qx/server /etc/qx-agent
 $SUDO install -m 755 %s %s
-$SUDO tee %s > /dev/null <<'QXENV'
-%sQXENV
+$SUDO tee %s > /dev/null <<'QXCFG'
+%sQXCFG
 $SUDO chmod 600 %s
 $SUDO tee %s > /dev/null <<'QXUNIT'
 %sQXUNIT
 $SUDO systemctl daemon-reload
-$SUDO systemctl enable --now qx-agent
-`, uploadPath, agentInstallPath, agentEnvPath, envBody, agentEnvPath, agentUnitPath, unitBody)
+$SUDO systemctl enable qx-agent
+$SUDO systemctl restart qx-agent
+`, uploadPath, agentInstallPath, agentConfigPath, envBody, agentConfigPath, agentUnitPath, unitBody)
 
 	out, err := runSSHCommand(client, script)
 	if err != nil {
@@ -212,7 +202,7 @@ func runSSHCommand(client *ssh.Client, cmd string) (string, error) {
 	return string(out), err
 }
 
-func buildAgentEnv(apiURL, serverID, agentToken string) string {
+func buildAgentConfig(apiURL, serverID, agentToken string) string {
 	apiBase := strings.TrimRight(strings.TrimSpace(apiURL), "/")
 	if apiBase == "" {
 		apiBase = "http://localhost:3000"
@@ -220,7 +210,11 @@ func buildAgentEnv(apiURL, serverID, agentToken string) string {
 	if !strings.HasSuffix(apiBase, "/api/v1") {
 		apiBase += "/api/v1"
 	}
-	return fmt.Sprintf("QX_API_BASE_URL=%s\nQX_AGENT_TOKEN=%s\nQX_SERVER_ID=%s\n", apiBase, agentToken, serverID)
+	return fmt.Sprintf(`api_base_url = %q
+agent_token = %q
+server_id = %q
+server_root = "/opt/qx/server"
+`, apiBase, agentToken, serverID)
 }
 
 func buildSystemdUnit() string {
@@ -229,8 +223,8 @@ Description=QX Agent
 After=network-online.target
 
 [Service]
-EnvironmentFile=/etc/qx/agent.env
 ExecStart=/opt/qx/agent/qx-agent
+WorkingDirectory=/opt/qx/server
 Restart=always
 RestartSec=5
 

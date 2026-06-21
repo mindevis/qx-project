@@ -21,23 +21,9 @@ import (
 
 const devKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
-func TestSSHDeployerDryRun(t *testing.T) {
-	enc, err := crypto.NewEncryptor(devKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	d := NewSSH(SSHConfig{Encryptor: enc, DryRun: true})
-	err = d.Deploy(context.Background(), "srv-1", models.SSHCredential{
-		Host: "1.2.3.4", Port: 22, Username: "root",
-	}, "token")
-	if err != nil {
-		t.Fatalf("dry-run deploy: %v", err)
-	}
-}
-
 func TestSSHDeployerMissingBinary(t *testing.T) {
 	enc, _ := crypto.NewEncryptor(devKey)
-	d := NewSSH(SSHConfig{Encryptor: enc, DryRun: false})
+	d := NewSSH(SSHConfig{Encryptor: enc})
 	err := d.Deploy(context.Background(), "srv-1", models.SSHCredential{}, "token")
 	if !errors.Is(err, ErrBinaryNotConfigured) {
 		t.Fatalf("expected ErrBinaryNotConfigured, got %v", err)
@@ -55,7 +41,6 @@ func TestSSHDeployerInvalidKey(t *testing.T) {
 	d := NewSSH(SSHConfig{
 		Encryptor:  enc,
 		BinaryPath: bin,
-		DryRun:     false,
 		Dial: func(context.Context, string, *ssh.ClientConfig) (any, error) {
 			t.Fatal("dial should not run with invalid key")
 			return nil, nil
@@ -99,12 +84,11 @@ func TestSSHDeployerProvisionSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var capturedEnv string
+	var capturedConfig string
 	d := NewSSH(SSHConfig{
 		Encryptor:  enc,
 		APIBaseURL: "https://api.example.com",
 		BinaryPath: bin,
-		DryRun:     false,
 		Dial: func(context.Context, string, *ssh.ClientConfig) (any, error) {
 			return testSSHClient{}, nil
 		},
@@ -119,7 +103,7 @@ func TestSSHDeployerProvisionSuccess(t *testing.T) {
 			if len(binary) == 0 {
 				t.Fatal("expected binary payload")
 			}
-			capturedEnv = buildAgentEnv(apiURL, serverID, agentToken)
+			capturedConfig = buildAgentConfig(apiURL, serverID, agentToken)
 			return nil
 		},
 	})
@@ -130,8 +114,8 @@ func TestSSHDeployerProvisionSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deploy: %v", err)
 	}
-	if !strings.Contains(capturedEnv, "QX_AGENT_TOKEN=jwt-token") {
-		t.Fatalf("env missing token: %q", capturedEnv)
+	if !strings.Contains(capturedConfig, `agent_token = "jwt-token"`) {
+		t.Fatalf("config missing token: %q", capturedConfig)
 	}
 }
 
@@ -210,17 +194,17 @@ func TestSSHDeployerDialFailure(t *testing.T) {
 	}
 }
 
-func TestBuildAgentEnvAppendsAPIPath(t *testing.T) {
-	body := buildAgentEnv("http://localhost:3000", "id-1", "tok")
-	if !strings.Contains(body, "QX_API_BASE_URL=http://localhost:3000/api/v1") {
-		t.Fatalf("unexpected env: %q", body)
+func TestBuildAgentConfigAppendsAPIPath(t *testing.T) {
+	body := buildAgentConfig("http://localhost:3000", "id-1", "tok")
+	if !strings.Contains(body, `api_base_url = "http://localhost:3000/api/v1"`) {
+		t.Fatalf("unexpected config: %q", body)
 	}
 }
 
-func TestBuildAgentEnvDefaultAPIBase(t *testing.T) {
-	body := buildAgentEnv("", "id-1", "tok")
-	if !strings.Contains(body, "QX_API_BASE_URL=http://localhost:3000/api/v1") {
-		t.Fatalf("unexpected env: %q", body)
+func TestBuildAgentConfigDefaultAPIBase(t *testing.T) {
+	body := buildAgentConfig("", "id-1", "tok")
+	if !strings.Contains(body, `api_base_url = "http://localhost:3000/api/v1"`) {
+		t.Fatalf("unexpected config: %q", body)
 	}
 }
 
@@ -228,6 +212,9 @@ func TestBuildSystemdUnit(t *testing.T) {
 	unit := buildSystemdUnit()
 	if !strings.Contains(unit, "ExecStart=/opt/qx/agent/qx-agent") {
 		t.Fatal("missing ExecStart")
+	}
+	if strings.Contains(unit, "EnvironmentFile") {
+		t.Fatal("systemd unit should read agent.toml directly")
 	}
 }
 

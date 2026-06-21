@@ -122,7 +122,7 @@ func TestForbiddenAccess(t *testing.T) {
 }
 
 func TestDeployAndAgentToken(t *testing.T) {
-	svc, tokens, _ := newServersService(t)
+	svc, _, _ := newServersService(t)
 	ctx := context.Background()
 	view := createTestServer(t, svc, "owner-1")
 
@@ -130,14 +130,14 @@ func TestDeployAndAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deploy: %v", err)
 	}
-	if deployed.Status != models.ServerStatusOffline {
-		t.Fatalf("status: %s", deployed.Status)
+	if deployed.View.Status != models.ServerStatusOffline {
+		t.Fatalf("status: %s", deployed.View.Status)
+	}
+	if deployed.AgentToken == "" {
+		t.Fatal("expected agent token")
 	}
 
-	token, err := tokens.IssueAgentToken(view.ID, time.Hour)
-	if err != nil {
-		t.Fatalf("issue token: %v", err)
-	}
+	token := deployed.AgentToken
 	hash := auth.HashToken(token)
 	if err := svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Update("agent_token_hash", hash).Error; err != nil {
 		t.Fatalf("set hash: %v", err)
@@ -186,8 +186,20 @@ func TestAgentConnectDisconnect(t *testing.T) {
 		t.Fatalf("connected: %v", err)
 	}
 	got, err := svc.Get(ctx, "owner-1", view.ID)
-	if err != nil || got.Status != models.ServerStatusOnline {
-		t.Fatalf("online: err=%v status=%s", err, got.Status)
+	if err != nil || got.Status != models.ServerStatusPending {
+		t.Fatalf("agent connect should not mark mc online: err=%v status=%s", err, got.Status)
+	}
+	if got.LastSeenAt == nil {
+		t.Fatal("expected last_seen_at after agent connect")
+	}
+
+	_ = svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Update("status", models.ServerStatusOnline).Error
+	if err := svc.AgentConnected(ctx, view.ID, "vps-1", "0.1.0"); err != nil {
+		t.Fatalf("reconnect: %v", err)
+	}
+	got, err = svc.Get(ctx, "owner-1", view.ID)
+	if err != nil || got.Status != models.ServerStatusOffline {
+		t.Fatalf("agent reconnect should clear stale mc online: status=%s", got.Status)
 	}
 
 	if err := svc.AgentDisconnected(ctx, view.ID); err != nil {
@@ -206,14 +218,29 @@ func TestOnAgentEvent(t *testing.T) {
 
 	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeEvtAgentHeartbeat})
 	got, _ := svc.Get(ctx, "owner-1", view.ID)
-	if got.Status != models.ServerStatusOnline || got.LastSeenAt == nil {
-		t.Fatalf("heartbeat: %+v", got)
+	if got.Status != models.ServerStatusPending || got.LastSeenAt == nil {
+		t.Fatalf("heartbeat should only touch last_seen_at: %+v", got)
 	}
 
-	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStart})
+	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStart, Payload: []byte(`{"pid":4242}`)})
 	got, _ = svc.Get(ctx, "owner-1", view.ID)
 	if got.Status != models.ServerStatusOnline {
 		t.Fatalf("start res: %s", got.Status)
+	}
+	if !got.MinecraftRunning || got.Config.McPID == nil || *got.Config.McPID != 4242 {
+		t.Fatalf("expected mc pid persisted: %+v", got)
+	}
+
+	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStart, Payload: []byte(`{"error":"java not found"}`)})
+	got, _ = svc.Get(ctx, "owner-1", view.ID)
+	if got.Status != models.ServerStatusError {
+		t.Fatalf("start error: %s", got.Status)
+	}
+
+	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStart, Payload: []byte(`{}`)})
+	got, _ = svc.Get(ctx, "owner-1", view.ID)
+	if got.Status != models.ServerStatusOffline {
+		t.Fatalf("start empty: %s", got.Status)
 	}
 
 	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStop})
@@ -223,6 +250,23 @@ func TestOnAgentEvent(t *testing.T) {
 	}
 
 	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeEvtConsoleOutput})
+}
+
+func TestStaleOnlineWithoutMcPID(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+	if err := svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).
+		Update("status", models.ServerStatusOnline).Error; err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Get(ctx, "owner-1", view.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != models.ServerStatusOffline || got.MinecraftRunning {
+		t.Fatalf("stale online should normalize: status=%s mc=%v", got.Status, got.MinecraftRunning)
+	}
 }
 
 func TestSendConsoleInput(t *testing.T) {

@@ -1,4 +1,5 @@
-import { type ComponentProps, describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import type { ComponentProps } from 'react';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { saveTokens } from '@/api/client';

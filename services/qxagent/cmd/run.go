@@ -9,43 +9,50 @@ import (
 
 	qxlog "github.com/qxproject/qx/pkg/log"
 	"github.com/qxproject/qx/services/qxagent/internal/agent"
+	"github.com/qxproject/qx/services/qxagent/internal/config"
 )
 
 func run() {
 	qxlog.SetupFromEnv()
 
-	token := os.Getenv("QX_AGENT_TOKEN")
-	if token == "" {
-		slog.Error("QX_AGENT_TOKEN is required")
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("config load failed", "error", err)
 		return
 	}
 
-	wsURL := os.Getenv("QX_AGENT_WS_URL")
+	wsURL := cfg.WSURL
 	if wsURL == "" {
-		apiBase := os.Getenv("QX_API_BASE_URL")
+		apiBase := cfg.APIBaseURL
 		if apiBase == "" {
 			apiBase = "http://localhost:3000/api/v1"
 		}
 		wsURL = agent.WSURLFromAPI(apiBase)
 	}
 
-	hostname := os.Getenv("QX_AGENT_HOSTNAME")
+	hostname := cfg.Hostname
 	if hostname == "" {
 		hostname = agent.DefaultHostname()
 	}
 
 	client := agent.NewClient(agent.Config{
 		WSURL:    wsURL,
-		Token:    token,
+		Token:    cfg.AgentToken,
 		Hostname: hostname,
 		Version:  "0.1.0",
-		DryRun:   os.Getenv("QX_AGENT_DRY_RUN") == "1",
+		DryRun:   cfg.DryRun,
 	})
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	slog.Info("qx-agent starting", "ws_url", wsURL, "hostname", hostname, "dry_run", os.Getenv("QX_AGENT_DRY_RUN") == "1")
+	slog.Info("qx-agent starting",
+		"ws_url", wsURL,
+		"hostname", hostname,
+		"config", cfg.ConfigPath,
+		"server_id", cfg.ServerID,
+		"dry_run", cfg.DryRun,
+	)
 	if err := client.Run(ctx); err != nil && err != context.Canceled {
 		slog.Error("qx-agent stopped", "err", err)
 	}

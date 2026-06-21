@@ -3,8 +3,8 @@
 > Минимально жизнеспособный продукт для закрытой alpha.
 > Полная архитектура: [architecture.md](./architecture.md)
 
-**Статус:** v1.13 (Phase Alpha — Playwright Flow A+B)
-**Реализация:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase Alpha 🔄
+**Статус:** v1.18 — **MVP alpha (dev/manual) ✅** · **Prod 🔲 не готов**
+**Реализация:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase Alpha (flows) ✅ · **Prod deploy** 🔲
 
 ### Что уже в репозитории
 
@@ -12,12 +12,12 @@
 | --------- | -------- |
 | Monorepo | `go.work`, `services/*`, `web/qxweb`, `pkg/mcmanifest`, `pkg/protocol` |
 | QXApi | Auth, launcher, **servers CRUD/deploy/start/stop**, agent WSS hub |
-| QXWeb | `/launcher`, **`/servers`** — форма SSH, deploy, start/stop |
-| QXLauncher | Device register/link, **systray UI**, tray loop, Vanilla download |
+| QXWeb | `/launcher`, **`/servers`** — SSH-форма, Deploy agent, теги Agent/Minecraft |
+| QXLauncher | Device register/link, **иконка в трее**, launch-bridge poll, Vanilla download |
 | QXAgent | WSS client, start/stop JAR (`QX_AGENT_DRY_RUN=1` для dev) |
-| Infra | `make dev-up` — MySQL, Redis, MinIO |
-| Тесты | Go + React — unit coverage, CI |
-**Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → tray → JVM
+| Infra | `make dev-up` — MySQL, Redis, MinIO; `make dev-vps-up` — dev VPS для Flow C |
+| Тесты | Go + React — unit coverage, CI, Playwright Flow A+B+C |
+**Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → QXLauncher → JVM
 **RBAC:** [security-legal.md §8](./security-legal.md) — MVP: Guest и Registered — **Vanilla only**; mods/shaders/RP — v2+
 **Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)
 
@@ -27,12 +27,12 @@
 
 Доказать, что экосистема QX **работает end-to-end** для трёх базовых сценариев:
 
-1. **Игра с регистрацией** — register → login → download tray → **link device** → инстанс → launch-bridge → Vanilla.
-2. **Игра без регистрации** — download → **link device** → guest → инстанс → игра.
-3. **Управление сервером** — BYOS Linux VPS → **SSH deploy** agent → start/stop + live-консоль.
+1. **Игра с регистрацией** — register → login → download QXLauncher → **link device** → инстанс → launch-bridge → Vanilla.
+2. **Игра без регистрации** — download QXLauncher → **link device** → guest → инстанс → игра.
+3. **Управление сервером** — BYOS Linux VPS → **SSH deploy** agent → (при запущенном MC) Stop/Restart + live-консоль.
 
 **Не цель MVP:** modpacks, modloaders (Forge / NeoForge / Fabric / Quilt), Premium, Microsoft OAuth, macOS/Linux, полный
-agent (RCON, files).
+agent (RCON, files), **кнопка Start и install JAR из UI** (API готов, UI — post-MVP).
 
 ---
 
@@ -40,15 +40,18 @@ agent (RCON, files).
 
 MVP считается готовым, когда:
 
-- [ ] Пользователь регистрируется, логинится, скачивает tray, **связывает device с аккаунтом**, создаёт инстанс на
-  `/launcher`, играет. *(код + API/Playwright E2E Flow A ☑ — manual tray + JVM)*
-- [ ] Пользователь скачивает tray, **связывает с сайтом** (guest или logged-in), создаёт инстанс на `/launcher`, играет.
-  *(код + API/Playwright E2E Flow B ☑ — manual tray + JVM)*
-- [x] На сайте создаётся инстанс (Vanilla) → `POST /api/v1/launcher/launch-requests` → tray poll → JVM. *(API + `make e2e-dry-run` без реального JVM)*
-- [x] Админ добавляет Linux VPS (SSH), backend deploy agent, start/stop JAR из panel.
-- [x] Live-консоль сервера в web (WebSocket).
+- [x] Пользователь регистрируется, логинится, скачивает QXLauncher, **связывает device с аккаунтом**, создаёт инстанс на
+  `/launcher`, играет. *(Flow A — manual QXLauncher + JVM ☑)*
+- [x] Пользователь скачивает QXLauncher, **связывает с сайтом** (guest или logged-in), создаёт инстанс на `/launcher`, играет.
+  *(Flow B — manual QXLauncher + JVM ☑)*
+- [x] На сайте создаётся инстанс (Vanilla) → `POST /api/v1/launcher/launch-requests` → QXLauncher poll → JVM. *(API + `make e2e-dry-run` без реального JVM)*
+- [x] Админ добавляет Linux VPS (SSH), backend **deploy agent** из panel. *(manual dev VPS ☑ — `make dev-vps-up`)*
+- [x] API: start/stop/restart JAR через agent hub. *(unit + router Flow C ☑)*
+- [x] Live-консоль сервера в web (WebSocket), когда `minecraft_running === true`. *(API ☑; UI показывает консоль только при запущенном MC)*
 - [x] Launcher UI на сайте **`/launcher`** (React, не WebView) показывает инстансы и кнопку «Играть».
-- [ ] Test matrix: [qa/test-matrix.md](./qa/test-matrix.md) — manual pass (A.2).
+- [x] Test matrix: [qa/test-matrix.md](./qa/test-matrix.md) — **Flow A/B manual ☑** (A09, L03, I04, I05); **Flow C deploy ☑** (S01, S02, S11); S03–S06 MC из UI — post-MVP.
+
+> **Prod ≠ MVP alpha.** Definition of Done выше — для **закрытой alpha в dev** (local + dev VPS). Выход в **production** (TLS, домены, секреты, smoke на реальном VPS, бэкапы) — отдельный чеклист, см. §7.1.
 
 ---
 
@@ -64,7 +67,7 @@ MVP считается готовым, когда:
 | **Registered** | MVP: то же (Vanilla); mods/shaders/RP/modpacks — **v2+** |
 | **API** | Go + Gin + GORM |
 | **Agent** | Go, **Linux only**, SSH deploy, systemd |
-| **QXLauncher** (`services/qxlauncher/`) | Go tray — device link, launch-bridge poll, JVM, Mojang Java, notifications |
+| **QXLauncher** (`services/qxlauncher/`) | Windows-приложение — device link, launch-bridge poll, JVM, Mojang Java, уведомления |
 | **Интеграции** | **Mojang** manifest + assets (Vanilla) |
 | **Infra** | Docker Compose: API, Web, MySQL, Redis, MinIO, Nginx |
 
@@ -77,6 +80,7 @@ MVP считается готовым, когда:
 | Auth | Microsoft OAuth, QXAccount sync между устройствами |
 | Launcher | macOS, Linux |
 | Agent | RCON, файловый менеджер, mods/plugins по `server_type`, метрики TPS |
+| **Server UI** | Кнопка **Start**, install JAR/modpack из panel |
 | Skin/Cape server | Только registered users |
 | Public server list | Launcher UI → GET /public/servers |
 | Modpack client↔server sync | Shared modpack_id + agent install |
@@ -92,13 +96,13 @@ MVP считается готовым, когда:
 ```text
 Register + Login (QXWeb) → Download QXLauncher → Link device (JWT confirm on /launcher/link)
 → Create instance on /launcher (Vanilla) → POST launch-request
-→ Local or QX profile → Tray spawns JVM
+→ Local or QX profile → QXLauncher spawns JVM
 ```
 
 ### Flow B — Guest player
 
 ```text
-Download tray (Web) → Link device (guest session)
+Download QXLauncher (Web) → Link device (guest session)
 → Create Vanilla instance on /launcher
 → Local profile → Play (launch-bridge)
 ```
@@ -106,8 +110,13 @@ Download tray (Web) → Link device (guest session)
 ### Flow C — Server admin
 
 ```text
-Add Linux VPS (SSH creds) → `POST /api/v1/servers/{id}/deploy` → Agent online → Start/Stop → Console
+Add Linux VPS (SSH creds) → Deploy agent → agent_online (WSS)
+→ (MC JAR на VPS вручную или post-MVP install pipeline)
+→ POST start (API) или agent cmd → minecraft_running → Stop/Restart + Console WS
 ```
+
+**Dev VPS:** `make dev-vps-up` → SSH `localhost:2222`, `.env`: `QX_PUBLIC_API_URL=http://host.docker.internal:3000`.
+После Deploy в panel: тег **Agent** (синий), статус MC — **offline** до запуска JAR.
 
 ---
 
@@ -155,10 +164,12 @@ flowchart TB
 | `/auth/:mode` | Редирект → модалка входа/регистрации (email + password) |
 | `/profile` | Email, смена email и пароля (модалки); имя недоступно |
 | `/launcher`, `/launcher/link` | Страница лаунчера (Phase 1: инстансы, device link, «Играть») |
-| `/servers` | Список, добавить (SSH creds, `server_type`), deploy, статус |
-| `/servers/:id` | Start / Stop / Restart, live-консоль |
+| `/servers` | Список, добавить (SSH creds, `server_type`), Deploy agent, тег Agent |
+| `/servers/:id` | Deploy agent; Stop/Restart — **только при `minecraft_running`**; live-консоль — при MC running / starting / error |
 
 **Стек:** TypeScript + React + Vite + Ant Design ([ADR-0001](./adr/0001-tech-stack.md)).
+
+**Статусы сервера (API):** `agent_online` — WSS agent подключён; `minecraft_running` — процесс JAR с `mc_pid`; `status` — lifecycle MC (`offline`, `starting`, `online`, `error`).
 
 ### 5.2 QXApi (Senior)
 
@@ -172,10 +183,10 @@ flowchart TB
 | Users | `GET /users/me`, `PATCH /users/me/password`, `PATCH /users/me/email` | ✅ |
 | Devices | `POST /launcher/devices/register`, `link`, `GET .../status`, `GET /users/me/launcher-device` | ✅ |
 | Instances | `GET/POST/DELETE /instances`, `GET /instances/:id/manifest` | ✅ |
-| Launch | `POST /launcher/launch-requests`, tray `GET .../pending`, `PATCH .../{id}` | ✅ |
+| Launch | `POST /launcher/launch-requests`, QXLauncher `GET .../pending`, `PATCH .../{id}` | ✅ |
 | Servers | `GET/POST/PATCH/DELETE /servers`, `POST /servers/:id/deploy`, `start`, `stop`, `restart` | ✅ |
 | Agent | WSS `/agent/v1/connect` (JWT at SSH deploy) | ✅ |
-| Console | WSS `/servers/:id/console` (proxy → agent) | ✅ |
+| Console | WS `/servers/:id/console?access_token=…` (proxy → agent) | ✅ |
 
 Полная спецификация: [api.md](./api.md). Server mods/plugins — post-MVP: [server-content-install.md](./server-content-install.md).
 
@@ -217,7 +228,7 @@ flowchart TB
 User          — id, email, password_hash, created_at
 GuestSession  — device_token, expires_at (optional table)
 Instance      — id, user_id|null, guest_token|null, name, mc_version, loader=vanilla
-Server        — id, owner_id, name, status, agent_token_hash, config (jar, ram, port)
+Server        — id, owner_id, name, status, agent_token_hash, config (jar, ram, port, mc_pid)
 Agent         — id, server_id, hostname, connected_at
 ```
 
@@ -247,6 +258,19 @@ Agent         — id, server_id, hostname, connected_at
 Детали: [architecture.md §8.3 Tier 0](./architecture.md).
 
 **Бюджет:** $5–30/мес.
+
+### 7.1 Prod readiness *(не пройдено)*
+
+Infra-скрипты есть (`docker-compose.prod.yml`, `infra/scripts/deploy.sh`), но **prod пока не готов**:
+
+| # | Задача | Статус |
+| --- | -------- | -------- |
+| P.1 | Prod VPS + `make prod-up` smoke | 🔲 |
+| P.2 | TLS (Let's Encrypt) + домены | 🔲 |
+| P.3 | Секреты: JWT, MySQL, `SSH_MASTER_KEY`, `.env.prod` | 🔲 |
+| P.4 | N02 — HTTPS valid (test matrix) | 🔲 |
+| P.5 | Бэкапы MySQL, мониторинг | 🔲 |
+| P.6 | Bug bash на prod-окружении | 🔲 |
 
 ---
 
@@ -281,21 +305,22 @@ Agent         — id, server_id, hostname, connected_at
 | 1.5 | Local profile (offline username) | Senior | ✅ |
 | 1.6 | API: instances CRUD (linked device) | Senior | ✅ |
 | 1.7 | Web: /launcher pages, create instance | Junior | ✅ |
-| 1.8 | Tray sync instances | Senior | ✅ poll → `~/.qx/instances.json` |
-| 1.9 | Tray systray UI (icon, menu, OS notify) | Senior | ✅ `fyne.io/systray` |
+| 1.8 | QXLauncher sync instances | Senior | ✅ poll → `~/.qx/instances.json` |
+| 1.9 | QXLauncher UI в трее (icon, menu, OS notify) | Senior | ✅ `fyne.io/systray` |
 
 ### Phase 2 — Agent + Panel *(8–12 нед)*
 
-**Milestone:** сервер управляется из web.
+**Milestone:** agent deploy из web; MC lifecycle — API + agent; UI Start — post-MVP.
 
 | # | Задача | Ответственный | Статус |
 | --- | -------- | --------------- | -------- |
-| 2.1 | SSH deploy job + agent WSS connect | Senior | ✅ `internal/deploy` SSH + dry-run (`QX_SSH_DEPLOY_DRY_RUN` / no binary) |
+| 2.1 | SSH deploy job + agent WSS connect | Senior | ✅ `internal/deploy` SSH + systemd |
 | 2.2 | Agent: start/stop/restart JAR | Senior | ✅ QXAgent + `cmd.server.*` |
 | 2.3 | Agent: console stream | Senior | ✅ stdout/stderr → agent, `cmd.console.input` |
 | 2.4 | API: servers CRUD, deploy, agent routing | Senior | ✅ |
 | 2.5 | Web: server form (SSH), deploy button | Junior | ✅ |
-| 2.6 | Web: server detail, start/stop, console WS | Junior + Senior | ✅ |
+| 2.6 | Web: server detail, Stop/Restart + console (при `minecraft_running`) | Junior + Senior | ✅ |
+| 2.7 | Web: Start + install JAR pipeline | Junior + Senior | 🔲 post-MVP |
 
 ### Phase 3 — Auth bridge *(2–4 нед)*
 
@@ -309,15 +334,15 @@ Agent         — id, server_id, hostname, connected_at
 
 ### Phase Alpha — Integration *(4–6 нед)*
 
-**Milestone:** закрытая beta.
+**Milestone:** закрытая beta **в dev**; prod — отдельно (§7.1).
 
 | # | Задача | Ответственный | Статус |
 | --- | -------- | --------------- | -------- |
-| A.1 | E2E: Flow A, B, C | Senior | ✅ `TestRouterFlowA_*`, `TestRouterFlowB_*`, `TestRouterFlowC_*` |
-| A.2 | Test matrix + bug bash | Junior | 🔄 `make e2e-alpha` (API + dry-run + Playwright); `make e2e-jvm` (Mojang + JVM smoke); manual tray/JVM (A09, L03, I04 full MC) — `make e2e-manual` |
-| A.3 | Prod deploy на VPS | Senior | ✅ `docker-compose.prod.yml`, `infra/scripts/deploy.sh` |
+| A.1 | E2E: Flow A, B, C | Senior | ✅ `TestRouterFlowA_*`, `TestRouterFlowB_*`, `TestRouterFlowC_*` + Playwright |
+| A.2 | Test matrix + bug bash (dev) | Junior | ✅ Flow A/B manual ☑ (A09, L03, I04, I05); Flow C deploy ☑ (S01, S02, S11) |
+| A.3 | Prod deploy на VPS | Senior | 🔲 infra ☑ (`docker-compose.prod.yml`); prod smoke + TLS — не пройдены |
 | A.4 | User docs (README, FAQ) | Junior | ✅ [faq.md](./faq.md), README |
-| A.5 | Fix P0/P1 bugs | Senior | ✅ Play без обязательного профиля (Player по умолчанию) |
+| A.5 | Fix P0/P1 bugs (dev) | Senior | ✅ Agent vs MC status, console WS auth, redeploy restart |
 
 ---
 
@@ -349,6 +374,7 @@ gantt
 | Senior перегружен | Junior только UI; Agent не начинать до launcher play |
 | Scope creep | Любая фича вне §3 — в backlog v2 |
 | Guest ↔ User merge | Explicitly out of MVP |
+| Agent «online» ≠ MC running | Раздельные поля `agent_online` / `minecraft_running` в API и UI |
 
 ---
 
@@ -361,8 +387,9 @@ gantt
 3. Microsoft OAuth
 4. macOS / Linux launcher
 5. Agent: RCON, file manager
-6. Premium + billing
-7. Guest → User migration
+6. **Server UI: Start + JAR/modpack install**
+7. Premium + billing
+8. Guest → User migration
 
 ---
 
@@ -373,6 +400,7 @@ gantt
 | [architecture.md](./architecture.md) | Полная архитектура |
 | [api.md](./api.md) | REST + WebSocket API |
 | [agent-protocol.md](./agent-protocol.md) | Agent WSS, SSH deploy, idempotency |
+| [ssh-deploy.md](./ssh-deploy.md) | SSH deploy worker |
 | [schema.sql](./schema.sql) | MySQL DDL |
 | [qa/test-matrix.md](./qa/test-matrix.md) | QA alpha |
 | [server-content-install.md](./server-content-install.md) | Server mods/plugins by type |
@@ -380,4 +408,4 @@ gantt
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.15 — GET /instances/:id, make e2e-jvm)
+Последнее обновление: 2026-06-10 (v1.18 — MVP alpha dev ✅, prod 🔲)

@@ -46,6 +46,11 @@ func (NoopDeployer) Deploy(context.Context, string, models.SSHCredential, string
 	return nil
 }
 
+type DeployOutput struct {
+	View       *ServerView
+	AgentToken string
+}
+
 func NewService(db *gorm.DB, tokens *auth.TokenService, enc *crypto.Encryptor, hub *agenthub.Hub, deployer DeployExecutor) *Service {
 	if deployer == nil {
 		deployer = NoopDeployer{}
@@ -62,14 +67,11 @@ func (s *Service) OnAgentEvent(serverID string, env protocol.Envelope) {
 	now := time.Now().UTC()
 	switch env.Type {
 	case protocol.TypeEvtAgentHeartbeat:
-		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Updates(map[string]any{
-			"status":       models.ServerStatusOnline,
-			"last_seen_at": now,
-		}).Error
+		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("last_seen_at", now).Error
 	case protocol.TypeResServerStart:
-		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOnline).Error
+		s.applyServerStartResult(ctx, serverID, env.Payload)
 	case protocol.TypeResServerStop:
-		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
+		_ = s.markMinecraftStopped(ctx, serverID)
 	case protocol.TypeEvtConsoleOutput:
 		var payload protocol.ConsoleOutputPayload
 		if err := json.Unmarshal(env.Payload, &payload); err == nil && s.hub != nil {
@@ -86,9 +88,10 @@ type SSHInput struct {
 }
 
 type ServerConfig struct {
-	JarPath  string   `json:"jar_path"`
-	JVMArgs  []string `json:"jvm_args"`
+	JarPath   string   `json:"jar_path"`
+	JVMArgs   []string `json:"jvm_args"`
 	ExtraArgs []string `json:"extra_args"`
+	McPID     *int     `json:"mc_pid,omitempty"`
 }
 
 type CreateServerInput struct {
@@ -100,18 +103,19 @@ type CreateServerInput struct {
 }
 
 type ServerView struct {
-	ID         string        `json:"id"`
-	Name       string        `json:"name"`
-	Slug       string        `json:"slug"`
-	ServerType string        `json:"server_type"`
-	Status     string        `json:"status"`
-	MCVersion  *string       `json:"mc_version,omitempty"`
-	Config     ServerConfig  `json:"config"`
-	SSH        SSHPublicView `json:"ssh"`
-	AgentOnline bool         `json:"agent_online"`
-	LastSeenAt *time.Time    `json:"last_seen_at,omitempty"`
-	CreatedAt  time.Time     `json:"created_at"`
-	UpdatedAt  time.Time     `json:"updated_at"`
+	ID               string        `json:"id"`
+	Name             string        `json:"name"`
+	Slug             string        `json:"slug"`
+	ServerType       string        `json:"server_type"`
+	Status           string        `json:"status"`
+	MCVersion        *string       `json:"mc_version,omitempty"`
+	Config           ServerConfig  `json:"config"`
+	SSH              SSHPublicView `json:"ssh"`
+	AgentOnline      bool          `json:"agent_online"`
+	MinecraftRunning bool          `json:"minecraft_running"`
+	LastSeenAt       *time.Time    `json:"last_seen_at,omitempty"`
+	CreatedAt        time.Time     `json:"created_at"`
+	UpdatedAt        time.Time     `json:"updated_at"`
 }
 
 type SSHPublicView struct {
@@ -150,9 +154,13 @@ func (s *Service) Create(ctx context.Context, ownerID string, in CreateServerInp
 		port = 22
 	}
 
-	cfgBytes, err := json.Marshal(in.Config)
+	cfg := in.Config
+	cfgBytes, err := json.Marshal(cfg)
 	if err != nil {
 		return nil, err
+	}
+	if len(cfgBytes) == 0 || string(cfgBytes) == "null" {
+		cfgBytes = []byte("{}")
 	}
 	encKey, err := s.enc.Encrypt([]byte(in.SSH.PrivateKey))
 	if err != nil {
@@ -219,7 +227,7 @@ func (s *Service) Delete(ctx context.Context, ownerID, serverID string) error {
 	return nil
 }
 
-func (s *Service) Deploy(ctx context.Context, ownerID, serverID string) (*ServerView, error) {
+func (s *Service) Deploy(ctx context.Context, ownerID, serverID string) (*DeployOutput, error) {
 	server, err := s.getOwned(ctx, ownerID, serverID)
 	if err != nil {
 		return nil, err
@@ -261,10 +269,18 @@ func (s *Service) Deploy(ctx context.Context, ownerID, serverID string) (*Server
 	}
 
 	_ = s.db.WithContext(ctx).Model(server).Update("status", models.ServerStatusOffline).Error
+	_ = s.setMcPID(ctx, serverID, nil)
 	server.Status = models.ServerStatusOffline
 	hashCopy := hash
 	server.AgentTokenHash = &hashCopy
-	return s.viewFromModel(ctx, server)
+	view, err := s.viewFromModel(ctx, server)
+	if err != nil {
+		return nil, err
+	}
+	return &DeployOutput{
+		View:       view,
+		AgentToken: token,
+	}, nil
 }
 
 func (s *Service) ValidateAgentToken(ctx context.Context, serverID, token string) error {
@@ -278,13 +294,71 @@ func (s *Service) ValidateAgentToken(ctx context.Context, serverID, token string
 	return nil
 }
 
+func (s *Service) applyServerStartResult(ctx context.Context, serverID string, payload []byte) {
+	status := models.ServerStatusOffline
+	var mcPID *int
+	var errPayload struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal(payload, &errPayload) == nil && strings.TrimSpace(errPayload.Error) != "" {
+		status = models.ServerStatusError
+		if s.hub != nil {
+			s.hub.BroadcastConsole(serverID, protocol.ConsoleOutputPayload{
+				Stream: "stderr",
+				Line:   errPayload.Error,
+			})
+		}
+	} else {
+		var result protocol.ServerStartResult
+		if json.Unmarshal(payload, &result) == nil && result.PID > 0 {
+			status = models.ServerStatusOnline
+			pid := result.PID
+			mcPID = &pid
+		}
+	}
+	_ = s.setMcPID(ctx, serverID, mcPID)
+	_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", status).Error
+}
+
+func (s *Service) markMinecraftStopped(ctx context.Context, serverID string) error {
+	if err := s.setMcPID(ctx, serverID, nil); err != nil {
+		return err
+	}
+	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
+}
+
+func (s *Service) setMcPID(ctx context.Context, serverID string, pid *int) error {
+	server, err := s.getByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+	cfg, err := parseConfig(server.ConfigJSON)
+	if err != nil {
+		return err
+	}
+	cfg.McPID = pid
+	return s.saveConfig(ctx, serverID, cfg)
+}
+
+func (s *Service) saveConfig(ctx context.Context, serverID string, cfg ServerConfig) error {
+	raw, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("config_json", string(raw)).Error
+}
+
 func (s *Service) AgentConnected(ctx context.Context, serverID, hostname, version string) error {
 	now := time.Now().UTC()
-	updates := map[string]any{
-		"status":       models.ServerStatusOnline,
-		"last_seen_at": now,
+	server, err := s.getByID(ctx, serverID)
+	if err != nil {
+		return err
 	}
-	if err := s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Updates(updates).Error; err != nil {
+	// Agent (re)connect clears in-memory MC process — do not keep stale "online".
+	if server.Status == models.ServerStatusOnline || server.Status == models.ServerStatusStarting {
+		_ = s.markMinecraftStopped(ctx, serverID)
+	}
+	if err := s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("last_seen_at", now).Error; err != nil {
 		return err
 	}
 	agentUpdates := map[string]any{"connected_at": now}
@@ -298,7 +372,7 @@ func (s *Service) AgentConnected(ctx context.Context, serverID, hostname, versio
 }
 
 func (s *Service) AgentDisconnected(ctx context.Context, serverID string) error {
-	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
+	return s.markMinecraftStopped(ctx, serverID)
 }
 
 func (s *Service) Start(ctx context.Context, ownerID, serverID string) error {
@@ -398,19 +472,25 @@ func (s *Service) viewFromModel(ctx context.Context, server *models.Server) (*Se
 		sshView = SSHPublicView{Host: cred.Host, Port: cred.Port, Username: cred.Username}
 	}
 	online := s.hub != nil && s.hub.IsOnline(server.ID)
+	minecraftRunning := cfg.McPID != nil && *cfg.McPID > 0
+	status := server.Status
+	if status == models.ServerStatusOnline && !minecraftRunning {
+		status = models.ServerStatusOffline
+	}
 	return &ServerView{
-		ID:          server.ID,
-		Name:        server.Name,
-		Slug:        server.Slug,
-		ServerType:  server.ServerType,
-		Status:      server.Status,
-		MCVersion:   server.MCVersion,
-		Config:      cfg,
-		SSH:         sshView,
-		AgentOnline: online,
-		LastSeenAt:  server.LastSeenAt,
-		CreatedAt:   server.CreatedAt,
-		UpdatedAt:   server.UpdatedAt,
+		ID:               server.ID,
+		Name:             server.Name,
+		Slug:             server.Slug,
+		ServerType:       server.ServerType,
+		Status:           status,
+		MCVersion:        server.MCVersion,
+		Config:           cfg,
+		SSH:              sshView,
+		AgentOnline:      online,
+		MinecraftRunning: minecraftRunning,
+		LastSeenAt:       server.LastSeenAt,
+		CreatedAt:        server.CreatedAt,
+		UpdatedAt:        server.UpdatedAt,
 	}, nil
 }
 

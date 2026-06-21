@@ -347,6 +347,25 @@ describe('api client', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('defers close while websocket is still connecting', () => {
+    saveTokens(tokens);
+    const close = vi.fn();
+    class MockWS {
+      static OPEN = 1;
+      static CONNECTING = 0;
+      readyState = MockWS.CONNECTING;
+      close = close;
+      addEventListener(type: string, fn: () => void, _opts?: { once?: boolean }) {
+        if (type === 'open') fn();
+      }
+      constructor(_url: string) {}
+    }
+    vi.stubGlobal('WebSocket', MockWS);
+    const session = openServerConsole('s1', { onMessage: vi.fn() });
+    session.close();
+    expect(close).toHaveBeenCalled();
+  });
+
   it('does not send when websocket is not open', () => {
     saveTokens(tokens);
     const send = vi.fn();

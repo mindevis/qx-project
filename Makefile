@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down api agent launcher web test lint jwt-secret jwt-secret-env prod-build prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha build-launcher-win
+.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-info api agent launcher web test lint jwt-secret jwt-secret-env prod-build prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha build-launcher-win build-agent-linux
 
 ifeq ($(OS),Windows_NT)
 EXE := .exe
@@ -11,6 +11,18 @@ dev-up:
 
 dev-down:
 	docker compose -f infra/docker/docker-compose.yml down
+
+dev-vps-keys:
+	cd scripts/gen-dev-vps-key && set GOWORK=off&& go run . -dir ../../infra/docker/vps-dev/keys
+
+dev-vps-up:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-vps.ps1
+
+dev-vps-down:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-vps.ps1 -Down
+
+dev-vps-info:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-vps.ps1 -Info
 
 prod-build:
 	docker compose -f infra/docker/docker-compose.prod.yml build
@@ -59,6 +71,14 @@ build-api:
 
 build-agent:
 	cd services/qxagent && go build -o ../../bin/qx-agent ./cmd
+
+ifeq ($(OS),Windows_NT)
+build-agent-linux:
+	cd services/qxagent && set GOOS=linux&& set GOARCH=amd64&& go build -o ../../bin/qx-agent-linux ./cmd
+else
+build-agent-linux:
+	cd services/qxagent && GOOS=linux GOARCH=amd64 go build -o ../../bin/qx-agent-linux ./cmd
+endif
 
 build-launcher:
 	cd services/qxlauncher && go build -o ../../bin/qx-launcher$(EXE) ./cmd

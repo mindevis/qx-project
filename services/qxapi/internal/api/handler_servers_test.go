@@ -252,6 +252,15 @@ func TestServersHandlerDeployAndLifecycle(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("deploy: %d %s", w.Code, w.Body.String())
 	}
+	var deployResp struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &deployResp); err != nil {
+		t.Fatalf("decode deploy: %v", err)
+	}
+	if deployResp.Status != "offline" {
+		t.Fatalf("status: %q", deployResp.Status)
+	}
 
 	w = httptest.NewRecorder()
 	c, _ = gin.CreateTestContext(w)

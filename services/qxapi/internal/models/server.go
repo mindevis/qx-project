@@ -22,7 +22,7 @@ type Server struct {
 	ServerType     string     `gorm:"type:varchar(32);not null;default:vanilla" json:"server_type"`
 	Status         string     `gorm:"type:varchar(32);not null;default:pending" json:"status"`
 	MCVersion      *string    `gorm:"type:varchar(16)" json:"mc_version,omitempty"`
-	ConfigJSON     string     `gorm:"type:text;not null;default:'{}'" json:"-"`
+	ConfigJSON     string     `gorm:"type:text;not null" json:"-"`
 	AgentTokenHash *string    `gorm:"type:varchar(255)" json:"-"`
 	LastSeenAt     *time.Time `json:"last_seen_at,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`

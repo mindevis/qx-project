@@ -60,7 +60,6 @@ services:
       SSH_MASTER_KEY: ${SSH_MASTER_KEY}
       QX_PUBLIC_API_URL: ${QX_PUBLIC_API_URL}
       QX_AGENT_BINARY_PATH: ${QX_AGENT_BINARY_PATH:-}
-      QX_SSH_DEPLOY_DRY_RUN: ${QX_SSH_DEPLOY_DRY_RUN:-0}
     depends_on:
       mysql:
         condition: service_healthy

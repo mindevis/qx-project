@@ -25,7 +25,6 @@ func run() {
 	if webBase == "" {
 		webBase = "http://localhost:5173"
 	}
-	deviceID := os.Getenv("QX_DEVICE_ID")
 	tokenPath := os.Getenv("QX_DEVICE_TOKEN_PATH")
 	if tokenPath == "" {
 		home, _ := os.UserHomeDir()
@@ -40,12 +39,20 @@ func run() {
 		}
 	}
 
-	client := device.NewClient(apiBase, deviceID)
+	resolvedID := device.ResolveDeviceID(dataDir)
+	client := device.NewClient(apiBase, resolvedID)
+
 	ctx := context.Background()
 
 	userToken := resolveUserToken(ctx, apiBase, authPath)
 
-	deviceToken := readToken(tokenPath)
+	deviceToken, err := device.EnsureDeviceToken(ctx, client, tokenPath)
+	if err != nil {
+		slog.Warn("device token check failed", "err", err)
+	}
+	if deviceToken != "" {
+		_ = device.SaveDeviceID(dataDir, client.DeviceID)
+	}
 	var linkURL string
 	var pendingReg *device.RegisterResult
 
@@ -55,6 +62,10 @@ func run() {
 			slog.Error("device register failed", "err", err)
 			return
 		}
+		if err := device.SaveDeviceID(dataDir, reg.DeviceID); err != nil {
+			slog.Warn("save device id failed", "err", err)
+		}
+		client.DeviceID = reg.DeviceID
 		pendingReg = reg
 		linkURL = reg.LinkURL
 		notify.Show("QXLauncher", "Свяжите лаунчер с сайтом: "+reg.UserCode)
@@ -93,6 +104,8 @@ func run() {
 			tray.RunLoop(ctx, tray.Config{
 				APIBase:      apiBase,
 				DeviceToken:  deviceToken,
+				TokenPath:    tokenPath,
+				DeviceClient: client,
 				DataDir:      dataDir,
 				LaunchDryRun: dryRun,
 			})
@@ -114,14 +127,6 @@ func run() {
 		MaxLinkPolls:    maxPolls,
 		PendingRegister: pendingReg,
 	})
-}
-
-func readToken(path string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-	return string(b)
 }
 
 func resolveUserToken(ctx context.Context, apiBase, authPath string) string {

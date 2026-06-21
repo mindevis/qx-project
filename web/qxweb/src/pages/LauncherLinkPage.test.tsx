@@ -6,6 +6,14 @@ import { renderWithProviders } from '@/test/test-utils';
 import { LauncherLinkPage } from './LauncherLinkPage';
 import { saveTokens } from '@/api/client';
 
+function requestUrl(input: RequestInfo | URL): string {
+  return typeof input === 'string'
+    ? input
+    : input instanceof URL
+      ? input.href
+      : input.url;
+}
+
 describe('LauncherLinkPage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -65,7 +73,7 @@ describe('LauncherLinkPage', () => {
       expires_in: 60,
     });
     vi.mocked(fetch).mockImplementation((input) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = requestUrl(input);
       if (url.includes('/users/me')) {
         return Promise.resolve(
           new Response(

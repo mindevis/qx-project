@@ -1,13 +1,15 @@
 import { Navigate } from 'react-router-dom';
-import { Button, Card, Descriptions, Space, Spin, Tooltip, message } from 'antd';
+import { Button, Card, Descriptions, Space, Spin, Tooltip } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { ChangeEmailModal } from '@/components/ChangeEmailModal';
 import { ChangePasswordModal } from '@/components/ChangePasswordModal';
+import { useMessage } from '@/hooks/useMessage';
 
 export function ProfilePage() {
   const { user, loading, isAuthenticated, refreshProfile } = useAuth();
+  const message = useMessage();
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 

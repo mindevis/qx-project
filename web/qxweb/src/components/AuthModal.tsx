@@ -32,8 +32,11 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
 
   const handleClose = () => {
     setError(null);
-    loginForm.resetFields();
-    registerForm.resetFields();
+    if (mode === 'login') {
+      loginForm.resetFields();
+    } else {
+      registerForm.resetFields();
+    }
     onClose();
   };
 
@@ -74,13 +77,13 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
       open={open}
       onCancel={handleClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       width={420}
     >
       {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
       <Tabs
         activeKey={mode}
-        destroyInactiveTabPane
+        destroyOnHidden
         onChange={(key) => {
           setError(null);
           onModeChange(key as AuthMode);

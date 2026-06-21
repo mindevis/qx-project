@@ -39,14 +39,12 @@ func TestAgentWSHandlerConnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if _, err := svc.Deploy(context.Background(), "owner-1", view.ID); err != nil {
+	deployOut, err := svc.Deploy(context.Background(), "owner-1", view.ID)
+	if err != nil {
 		t.Fatalf("deploy: %v", err)
 	}
 
-	token, err := tokens.IssueAgentToken(view.ID, time.Hour)
-	if err != nil {
-		t.Fatalf("token: %v", err)
-	}
+	token := deployOut.AgentToken
 	hash := auth.HashToken(token)
 	if err := db.Model(&models.Server{}).Where("id = ?", view.ID).Update("agent_token_hash", hash).Error; err != nil {
 		t.Fatalf("hash: %v", err)

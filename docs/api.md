@@ -157,6 +157,15 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | POST | `/servers/{id}/stop` | Bearer | admin+ |
 | POST | `/servers/{id}/restart` | Bearer | admin+ |
 
+**GET `/servers/{id}` response (status fields):**
+
+| Field | Type | Description |
+| ------- | ------ | ------------- |
+| `agent_online` | bool | QXAgent WSS connected |
+| `minecraft_running` | bool | JAR process running (`mc_pid` set) |
+| `status` | string | MC lifecycle: `offline`, `starting`, `online`, `error` |
+| `config.mc_pid` | int? | PID on VPS (when running) |
+
 ### 4.2 Server content (mods / plugins)
 
 По `server_type` — см. [server-content-install.md](./server-content-install.md).  
@@ -279,7 +288,7 @@ Site creates request → QXLauncher polls → spawns JVM. Full spec: [launch-bri
 
 | Path | Auth | Description |
 | ------ | ------ | ------------- |
-| `WS /servers/{id}/console` | Bearer | Live console (admin+ read/write by role) |
+| `WS /api/v1/servers/{id}/console?access_token=…` | User JWT (query **or** `Authorization: Bearer`) | Live console (admin+ read/write by role) |
 | `WS /agent/v1/connect` | Agent JWT | Agent Hub ([agent-protocol.md](./agent-protocol.md)) |
 
 ### Console WS messages

@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as apiClient from '@/api/client';
-import { ServerConsolePanel } from './ServerConsolePanel';
+import { ServerConsolePanel, shouldShowMinecraftControls, shouldShowServerConsole } from './ServerConsolePanel';
 
 class MockWebSocket {
   static OPEN = 1;
@@ -21,6 +21,12 @@ class MockWebSocket {
     });
   }
 
+  addEventListener(type: string, fn: () => void, _opts?: { once?: boolean }) {
+    if (type === 'open') {
+      queueMicrotask(fn);
+    }
+  }
+
   send(data: string) {
     this.sent.push(data);
   }
@@ -30,6 +36,24 @@ class MockWebSocket {
     this.onclose?.();
   });
 }
+
+describe('shouldShowMinecraftControls', () => {
+  it('is hidden until minecraft process is running', () => {
+    expect(shouldShowMinecraftControls({})).toBe(false);
+    expect(shouldShowMinecraftControls({ minecraft_running: false })).toBe(false);
+    expect(shouldShowMinecraftControls({ minecraft_running: true })).toBe(true);
+  });
+});
+
+describe('shouldShowServerConsole', () => {
+  it('is hidden until minecraft start is attempted', () => {
+    expect(shouldShowServerConsole({ status: 'offline' })).toBe(false);
+    expect(shouldShowServerConsole({ status: 'offline', agent_online: true } as never)).toBe(false);
+    expect(shouldShowServerConsole({ status: 'starting' })).toBe(true);
+    expect(shouldShowServerConsole({ status: 'error' })).toBe(true);
+    expect(shouldShowServerConsole({ status: 'offline', minecraft_running: true })).toBe(true);
+  });
+});
 
 describe('ServerConsolePanel', () => {
   beforeEach(() => {
@@ -48,9 +72,22 @@ describe('ServerConsolePanel', () => {
     vi.restoreAllMocks();
   });
 
+  it('shows status error detail', async () => {
+    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
+    );
+
+    const ws = MockWebSocket.instances.at(-1);
+    ws?.onmessage?.({ data: JSON.stringify({ type: 'status', status: 'error', detail: 'agent offline' }) });
+
+    await waitFor(() => expect(screen.getByText(/\[status\] agent offline/)).toBeInTheDocument());
+  });
+
   it('connects and sends console input', async () => {
     const user = userEvent.setup({ delay: null });
-    render(<ServerConsolePanel serverId="srv-1" enabled />);
+    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -66,14 +103,8 @@ describe('ServerConsolePanel', () => {
     expect(screen.getByText('> list')).toBeInTheDocument();
   });
 
-  it('does not connect when disabled', () => {
-    render(<ServerConsolePanel serverId="srv-1" enabled={false} />);
-    expect(MockWebSocket.instances).toHaveLength(0);
-    expect(screen.getByText('Консоль отключена — agent должен быть online')).toBeInTheDocument();
-  });
-
   it('renders streamed console output', async () => {
-    render(<ServerConsolePanel serverId="srv-1" enabled />);
+    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -87,8 +118,8 @@ describe('ServerConsolePanel', () => {
     expect(screen.getByText(/\[status\] ready/)).toBeInTheDocument();
   });
 
-  it('closes websocket session when console is disabled', async () => {
-    const { rerender } = render(<ServerConsolePanel serverId="srv-1" enabled />);
+  it('reconnects when server id changes', async () => {
+    const { rerender } = render(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -97,13 +128,14 @@ describe('ServerConsolePanel', () => {
     const ws = MockWebSocket.instances.at(-1);
     expect(ws).toBeDefined();
 
-    rerender(<ServerConsolePanel serverId="srv-1" enabled={false} />);
+    rerender(<ServerConsolePanel serverId="srv-2" agentOnline />);
     expect(ws?.close).toHaveBeenCalled();
-    expect(screen.getByText('Консоль отключена — agent должен быть online')).toBeInTheDocument();
+
+    await waitFor(() => expect(MockWebSocket.instances.length).toBeGreaterThan(1));
   });
 
   it('renders output without stream as out', async () => {
-    render(<ServerConsolePanel serverId="srv-1" enabled />);
+    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -116,7 +148,7 @@ describe('ServerConsolePanel', () => {
   });
 
   it('scrolls console output when new lines arrive', async () => {
-    render(<ServerConsolePanel serverId="srv-1" enabled />);
+    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
@@ -136,7 +168,7 @@ describe('ServerConsolePanel', () => {
 
   it('ignores empty commands and closes on unmount', async () => {
     const user = userEvent.setup({ delay: null });
-    const { unmount } = render(<ServerConsolePanel serverId="srv-1" enabled />);
+    const { unmount } = render(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),

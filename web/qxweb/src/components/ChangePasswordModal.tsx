@@ -48,7 +48,7 @@ export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePassword
       open={open}
       onCancel={handleClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       width={420}
     >
       {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}

@@ -12,15 +12,16 @@ import {
   Space,
   Spin,
   Typography,
-  message,
 } from 'antd';
 import {
   DeleteOutlined,
   PlusOutlined,
   RocketOutlined,
+  ReloadOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { LauncherDownloadButton } from '@/components/LauncherDownloadButton';
+import { useMessage } from '@/hooks/useMessage';
 import { DEFAULT_MC_VERSION, MVP_MC_VERSIONS } from '@/launcher/mcVersions';
 import {
   api,
@@ -60,6 +61,7 @@ function launchStatusMessage(status: string): string {
 export function LauncherPage() {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
   const { openAuthModal } = useAuthModal();
+  const message = useMessage();
   const [instances, setInstances] = useState<LauncherInstance[]>([]);
   const [profiles, setProfiles] = useState<OfflineProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>();
@@ -73,6 +75,8 @@ export function LauncherPage() {
   const [linkedDevice, setLinkedDevice] = useState<{ device_id: string; status: string } | null>(
     null,
   );
+  const [accessKey, setAccessKey] = useState(0);
+  const refreshAccess = useCallback(() => setAccessKey((k) => k + 1), []);
   const canManage = !authLoading && (isAuthenticated || hasLauncherAccess());
   const isGuestLauncher = !isAuthenticated && hasLauncherAccess();
   const instancesTitle = isAuthenticated ? 'Мои инстансы' : 'Инстансы';
@@ -122,6 +126,16 @@ export function LauncherPage() {
     void loadInstances();
     void loadProfiles();
   }, [loadInstances, loadProfiles]);
+
+  useEffect(() => {
+    const onAccessChange = () => refreshAccess();
+    window.addEventListener('storage', onAccessChange);
+    window.addEventListener('focus', onAccessChange);
+    return () => {
+      window.removeEventListener('storage', onAccessChange);
+      window.removeEventListener('focus', onAccessChange);
+    };
+  }, [refreshAccess]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -266,8 +280,43 @@ export function LauncherPage() {
     <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 720 }}>
       <Typography.Title level={2}>Лаунчер</Typography.Title>
       <Typography.Paragraph type="secondary">
-        Создайте Vanilla-инстанс и offline-профиль на сайте. Запуск — через связанный QXLauncher в трее.
+        Создайте Vanilla-инстанс и offline-профиль на сайте. Запуск — через связанный QXLauncher на ПК.
       </Typography.Paragraph>
+
+      {!authLoading && !canManage && (
+        <Alert
+          type="info"
+          showIcon
+          message="Сначала свяжите QXLauncher"
+          description={
+            <ol style={{ marginBottom: 0, paddingLeft: 20 }}>
+              <li>
+                Запустите QXLauncher на этом компьютере (
+                <Typography.Text code>make launcher</Typography.Text> или{' '}
+                <Typography.Text code>bin/qx-launcher.exe</Typography.Text>).
+              </li>
+              <li>
+                В меню QXLauncher выберите «Связать QXLauncher» — откроется страница привязки в
+                браузере.
+              </li>
+              <li>
+                Нажмите «Продолжить как гость» (регистрация не нужна) или войдите в аккаунт.
+              </li>
+              <li>Вернитесь сюда — появятся инстансы и профили.</li>
+            </ol>
+          }
+          action={
+            <Space direction="vertical" align="end">
+              <Button icon={<ReloadOutlined />} onClick={refreshAccess}>
+                Проверить связь
+              </Button>
+              <Button type="link" size="small" onClick={() => openAuthModal('login')}>
+                Войти в аккаунт
+              </Button>
+            </Space>
+          }
+        />
+      )}
 
       {isGuestLauncher && (
         <Alert
@@ -290,8 +339,8 @@ export function LauncherPage() {
           message={`Аккаунт ${user.email}`}
           description={
             linkedDevice
-              ? `QXLauncher связан (${linkedDevice.device_id}). Инстансы синхронизируются с tray.`
-              : 'QXLauncher ещё не связан с аккаунтом. Запустите tray и подтвердите привязку на /launcher/link.'
+              ? `QXLauncher связан (${linkedDevice.device_id}). Инстансы синхронизируются с QXLauncher.`
+              : 'QXLauncher ещё не связан с аккаунтом. Запустите QXLauncher и подтвердите привязку на /launcher/link.'
           }
           action={
             linkedDevice ? (
@@ -308,8 +357,7 @@ export function LauncherPage() {
       <Card title="QXLauncher для ПК">
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Typography.Paragraph style={{ marginBottom: 0 }}>
-            Установите десктопное приложение, откройте ссылку связывания с сайта и дождитесь
-            подтверждения на этой странице. Для dev-сборки:{' '}
+            Установите QXLauncher, затем в его меню выберите «Связать QXLauncher». Для dev-сборки:{' '}
             <Typography.Text code>make build-launcher</Typography.Text> →{' '}
             <Typography.Text code>bin/qx-launcher.exe</Typography.Text>.
           </Typography.Paragraph>
@@ -329,7 +377,7 @@ export function LauncherPage() {
       >
         {!canManage ? (
           <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            Профили доступны после входа или связывания QXLauncher.
+            Доступно после связывания QXLauncher — см. инструкцию выше.
           </Typography.Paragraph>
         ) : (
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -382,14 +430,9 @@ export function LauncherPage() {
         {authLoading ? (
           <Spin />
         ) : !canManage ? (
-          <Space direction="vertical">
-            <Typography.Paragraph style={{ marginBottom: 0 }}>
-              Войдите в аккаунт или свяжите QXLauncher как гость, чтобы управлять инстансами.
-            </Typography.Paragraph>
-            <Button type="primary" onClick={() => openAuthModal('login')}>
-              Войти
-            </Button>
-          </Space>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            После «Продолжить как гость» на странице привязки нажмите «Проверить связь» выше.
+          </Typography.Paragraph>
         ) : (
           <List
             loading={loading}
@@ -432,7 +475,7 @@ export function LauncherPage() {
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form layout="vertical" onFinish={handleCreate}>
           <Form.Item
@@ -466,7 +509,7 @@ export function LauncherPage() {
         open={profileOpen}
         onCancel={() => setProfileOpen(false)}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form layout="vertical" onFinish={handleCreateProfile}>
           <Form.Item

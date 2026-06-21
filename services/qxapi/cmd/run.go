@@ -25,7 +25,6 @@ func bootstrap(cfg config.Config) (*gin.Engine, error) {
 	return api.NewRouter(db, authSvc, cfg.CORSOrigin, cfg.SSHMasterKey, api.DeploySettings{
 		PublicAPIURL:    cfg.PublicAPIURL,
 		AgentBinaryPath: cfg.AgentBinaryPath,
-		DryRun:          cfg.SSHDeployDryRun,
 	}), nil
 }
 
@@ -43,6 +42,8 @@ func run() error {
 		"addr", cfg.Addr,
 		"log_level", cfg.LogLevel,
 		"log_format", cfg.LogFormat,
+		"agent_binary", config.AgentBinaryAbs(cfg.AgentBinaryPath),
+		"public_api_url", cfg.PublicAPIURL,
 	)
 	return router.Run(cfg.Addr)
 }

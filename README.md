@@ -27,7 +27,7 @@ make api
 # терминал 2 — QXWeb
 cd web/qxweb && npm install && npm run dev
 
-# терминал 3 — QXLauncher (Windows tray, опционально)
+# терминал 3 — QXLauncher (опционально)
 make launcher
 ```
 
@@ -40,14 +40,32 @@ make launcher
 1. Запустите **QXLauncher** (`make launcher` или `make build-launcher`) — в консоли появится `link_url`, откройте его в браузере.
 2. **Guest:** подтвердите связку на `/launcher/link` без логина.
 3. **Registered:** войдите на сайте → `/launcher/link?device=…` → подтвердите связку.
-4. На `/launcher` создайте Vanilla-инстанс и offline-профиль → **Играть** (launch-bridge → tray → JVM).
+4. На `/launcher` создайте Vanilla-инстанс и offline-профиль → **Играть** (launch-bridge → QXLauncher → JVM).
 
-Переменные для dev: `QX_SKIP_TRAY=1` (без systray), `QX_LAUNCH_DRY_RUN=1` (без реального JVM), `QX_API_BASE_URL=http://localhost:3000/api/v1`.
+Переменные для dev: `QX_API_BASE_URL=http://localhost:3000/api/v1`, `QX_WEB_BASE_URL=http://localhost:5173`.
 
 ### Сервер (Flow C)
 
-1. Войдите на сайте → **Servers** → добавьте VPS (SSH).
-2. **Deploy** (dry-run в dev без бинарника агента) → **Start/Stop** → live-консоль.
+**Dev VPS (Debian 13 + SSH + systemd):**
+
+```bash
+make dev-vps-up      # контейнер qx-vps-dev, SSH :2222, ключ в infra/docker/vps-dev/keys/
+make dev-vps-info    # host/port/user/key + подсказки для .env
+```
+
+В `.env` для реального SSH deploy (перезапустите API):
+
+```env
+QX_PUBLIC_API_URL=http://host.docker.internal:3000
+```
+
+Agent binary (`bin/qx-agent-linux`) собирается через `make dev-vps-up` и подхватывается API автоматически.
+
+1. **Servers** → Add server: `localhost`, port `2222`, user `root`, private key из `infra/docker/vps-dev/keys/dev_id_ed25519`
+2. **Deploy agent** → agent ставится в контейнер через SSH + systemd; в panel — тег **Agent** (`agent_online`)
+3. **Minecraft** — JAR на VPS вручную (или post-MVP install pipeline); **Stop/Restart** и live-консоль в UI — только когда `minecraft_running`
+
+Проверка SSH: `ssh -i infra/docker/vps-dev/keys/dev_id_ed25519 -p 2222 -o StrictHostKeyChecking=no root@localhost`
 
 Подробнее: [docs/mvp.md](docs/mvp.md) · [docs/device-linking.md](docs/device-linking.md) · [docs/launch-bridge.md](docs/launch-bridge.md)
 
@@ -59,13 +77,18 @@ make launcher
 | Конфигурация | Что делает |
 | --- | --- |
 | **QXApi** | API с breakpoints |
-| **QXAgent** | Агент с breakpoints |
 | **QXLauncher** | Лаунчер с breakpoints |
 | **QXWeb** | Vite dev-server в терминале |
+| **Dev VPS: up** | Flow C: Debian SSH на `:2222`, сборка `qx-agent-linux` |
+| **Dev VPS: down** | Остановить контейнер `qx-vps-dev` |
+| **Dev VPS: info** | SSH host/port и подсказки для `.env` |
+| **QX Dev Stack** | QXApi + QXWeb + QXLauncher (compound) |
 | **Go: текущий тест** | Отладка теста в открытом `*_test.go` |
 | **Vitest: текущий файл** | Отладка открытого `*.test.ts(x)` |
 
-Docker (MySQL, Redis, MinIO) поднимается отдельно: **Terminal → Run Task → Docker: dev-up** (перед **QXApi**, если контейнеры ещё не запущены).
+Docker (MySQL, Redis, MinIO): **Terminal → Run Task → Docker: dev-up** (перед **QXApi**).
+
+Flow C (серверы): **F5 → Dev VPS: up**, затем **QXApi**. В `.env`: `QX_PUBLIC_API_URL=http://host.docker.internal:3000`.
 
 Переменные окружения читаются из `.env` в корне репозитория.
 
@@ -76,8 +99,8 @@ Docker (MySQL, Redis, MinIO) поднимается отдельно: **Terminal
 ```bash
 make test              # Go + web unit tests
 make test-coverage     # с отчётом покрытия (100%)
-make e2e-alpha         # API Flow A/B/C + tray dry-run + Playwright (Phase Alpha automated)
-make e2e-dry-run       # API Flow A/B/C + tray launch dry-run (без JVM)
+make e2e-alpha         # API Flow A/B/C + QXLauncher dry-run + Playwright (Phase Alpha automated)
+make e2e-dry-run       # API Flow A/B/C + QXLauncher launch dry-run (без JVM)
 make build-launcher-win # bin/qx-launcher.exe (Windows)
 ```
 
@@ -89,7 +112,7 @@ CI (`.github/workflows/ci.yml`): unit tests, Playwright, `e2e-dry-run`, арте
 services/
   qxapi/          QXApi — REST + WebSocket (Go)
   qxagent/        QXAgent — BYOS daemon (Go)
-  qxlauncher/     QXLauncher — Windows tray (Go)
+  qxlauncher/     QXLauncher — Windows (Go)
 web/
   qxweb/          QXWeb — React SPA (panel + /launcher + /servers)
 pkg/
@@ -102,20 +125,23 @@ go.work           Go workspace
 
 Код сервиса **не смешивается**: у QXApi свой `internal/`, у QXAgent и QXLauncher — свои (по мере реализации).
 
-## Реализовано (MVP alpha)
+## Реализовано (MVP alpha — dev)
 
 - [x] **Phase 0** — auth, profile, CI, 100% unit coverage
-- [x] **Phase 1** — device link, instances, launch-bridge, QXLauncher tray + Vanilla
-- [x] **Phase 2** — servers CRUD, SSH deploy (dry-run), agent WSS, web console
-- [x] **Phase 3** — registered user device status, JWT refresh в tray
-- [ ] **Phase Alpha** — manual E2E pass, bug bash ([test matrix](docs/qa/test-matrix.md), [FAQ](docs/faq.md))
+- [x] **Phase 1** — device link, instances, launch-bridge, QXLauncher + Vanilla
+- [x] **Phase 2** — servers CRUD, SSH deploy, agent WSS; Stop/Restart/консоль при `minecraft_running`
+- [x] **Phase 3** — registered user device status, JWT refresh в QXLauncher
+- [x] **Phase Alpha (flows)** — manual Flow A/B/C ☑ ([test matrix](docs/qa/test-matrix.md), [FAQ](docs/faq.md))
+- [ ] **Prod** — TLS, реальный VPS, smoke — **не готов** ([mvp §7.1](docs/mvp.md))
 
-### Prod (Tier 0, один VPS)
+### Prod (Tier 0) — 🔲 заготовка, не validated
+
+Скрипты и compose есть, но **к production пока не готовы** — см. [mvp §7.1](docs/mvp.md).
 
 ```bash
 cp infra/docker/.env.prod.example infra/docker/.env.prod
 # JWT, MySQL, SSH_MASTER_KEY — см. .env.prod.example
 make prod-build
 make prod-up
-# → http://localhost:8080
+# → http://localhost:8080 (local smoke only; не prod-ready)
 ```

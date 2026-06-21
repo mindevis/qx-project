@@ -2,7 +2,7 @@
 
 > Версия: **1.0** · Transport: **WebSocket (WSS)** · Format: **JSON**
 > Shared types: `pkg/protocol` (Go)
-> **Статус реализации:** ✅ Phase 2 — `pkg/protocol`, QXApi hub, QXAgent WSS client; idempotency cache (`request_id` replay); SSH deploy — dry-run / optional binary
+> **Статус реализации:** ✅ Phase 2 — `pkg/protocol`, QXApi hub, QXAgent WSS client; idempotency cache (`request_id` replay); SSH deploy + systemd
 
 ---
 
@@ -38,9 +38,9 @@ sequenceDiagram
     U->>API: POST /api/v1/servers/{id}/deploy
     API->>VPS: SSH: upload qx-agent binary
     API->>VPS: SSH: write systemd unit + env
-    API->>VPS: SSH: systemctl enable --now qx-agent
+    API->>VPS: SSH: systemctl enable + restart qx-agent
     A->>API: WSS connect + auth
-    API-->>U: status: online
+    API-->>U: agent_online (minecraft_running false)
 ```
 
 ### 2.2 Файлы на VPS
@@ -49,7 +49,7 @@ sequenceDiagram
 | ------ | ------------ |
 | `/opt/qx/agent/qx-agent` | Binary |
 | `/opt/qx/server/` | Server root (jar, mods, configs) |
-| `/etc/qx/agent.env` | `QX_AGENT_TOKEN`, `QX_API_URL`, `QX_SERVER_ID` |
+| `/etc/qx-agent/agent.toml` | `agent_token`, `api_base_url`, `server_id`, `server_root` |
 | `/etc/systemd/system/qx-agent.service` | systemd unit |
 
 ### 2.3 systemd unit (шаблон)
@@ -61,14 +61,24 @@ After=network-online.target
 
 [Service]
 Type=simple
-EnvironmentFile=/etc/qx/agent.env
 ExecStart=/opt/qx/agent/qx-agent
+WorkingDirectory=/opt/qx/server
 Restart=always
 RestartSec=5
-WorkingDirectory=/opt/qx/server
 
 [Install]
 WantedBy=multi-user.target
+```
+
+QXAgent reads `/etc/qx-agent/agent.toml` on startup (override: `QX_AGENT_CONFIG`).
+
+Example `agent.toml`:
+
+```toml
+api_base_url = "https://api.qx.example.com/api/v1"
+server_id = "uuid"
+agent_token = "eyJ..."
+server_root = "/opt/qx/server"
 ```
 
 ### 2.4 SSH требования
@@ -389,7 +399,7 @@ flowchart TB
 ```
 
 - Map: `server_id → websocket.Conn`
-- Panel subscribes: `WS /servers/{id}/console`
+- Panel subscribes: `WS /api/v1/servers/{id}/console?access_token=<user_jwt>`
 - Hub forwards `evt.console.output` → panel; `cmd.console.input` → agent
 - Multi-admin: RBAC check `server_members` before forward
 
