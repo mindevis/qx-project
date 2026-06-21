@@ -10,7 +10,7 @@ import { ServersPage } from '@/pages/ServersPage';
 
 export default function App() {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter>
       <AuthModalProvider>
         <Routes>
           <Route element={<AppLayout />}>

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/auth/AuthContext';
 import { AuthModalProvider, useAuthModal } from '@/auth/AuthModalContext';
 import { ThemeProvider } from '@/theme/ThemeContext';
+import { waitForNoDialog } from '@/test/test-utils';
 
 function Probe() {
   const { openAuthModal, closeAuthModal } = useAuthModal();
@@ -43,10 +44,10 @@ describe('AuthModalContext', () => {
     renderProbe();
 
     await user.click(screen.getByRole('button', { name: 'Open login' }));
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    await screen.findByRole('dialog');
 
     await user.click(screen.getByRole('button', { name: 'Close modal' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitForNoDialog();
   });
 
   it('opens register tab', async () => {

@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
 import { Routes, Route } from 'react-router-dom';
-import { renderWithProviders } from '@/test/test-utils';
+import { renderWithProviders, waitForNoDialog } from '@/test/test-utils';
 import { AppLayout } from '@/layouts/AppLayout';
 import { HomePage } from './HomePage';
 import { LauncherPage } from './LauncherPage';
@@ -433,11 +433,13 @@ describe('pages', () => {
       ),
     );
     await waitFor(() => expect(screen.getByText('Новый offline-профиль')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
+    await waitForNoDialog();
 
     await user.click(screen.getByRole('button', { name: /Создать/ }));
     await waitFor(() => expect(screen.getByText('Новый инстанс')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
+    await waitForNoDialog();
 
     await user.click(screen.getByRole('button', { name: 'delete' }));
     await user.click(await screen.findByRole('button', { name: 'OK' }));
@@ -1764,8 +1766,8 @@ describe('pages', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('u@test.com').length).toBeGreaterThan(0);
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
+    await waitForNoDialog();
   });
 
   it('shows login error message', async () => {
@@ -1855,8 +1857,8 @@ describe('pages', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('new@test.com').length).toBeGreaterThan(0);
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
+    await waitForNoDialog();
   });
 
   it('shows register error message', async () => {

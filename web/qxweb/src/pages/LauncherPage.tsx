@@ -33,6 +33,7 @@ import {
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useAuthModal } from '@/auth/AuthModalContext';
+import { modalMotionProps } from '@/lib/modal';
 import { logger } from '@/lib/logger';
 
 const LAUNCH_POLL_MS = 1500;
@@ -484,6 +485,7 @@ export function LauncherPage() {
         onCancel={() => setCreateOpen(false)}
         footer={null}
         destroyOnHidden
+        {...modalMotionProps}
       >
         <Form layout="vertical" onFinish={handleCreate}>
           <Form.Item
@@ -518,6 +520,7 @@ export function LauncherPage() {
         onCancel={() => setProfileOpen(false)}
         footer={null}
         destroyOnHidden
+        {...modalMotionProps}
       >
         <Form layout="vertical" onFinish={handleCreateProfile}>
           <Form.Item

@@ -1,17 +1,13 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { message } from 'antd';
+
+configure({ asyncUtilTimeout: 5000 });
 
 vi.mock('@/hooks/useMessage', () => ({
   useMessage: () => message,
 }));
-
-Object.defineProperty(window, 'getComputedStyle', {
-  value: () => ({
-    getPropertyValue: () => '',
-  }),
-});
 
 function mockMatchMedia() {
   Object.defineProperty(window, 'matchMedia', {

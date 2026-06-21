@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, Button, Form, Input, Modal } from 'antd';
 import { api } from '@/api/client';
+import { modalMotionProps } from '@/lib/modal';
 
 type PasswordFormValues = {
   current_password: string;
@@ -50,6 +51,7 @@ export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePassword
       footer={null}
       destroyOnHidden
       width={420}
+      {...modalMotionProps}
     >
       {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
       <Form form={form} layout="vertical" onFinish={onFinish}>

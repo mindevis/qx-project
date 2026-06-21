@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
 import { Routes, Route } from 'react-router-dom';
 import { saveTokens, clearTokens } from '@/api/client';
-import { renderWithProviders } from '@/test/test-utils';
+import { renderWithProviders, waitForNoDialog } from '@/test/test-utils';
 import { ServersPage } from './ServersPage';
 
 function requestUrl(input: RequestInfo | URL): string {
@@ -200,7 +200,7 @@ describe('ServersPage', () => {
     await user.click(screen.getByText('Добавить VPS'));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitForNoDialog();
   });
 
   it('shows error when server list fails', async () => {

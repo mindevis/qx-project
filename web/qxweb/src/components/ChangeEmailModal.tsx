@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Input, Modal, Typography } from 'antd';
 import { api } from '@/api/client';
+import { modalMotionProps } from '@/lib/modal';
 
 type EmailFormValues = {
   current_password: string;
@@ -23,6 +24,12 @@ export function ChangeEmailModal({
   const [form] = Form.useForm<EmailFormValues>();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      form.setFieldsValue({ email: currentEmail });
+    }
+  }, [open, currentEmail, form]);
 
   const handleClose = () => {
     setError(null);
@@ -55,11 +62,7 @@ export function ChangeEmailModal({
       footer={null}
       destroyOnHidden
       width={420}
-      afterOpenChange={(visible) => {
-        if (visible) {
-          form.setFieldsValue({ email: currentEmail });
-        }
-      }}
+      {...modalMotionProps}
     >
       {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
       <Typography.Paragraph type="secondary">

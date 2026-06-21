@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Form, Input, Modal, Tabs } from 'antd';
 import { useAuth } from '@/auth/AuthContext';
 import type { AuthMode } from '@/auth/AuthModalContext';
+import { modalMotionProps } from '@/lib/modal';
 
 type LoginFormValues = {
   email: string;
@@ -79,6 +80,7 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
       footer={null}
       destroyOnHidden
       width={420}
+      {...modalMotionProps}
     >
       {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
       <Tabs

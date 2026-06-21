@@ -24,6 +24,7 @@ import {
 import { api, type GameServer } from '@/api/client';
 import { ServerConsolePanel, shouldShowMinecraftControls, shouldShowServerConsole } from '@/components/ServerConsolePanel';
 import { useAuth } from '@/auth/AuthContext';
+import { modalMotionProps } from '@/lib/modal';
 import { useAuthModal } from '@/auth/AuthModalContext';
 import { logger } from '@/lib/logger';
 import { useMessage } from '@/hooks/useMessage';
@@ -167,6 +168,7 @@ function ServersList() {
         confirmLoading={creating}
         width={560}
         destroyOnHidden
+        {...modalMotionProps}
       >
         <Form form={form} layout="vertical" initialValues={{ port: 22 }}>
           <Form.Item name="name" label="Название" rules={[{ required: true, message: 'Укажите название' }]}>
