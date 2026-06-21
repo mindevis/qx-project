@@ -67,6 +67,16 @@ describe('UserMenu', () => {
     expect(screen.getByText('Выйти')).toBeInTheDocument();
   });
 
+  it('ignores unrelated keys on account menu trigger', async () => {
+    const clicker = userEvent.setup({ delay: null });
+    renderMenu();
+
+    const trigger = screen.getByRole('button', { name: 'Меню аккаунта' });
+    trigger.focus();
+    await clicker.keyboard('{ArrowDown}');
+    expect(screen.queryByText('Профиль')).not.toBeInTheDocument();
+  });
+
   it('renders avatar image when avatar_url is set', () => {
     renderMenu({
       user: { ...user, avatar_url: 'https://example.com/a.png' },

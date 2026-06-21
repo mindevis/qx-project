@@ -52,7 +52,7 @@ function launchStatusMessage(status: string): string {
       return 'Не удалось запустить игру';
     case 'expired':
       return 'Запрос истёк — проверьте, что QXLauncher запущен';
-    /* v8 ignore next 3 */
+    /* v8 ignore next 3 -- @preserve */
     default:
       return status;
   }
@@ -110,7 +110,7 @@ export function LauncherPage() {
       const items = res.items ?? [];
       setProfiles(items);
       setSelectedProfileId((prev) => {
-        /* v8 ignore next 3 */
+        /* v8 ignore next 3 -- @preserve */
         if (prev && items.some((p) => p.id === prev)) return prev;
         return items[0]?.id;
       });
@@ -189,9 +189,11 @@ export function LauncherPage() {
       setProfiles((prev) => [...prev, profile]);
       setSelectedProfileId(profile.id);
     } catch (e) {
-      message.error(
-        e instanceof Error ? e.message : /* v8 ignore next */ 'Не удалось создать профиль',
-      );
+      if (e instanceof Error) {
+        message.error(e.message);
+      } else {
+        message.error('Не удалось создать профиль');
+      }
     } finally {
       setCreatingProfile(false);
     }
@@ -202,11 +204,13 @@ export function LauncherPage() {
       await api.deleteProfile(id);
       message.success('Профиль удалён');
       setProfiles((prev) => prev.filter((p) => p.id !== id));
-      setSelectedProfileId((prev) => (prev === id ? undefined : /* v8 ignore next */ prev));
+      setSelectedProfileId((prev) => (prev === id ? undefined : /* v8 ignore next -- @preserve */ prev));
     } catch (e) {
-      message.error(
-        e instanceof Error ? e.message : /* v8 ignore next */ 'Не удалось удалить профиль',
-      );
+      if (e instanceof Error) {
+        message.error(e.message);
+      } else {
+        message.error('Не удалось удалить профиль');
+      }
     }
   };
 
@@ -216,9 +220,11 @@ export function LauncherPage() {
       message.success('Инстанс удалён');
       await loadInstances();
     } catch (e) {
-      message.error(
-        e instanceof Error ? e.message : /* v8 ignore next */ 'Не удалось удалить',
-      );
+      if (e instanceof Error) {
+        message.error(e.message);
+      } else {
+        message.error('Не удалось удалить');
+      }
     }
   };
 
@@ -237,10 +243,10 @@ export function LauncherPage() {
         }
         return;
       }
-      /* v8 ignore next 3 */
+      /* v8 ignore next 3 -- @preserve */
       await new Promise((r) => setTimeout(r, LAUNCH_POLL_MS));
     }
-    /* v8 ignore next */
+    /* v8 ignore next -- @preserve */
     message.warning('Время ожидания истекло');
   };
 
@@ -268,9 +274,11 @@ export function LauncherPage() {
       message.info('Запрос отправлен в QXLauncher');
       await pollLaunchRequest(req.id);
     } catch (e) {
-      message.error(
-        e instanceof Error ? e.message : /* v8 ignore next */ 'Не удалось запустить игру',
-      );
+      if (e instanceof Error) {
+        message.error(e.message);
+      } else {
+        message.error('Не удалось запустить игру');
+      }
     } finally {
       setLaunchingId(null);
     }

@@ -15,6 +15,7 @@ import {
   wsBaseUrl,
   type TokenResponse,
 } from './client';
+import { logger } from '@/lib/logger';
 
 const tokens: TokenResponse = {
   access_token: 'access',
@@ -337,12 +338,14 @@ describe('api client', () => {
     const instances: MockWS[] = [];
     class MockWS {
       static OPEN = 1;
+      static CONNECTING = 0;
       readyState = MockWS.OPEN;
-      close = vi.fn(function (this: MockWS) {
-        onClose();
-      });
-      onmessage: ((ev: { data: string }) => void) | null = null;
+      onclose: (() => void) | null = null;
       onerror: (() => void) | null = null;
+      onmessage: ((ev: { data: string }) => void) | null = null;
+      close = vi.fn(function (this: MockWS) {
+        this.onclose?.();
+      });
       constructor(public url: string) {
         expect(url).toContain('/servers/s1/console');
         expect(url).toContain('access_token=access');
@@ -365,6 +368,61 @@ describe('api client', () => {
 
     session.close();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('closes open websocket on client disconnect', () => {
+    saveTokens(tokens);
+    const close = vi.fn();
+    class MockWS {
+      static OPEN = 1;
+      static CONNECTING = 0;
+      readyState = MockWS.OPEN;
+      close = close;
+      constructor(_url: string) {}
+    }
+    vi.stubGlobal('WebSocket', MockWS);
+    const session = openServerConsole('s1', { onMessage: vi.fn() });
+    session.close();
+    expect(close).toHaveBeenCalled();
+  });
+
+  it('does not log websocket errors after client close', () => {
+    saveTokens(tokens);
+    const warnSpy = vi.spyOn(logger, 'warn');
+    const instances: Array<{ onerror: (() => void) | null }> = [];
+    class MockWS {
+      static OPEN = 1;
+      static CONNECTING = 0;
+      readyState = MockWS.OPEN;
+      onerror: (() => void) | null = null;
+      close = vi.fn();
+      constructor(_url: string) {
+        instances.push(this);
+      }
+    }
+    vi.stubGlobal('WebSocket', MockWS);
+
+    const session = openServerConsole('s1', { onMessage: vi.fn() });
+    session.close();
+    instances[0]?.onerror?.();
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('skips close when websocket is already closed', () => {
+    saveTokens(tokens);
+    const close = vi.fn();
+    class MockWS {
+      static OPEN = 1;
+      static CONNECTING = 0;
+      readyState = 2;
+      close = close;
+      constructor(_url: string) {}
+    }
+    vi.stubGlobal('WebSocket', MockWS);
+    const session = openServerConsole('s1', { onMessage: vi.fn() });
+    session.close();
+    expect(close).not.toHaveBeenCalled();
   });
 
   it('defers close while websocket is still connecting', () => {

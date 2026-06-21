@@ -890,6 +890,103 @@ describe('pages', () => {
     errorSpy.mockRestore();
   });
 
+  it('shows api error message when launch request fails', async () => {
+    const user = userEvent.setup({ delay: null });
+    const errorSpy = vi.spyOn(message, 'error');
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    const instance = {
+      id: 'inst-1',
+      name: 'Survival',
+      mc_version: '1.21',
+      loader: 'vanilla',
+      created_at: 't',
+      updated_at: 't',
+    };
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({ error: { code: 'X', message: 'launcher offline' } }),
+            { status: 503 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Играть/ }));
+    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('launcher offline'));
+    errorSpy.mockRestore();
+  });
+
+  it('shows api error message when profile create fails', async () => {
+    const user = userEvent.setup({ delay: null });
+    const errorSpy = vi.spyOn(message, 'error');
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    const profile = {
+      id: 'prof-1',
+      username: 'Steve',
+      offline_uuid: 'uuid',
+      created_at: 't',
+    };
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/launcher/profiles') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({ error: { code: 'X', message: 'username taken' } }),
+            { status: 409 },
+          );
+        }
+        if (url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: [profile] }), { status: 200 });
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Добавить/ }));
+    await user.type(screen.getByLabelText('Никнейм'), 'Alex');
+    await user.click(screen.getByRole('button', { name: 'Создать' }));
+    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('username taken'));
+    errorSpy.mockRestore();
+  });
+
   it('skips profile modal after create when profiles exist', async () => {
     const user = userEvent.setup({ delay: null });
     const profile = {
@@ -1357,6 +1454,52 @@ describe('pages', () => {
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось создать профиль'));
+    errorSpy.mockRestore();
+  });
+
+  it('shows generic delete profile error for non-error throws', async () => {
+    const user = userEvent.setup({ delay: null });
+    const errorSpy = vi.spyOn(message, 'error');
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    const profile = {
+      id: 'prof-1',
+      username: 'Steve',
+      offline_uuid: 'uuid',
+      created_at: 't',
+    };
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/launcher/profiles/prof-1') && init?.method === 'DELETE') {
+          return Promise.reject('delete boom');
+        }
+        if (url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: [profile] }), { status: 200 });
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await user.click(screen.getAllByRole('button', { name: 'delete' })[0]!);
+    await user.click(await screen.findByRole('button', { name: 'OK' }));
+    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось удалить профиль'));
     errorSpy.mockRestore();
   });
 

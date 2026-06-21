@@ -24,7 +24,7 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function readStoredMode(): ThemeMode {
-  /* v8 ignore next 3 */
+  /* v8 ignore next 3 -- @preserve */
   if (typeof window === 'undefined') {
     return 'light';
   }

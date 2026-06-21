@@ -140,6 +140,32 @@ describe('LauncherLinkPage', () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 
+  it('links guest device without guest token', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'linked',
+          owner_type: 'guest',
+        }),
+        { status: 200 },
+      ),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/launcher/link" element={<LauncherLinkPage />} />
+      </Routes>,
+      '/launcher/link?device=dev-no-token',
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Продолжить как гость/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Продолжить как гость/ }));
+    await waitFor(() => expect(screen.getByText('Устройство связано')).toBeInTheDocument());
+  });
+
   it('shows link error', async () => {
     const user = userEvent.setup({ delay: null });
     vi.mocked(fetch).mockResolvedValue(

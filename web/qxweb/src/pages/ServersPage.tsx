@@ -208,7 +208,7 @@ function ServerDetail() {
   const [action, setAction] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    /* v8 ignore next 3 */
+    /* v8 ignore next 3 -- @preserve */
     if (!id) return;
     setLoading(true);
     try {
@@ -230,7 +230,7 @@ function ServerDetail() {
   }, [load]);
 
   const runAction = async (name: 'deploy' | 'stop' | 'restart') => {
-    /* v8 ignore next 3 */
+    /* v8 ignore next 3 -- @preserve */
     if (!id) return;
     setAction(name);
     try {
@@ -256,7 +256,7 @@ function ServerDetail() {
   };
 
   const onDelete = async () => {
-    /* v8 ignore next 3 */
+    /* v8 ignore next 3 -- @preserve */
     if (!id) return;
     try {
       await api.deleteServer(id);

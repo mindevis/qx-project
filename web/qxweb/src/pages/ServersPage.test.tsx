@@ -633,6 +633,98 @@ describe('ServersPage', () => {
     await waitFor(() => expect(message.error).toHaveBeenCalledTimes(2));
   });
 
+  it('ignores create errors without message', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url, init) => {
+        if (url.includes('/servers') && init?.method === 'POST') {
+          return Promise.reject(new Error(''));
+        }
+        if (url.includes('/servers')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers');
+    await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
+
+    await user.click(screen.getByText('Добавить VPS'));
+    await user.type(screen.getByLabelText('Название'), 'Silent fail');
+    await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
+    await user.type(screen.getByLabelText('SSH User'), 'ubuntu');
+    await user.type(
+      screen.getByLabelText('SSH Private Key'),
+      '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----',
+    );
+    await user.click(screen.getByRole('button', { name: 'OK' }));
+
+    await waitFor(() => expect(message.error).not.toHaveBeenCalled());
+  });
+
+  it('shows server console when minecraft is starting', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1')) {
+          return new Response(
+            JSON.stringify({
+              ...sampleServer,
+              agent_online: true,
+              status: 'starting',
+              minecraft_running: false,
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Консоль')).toBeInTheDocument());
+  });
+
+  it('polls server detail on interval', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    let detailCalls = 0;
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1')) {
+          detailCalls += 1;
+          return new Response(JSON.stringify({ ...sampleServer, agent_online: true }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    expect(detailCalls).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await waitFor(() => expect(detailCalls).toBeGreaterThan(1));
+    vi.useRealTimers();
+  });
+
   it('redirects unknown nested routes to list', async () => {
     saveTokens({
       access_token: 'a',
