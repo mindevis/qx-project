@@ -9,8 +9,8 @@ jobs:
   go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
       - run: cd services/qxapi && go mod tidy && go vet ./... && go test ./...
@@ -31,7 +31,7 @@ jobs:
       - run: cd services/qxagent && go vet ./... && go build -o /dev/null ./cmd
       - run: cd services/qxlauncher && go vet ./... && go build -o /dev/null ./cmd
       - run: cd services/qxlauncher && GOOS=windows GOARCH=amd64 go build -o qx-launcher.exe ./cmd
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: qx-launcher-windows-amd64
           path: services/qxlauncher/qx-launcher.exe
@@ -43,8 +43,8 @@ jobs:
       run:
         working-directory: web/qxweb
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: npm
