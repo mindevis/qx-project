@@ -8,7 +8,7 @@ Frontend отделён от Go-сервисов в `services/`.
 
 ## QXWeb
 
-**Стек:** TypeScript, React, Vite, Ant Design.
+**Стек:** TypeScript, React, Vite, Ant Design. **Node.js 24+**
 
 **Phase 0–3 + Alpha (dev):** `/`, auth, `/profile`, `/launcher`, **`/servers`**. Prod 🔲.
 
