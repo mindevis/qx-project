@@ -61,10 +61,33 @@ func (h *Hub) BroadcastConsole(serverID string, payload protocol.ConsoleOutputPa
 	h.mu.RUnlock()
 
 	for _, sub := range clients {
-		sub.sendMu.Lock()
-		_ = sub.conn.WriteMessage(websocket.TextMessage, data)
-		sub.sendMu.Unlock()
+		_ = h.writeConsoleLocked(sub, data)
 	}
+}
+
+// WriteConsolePanel sends a JSON message to a console panel client using the same
+// write lock as BroadcastConsole (gorilla/websocket allows only one writer at a time).
+func (h *Hub) WriteConsolePanel(serverID string, conn *websocket.Conn, msg any) error {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	h.mu.RLock()
+	var sub *consoleSubscriber
+	if subs := h.consoleSubs[serverID]; subs != nil {
+		sub = subs[conn]
+	}
+	h.mu.RUnlock()
+	if sub == nil {
+		return conn.WriteMessage(websocket.TextMessage, data)
+	}
+	return h.writeConsoleLocked(sub, data)
+}
+
+func (h *Hub) writeConsoleLocked(sub *consoleSubscriber, data []byte) error {
+	sub.sendMu.Lock()
+	defer sub.sendMu.Unlock()
+	return sub.conn.WriteMessage(websocket.TextMessage, data)
 }
 
 func (h *Hub) SendConsoleInput(ctx context.Context, serverID, line string) error {

@@ -68,7 +68,7 @@ func (h *ServerConsoleHandler) Connect(c *gin.Context) {
 	hub.SubscribeConsole(serverID, conn)
 	defer hub.UnsubscribeConsole(serverID, conn)
 
-	_ = conn.WriteJSON(agenthubConsoleStatus("connected", ""))
+	_ = hub.WriteConsolePanel(serverID, conn, agenthubConsoleStatus("connected", ""))
 
 	for {
 		_, data, err := conn.ReadMessage()
@@ -87,7 +87,7 @@ func (h *ServerConsoleHandler) Connect(c *gin.Context) {
 			if errors.Is(err, servers.ErrAgentOffline) {
 				detail = "agent offline"
 			}
-			_ = conn.WriteJSON(agenthubConsoleStatus("error", detail))
+			_ = hub.WriteConsolePanel(serverID, conn, agenthubConsoleStatus("error", detail))
 		}
 	}
 }
