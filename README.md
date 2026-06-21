@@ -21,7 +21,7 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — ка�
 
 ## Требования
 
-- Go 1.22+ (Go workspace)
+- Go 1.25+ (Go workspace)
 - Node.js 20+
 - Docker (MySQL, Redis, MinIO)
 - [Go extension][go-ext] для отладки в Cursor / VS Code (Delve ставится автоматически)

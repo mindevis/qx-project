@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25'
       - run: cd services/qxapi && go mod tidy && go vet ./... && go test ./...
       - run: cd services/qxapi && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g internal/api/openapi.go -o docs --parseInternal
       - run: cd services/qxapi && git diff --exit-code docs/ || (echo "Swagger docs out of date — run make swagger" && exit 1)

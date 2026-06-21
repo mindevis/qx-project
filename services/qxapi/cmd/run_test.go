@@ -15,7 +15,7 @@ import (
 func chdirRepo(t *testing.T, toml string) string {
 	t.Helper()
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.22\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.25.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	sub := filepath.Join(root, "services", "qxapi")

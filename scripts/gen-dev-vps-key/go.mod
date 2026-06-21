@@ -1,6 +1,6 @@
 module github.com/qxproject/qx/scripts/gen-dev-vps-key
 
-go 1.22
+go 1.25.0
 
 require golang.org/x/crypto v0.31.0
 
