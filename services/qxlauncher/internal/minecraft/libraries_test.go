@@ -38,6 +38,16 @@ func TestEnsureLibraries(t *testing.T) {
 }
 
 func TestEnsureNativesExtract(t *testing.T) {
+	classifier, nativeName := nativeClassifier(), ""
+	switch classifier {
+	case "natives-windows":
+		nativeName = "foo.dll"
+	case "natives-macos":
+		nativeName = "foo.dylib"
+	default:
+		nativeName = "foo.so"
+	}
+
 	dir := t.TempDir()
 	nativeJar := filepath.Join(dir, "native.jar")
 	f, err := os.Create(nativeJar)
@@ -45,8 +55,8 @@ func TestEnsureNativesExtract(t *testing.T) {
 		t.Fatal(err)
 	}
 	zw := zip.NewWriter(f)
-	w, _ := zw.Create("foo.dll")
-	_, _ = w.Write([]byte("dll"))
+	w, _ := zw.Create(nativeName)
+	_, _ = w.Write([]byte("native"))
 	_ = zw.Close()
 	_ = f.Close()
 
@@ -63,7 +73,7 @@ func TestEnsureNativesExtract(t *testing.T) {
 				Name: "org.lwjgl:lwjgl:3.3.3",
 				Downloads: &mcmanifest.LibraryDownloads{
 					Classifiers: map[string]mcmanifest.DownloadFile{
-						"natives-windows": {URL: srv.URL, Sha1: ""},
+						classifier: {URL: srv.URL, Sha1: ""},
 					},
 				},
 			},
@@ -74,8 +84,8 @@ func TestEnsureNativesExtract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("natives: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(nativesDir, "foo.dll")); err != nil {
-		t.Fatalf("missing dll: %v", err)
+	if _, err := os.Stat(filepath.Join(nativesDir, nativeName)); err != nil {
+		t.Fatalf("missing native %s: %v", nativeName, err)
 	}
 }
 
