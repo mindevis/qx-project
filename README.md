@@ -2,7 +2,21 @@
 
 Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — каждый в своей папке.
 
-Документация: [docs/architecture.md](docs/architecture.md) · [docs/mvp.md](docs/mvp.md)
+**Статус:** MVP alpha (dev) ✅ · Prod 🔲
+
+Документация: [architecture](docs/architecture.md) · [mvp](docs/mvp.md) · [FAQ](docs/faq.md) · [test matrix](docs/qa/test-matrix.md)
+
+| Документ | Содержание |
+| -------- | ------------ |
+| [mvp.md](docs/mvp.md) | Scope, DoD, фазы, prod readiness |
+| [architecture.md](docs/architecture.md) | Полная архитектура + статус |
+| [api.md](docs/api.md) | REST + WebSocket |
+| [agent-protocol.md](docs/agent-protocol.md) | Agent WSS, deploy |
+| [device-linking.md](docs/device-linking.md) | Launcher ↔ сайт |
+| [launch-bridge.md](docs/launch-bridge.md) | Site → QXLauncher → JVM |
+| [ssh-deploy.md](docs/ssh-deploy.md) | SSH deploy agent |
+| [faq.md](docs/faq.md) | FAQ alpha |
+| [adr/](docs/adr/) | Architecture Decision Records |
 
 ## Требования
 

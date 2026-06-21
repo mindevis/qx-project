@@ -1,6 +1,7 @@
 # Launcher Auto-Update
 
 > **F2:** QXLauncher checks updates on startup + every 6h.  
+> **Статус:** 🔲 post-MVP — MVP: manual download с сайта ([mvp.md](./mvp.md)).  
 > REST base: `/api/v1` (пути ниже относительные, если не указан полный URL).
 
 ---

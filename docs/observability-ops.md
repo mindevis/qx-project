@@ -1,7 +1,8 @@
 # Observability & Operations
 
-> **I9:** Pure **self-hosted**, no Cloudflare. **I8:** VPS TBD.
-> **Dev (Phase 0):** `infra/docker/docker-compose.yml` — только MySQL, Redis, MinIO; API и web запускаются локально (`make api`, `npm run dev`).
+> **I9:** Pure **self-hosted**, no Cloudflare. **I8:** VPS TBD.  
+> **Dev:** `infra/docker/docker-compose.yml` — MySQL, Redis, MinIO; API/web локально. **Flow C:** `make dev-vps-up`.  
+> **Prod:** 🔲 не готов — [mvp §7.1](./mvp.md).
 
 ---
 
@@ -110,4 +111,6 @@ GET /api/v1/health/ready  → DB ping (Phase 0); + Redis + MinIO — prod
 
 ---
 
-*ADR: [0009](./adr/0009-pure-self-hosted.md)*
+*ADR: [0009](./adr/0009-pure-self-hosted.md)* · Prod 🔲 [mvp §7.1](./mvp.md)
+
+Последнее обновление: 2026-06-10

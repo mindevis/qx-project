@@ -144,3 +144,5 @@ Audit includes `actor_id` for every deploy.
 ---
 
 *См. [agent-protocol.md](./agent-protocol.md)*
+
+Последнее обновление: 2026-06-10 (Phase 2 ✅)

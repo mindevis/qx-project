@@ -1,6 +1,7 @@
 # Server Content Install — Mods & Plugins by server_type
 
-> **Статус реализации:** 🔲 post-MVP / Phase 2+ (см. [mvp.md](./mvp.md)). REST paths — относительно `/api/v1`.
+> **Статус реализации:** 🔲 post-MVP / v2+ (см. [mvp.md](./mvp.md)). REST paths — относительно `/api/v1`.  
+> API routes для content — заготовка в [api.md](./api.md); UI и agent install — не реализованы.
 > **BYOS:** QXAgent ставит контент **на диск сервера** (прямые URL из manifest), не в MinIO.  
 > Параллель клиенту: [ADR-0011](./adr/0011-client-local-content-install.md), [modpacks-pipeline.md](./modpacks-pipeline.md).
 

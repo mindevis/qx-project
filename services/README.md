@@ -2,9 +2,11 @@
 
 | Папка | Компонент | Статус |
 | ------- | ----------- | -------- |
-| [qxapi](./qxapi/) | QXApi — backend | Phase 0–2 ✅ |
+| [qxapi](./qxapi/) | QXApi — backend | Phase 0–3 ✅ |
 | [qxlauncher](./qxlauncher/) | QXLauncher | Phase 1 ✅ |
 | [qxagent](./qxagent/) | QXAgent — BYOS | Phase 2 ✅ |
+
+**Prod deploy:** 🔲 — [mvp §7.1](../docs/mvp.md)
 
 Каждый сервис — отдельный Go-модуль в [go.work](../go.work).
 

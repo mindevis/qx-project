@@ -1,6 +1,6 @@
 # Device Linking — Связь Launcher ↔ Сайт
 
-> **Статус реализации:** ✅ Phase 1+ — `POST /api/v1/launcher/devices/*`, web `/launcher/link`, tray poll.
+> **Статус реализации:** ✅ Phase 1+ — `POST /api/v1/launcher/devices/*`, web `/launcher/link`, tray poll; manual ☑ (A09, L03).
 > REST base: `/api/v1` — пути в §3 API относительные к base.
 > Решение **E6**: обязательная привязка лаунчера к сайту **до** создания инстансов и игры.
 > Работает **без регистрации** (guest) и **с аккаунтом** (после login — re-link или merge).
@@ -161,4 +161,6 @@ stateDiagram-v2
 
 ---
 
-*См. [api.md](./api.md), [schema.sql](./schema.sql)*
+*См. [api.md](./api.md), [schema.sql](./schema.sql), [launch-bridge.md](./launch-bridge.md)*
+
+Последнее обновление: 2026-06-10

@@ -1,7 +1,7 @@
 # QXProject — Архитектура
 
 > Документ описывает целевую архитектуру платформы и **текущий статус реализации**.
-> **Версия:** v1.8 (2026-06-10) — Phase 0–2 в коде; Flow C manual dev deploy ☑; см. [adr/](./adr/).
+> **Версия:** v1.9 (2026-06-10) — **MVP alpha (dev) ✅** · Flows A/B/C manual ☑ · **Prod 🔲** · [mvp.md](./mvp.md)
 > **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) ·
 > [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) ·
 > [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
@@ -13,13 +13,14 @@
 | **QXApi** — auth, users | Phase 0 | ✅ `register`, `login`, `refresh`, `guest`, `logout`, `GET /users/me`, `PATCH /users/me/password`, `PATCH /users/me/email` |
 | **QXApi** — health | Phase 0 | ✅ `GET /api/v1/health`, `GET /api/v1/health/ready` |
 | **QXWeb** | Phase 0–2 | ✅ `/`, auth modal, `/profile`, `/launcher`, **`/servers`** (SSH, deploy agent, MC controls при `minecraft_running`) |
-| **Infra dev** | Phase 0 | ✅ Docker Compose: MySQL, Redis, MinIO (`infra/docker/`) |
-| **CI / тесты** | Phase 0 | ✅ GitHub Actions; Go и web — **100% unit coverage** |
+| **QXApi** — launcher, servers | Phase 1–2 | ✅ devices, instances, launch-requests, servers CRUD/deploy, agent hub |
+| **Infra dev** | Phase 0–2 | ✅ Docker Compose (MySQL, Redis, MinIO); **dev VPS** `make dev-vps-up` (Flow C) |
+| **CI / тесты** | Phase 0–Alpha | ✅ GitHub Actions; Go и web — **100% unit coverage**; Playwright + manual matrix |
 | **QXLauncher** | Phase 1 | ✅ device link, tray loop, Vanilla launch |
 | **QXAgent** | Phase 2 | ✅ WSS client, start/stop JAR |
 | **pkg/protocol** | Phase 2 | ✅ WSS envelope types |
-| Device link, instances, launch-bridge | Phase 1 | ✅ |
-| Agent SSH deploy, servers panel | Phase 2 | ✅ |
+| Auth bridge (registered flow) | Phase 3 | ✅ JWT refresh в QXLauncher, device status в UI |
+| **Prod deploy** | Post-alpha | 🔲 см. [mvp §7.1](./mvp.md) |
 
 Следующий шаг: **Prod readiness** — VPS, TLS, smoke на prod ([mvp §7.1](./mvp.md)); MVP alpha flows в dev — ✅.
 
@@ -1219,17 +1220,20 @@ flowchart TB
 QXProject/
 ├── services/
 │   ├── qxapi/               # QXApi (go.mod, cmd/, internal/)
-│   ├── qxagent/             # QXAgent (stub)
-│   └── qxlauncher/          # QXLauncher tray (stub)
+│   ├── qxagent/             # QXAgent — WSS daemon, start/stop JAR
+│   └── qxlauncher/          # QXLauncher — tray, launch-bridge, Vanilla
 ├── web/
-│   ├── qxweb/               # QXWeb — React SPA (+ Vitest)
+│   ├── qxweb/               # QXWeb — React SPA (+ Vitest, Playwright)
 │   └── README.md
-├── pkg/protocol/            # общие типы Agent ↔ API (placeholder)
+├── pkg/
+│   ├── mcmanifest/          # Mojang manifest helpers
+│   └── protocol/            # Agent ↔ API WSS types
+├── scripts/                 # e2e-manual, dev-vps, gen-dev-vps-key
 ├── docs/                    # архитектура, API, ADR, schema.sql
-├── infra/docker/            # docker-compose: MySQL, Redis, MinIO
-├── .github/workflows/ci.yml # Go test + web test:coverage + build
-├── go.work                  # Go workspace (без корневого go.mod)
-├── Makefile                 # dev-up, api, web, test, test-coverage
+├── infra/docker/            # compose dev + prod + vps-dev (Flow C)
+├── .github/workflows/ci.yml # Go test + web test:coverage + Playwright
+├── go.work                  # Go workspace
+├── Makefile                 # dev-up, dev-vps-up, api, test, e2e-alpha
 ├── .env.example
 └── README.md
 ```
@@ -1238,11 +1242,13 @@ QXProject/
 
 | Область | Инструмент | Покрытие | Команда |
 | --------- | ------------ | ---------- | --------- |
-| QXApi + stubs | `go test` | 100% statements | `cd services/qxapi && go test ./...` |
+| QXApi | `go test` | 100% statements | `cd services/qxapi && go test ./...` |
+| QXAgent / QXLauncher | `go test` | cmd + internal | `cd services/qxagent && go test ./...` |
 | QXWeb | Vitest + Testing Library | 100% (stmts/branches) | `cd web/qxweb && npm run test:coverage` |
-| E2E / alpha | [qa/test-matrix.md](./qa/test-matrix.md) | manual | Phase Alpha |
+| E2E automated | Playwright + router tests | Flow A/B/C | `make e2e-alpha` |
+| E2E manual | [qa/test-matrix.md](./qa/test-matrix.md) | ☑ dev (A09, L03, I04, I05, Flow C) | `make e2e-manual` |
 
-`make test` — все unit-тесты; `make test-coverage` — с отчётом покрытия.
+`make test` — unit-тесты; `make test-coverage` — с отчётом; `make e2e-alpha` — автоматизированный alpha smoke.
 
 ---
 
@@ -1317,7 +1323,7 @@ flowchart TB
 | Guest flow + Local-аккаунт | QXAccount sync между устройствами |
 | Vanilla only в лаунчере | Forge / NeoForge / Fabric / Quilt |
 | Web: создание инстанса → sync → запуск | Modpacks |
-| Agent: SSH deploy, start/stop, консоль | RCON, файловый менеджер, mods/plugins |
+| Agent: SSH deploy, Stop/Restart, консоль (при MC) | RCON, файловый менеджер, mods/plugins, Start UI |
 | 1 сервер на пользователя (Free) | Premium, billing |
 | Windows launcher only | macOS / Linux |
 | Tier 0 infra (1 Self-Hosted VPS) | Multi-VPS, MinIO cluster |
@@ -1327,10 +1333,11 @@ flowchart TB
 | Фаза | Scope | Срок (Senior + Junior) | Milestone |
 | ------ | ------- | ------------------------ | ----------- |
 | **Phase 0** | API auth + profile, MySQL, Web auth modal + profile | **6–8 недель** | ✅ **Готово** (2026-06) — регистрация, вход, профиль |
-| **Phase 1** | Launcher Win, device link, Vanilla, guest + auth | **10–14 недель** | Скачал → связал → играет |
-| **Phase 2** | Agent SSH deploy + panel Stop/Restart/console (при MC running) | **8–12 недель** | Agent из web; Start UI — post-MVP |
-| **Alpha** | Связка всех 3 сценариев, bugfix | **4–6 недель** | Закрытая beta |
-| **Phase 3+** | Modloaders, modpacks, billing, cross-platform | **+6–12 мес** | Public launch |
+| **Phase 1** | Launcher Win, device link, Vanilla, guest + auth | **10–14 недель** | ✅ **Готово** — скачал → связал → играет (manual I04, I05) |
+| **Phase 2** | Agent SSH deploy + panel Stop/Restart/console (при MC running) | **8–12 недель** | ✅ deploy agent; Start UI — post-MVP |
+| **Phase 3** | Auth bridge (registered user + device) | **2–4 недели** | ✅ JWT refresh, `/users/me/launcher-device` |
+| **Alpha** | Flows A/B/C manual, docs | **4–6 недель** | ✅ dev/manual ☑ · prod 🔲 |
+| **Phase 4+** | Modloaders, modpacks, billing, cross-platform | **+6–12 мес** | Public launch |
 
 **До playable alpha: ~7–9 месяцев** при фокусе и урезанном MVP.
 **До public launch с modpacks и Premium: ~12–18 месяцев.**
@@ -1382,26 +1389,34 @@ gantt
 - [x] QXWeb `/launcher`: создание инстанса → launch-bridge → JVM
 - [ ] Forge / NeoForge / Fabric / Quilt — отложено на **v2**
 
-### Phase 2 — Agent + Panel *(8–12 нед, mostly Senior)*
+### Phase 2 — Agent + Panel *(8–12 нед, mostly Senior)* ✅
 
-- [ ] SSH deploy QXAgent, WSS connect, heartbeat
+- [x] SSH deploy QXAgent, WSS connect, heartbeat, redeploy restart
 - [x] Stop/Restart + live-консоль при `minecraft_running` (stdout/stderr)
 - [x] QXWeb: сервер (SSH, `server_type`), deploy agent *(Junior UI)*
+- [x] `agent_online` / `minecraft_running` — раздельные статусы
 - [ ] Start + install JAR из UI *(post-MVP)*
+
+### Phase 3 — Auth bridge *(2–4 нед)* ✅
+
+- [x] QXLauncher JWT refresh (`EnsureFreshAccessToken`)
+- [x] Instances scoped to linked `user_id`
+- [x] Web: статус device на `/launcher` и в профиле
 
 ### Phase Alpha — Integration *(4–6 нед)*
 
-- [ ] Сценарии 1–3 end-to-end
-- [ ] Junior: test matrix, bug reports, docs
+- [x] Сценарии 1–3 end-to-end (dev manual ☑ — [test-matrix](./qa/test-matrix.md))
+- [x] Test matrix, FAQ, README
+- [ ] Prod VPS + TLS + smoke ([mvp §7.1](./mvp.md))
 
-### Phase 3 — Modloaders & Modpacks *(+4–6 мес)*
+### Phase 4 — Modloaders & Modpacks *(+4–6 мес)*
 
 - [ ] Forge + NeoForge + Fabric + Quilt
 - [ ] Modpack catalog + client↔server sync
 - [ ] Server mods/plugins по `server_type` ([server-content-install.md](./server-content-install.md))
 - [ ] macOS / Linux launcher
 
-### Phase 4 — Premium & Polish *(+2–4 мес)*
+### Phase 5 — Premium & Polish *(+2–4 мес)*
 
 - [ ] Microsoft OAuth
 - [ ] Billing / Premium
@@ -1489,4 +1504,4 @@ QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.6 — REST prefix `/api/v1`, health под тем же префиксом)
+Последнее обновление: 2026-06-10 (v1.9 — MVP alpha dev ✅, prod 🔲, roadmap Phase 0–3 + Alpha)

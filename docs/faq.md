@@ -1,6 +1,6 @@
 # QXProject — FAQ (MVP Alpha)
 
-Краткие ответы для закрытой beta. Полный scope: [mvp.md](./mvp.md).
+Краткие ответы для закрытой beta (dev). **MVP alpha flows ✅ · Prod 🔲** — [mvp.md](./mvp.md).
 
 ---
 
@@ -88,5 +88,5 @@ make test-coverage  # 100% порог для qxapi и qxweb
 make e2e-alpha        # API + dry-run + Playwright (всё автоматизированное)
 make e2e-api-smoke  # API Flow A/B/C (router_test)
 make e2e-dry-run    # API smoke + QXLauncher launch-bridge dry-run
-make e2e-manual     # чеклист manual QXLauncher + JVM (Windows); -RunAll для e2e-alpha
+make e2e-manual     # чеклист manual (все flows ☑ — см. test-matrix)
 ```

@@ -1,7 +1,7 @@
 # Skin & Cape Server
 
-> **F5:** только **зарегистрированные и авторизованные** пользователи.
-> Guest/offline Local — **без** upload и sync (default Steve/Alex).
+> **F5:** только **зарегистрированные и авторизованные** пользователи.  
+> **Статус:** 🔲 post-MVP · Guest/offline Local — **без** upload и sync (default Steve/Alex).
 
 ---
 

@@ -19,7 +19,8 @@
 | Тесты | Go + React — unit coverage, CI, Playwright Flow A+B+C |
 **Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → QXLauncher → JVM
 **RBAC:** [security-legal.md §8](./security-legal.md) — MVP: Guest и Registered — **Vanilla only**; mods/shaders/RP — v2+
-**Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)
+**Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)  
+**Prod:** 🔲 [§7.1](./mvp.md#71-prod-readiness-не-пройдено)
 
 ---
 
@@ -408,4 +409,4 @@ gantt
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.18 — MVP alpha dev ✅, prod 🔲)
+Последнее обновление: 2026-06-10 (v1.19 — doc sync, prod 🔲)

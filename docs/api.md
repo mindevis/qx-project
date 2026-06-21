@@ -1,7 +1,8 @@
 # QXApi Specification
 
-> Версия: **1.5** · Base URL: `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`)
+> Версия: **1.6** · Base URL: `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`)
 > Backend: **Go + Gin + GORM** · Код: `services/qxapi/`
+> **Статус:** MVP alpha endpoints ✅ · Prod 🔲 · [mvp.md](./mvp.md)
 
 Все REST-эндпоинты QXApi (включая health) живут под префиксом **`/api/v1`**.  
 В таблицах ниже пути **относительные** к base URL (например `/auth/login` → `…/api/v1/auth/login`).  
@@ -386,4 +387,4 @@ components:
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.3 — `/api/v1` для всего REST, включая health)
+Последнее обновление: 2026-06-10 (v1.6 — server status fields, console WS `access_token`, MVP alpha)

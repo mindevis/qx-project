@@ -1,6 +1,7 @@
 # Modpacks Pipeline & Client Content Install
 
-> **Статус реализации:** 🔲 post-MVP (v2+). REST paths — относительно `/api/v1`.
+> **Статус реализации:** 🔲 post-MVP (v2+). REST paths — относительно `/api/v1`.  
+> MVP alpha: Vanilla client + deploy agent only — см. [mvp.md](./mvp.md).
 > **X4:** CurseForge **primary**, Modrinth fallback.  
 > **ADR-0011:** файлы инстанса — **на ПК через QXLauncher**, не в MinIO.  
 > Legal: [security-legal.md §5](./security-legal.md)

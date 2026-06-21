@@ -1,6 +1,6 @@
 # Launch Bridge — Site → QXLauncher → JVM
 
-> **Статус реализации:** ✅ Phase 1 — API + QXLauncher loop + QXWeb «Играть» (MVP: dry-run / local Java).
+> **Статус реализации:** ✅ Phase 1 — API + QXLauncher + QXWeb «Играть»; manual JVM ☑ (I04, I05).  
 > REST base: `/api/v1`.
 > Решение **B1**: **гибрид** — QXWeb создаёт launch request в QXApi, QXLauncher poll'ит и запускает JVM.
 > ADR: [0008](./adr/0008-launch-bridge-hybrid.md)
@@ -191,4 +191,6 @@ MVP: **online required** for launch.
 
 ---
 
-*См. [device-linking.md](./device-linking.md), [api.md](./api.md)*
+*См. [device-linking.md](./device-linking.md), [api.md](./api.md), [mojang-java.md](./mojang-java.md)*
+
+Последнее обновление: 2026-06-10

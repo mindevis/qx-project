@@ -426,4 +426,6 @@ flowchart TB
 
 ---
 
-*См. также: [api.md](./api.md), [schema.sql](./schema.sql)*
+*См. также: [api.md](./api.md), [schema.sql](./schema.sql), [ssh-deploy.md](./ssh-deploy.md)*
+
+Последнее обновление: 2026-06-10 (Phase 2 ✅)

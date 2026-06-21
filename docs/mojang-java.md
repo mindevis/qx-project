@@ -1,6 +1,7 @@
 # Mojang Java Runtime
 
-> **F1:** предпочтительно **Mojang Java** (official runtime), не Adoptium, для client launch.
+> **F1:** предпочтительно **Mojang Java** (official runtime), не Adoptium, для client launch.  
+> **Статус:** ✅ MVP — QXLauncher скачивает runtime; manual ☑ (I05). Server agent Java install — post-MVP.
 
 ---
 
@@ -119,3 +120,5 @@ UI shows «Installed runtimes» in `/launcher/settings/java` with delete option.
 ---
 
 *См. [launch-bridge.md](./launch-bridge.md)*
+
+Последнее обновление: 2026-06-10

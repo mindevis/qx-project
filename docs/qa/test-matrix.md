@@ -18,8 +18,8 @@
 | Область | Покрытие | Команда | Статус |
 | --------- | ---------- | --------- | -------- |
 | `services/qxapi` | 100% Go statements | `cd services/qxapi && go test ./...` | 🤖 ☑ |
-| `services/qxagent/cmd` | 100% (stub) | `cd services/qxagent && go test ./...` | 🤖 ☑ |
-| `services/qxlauncher/cmd` | 100% (stub) | `cd services/qxlauncher && go test ./...` | 🤖 ☑ |
+| `services/qxagent/cmd` | cmd + internal | `cd services/qxagent && go test ./...` | 🤖 ☑ |
+| `services/qxlauncher/cmd` | cmd + internal + tray | `cd services/qxlauncher && go test ./...` | 🤖 ☑ |
 | `web/qxweb` | 100% stmts/branches | `cd web/qxweb && npm run test:coverage` | 🤖 ☑ |
 | E2E API smoke | Flow A/B/C router | `make e2e-api-smoke` | 🤖 ☑ |
 | E2E launch-bridge dry-run | QXLauncher poll → dry JVM | `make e2e-dry-run` | 🤖 ☑ |
@@ -30,8 +30,8 @@
 
 ## 1. Auth & Users
 
-| ID | Сценарий | Шаги | Ожидание | MVP | Phase 0 |
-| ---- | ---------- | ------ | ---------- | ----- | --------- |
+| ID | Сценарий | Шаги | Ожидание | MVP | Статус |
+| ---- | ---------- | ------ | ---------- | ----- | -------- |
 | A01 | Register | email + password на panel | 201, login possible | ☑ | 🤖 ☑ |
 | A02 | Login | valid credentials | JWT, redirect `/profile` | ☑ | 🤖 ☑ |
 | A02b | Change password | PATCH `/users/me/password` | 204, login with new password | ☑ | 🤖 ☑ |
@@ -47,8 +47,8 @@
 
 ## 2. Instances (Client)
 
-| ID | Сценарий | Шаги | Ожидание | MVP | Phase 0 |
-| ---- | ---------- | ------ | ---------- | ----- | --------- |
+| ID | Сценарий | Шаги | Ожидание | MVP | Статус |
+| ---- | ---------- | ------ | ---------- | ----- | -------- |
 | I01 | Create instance auth | login + linked device + panel: Vanilla 1.20.4 | instance in list | ☑ | 🤖 ☑ Flow A |
 | I02 | Create instance guest | guest session + web | instance linked to device | ☑ | 🤖 ☑ Flow B |
 | I03 | Launcher sync | open QXLauncher | instance appears | ☑ | 🤖 ☑ QXLauncher `syncInstances` |
@@ -61,9 +61,9 @@
 
 ## 3. Launcher UI (React on website)
 
-| ID | Сценарий | MVP | Phase 0 |
-| ---- | ---------- | ----- | --------- |
-| L01 | /launcher page loads (placeholder) | ☑ | ☑ instances + profiles UI |
+| ID | Сценарий | MVP | Статус |
+| ---- | ---------- | ----- | -------- |
+| L01 | /launcher page loads | ☑ | ☑ instances + profiles UI |
 | L02 | Device link flow | ☑ | 🤖 ☑ `LauncherLinkPage` tests |
 | L03 | QXLauncher «Связать QXLauncher» | ☑ | ☑ manual (icon in system tray) |
 | L04 | Public servers tab | ⊘ | ⊘ |
@@ -109,8 +109,8 @@
 
 ## 6. Infra & Non-functional
 
-| ID | Сценарий | Ожидание | MVP | Phase 0 |
-| ---- | ---------- | ---------- | ----- | --------- |
+| ID | Сценарий | Ожидание | MVP | Статус |
+| ---- | ---------- | ---------- | ----- | -------- |
 | N01 | Docker Compose dev | MySQL, Redis, MinIO up | ☑ | ☑ `make dev-up` |
 | N02 | TLS | HTTPS valid | ☑ | ☐ prod |
 | N03 | MySQL backup restore | data intact | ⊘ | ⊘ |
@@ -150,4 +150,4 @@
 
 Legend: ☑ = required for MVP alpha · ⊘ = tracked but not blocking MVP · 🤖 = automated unit test in CI
 
-Последнее обновление: 2026-06-10 (v1.10 — prod readiness 🔲)
+Последнее обновление: 2026-06-10 (v1.11 — doc sync, MVP alpha dev ✅ prod 🔲)
