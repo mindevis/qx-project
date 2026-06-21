@@ -319,29 +319,26 @@ export function openServerConsole(
   const token = loadTokens()?.access_token;
   const url = `${wsBaseUrl()}/api/v1/servers/${serverId}/console?access_token=${encodeURIComponent(token ?? '')}`;
   let closedByClient = false;
-  let ws: WebSocket | null = null;
+  const ws = new WebSocket(url);
 
   const close = () => {
     closedByClient = true;
-    const socket = ws;
-    if (!socket) return;
-    if (socket.readyState === WebSocket.CONNECTING) {
+    if (ws.readyState === WebSocket.CONNECTING) {
       // Avoid "closed before connection established" (React StrictMode cleanup).
-      socket.addEventListener(
+      ws.addEventListener(
         'open',
         () => {
-          socket.close();
+          ws.close();
         },
         { once: true },
       );
       return;
     }
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.close();
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.close();
     }
   };
 
-  ws = new WebSocket(url);
   ws.onmessage = (ev) => {
     try {
       handlers.onMessage(JSON.parse(String(ev.data)) as ConsoleMessage);

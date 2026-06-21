@@ -226,6 +226,26 @@ describe('api client', () => {
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer access');
   });
 
+  it('starts, stops, and restarts servers', async () => {
+    saveTokens({
+      access_token: 'access',
+      refresh_token: 'refresh',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'online' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'offline' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'online' }), { status: 200 }));
+
+    await expect(api.startServer('srv-1')).resolves.toEqual({ status: 'online' });
+    await expect(api.stopServer('srv-1')).resolves.toEqual({ status: 'offline' });
+    await expect(api.restartServer('srv-1')).resolves.toEqual({ status: 'online' });
+
+    const methods = vi.mocked(fetch).mock.calls.map(([, init]) => init?.method);
+    expect(methods).toEqual(['POST', 'POST', 'POST']);
+  });
+
   it('uses guest bearer or omits auth for launcher api', async () => {
     clearTokens();
     clearGuestSession();

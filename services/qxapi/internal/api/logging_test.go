@@ -46,8 +46,9 @@ func TestRequestLoggerLevels(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			out := buf.String()
-			if !strings.Contains(out, tc.want) || !strings.Contains(out, "http request") {
-				t.Fatalf("log %q, want level %s", out, tc.want)
+			if !strings.Contains(out, tc.want) || !strings.Contains(out, "http request") ||
+				!strings.Contains(out, `direction=in`) {
+				t.Fatalf("log %q, want level %s and direction=in", out, tc.want)
 			}
 		})
 	}

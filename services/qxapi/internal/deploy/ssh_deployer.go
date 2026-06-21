@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 
+	qxlog "github.com/qxproject/qx/pkg/log"
 	"github.com/qxproject/qx/services/qxapi/internal/crypto"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 )
@@ -72,6 +74,12 @@ func (d *SSHDeployer) Deploy(ctx context.Context, serverID string, cred models.S
 	}
 
 	addr := fmt.Sprintf("%s:%d", cred.Host, cred.Port)
+	slog.Info("ssh deploy",
+		"direction", qxlog.DirectionOut,
+		"transport", qxlog.TransportSSH,
+		"server_id", serverID,
+		"host", addr,
+	)
 	clientConfig := &ssh.ClientConfig{
 		User:            cred.Username,
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},

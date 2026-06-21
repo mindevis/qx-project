@@ -139,6 +139,26 @@ describe('pages', () => {
     expect(screen.getByRole('button', { name: /Проверить связь/ })).toBeInTheDocument();
   });
 
+  it('refreshes launcher access on storage and focus events', async () => {
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('Сначала свяжите QXLauncher')).toBeInTheDocument(),
+    );
+
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('focus'));
+
+    expect(screen.getByText('Сначала свяжите QXLauncher')).toBeInTheDocument();
+  });
+
   it('renders launcher page for authenticated users', async () => {
     saveTokens({
       access_token: 'a',

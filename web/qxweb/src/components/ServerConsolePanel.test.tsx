@@ -85,6 +85,21 @@ describe('ServerConsolePanel', () => {
     await waitFor(() => expect(screen.getByText(/\[status\] agent offline/)).toBeInTheDocument());
   });
 
+  it('shows generic status error without detail', async () => {
+    render(<ServerConsolePanel serverId="srv-1" agentOnline />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
+    );
+
+    const ws = MockWebSocket.instances.at(-1);
+    ws?.onmessage?.({ data: JSON.stringify({ type: 'status', status: 'error' }) });
+
+    await waitFor(() =>
+      expect(screen.getByText('[status] ошибка консоли')).toBeInTheDocument(),
+    );
+  });
+
   it('connects and sends console input', async () => {
     const user = userEvent.setup({ delay: null });
     render(<ServerConsolePanel serverId="srv-1" agentOnline />);

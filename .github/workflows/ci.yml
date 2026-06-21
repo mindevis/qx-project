@@ -13,11 +13,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-      - run: cd services/qxapi && go mod tidy && go vet ./... && go test ./... -coverprofile=coverage.out
+      - run: cd services/qxapi && go mod tidy && go vet ./... && go test ./...
       - run: cd services/qxapi && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g internal/api/openapi.go -o docs --parseInternal
       - run: cd services/qxapi && git diff --exit-code docs/ || (echo "Swagger docs out of date — run make swagger" && exit 1)
       - run: cd services/qxapi && go test ./internal/api -run "TestRouterFlow" -count=1
       - run: cd services/qxlauncher && go test ./internal/tray -run "TestRunLoop_DryLaunchOnce|TestExecuteLaunchDryRun" -count=1
+      - run: cd services/qxapi && go test ./cmd/... -coverprofile=coverage.out
       - run: cd services/qxapi && go tool cover -func=coverage.out | tail -1 | grep '100.0%'
       - run: cd services/qxagent && go test ./... -coverprofile=coverage.out
       - run: cd services/qxlauncher && go test ./... -coverprofile=coverage.out

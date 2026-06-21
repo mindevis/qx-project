@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	qxlog "github.com/qxproject/qx/pkg/log"
 )
 
 func requestPath(c *gin.Context) string {
@@ -39,6 +41,8 @@ func RequestLogger() gin.HandlerFunc {
 		path := requestPath(c)
 		c.Next()
 		logHTTPRequest(c.Writer.Status(), path, []any{
+			"direction", qxlog.DirectionIn,
+			"transport", qxlog.TransportHTTP,
 			"method", c.Request.Method,
 			"path", path,
 			"status", c.Writer.Status(),

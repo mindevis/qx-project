@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
+	qxlog "github.com/qxproject/qx/pkg/log"
 	"github.com/qxproject/qx/pkg/protocol"
 )
 
@@ -94,6 +96,13 @@ func (h *Hub) SendCommand(ctx context.Context, serverID string, env protocol.Env
 	if err != nil {
 		return err
 	}
+	slog.Debug("agent message",
+		"direction", qxlog.DirectionOut,
+		"transport", qxlog.TransportAgentWS,
+		"server_id", serverID,
+		"type", env.Type,
+		"request_id", env.RequestID,
+	)
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -110,6 +119,15 @@ func (h *Hub) ReadLoop(c *Conn) {
 		var env protocol.Envelope
 		if err := json.Unmarshal(data, &env); err != nil {
 			continue
+		}
+		if env.Type != protocol.TypeEvtAgentHeartbeat && env.Type != protocol.TypeEvtConsoleOutput {
+			slog.Debug("agent message",
+				"direction", qxlog.DirectionIn,
+				"transport", qxlog.TransportAgentWS,
+				"server_id", c.ServerID,
+				"type", env.Type,
+				"request_id", env.RequestID,
+			)
 		}
 		if h.onEvent != nil {
 			h.mu.RLock()
