@@ -3,48 +3,36 @@ package main
 import (
 	"context"
 	"log/slog"
-	"os"
 	"path/filepath"
-	"strconv"
 
 	qxlog "github.com/qxproject/qx/pkg/log"
 	"github.com/qxproject/qx/services/qxlauncher/internal/auth"
+	"github.com/qxproject/qx/services/qxlauncher/internal/config"
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
 	"github.com/qxproject/qx/services/qxlauncher/internal/tray"
 )
 
 func run() {
-	qxlog.SetupFromEnv()
+	cfg := config.Load()
+	qxlog.Setup(qxlog.Options{Level: cfg.LogLevel, Format: cfg.LogFormat})
 
-	apiBase := os.Getenv("QX_API_BASE_URL")
-	if apiBase == "" {
-		apiBase = "http://localhost:3000/api/v1"
-	}
-	webBase := os.Getenv("QX_WEB_BASE_URL")
-	if webBase == "" {
-		webBase = "http://localhost:5173"
-	}
-	tokenPath := os.Getenv("QX_DEVICE_TOKEN_PATH")
-	if tokenPath == "" {
-		home, _ := os.UserHomeDir()
-		tokenPath = filepath.Join(home, ".qx", "device_token")
-	}
+	apiBase := cfg.APIBaseURL
+	webBase := cfg.WebBaseURL
+	tokenPath := cfg.DeviceTokenPath
 	dataDir := filepath.Dir(tokenPath)
 	authPath := filepath.Join(dataDir, "user_auth.json")
-	maxPolls := 60
-	if v := os.Getenv("QX_LINK_MAX_POLLS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			maxPolls = n
-		}
-	}
+	maxPolls := cfg.LinkMaxPolls
 
-	resolvedID := device.ResolveDeviceID(dataDir)
+	resolvedID := cfg.DeviceID
+	if resolvedID == "" {
+		resolvedID = device.ResolveDeviceID(dataDir)
+	}
 	client := device.NewClient(apiBase, resolvedID)
 
 	ctx := context.Background()
 
-	userToken := resolveUserToken(ctx, apiBase, authPath)
+	userToken := resolveUserToken(ctx, apiBase, authPath, cfg)
 
 	deviceToken, err := device.EnsureDeviceToken(ctx, client, tokenPath)
 	if err != nil {
@@ -68,14 +56,14 @@ func run() {
 		client.DeviceID = reg.DeviceID
 		pendingReg = reg
 		linkURL = reg.LinkURL
-		notify.Show("QXLauncher", "Свяжите лаунчер с сайтом: "+reg.UserCode)
+		tray.OpenLinkPage(reg.LinkURL)
+		notify.Show("QXLauncher", "Подтвердите привязку в браузере")
 		slog.Info("device registered",
 			"device_id", reg.DeviceID,
-			"user_code", reg.UserCode,
 			"link_url", reg.LinkURL,
 		)
 
-		if os.Getenv("QX_SKIP_TRAY") == "1" {
+		if cfg.SkipTray {
 			if maxPolls <= 0 {
 				return
 			}
@@ -85,7 +73,7 @@ func run() {
 				UserToken:    userToken,
 			}, reg)
 			if err != nil {
-				slog.Warn("device link pending", "err", err, "hint", "open link_url in browser")
+				slog.Warn("device link pending", "err", err)
 				return
 			}
 			if token == "" {
@@ -98,45 +86,46 @@ func run() {
 		}
 	}
 
-	if os.Getenv("QX_SKIP_TRAY") == "1" {
+	if cfg.SkipTray {
 		if deviceToken != "" {
-			dryRun := os.Getenv("QX_LAUNCH_DRY_RUN") == "1"
 			tray.RunLoop(ctx, tray.Config{
-				APIBase:      apiBase,
-				DeviceToken:  deviceToken,
-				TokenPath:    tokenPath,
-				DeviceClient: client,
-				DataDir:      dataDir,
-				LaunchDryRun: dryRun,
+				APIBase:          apiBase,
+				DeviceToken:      deviceToken,
+				TokenPath:        tokenPath,
+				DeviceClient:     client,
+				DataDir:          dataDir,
+				LaunchDryRun:     cfg.LaunchDryRun,
+				JavaPath:         cfg.JavaPath,
+				SkipJavaDownload: cfg.SkipJavaDownload,
 			})
 		}
 		return
 	}
 
-	dryRun := os.Getenv("QX_LAUNCH_DRY_RUN") == "1"
 	tray.RunSystrayApp(tray.SystrayConfig{
-		WebBaseURL:      webBase,
-		LinkURL:         linkURL,
-		DeviceToken:     deviceToken,
-		TokenPath:       tokenPath,
-		APIBase:         apiBase,
-		DataDir:         dataDir,
-		LaunchDryRun:    dryRun,
-		DeviceClient:    client,
+		WebBaseURL:       webBase,
+		LinkURL:          linkURL,
+		DeviceToken:      deviceToken,
+		TokenPath:        tokenPath,
+		APIBase:          apiBase,
+		DataDir:          dataDir,
+		LaunchDryRun:     cfg.LaunchDryRun,
+		JavaPath:         cfg.JavaPath,
+		SkipJavaDownload: cfg.SkipJavaDownload,
+		DeviceClient:     client,
 		UserToken:       userToken,
 		MaxLinkPolls:    maxPolls,
 		PendingRegister: pendingReg,
 	})
 }
 
-func resolveUserToken(ctx context.Context, apiBase, authPath string) string {
-	if email := os.Getenv("QX_EMAIL"); email != "" {
-		password := os.Getenv("QX_PASSWORD")
-		if password == "" {
-			slog.Warn("QX_EMAIL set without QX_PASSWORD")
+func resolveUserToken(ctx context.Context, apiBase, authPath string, cfg config.Config) string {
+	if cfg.Email != "" {
+		if cfg.Password == "" {
+			slog.Warn("email set without password in launcher config")
 			return ""
 		}
-		session, err := auth.Login(ctx, apiBase, email, password)
+		session, err := auth.Login(ctx, apiBase, cfg.Email, cfg.Password)
 		if err != nil {
 			slog.Warn("qx login failed", "err", err)
 			return ""

@@ -20,7 +20,6 @@ func TestRegisterStatusAndLinkLoop(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(RegisterResult{
 				DeviceID:        "dev-1",
 				Status:          "pending_link",
-				UserCode:        "ABCD-1234",
 				LinkURL:         "http://localhost/launcher/link?device=dev-1",
 				PollIntervalSec: 1,
 			})
@@ -66,7 +65,7 @@ func TestLinkWithUserToken(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	client := NewClient(srv.URL, "dev-2")
-	if err := client.LinkWithUserToken(context.Background(), "tok", "ABCD-1234"); err != nil {
+	if err := client.LinkWithUserToken(context.Background(), "tok"); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 }
@@ -80,7 +79,6 @@ func TestRegisterStatusAndLinkLoopGuest(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(RegisterResult{
 				DeviceID:        "dev-1",
 				Status:          "pending_link",
-				UserCode:        "ABCD-1234",
 				LinkURL:         "http://localhost/launcher/link?device=dev-1",
 				PollIntervalSec: 1,
 			})
@@ -101,7 +99,7 @@ func TestRegisterStatusAndLinkLoopGuest(t *testing.T) {
 	ctx := context.Background()
 
 	reg, err := client.Register(ctx)
-	if err != nil || reg.UserCode == "" {
+	if err != nil || reg.LinkURL == "" {
 		t.Fatalf("register: %v %+v", err, reg)
 	}
 

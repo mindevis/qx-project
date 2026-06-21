@@ -28,7 +28,7 @@ func TestRegisterAndLinkDeviceGuest(t *testing.T) {
 		DeviceID: "device-1",
 		OS:       "windows",
 	})
-	if err != nil || reg.UserCode == "" {
+	if err != nil || reg.LinkURL == "" {
 		t.Fatalf("register: err=%v reg=%+v", err, reg)
 	}
 
@@ -128,14 +128,6 @@ func TestLinkExpiredAndWrongCode(t *testing.T) {
 	}
 	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "expired-device"}); !errors.Is(err, ErrLinkExpired) {
 		t.Fatalf("expected link expired, got %v", err)
-	}
-
-	_, err = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "code-device"})
-	if err != nil {
-		t.Fatalf("register2: %v", err)
-	}
-	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "code-device", UserCode: "WRONG"}); !errors.Is(err, ErrValidation) {
-		t.Fatalf("expected wrong code validation, got %v", err)
 	}
 	_ = reg
 }

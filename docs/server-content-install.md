@@ -50,7 +50,7 @@ QXApi отклоняет `POST /servers/{id}/plugins` на `neoforge` и `POST .
 ## 3. Пути на диске (server root)
 
 ```text
-/opt/qx/server/                 # QX_SERVER_ROOT
+/opt/qx/server/                 # server_root in agent.toml (default)
 ├── server.jar
 ├── plugins/                    # paper, spigot, purpur, hybrid
 ├── mods/                       # forge, neoforge, fabric, quilt, hybrid
@@ -148,4 +148,6 @@ Payload (общий паттерн):
 
 ---
 
-*См. [agent-protocol.md §5](./agent-protocol.md), [schema.sql](./schema.sql)*
+*См. [agent-protocol.md §5](./agent-protocol.md), [schema.sql](./schema.sql), [configuration.md](./configuration.md)*
+
+Последнее обновление: 2026-06-21 · post-MVP (`server_root` в `agent.toml`)

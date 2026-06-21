@@ -5,11 +5,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
-// ResolveJavaBin picks a Java executable: QX_JAVA → JAVA_HOME → PATH → "java".
-func ResolveJavaBin() string {
-	if custom := os.Getenv("QX_JAVA"); custom != "" {
+// ResolveJavaBin picks Java: javaPath override → JAVA_HOME → PATH → "java".
+func ResolveJavaBin(javaPath string) string {
+	if custom := strings.TrimSpace(javaPath); custom != "" {
 		return custom
 	}
 	if home := os.Getenv("JAVA_HOME"); home != "" {

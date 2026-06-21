@@ -16,4 +16,6 @@ Production: **Docker Compose** on own VPS — Nginx, QXApi, QXWeb (React SPA), M
 ## Consequences
 
 - Senior owns backups, TLS, deploy scripts.
+- **Dev:** `*.toml` в корне репо — [configuration.md](../configuration.md).
+- **Prod:** `infra/docker/.env.prod` + `docker-compose.prod.yml`.
 - Tier 0 достаточен до thousands MAU.

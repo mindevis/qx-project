@@ -65,3 +65,5 @@ Custom skin mod or authlib injector in classpath for modded — loader-specific 
 ---
 
 *Legal: skins must be user-created or licensed; no Mojang asset rip — [security-legal.md](./security-legal.md)*
+
+Последнее обновление: 2026-06-21 · post-MVP

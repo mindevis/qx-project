@@ -28,5 +28,6 @@ SPA-экосистема для UI.
 
 - Go workspace: `services/qxapi`, `services/qxagent`, `services/qxlauncher` + `web/qxweb` (маршруты `/launcher/*`).
 - Shared types в `pkg/protocol`.
+- **Dev config:** TOML в корне репо — [configuration.md](../configuration.md); prod compose — `.env.prod`.
 - Billing/post-MVP features не блокируют старт.
 - Phase 0: Vitest (web) + `go test` (qxapi) — 100% unit coverage в CI; Phases 1–3 + MVP alpha (dev) ✅.

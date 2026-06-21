@@ -9,17 +9,17 @@
 ### Как начать играть без регистрации?
 
 1. Скачайте и запустите **QXLauncher** (`make launcher` в dev).
-2. Откройте ссылку `/launcher/link?device=…` из трея.
-3. На сайте нажмите «Продолжить как гость».
+2. Браузер **откроется сам** на странице привязки (HWID вашего ПК в URL).
+3. Нажмите «Продолжить как гость».
 4. На `/launcher` создайте Vanilla-инстанс → **Играть** (ник Player по умолчанию; свой ник — в offline-профиле).
 
 ### Как привязать лаунчер к аккаунту?
 
-Войдите на сайте → откройте `/launcher/link?device=…` → «Связать устройство». Статус виден в профиле и на `/launcher`.
+Запустите QXLauncher → браузер откроет `/launcher/link?device=…` → войдите на сайте (если ещё не вошли) → «Связать устройство». Статус виден в профиле и на `/launcher`.
 
 ### Почему кнопка «Играть» зависает на «Запрос в очереди…»?
 
-QXLauncher должен быть запущен и связан с тем же аккаунтом/guest-сессией. Проверьте иконку в системном трее и переменную `QX_API_BASE_URL`.
+QXLauncher должен быть запущен и связан с тем же аккаунтом/guest-сессией. Проверьте иконку в системном трее и `api_base_url` в `launcher.toml`.
 
 ### Какие версии Minecraft поддерживаются?
 
@@ -37,8 +37,8 @@ Linux x86_64 (Ubuntu 22.04+, Debian 12+), SSH по ключу. Подробне�
 
 - Проверьте SSH-ключ и firewall (исходящий HTTPS/HTTP к API).
 - Deploy всегда выполняет SSH на VPS. Нужен бинарник агента (`make build-agent-linux` или `make dev-vps-up`).
-- Укажите `QX_AGENT_BINARY_PATH` на сервере API для реального deploy.
-- **Dev VPS:** в `.env` API — `QX_PUBLIC_API_URL=http://host.docker.internal:3000` (не `localhost` из контейнера).
+- Укажите `agent_binary_path` в `qxapi.toml` для реального deploy (prod: `infra/docker/.env.prod`).
+- **Dev VPS:** в `qxapi.toml` — `public_api_url = "http://host.docker.internal:3000"` (не `localhost` из контейнера).
 - После **повторного Deploy** agent перезапускается через `systemctl restart` — ждите тег **Agent** в panel.
 
 ### Почему нет кнопки Start и консоли?
@@ -80,6 +80,17 @@ MVP compose отдаёт HTTP на порту `HTTP_PORT` (8080). Для Let's E
 
 ## Разработка
 
+### Конфигурация (dev)
+
+TOML в корне репозитория — см. [configuration.md](./configuration.md):
+
+```bash
+cp qxapi.toml.example qxapi.toml
+cp web.toml.example web.toml
+cp launcher.toml.example launcher.toml
+make jwt-secret-config
+```
+
 ### Тесты
 
 ```bash
@@ -90,3 +101,9 @@ make e2e-api-smoke  # API Flow A/B/C (router_test)
 make e2e-dry-run    # API smoke + QXLauncher launch-bridge dry-run
 make e2e-manual     # чеклист manual (все flows ☑ — см. test-matrix)
 ```
+
+---
+
+*См. [configuration.md](./configuration.md), [mvp.md](./mvp.md), [qa/test-matrix.md](./qa/test-matrix.md)*
+
+Последнее обновление: 2026-06-21 (HWID + auto browser)

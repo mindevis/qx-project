@@ -17,14 +17,16 @@ import (
 )
 
 type Config struct {
-	APIBase      string
-	DeviceToken  string
-	TokenPath    string
-	DeviceClient *device.Client
-	DataDir      string
-	LaunchDryRun bool
-	LaunchPoll   time.Duration
-	InstancePoll time.Duration
+	APIBase          string
+	DeviceToken      string
+	TokenPath        string
+	DeviceClient     *device.Client
+	DataDir          string
+	LaunchDryRun     bool
+	JavaPath         string
+	SkipJavaDownload bool
+	LaunchPoll       time.Duration
+	InstancePoll     time.Duration
 }
 
 func RunLoop(ctx context.Context, cfg Config) {
@@ -41,6 +43,8 @@ func RunLoop(ctx context.Context, cfg Config) {
 
 	api := apiclient.New(cfg.APIBase, cfg.DeviceToken)
 	downloader := minecraft.NewDownloader(cfg.DataDir)
+	downloader.JavaPath = cfg.JavaPath
+	downloader.SkipJavaDownload = cfg.SkipJavaDownload
 
 	launchTicker := time.NewTicker(cfg.LaunchPoll)
 	defer launchTicker.Stop()

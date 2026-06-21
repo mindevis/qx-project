@@ -18,10 +18,16 @@ services/qxapi/ac
 services/qxapi/coverage
 services/qxapi/internal/auth/coverage
 
-# Env
+# Env (legacy)
 .env
 .env.local
 .env.prod
+
+# TOML configs (local secrets)
+qxapi.toml
+web.toml
+agent.toml
+launcher.toml
 
 # Node
 node_modules/

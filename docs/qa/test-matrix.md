@@ -7,9 +7,9 @@
 > Статус теста: ☐ не пройден · ☑ пройден · ⊘ N/A (post-MVP) · 🤖 автоматизирован (unit)
 > Server content (mods/plugins): [server-content-install.md](../server-content-install.md)
 
-**Flow A/B:** manual pass ☑ — A09, L03, I04, I05 (QXLauncher в трее, link, полный JVM, Mojang JRE с нуля).
+**Flow A/B:** manual pass ☑ — A09, L03, I04, I05 (QXLauncher: auto browser link, tray fallback, full JVM, Mojang JRE с нуля).
 
-**Flow C (dev VPS):** manual pass ☑ для deploy agent — S01, S02, S11 (`make dev-vps-up`, SSH `:2222`, `QX_PUBLIC_API_URL=http://host.docker.internal:3000`).
+**Flow C (dev VPS):** manual pass ☑ — S01, S02, S11. Prereq: `make dev-vps-up`, SSH `:2222`, `public_api_url` в `qxapi.toml` — см. [configuration.md](../configuration.md).
 
 ---
 
@@ -39,9 +39,9 @@
 | A03 | Login fail | wrong password | 401 | ☑ | 🤖 ☑ |
 | A04 | Guest token | POST /auth/guest | guest_token returned | ☑ | 🤖 ☑ |
 | A05 | Skin upload | auth user POST skin | visible GET /skins/{uuid} | ⊘ | ☐ |
-| A07 | Device register | QXLauncher POST register | pending_link | ☑ | 🤖 ☑ `router_test` |
+| A07 | Device register | QXLauncher POST register (HWID `device_id`) | pending_link + link_url | ☑ | 🤖 ☑ `router_test` |
 | A08 | Device link | web confirm + QXLauncher poll | linked + device_token | ☑ | 🤖 ☑ Flow A/B |
-| A09 | QXLauncher link menu | ПКМ «Связать QXLauncher» | browser opens /launcher/link | ☑ | ☑ manual |
+| A09 | Auto link page | Запуск QXLauncher | browser opens `/launcher/link?device=…` | ☑ | ☑ manual |
 
 ---
 
@@ -65,7 +65,7 @@
 | ---- | ---------- | ----- | -------- |
 | L01 | /launcher page loads | ☑ | ☑ instances + profiles UI |
 | L02 | Device link flow | ☑ | 🤖 ☑ `LauncherLinkPage` tests |
-| L03 | QXLauncher «Связать QXLauncher» | ☑ | ☑ manual (icon in system tray) |
+| L03 | QXLauncher tray fallback | ПКМ «Связать QXLauncher» если браузер не открылся | ☑ | ☑ manual |
 | L04 | Public servers tab | ⊘ | ⊘ |
 
 ---
@@ -150,4 +150,4 @@
 
 Legend: ☑ = required for MVP alpha · ⊘ = tracked but not blocking MVP · 🤖 = automated unit test in CI
 
-Последнее обновление: 2026-06-10 (v1.11 — doc sync, MVP alpha dev ✅ prod 🔲)
+Последнее обновление: 2026-06-21 (v1.13 — HWID + auto browser)

@@ -1,0 +1,799 @@
+basePath: /api/v1
+definitions:
+  api.swaggerErrorBody:
+    properties:
+      code:
+        example: VALIDATION_ERROR
+        type: string
+      message:
+        example: invalid request
+        type: string
+    type: object
+  api.swaggerErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/api.swaggerErrorBody'
+    type: object
+  api.swaggerGuestRequest:
+    properties:
+      device_id:
+        example: 00000000-0000-0000-0000-000000000001
+        type: string
+    type: object
+  api.swaggerGuestTokenResponse:
+    properties:
+      expires_in:
+        example: 86400
+        type: integer
+      guest_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  api.swaggerHealthStatus:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  api.swaggerLoginRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: secret123
+        type: string
+    type: object
+  api.swaggerRefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  api.swaggerRegisterRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: secret123
+        type: string
+      username:
+        example: Player
+        type: string
+    type: object
+  api.swaggerTokenResponse:
+    properties:
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      expires_in:
+        example: 900
+        type: integer
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      token_type:
+        example: Bearer
+        type: string
+    type: object
+  api.swaggerUserProfile:
+    properties:
+      created_at:
+        example: "2026-06-10T12:00:00Z"
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      id:
+        example: 00000000-0000-0000-0000-000000000001
+        type: string
+      tier:
+        example: free
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact:
+    name: QXProject
+    url: https://github.com/mindevis/qx-project
+  description: |-
+    QXProject REST API. Base path `/api/v1`. Agent WSS: `GET /agent/v1/connect`.
+    Interactive docs: `GET /swagger/index.html`
+  license:
+    name: MIT
+  title: QX API
+  version: "1.0"
+paths:
+  /auth/guest:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Device id
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.swaggerGuestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.swaggerGuestTokenResponse'
+      summary: Issue guest token
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.swaggerLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.swaggerTokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.swaggerRefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.swaggerTokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      summary: Refresh tokens
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Registration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.swaggerRegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.swaggerTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      summary: Register user
+      tags:
+      - auth
+  /health:
+    get:
+      description: Returns ok if the process is running.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.swaggerHealthStatus'
+      summary: Liveness probe
+      tags:
+      - health
+  /health/ready:
+    get:
+      description: Checks database connectivity.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.swaggerHealthStatus'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/api.swaggerHealthStatus'
+      summary: Readiness probe
+      tags:
+      - health
+  /instances:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List instances
+      tags:
+      - instances
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create instance
+      tags:
+      - instances
+  /instances/{id}:
+    delete:
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete instance
+      tags:
+      - instances
+    get:
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get instance
+      tags:
+      - instances
+  /instances/{id}/manifest:
+    get:
+      parameters:
+      - description: Instance ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Launch manifest
+      tags:
+      - instances
+  /launcher/devices/{id}/status:
+    get:
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Poll device link status
+      tags:
+      - launcher-devices
+  /launcher/devices/link:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Confirm device link (guest or user)
+      tags:
+      - launcher-devices
+  /launcher/devices/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - DeviceAuth: []
+      summary: Device profile
+      tags:
+      - launcher-devices
+  /launcher/devices/me/instances:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - DeviceAuth: []
+      summary: Instances for linked device
+      tags:
+      - launcher-devices
+  /launcher/devices/register:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register launcher device (pending link)
+      tags:
+      - launcher-devices
+  /launcher/devices/unlink:
+    post:
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      security:
+      - DeviceAuth: []
+      summary: Unlink device
+      tags:
+      - launcher-devices
+  /launcher/launch-requests:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Queue launch (web → QXLauncher)
+      tags:
+      - launch
+  /launcher/launch-requests/{id}:
+    get:
+      parameters:
+      - description: Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Launch request status
+      tags:
+      - launch
+    patch:
+      parameters:
+      - description: Request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - DeviceAuth: []
+      summary: Update launch status (QXLauncher)
+      tags:
+      - launch
+  /launcher/launch-requests/pending:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - DeviceAuth: []
+      summary: Pending launch for device (QXLauncher poll)
+      tags:
+      - launch
+  /launcher/profiles:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List offline profiles
+      tags:
+      - profiles
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create offline profile
+      tags:
+      - profiles
+  /launcher/profiles/{id}:
+    delete:
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete profile
+      tags:
+      - profiles
+  /servers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List servers
+      tags:
+      - servers
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create BYOS server
+      tags:
+      - servers
+  /servers/{id}:
+    delete:
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Delete server
+      tags:
+      - servers
+    get:
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Server detail (agent_online, minecraft_running)
+      tags:
+      - servers
+  /servers/{id}/console:
+    get:
+      description: Upgrade to WebSocket. Pass `access_token` query param or Authorization
+        header.
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User JWT (alternative to Authorization header)
+        in: query
+        name: access_token
+        type: string
+      responses:
+        "101":
+          description: Switching Protocols
+      security:
+      - BearerAuth: []
+      summary: Live console WebSocket
+      tags:
+      - servers
+  /servers/{id}/deploy:
+    post:
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: SSH deploy QXAgent
+      tags:
+      - servers
+  /servers/{id}/restart:
+    post:
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Restart Minecraft JAR
+      tags:
+      - servers
+  /servers/{id}/start:
+    post:
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Start Minecraft JAR via agent
+      tags:
+      - servers
+  /servers/{id}/stop:
+    post:
+      parameters:
+      - description: Server ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Stop Minecraft JAR
+      tags:
+      - servers
+  /users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.swaggerUserProfile'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Current user profile
+      tags:
+      - users
+  /users/me/email:
+    patch:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.swaggerUserProfile'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change email
+      tags:
+      - users
+  /users/me/launcher-device:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Linked launcher device status
+      tags:
+      - users
+  /users/me/password:
+    patch:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.swaggerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT access token. Format: `Bearer {access_token}`'
+    in: header
+    name: Authorization
+    type: apiKey
+  DeviceAuth:
+    description: 'Device JWT from POST /launcher/devices/link. Format: `Bearer {device_token}`'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

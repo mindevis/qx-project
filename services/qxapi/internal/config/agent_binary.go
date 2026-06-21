@@ -5,25 +5,24 @@ import (
 	"path/filepath"
 )
 
-// agentBinaryCandidates are tried when QX_AGENT_BINARY_PATH is unset.
+// agentBinaryCandidates are tried when agent_binary_path is unset in qxapi.toml.
 // API is usually started from services/qxapi (make api).
 var agentBinaryCandidates = []string{
 	"../../bin/qx-agent-linux",
 	"bin/qx-agent-linux",
 }
 
-func resolveAgentBinaryPath() string {
-	if v := os.Getenv("QX_AGENT_BINARY_PATH"); v != "" {
-		if fileExists(v) {
-			return v
+func resolveAgentBinaryPath(configured string) string {
+	if configured != "" {
+		if fileExists(configured) {
+			return configured
 		}
-		// .env often uses repo-root relative path; API runs from services/qxapi.
 		for _, candidate := range agentBinaryCandidates {
 			if fileExists(candidate) {
 				return candidate
 			}
 		}
-		return v
+		return configured
 	}
 	for _, candidate := range agentBinaryCandidates {
 		if fileExists(candidate) {

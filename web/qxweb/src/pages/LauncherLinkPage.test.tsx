@@ -106,35 +106,6 @@ describe('LauncherLinkPage', () => {
     await waitFor(() => expect(screen.getByText('Устройство связано')).toBeInTheDocument());
   });
 
-  it('links device with optional user code', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          status: 'linked',
-          guest_token: 'guest-token',
-          guest_expires_in: 3600,
-          owner_type: 'guest',
-        }),
-        { status: 200 },
-      ),
-    );
-
-    renderWithProviders(
-      <Routes>
-        <Route path="/launcher/link" element={<LauncherLinkPage />} />
-      </Routes>,
-      '/launcher/link?device=dev-code',
-    );
-
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Продолжить как гость/ })).toBeInTheDocument(),
-    );
-    await user.type(screen.getByLabelText('Код с экрана лаунчера (необязательно)'), 'ABCD-1234');
-    await user.click(screen.getByRole('button', { name: /Продолжить как гость/ }));
-    await waitFor(() => expect(screen.getByText('Устройство связано')).toBeInTheDocument());
-  });
-
   it('shows generic link error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
     vi.mocked(fetch).mockRejectedValue('boom');

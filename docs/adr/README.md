@@ -2,7 +2,8 @@
 
 > Архитектурные решения зафиксированы до Phase 0.  
 > **Реализация:** Phase 0–3 + MVP alpha (dev) ✅ · Prod 🔲 — [architecture.md §Статус](../architecture.md), [mvp.md](../mvp.md).  
-> REST API: единый префикс `/api/v1`.
+> REST API: единый префикс `/api/v1`.  
+> **Конфиг (dev):** [configuration.md](../configuration.md) — TOML, не shell env.
 
 | ADR | Title | Status |
 | ----- | ------- | -------- |
@@ -18,4 +19,4 @@
 | [0010](./0010-own-launcher-not-gml.md) | Own Go launcher, not GML fork | Accepted · ✅ Phase 1 |
 | [0011](./0011-client-local-content-install.md) | Client content on PC via QXLauncher, not MinIO | Accepted · ✅ Vanilla MVP |
 
-Последнее обновление: 2026-06-10
+Последнее обновление: 2026-06-21

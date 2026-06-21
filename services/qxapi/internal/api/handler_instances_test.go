@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -151,7 +152,7 @@ func TestInstancesHandlerDeleteNotFound(t *testing.T) {
 
 func TestInstancesHandlerManifest(t *testing.T) {
 	h, tokens := newInstancesHandler(t)
-	ctx := t.Context()
+	ctx := context.Background()
 	pair, _ := tokens.IssueUserTokens("user-1", "u@test.com")
 	claims, _ := tokens.Parse(pair.AccessToken)
 	owner := launcher.Owner{UserID: claims.UserID, IsGuest: false}

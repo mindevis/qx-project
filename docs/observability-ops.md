@@ -2,6 +2,7 @@
 
 > **I9:** Pure **self-hosted**, no Cloudflare. **I8:** VPS TBD.  
 > **Dev:** `infra/docker/docker-compose.yml` — MySQL, Redis, MinIO; API/web локально. **Flow C:** `make dev-vps-up`.  
+> **Конфиг (dev):** [configuration.md](./configuration.md) — `log_level`, `log_format` в `qxapi.toml`, `launcher.toml`, `agent.toml`.  
 > **Prod:** 🔲 не готов — [mvp §7.1](./mvp.md).
 
 ---
@@ -99,7 +100,7 @@ GET /api/v1/health/ready  → DB ping (Phase 0); + Redis + MinIO — prod
 | ------ | ---------- | ------- |
 | MySQL | Daily 03:00 | Restic → second VPS / NAS |
 | MinIO | Daily incremental | same |
-| `.env`, nginx | on change | private git |
+| `qxapi.toml`, nginx | on change | private git |
 
 ---
 
@@ -111,6 +112,6 @@ GET /api/v1/health/ready  → DB ping (Phase 0); + Redis + MinIO — prod
 
 ---
 
-*ADR: [0009](./adr/0009-pure-self-hosted.md)* · Prod 🔲 [mvp §7.1](./mvp.md)
+*ADR: [0009](./adr/0009-pure-self-hosted.md)* · Prod 🔲 [mvp §7.1](./mvp.md) · [configuration.md](./configuration.md)
 
-Последнее обновление: 2026-06-10
+Последнее обновление: 2026-06-21 (TOML config)

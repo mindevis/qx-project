@@ -20,11 +20,7 @@ hostname = "vps-1"
 		t.Fatal(err)
 	}
 
-	t.Setenv("QX_AGENT_CONFIG", path)
-	t.Setenv("QX_AGENT_TOKEN", "")
-	t.Setenv("QX_API_BASE_URL", "")
-
-	cfg, err := Load()
+	cfg, err := Load(path)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -39,44 +35,9 @@ hostname = "vps-1"
 	}
 }
 
-func TestLoadEnvOverridesFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "agent.toml")
-	if err := os.WriteFile(path, []byte(`agent_token = "from-file"`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	t.Setenv("QX_AGENT_CONFIG", path)
-	t.Setenv("QX_AGENT_TOKEN", "from-env")
-
-	cfg, err := Load()
-	if err != nil {
-		t.Fatalf("load: %v", err)
-	}
-	if cfg.AgentToken != "from-env" {
-		t.Fatalf("token: %q", cfg.AgentToken)
-	}
-}
-
-func TestLoadFromEnvOnly(t *testing.T) {
-	t.Setenv("QX_AGENT_CONFIG", filepath.Join(t.TempDir(), "missing.toml"))
-	t.Setenv("QX_AGENT_TOKEN", "env-token")
-	t.Setenv("QX_API_BASE_URL", "http://localhost:3000/api/v1")
-
-	cfg, err := Load()
-	if err != nil {
-		t.Fatalf("load: %v", err)
-	}
-	if cfg.AgentToken != "env-token" {
-		t.Fatalf("token: %q", cfg.AgentToken)
-	}
-}
-
 func TestLoadMissingToken(t *testing.T) {
-	t.Setenv("QX_AGENT_CONFIG", filepath.Join(t.TempDir(), "missing.toml"))
-	t.Setenv("QX_AGENT_TOKEN", "")
-
-	_, err := Load()
+	path := filepath.Join(t.TempDir(), "missing.toml")
+	_, err := Load(path)
 	if err != ErrMissingAgentToken {
 		t.Fatalf("expected ErrMissingAgentToken, got %v", err)
 	}
@@ -88,11 +49,39 @@ func TestLoadInvalidTOML(t *testing.T) {
 	if err := os.WriteFile(path, []byte("[[[broken"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("QX_AGENT_CONFIG", path)
-	t.Setenv("QX_AGENT_TOKEN", "")
 
-	_, err := Load()
+	_, err := Load(path)
 	if err == nil {
 		t.Fatal("expected parse error")
+	}
+}
+
+func TestLoadFromRepoAgentTOML(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.22\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(root, "services", "qxagent")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "agent.toml"), []byte(`agent_token = "repo-token"`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+	if err := os.Chdir(sub); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if cfg.AgentToken != "repo-token" {
+		t.Fatalf("token: %q", cfg.AgentToken)
 	}
 }

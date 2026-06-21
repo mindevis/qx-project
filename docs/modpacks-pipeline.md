@@ -107,3 +107,5 @@ If CF project deleted:
 ---
 
 *Requires registered auth — [security-legal.md §8 RBAC](./security-legal.md)*
+
+Последнее обновление: 2026-06-21 · post-MVP

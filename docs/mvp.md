@@ -3,7 +3,7 @@
 > Минимально жизнеспособный продукт для закрытой alpha.
 > Полная архитектура: [architecture.md](./architecture.md)
 
-**Статус:** v1.18 — **MVP alpha (dev/manual) ✅** · **Prod 🔲 не готов**
+**Статус:** v1.20 — **MVP alpha (dev/manual) ✅** · **Prod 🔲 не готов**
 **Реализация:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase Alpha (flows) ✅ · **Prod deploy** 🔲
 
 ### Что уже в репозитории
@@ -13,9 +13,9 @@
 | Monorepo | `go.work`, `services/*`, `web/qxweb`, `pkg/mcmanifest`, `pkg/protocol` |
 | QXApi | Auth, launcher, **servers CRUD/deploy/start/stop**, agent WSS hub |
 | QXWeb | `/launcher`, **`/servers`** — SSH-форма, Deploy agent, теги Agent/Minecraft |
-| QXLauncher | Device register/link, **иконка в трее**, launch-bridge poll, Vanilla download |
-| QXAgent | WSS client, start/stop JAR (`QX_AGENT_DRY_RUN=1` для dev) |
-| Infra | `make dev-up` — MySQL, Redis, MinIO; `make dev-vps-up` — dev VPS для Flow C |
+| QXLauncher | Device register/link (HWID, auto browser), **иконка в трее**, launch-bridge poll, Vanilla download |
+| QXAgent | WSS client, start/stop JAR (`dry_run` в `agent.toml` для dev) |
+| Infra | `make dev-up` — MySQL, Redis, MinIO; конфиг — `*.toml`; `make dev-vps-up` — dev VPS для Flow C |
 | Тесты | Go + React — unit coverage, CI, Playwright Flow A+B+C |
 **Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → QXLauncher → JVM
 **RBAC:** [security-legal.md §8](./security-legal.md) — MVP: Guest и Registered — **Vanilla only**; mods/shaders/RP — v2+
@@ -68,7 +68,7 @@ MVP считается готовым, когда:
 | **Registered** | MVP: то же (Vanilla); mods/shaders/RP/modpacks — **v2+** |
 | **API** | Go + Gin + GORM |
 | **Agent** | Go, **Linux only**, SSH deploy, systemd |
-| **QXLauncher** (`services/qxlauncher/`) | Windows-приложение — device link, launch-bridge poll, JVM, Mojang Java, уведомления |
+| **QXLauncher** (`services/qxlauncher/`) | Windows — HWID device link, auto browser, launch-bridge poll, JVM, Mojang Java |
 | **Интеграции** | **Mojang** manifest + assets (Vanilla) |
 | **Infra** | Docker Compose: API, Web, MySQL, Redis, MinIO, Nginx |
 
@@ -116,7 +116,7 @@ Add Linux VPS (SSH creds) → Deploy agent → agent_online (WSS)
 → POST start (API) или agent cmd → minecraft_running → Stop/Restart + Console WS
 ```
 
-**Dev VPS:** `make dev-vps-up` → SSH `localhost:2222`, `.env`: `QX_PUBLIC_API_URL=http://host.docker.internal:3000`.
+**Dev VPS:** `make dev-vps-up` → SSH `localhost:2222`, `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 После Deploy в panel: тег **Agent** (синий), статус MC — **offline** до запуска JAR.
 
 ---
@@ -237,7 +237,7 @@ Agent         — id, server_id, hostname, connected_at
 
 ## 7. Инфраструктура MVP
 
-**Dev (Phase 0, сейчас):** `make dev-up` — MySQL, Redis, MinIO. API и QXWeb — на хосте.
+**Dev (Phase 0, сейчас):** `make dev-up` — MySQL, Redis, MinIO. API и QXWeb — на хосте. Конфиг: [configuration.md](./configuration.md).
 
 **Prod MVP** — один VPS (4–8 GB RAM), Docker Compose:
 
@@ -268,7 +268,7 @@ Infra-скрипты есть (`docker-compose.prod.yml`, `infra/scripts/deploy.
 | --- | -------- | -------- |
 | P.1 | Prod VPS + `make prod-up` smoke | 🔲 |
 | P.2 | TLS (Let's Encrypt) + домены | 🔲 |
-| P.3 | Секреты: JWT, MySQL, `SSH_MASTER_KEY`, `.env.prod` | 🔲 |
+| P.3 | Секреты: JWT, MySQL, `ssh_master_key` (`qxapi.toml` dev / `.env.prod` prod) | 🔲 |
 | P.4 | N02 — HTTPS valid (test matrix) | 🔲 |
 | P.5 | Бэкапы MySQL, мониторинг | 🔲 |
 | P.6 | Bug bash на prod-окружении | 🔲 |
@@ -284,7 +284,7 @@ Infra-скрипты есть (`docker-compose.prod.yml`, `infra/scripts/deploy.
 | # | Задача | Ответственный | Статус |
 | --- | -------- | --------------- | -------- |
 | 0.1 | Monorepo scaffold (`go.work`, `services/qxapi`, `web/qxweb`) | Senior | ✅ |
-| 0.2 | Docker Compose dev | Senior | ✅ |
+| 0.2 | Docker Compose dev + TOML config (`*.toml.example`) | Senior | ✅ |
 | 0.3 | MySQL schema: users | Senior | ✅ |
 | 0.4 | Auth API: register, login, refresh, guest, logout, JWT | Senior | ✅ |
 | 0.5 | Web: login, register, profile | Junior | ✅ |
@@ -409,4 +409,4 @@ gantt
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.19 — doc sync, prod 🔲)
+Последнее обновление: 2026-06-21 (v1.20 — HWID + auto browser, prod 🔲)

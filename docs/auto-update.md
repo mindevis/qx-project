@@ -98,4 +98,6 @@ GitHub Action on tag `launcher-v*`:
 
 ---
 
-*Self-hosted CDN: Nginx `alias` to MinIO bucket — no Cloudflare.*
+*Self-hosted CDN: Nginx `alias` to MinIO bucket — no Cloudflare. Download URL в `web.toml`: `launcher_download_url` — [configuration.md](./configuration.md).*
+
+Последнее обновление: 2026-06-21 · post-MVP

@@ -8,7 +8,10 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/qxproject/qx/pkg/log v0.0.0
 	github.com/qxproject/qx/pkg/protocol v0.0.0
+	github.com/qxproject/qx/pkg/reporoot v0.0.0
 )
+
+replace github.com/qxproject/qx/pkg/reporoot => ../../pkg/reporoot
 
 replace github.com/qxproject/qx/pkg/log => ../../pkg/log
 

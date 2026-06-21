@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Alert, Button, Card, Form, Input, Space, Typography } from 'antd';
+import { Alert, Button, Card, Space, Typography } from 'antd';
 import { CheckCircleOutlined, LinkOutlined } from '@ant-design/icons';
 import { api, clearGuestSession, saveGuestSession, saveLinkedDevice } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -23,14 +23,11 @@ export function LauncherLinkPage() {
     }
   }, [deviceId]);
 
-  const handleLink = async (userCode?: string) => {
+  const handleLink = async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.linkDevice({
-        device_id: deviceId,
-        user_code: userCode || undefined,
-      });
+      const result = await api.linkDevice({ device_id: deviceId });
       setOwnerType(result.owner_type);
       setLinked(true);
       saveLinkedDevice(deviceId);
@@ -90,8 +87,8 @@ export function LauncherLinkPage() {
     <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 520 }}>
       <Typography.Title level={2}>Связать QXLauncher</Typography.Title>
       <Typography.Paragraph type="secondary">
-        Подтвердите привязку устройства <Typography.Text code>{deviceId}</Typography.Text> к
-        аккаунту на сайте.
+        Подтвердите привязку этого компьютера к аккаунту на сайте. Ссылка содержит уникальный
+        идентификатор вашего ПК — её открыл QXLauncher автоматически.
       </Typography.Paragraph>
 
       {error && <Alert type="error" message={error} showIcon />}
@@ -119,14 +116,14 @@ export function LauncherLinkPage() {
               <Typography.Paragraph style={{ marginBottom: 0 }}>
                 Без регистрации — только Vanilla-инстансы.
               </Typography.Paragraph>
-              <Form layout="vertical" onFinish={(v) => handleLink(v.user_code)}>
-                <Form.Item name="user_code" label="Код с экрана лаунчера (необязательно)">
-                  <Input placeholder="ABCD-1234" autoComplete="off" />
-                </Form.Item>
-                <Button type="primary" htmlType="submit" loading={loading} icon={<LinkOutlined />}>
-                  Продолжить как гость
-                </Button>
-              </Form>
+              <Button
+                type="primary"
+                loading={loading}
+                icon={<LinkOutlined />}
+                onClick={() => handleLink()}
+              >
+                Продолжить как гость
+              </Button>
             </Space>
           </Card>
           <Card title="Или войдите в аккаунт">

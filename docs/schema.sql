@@ -44,7 +44,7 @@ CREATE TABLE launcher_devices (
     user_id           CHAR(36) NULL,
     guest_session_id  CHAR(36) NULL,
     status            ENUM('pending_link', 'linked', 'expired', 'revoked') NOT NULL DEFAULT 'pending_link',
-    user_code         VARCHAR(16) NULL,
+    user_code         VARCHAR(16) NULL,  -- legacy; unused (link by HWID device_id in URL)
     device_token_hash VARCHAR(255) NULL,
     hostname          VARCHAR(255) NULL,
     os                VARCHAR(64) NULL,

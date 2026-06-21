@@ -1,0 +1,77 @@
+# Dependabot: https://docs.github.com/en/code-security/dependabot
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /services/qxapi
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      qxapi-go:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /services/qxagent
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      qxagent-go:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /services/qxlauncher
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      qxlauncher-go:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /pkg/log
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      pkg-go:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /pkg/mcmanifest
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      pkg-go:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /pkg/protocol
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      pkg-go:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /web/qxweb
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      qxweb-npm:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]

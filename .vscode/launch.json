@@ -9,7 +9,6 @@
       "debugAdapter": "legacy",
       "program": "${workspaceFolder}/services/qxapi/cmd",
       "cwd": "${workspaceFolder}/services/qxapi",
-      "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "showLog": true
     },
@@ -21,7 +20,16 @@
       "debugAdapter": "legacy",
       "program": "${workspaceFolder}/services/qxlauncher/cmd",
       "cwd": "${workspaceFolder}/services/qxlauncher",
-      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "QXAgent",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "debugAdapter": "legacy",
+      "program": "${workspaceFolder}/services/qxagent/cmd",
+      "cwd": "${workspaceFolder}/services/qxagent",
       "console": "integratedTerminal"
     },
     {
@@ -92,7 +100,6 @@
       "debugAdapter": "legacy",
       "program": "${fileDirname}",
       "cwd": "${fileDirname}",
-      "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal"
     },
     {
@@ -103,7 +110,6 @@
       "debugAdapter": "legacy",
       "program": "${workspaceFolder}/services/qxapi/...",
       "cwd": "${workspaceFolder}/services/qxapi",
-      "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal"
     },
     {

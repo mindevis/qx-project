@@ -62,7 +62,6 @@ func (h *DevicesHandler) Status(c *gin.Context) {
 
 type linkDeviceRequest struct {
 	DeviceID string `json:"device_id" binding:"required"`
-	UserCode string `json:"user_code"`
 }
 
 func (h *DevicesHandler) Link(c *gin.Context) {
@@ -74,7 +73,6 @@ func (h *DevicesHandler) Link(c *gin.Context) {
 
 	in := launcher.LinkDeviceInput{
 		DeviceID: req.DeviceID,
-		UserCode: req.UserCode,
 	}
 	if userID, ok := c.Get(UserIDKey); ok {
 		in.UserID = userID.(string)

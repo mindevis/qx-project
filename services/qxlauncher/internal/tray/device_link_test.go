@@ -41,7 +41,6 @@ func TestCompleteDeviceLink(t *testing.T) {
 	tokenPath := filepath.Join(t.TempDir(), "device_token")
 	reg := &device.RegisterResult{
 		DeviceID:        "dev-1",
-		UserCode:        "ABCD-1234",
 		PollIntervalSec: 1,
 	}
 
@@ -78,7 +77,6 @@ func TestPollDeviceLinkUsesPendingRegister(t *testing.T) {
 	reg := &device.RegisterResult{
 		DeviceID:        "dev-9",
 		LinkURL:         "http://localhost/link",
-		UserCode:        "WXYZ-9999",
 		PollIntervalSec: 1,
 	}
 	linkURL := ""

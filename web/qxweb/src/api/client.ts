@@ -223,7 +223,7 @@ export const api = {
   changeEmail: (body: { current_password: string; email: string }) =>
     request<UserProfile>('/users/me/email', { method: 'PATCH', body: JSON.stringify(body) }),
 
-  linkDevice: (body: { device_id: string; user_code?: string }) =>
+  linkDevice: (body: { device_id: string }) =>
     request<LinkDeviceResult>('/launcher/devices/link', {
       method: 'POST',
       body: JSON.stringify(body),

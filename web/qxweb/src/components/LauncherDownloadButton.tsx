@@ -19,7 +19,7 @@ export function LauncherDownloadButton({ type = 'default' }: LauncherDownloadBut
           return;
         }
         message.info(
-          'Сборка из исходников: make build-launcher (см. README). URL релиза — VITE_LAUNCHER_DOWNLOAD_URL.',
+          'Сборка из исходников: make build-launcher (см. README). URL релиза — launcher_download_url в web.toml.',
           6,
         );
       }}

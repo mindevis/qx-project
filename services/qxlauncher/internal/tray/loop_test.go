@@ -16,7 +16,6 @@ import (
 )
 
 func TestExecuteLaunchDryRun(t *testing.T) {
-	t.Setenv("QX_SKIP_JAVA_DOWNLOAD", "1")
 	jarSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("jar-bytes"))
 	}))
@@ -48,6 +47,7 @@ func TestExecuteLaunchDryRun(t *testing.T) {
 
 	api := apiclient.New(apiSrv.URL, "token")
 	dl := minecraft.NewDownloader(filepath.Join(t.TempDir(), "data"))
+	dl.SkipJavaDownload = true
 
 	executeLaunch(context.Background(), api, dl, Config{LaunchDryRun: true}, &apiclient.LaunchRequestItem{
 		ID: "req-1",
@@ -91,8 +91,6 @@ func TestSyncInstances(t *testing.T) {
 }
 
 func TestRunLoop_DryLaunchOnce(t *testing.T) {
-	t.Setenv("QX_SKIP_JAVA_DOWNLOAD", "1")
-
 	jarSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("jar-bytes"))
 	}))
@@ -150,12 +148,13 @@ func TestRunLoop_DryLaunchOnce(t *testing.T) {
 	defer cancel()
 
 	go RunLoop(ctx, Config{
-		APIBase:      apiSrv.URL,
-		DeviceToken:  "device-token",
-		DataDir:      filepath.Join(t.TempDir(), "qx"),
-		LaunchDryRun: true,
-		LaunchPoll:   20 * time.Millisecond,
-		InstancePoll: time.Hour,
+		APIBase:          apiSrv.URL,
+		DeviceToken:      "device-token",
+		DataDir:          filepath.Join(t.TempDir(), "qx"),
+		LaunchDryRun:     true,
+		SkipJavaDownload: true,
+		LaunchPoll:       20 * time.Millisecond,
+		InstancePoll:     time.Hour,
 	})
 
 	deadline := time.Now().Add(1500 * time.Millisecond)

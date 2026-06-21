@@ -31,7 +31,7 @@ func completeDeviceLink(
 	cfg DeviceLinkConfig,
 	reg *device.RegisterResult,
 ) (string, error) {
-	status, err := client.PollUntilLinked(ctx, cfg.MaxLinkPolls, reg.PollIntervalSec, time.Sleep, cfg.UserToken, reg.UserCode)
+	status, err := client.PollUntilLinked(ctx, cfg.MaxLinkPolls, reg.PollIntervalSec, time.Sleep, cfg.UserToken)
 	if err != nil {
 		return "", err
 	}
@@ -64,8 +64,9 @@ func pollDeviceLink(
 		}
 	}
 	*linkURL = reg.LinkURL
-	notify.Show("QXLauncher", "Свяжите лаунчер с сайтом: "+reg.UserCode)
-	slog.Info("device registered", "link_url", reg.LinkURL, "user_code", reg.UserCode)
+	OpenLinkPage(reg.LinkURL)
+	notify.Show("QXLauncher", "Подтвердите привязку в браузере")
+	slog.Info("device registered", "device_id", reg.DeviceID, "link_url", reg.LinkURL)
 
 	token, err := completeDeviceLink(ctx, cfg.DeviceClient, DeviceLinkConfig{
 		TokenPath:    cfg.TokenPath,

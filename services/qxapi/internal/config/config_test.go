@@ -1,22 +1,43 @@
-package config
+package config_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/qxproject/qx/services/qxapi/internal/config"
 )
 
-func TestLoadDefaults(t *testing.T) {
-	t.Setenv("API_ADDR", "")
-	t.Setenv("DATABASE_DSN", "")
-	t.Setenv("JWT_SECRET", "")
-	t.Setenv("ACCESS_TOKEN_TTL", "")
-	t.Setenv("REFRESH_TOKEN_TTL", "")
-	t.Setenv("CORS_ORIGIN", "")
-	t.Setenv("GIN_MODE", "")
-	t.Setenv("LOG_LEVEL", "")
-	t.Setenv("LOG_FORMAT", "")
+func chdirRepo(t *testing.T, root string) {
+	t.Helper()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	cfg := Load()
+func writeRepo(t *testing.T, root string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.22\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(root, "services", "qxapi")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdirRepo(t, sub)
+}
+
+func TestLoadDefaults(t *testing.T) {
+	root := t.TempDir()
+	writeRepo(t, root)
+
+	cfg := config.Load()
 	if cfg.Addr != ":3000" {
 		t.Fatalf("addr: %s", cfg.Addr)
 	}
@@ -31,20 +52,26 @@ func TestLoadDefaults(t *testing.T) {
 	}
 }
 
-func TestLoadFromEnv(t *testing.T) {
-	t.Setenv("API_ADDR", ":4000")
-	t.Setenv("DATABASE_DSN", "custom-dsn")
-	t.Setenv("JWT_SECRET", "jwt")
-	t.Setenv("ACCESS_TOKEN_TTL", "30m")
-	t.Setenv("REFRESH_TOKEN_TTL", "120")
-	t.Setenv("CORS_ORIGIN", "http://example.com")
-	t.Setenv("GIN_MODE", "release")
-	t.Setenv("LOG_LEVEL", "warning")
-	t.Setenv("LOG_FORMAT", "json")
-	t.Setenv("QX_PUBLIC_API_URL", "https://api.example.com")
-	t.Setenv("QX_AGENT_BINARY_PATH", "/opt/qx/qx-agent")
+func TestLoadFromTOML(t *testing.T) {
+	root := t.TempDir()
+	writeRepo(t, root)
+	toml := `addr = ":4000"
+database_dsn = "custom-dsn"
+jwt_secret = "jwt"
+access_token_ttl = "30m"
+refresh_token_ttl = "120"
+cors_origin = "http://example.com"
+gin_mode = "release"
+log_level = "warning"
+log_format = "json"
+public_api_url = "https://api.example.com"
+agent_binary_path = "/opt/qx/qx-agent"
+`
+	if err := os.WriteFile(filepath.Join(root, "qxapi.toml"), []byte(toml), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
-	cfg := Load()
+	cfg := config.Load()
 	if cfg.Addr != ":4000" || cfg.DatabaseDSN != "custom-dsn" || cfg.JWTSecret != "jwt" {
 		t.Fatalf("cfg: %+v", cfg)
 	}
@@ -58,16 +85,20 @@ func TestLoadFromEnv(t *testing.T) {
 		t.Fatalf("cors/gin: %+v", cfg)
 	}
 	if cfg.LogLevel != "warning" || cfg.LogFormat != "json" {
-		t.Fatalf("log env: %+v", cfg)
+		t.Fatalf("log: %+v", cfg)
 	}
 	if cfg.PublicAPIURL != "https://api.example.com" || cfg.AgentBinaryPath != "/opt/qx/qx-agent" {
-		t.Fatalf("deploy env: %+v", cfg)
+		t.Fatalf("deploy: %+v", cfg)
 	}
 }
 
-func TestDurationEnvInvalid(t *testing.T) {
-	t.Setenv("ACCESS_TOKEN_TTL", "not-a-duration")
-	cfg := Load()
+func TestLoadInvalidDurationFallback(t *testing.T) {
+	root := t.TempDir()
+	writeRepo(t, root)
+	if err := os.WriteFile(filepath.Join(root, "qxapi.toml"), []byte("access_token_ttl = \"not-a-duration\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Load()
 	if cfg.AccessTokenTTL != 15*time.Minute {
 		t.Fatalf("expected fallback, got %v", cfg.AccessTokenTTL)
 	}

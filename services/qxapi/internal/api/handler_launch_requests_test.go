@@ -41,7 +41,7 @@ func newLaunchHandler(t *testing.T) (*LaunchRequestsHandler, *launcher.Service, 
 
 func TestLaunchRequestsHandlerCreateWithLinkedDevice(t *testing.T) {
 	h, svc, tokens := newLaunchHandler(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	_, err := svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-web"})
 	if err != nil {
@@ -76,7 +76,7 @@ func TestLaunchRequestsHandlerCreateWithLinkedDevice(t *testing.T) {
 
 func TestLaunchRequestsHandlerCreateNoDevice(t *testing.T) {
 	h, svc, tokens := newLaunchHandler(t)
-	ctx := t.Context()
+	ctx := context.Background()
 	owner := launcher.Owner{UserID: "user-1", IsGuest: false}
 	inst, err := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
@@ -101,7 +101,7 @@ func TestLaunchRequestsHandlerCreateNoDevice(t *testing.T) {
 
 func TestLaunchRequestsHandlerPending(t *testing.T) {
 	h, svc, _ := newLaunchHandler(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-poll"})
 	link, _ := svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-poll"})
@@ -127,7 +127,7 @@ func TestLaunchRequestsHandlerPending(t *testing.T) {
 
 func TestLaunchRequestsHandlerGet(t *testing.T) {
 	h, svc, tokens := newLaunchHandler(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-get"})
 	link, _ := svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-get"})
@@ -154,7 +154,7 @@ func TestLaunchRequestsHandlerGet(t *testing.T) {
 
 func TestLaunchRequestsHandlerUpdate(t *testing.T) {
 	h, svc, _ := newLaunchHandler(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-patch"})
 	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-patch"})
@@ -182,7 +182,7 @@ func TestLaunchRequestsHandlerUpdate(t *testing.T) {
 
 func TestLaunchRequestsHandlerCreateWithXDeviceToken(t *testing.T) {
 	h, svc, tokens := newLaunchHandler(t)
-	ctx := t.Context()
+	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-header"})
 	link, _ := svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-header"})

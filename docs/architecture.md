@@ -1,7 +1,7 @@
 # QXProject — Архитектура
 
 > Документ описывает целевую архитектуру платформы и **текущий статус реализации**.
-> **Версия:** v1.9 (2026-06-10) — **MVP alpha (dev) ✅** · Flows A/B/C manual ☑ · **Prod 🔲** · [mvp.md](./mvp.md)
+> **Версия:** v1.11 (2026-06-21) — HWID device link, auto browser · TOML config · **MVP alpha (dev) ✅** · **Prod 🔲** · [configuration.md](./configuration.md)
 > **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) ·
 > [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) ·
 > [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
@@ -16,7 +16,7 @@
 | **QXApi** — launcher, servers | Phase 1–2 | ✅ devices, instances, launch-requests, servers CRUD/deploy, agent hub |
 | **Infra dev** | Phase 0–2 | ✅ Docker Compose (MySQL, Redis, MinIO); **dev VPS** `make dev-vps-up` (Flow C) |
 | **CI / тесты** | Phase 0–Alpha | ✅ GitHub Actions; Go и web — **100% unit coverage**; Playwright + manual matrix |
-| **QXLauncher** | Phase 1 | ✅ device link, tray loop, Vanilla launch |
+| **QXLauncher** | Phase 1 | ✅ HWID device link, auto browser, tray loop, Vanilla launch |
 | **QXAgent** | Phase 2 | ✅ WSS client, start/stop JAR |
 | **pkg/protocol** | Phase 2 | ✅ WSS envelope types |
 | Auth bridge (registered flow) | Phase 3 | ✅ JWT refresh в QXLauncher, device status в UI |
@@ -30,7 +30,7 @@
 | ---------- | ---------------- | -------- |
 | **REST (QXApi)** | `http://localhost:3000/api/v1` | `POST …/api/v1/auth/login` |
 | **Health** | тот же префикс | `GET …/api/v1/health`, `GET …/api/v1/health/ready` |
-| **QXWeb (Vite)** | `http://localhost:5173` | `VITE_API_BASE_URL` → API base |
+| **QXWeb (Vite)** | `http://localhost:5173` | `web.toml` → `api_base_url` |
 | **Agent Hub (WSS)** | `wss://api.qx.example.com` | `WS /agent/v1/connect` — **вне** `/api/v1` |
 
 В спецификации [api.md](./api.md) пути REST указаны **относительно** `/api/v1` (например `/auth/login` = `/api/v1/auth/login`).
@@ -40,6 +40,7 @@
 
 | Doc | Тема |
 | ----- | ------ |
+| [configuration.md](./configuration.md) | TOML-конфиг (dev) |
 | [mojang-java.md](./mojang-java.md) | Java runtime matrix |
 | [ssh-deploy.md](./ssh-deploy.md) | SSH agent provisioning |
 | [auto-update.md](./auto-update.md) | Tray updates |
@@ -85,9 +86,9 @@ sequenceDiagram
     U->>Web: Авторизация / аутентификация
     U->>Web: Скачивание QXLauncher
     U->>L: Установка и первый запуск QXLauncher
-    L->>API: POST /api/v1/launcher/devices/register
-    API-->>L: pending_link
-    L->>U: OS notification + tray «Связать»
+    L->>API: POST /api/v1/launcher/devices/register (device_id = HWID)
+    API-->>L: pending_link, link_url
+    L->>U: Авто-открытие браузера → /launcher/link
     U->>Web: Подтвердить link (JWT-сессия)
     Web->>API: POST /api/v1/launcher/devices/link
     API-->>L: linked + device_token (user_id)
@@ -130,10 +131,10 @@ sequenceDiagram
 
     U->>Web: Скачать лаунчер
     U->>L: Запуск
-    L->>API: POST /api/v1/launcher/devices/register
-    API-->>L: pending_link
-    L->>U: OS notification + tray «Связать»
-    U->>Web: Подтвердить link (guest session)
+    L->>API: POST /api/v1/launcher/devices/register (device_id = HWID)
+    API-->>L: pending_link, link_url
+    L->>U: Авто-открытие браузера → /launcher/link
+    U->>Web: «Продолжить как гость» или login + link
     Web->>API: POST /api/v1/launcher/devices/link
     API-->>L: linked + device_token
     U->>Web: Создание инстанса
@@ -144,7 +145,7 @@ sequenceDiagram
 | Шаг | Действие |
 | ----- | ---------- |
 | 1 | Скачать → запустить QXLauncher |
-| 2 | **Связать** с сайтом (уведомление или ПКМ в трее) |
+| 2 | **Подтвердить привязку** в браузере (открывается автоматически; fallback: ПКМ в трее → «Связать QXLauncher») |
 | 3 | Local-аккаунт · инстанс на сайте · sync · игра |
 
 > При регистрации позже: guest data **merge** в user ([device-linking.md §5](./device-linking.md)).
@@ -355,7 +356,7 @@ services/qxapi/          # QXApi (отдельный go.mod)
   internal/
     api/         # Gin router, handlers, middleware, JSON responses
     auth/        # JWT, bcrypt, Register/Login Service
-    config/      # env: API_ADDR, DATABASE_DSN, JWT_*, CORS
+    config/      # qxapi.toml at repo root
     database/    # GORM Open, migrate users, Ping
     models/      # User
     testutil/    # SQLite helpers для тестов
@@ -453,7 +454,7 @@ flowchart LR
 | **Tray daemon** | QXLauncher (Win / macOS / Linux) | Device link, sync, Mojang Java, JVM, auto-update, notifications |
 | **Связь** | [device-linking.md](./device-linking.md) | Обязательна до первого инстанса |
 
-**QXLauncher:** ПКМ → «Связать QXLauncher» · «Открыть сайт» → `/launcher` в браузере.
+**QXLauncher:** при первом запуске — авто-открытие `/launcher/link?device=<HWID>`. ПКМ → «Связать QXLauncher» (fallback) · «Открыть сайт» → `/launcher`.
 
 ```text
 services/qxlauncher/     # QXLauncher tray (отдельный go.mod)
@@ -1113,7 +1114,7 @@ infra/
 ├── docker/
 │   ├── docker-compose.yml          # Dev
 │   ├── docker-compose.prod.yml     # Production
-│   ├── .env.example
+│   ├── .env.prod.example           # Prod compose only (not dev TOML)
 │   └── nginx/
 │       ├── nginx.conf
 │       └── conf.d/qx.conf          # api.*, panel.*, cdn.*
@@ -1151,7 +1152,8 @@ infra/
 - Firewall: только 80/443 наружу; SSH по ключу, non-default port.
 - MinIO: bucket policy public-read только для `cdn/` prefix.
 - MySQL / Redis: **не** expose наружу, только docker network.
-- Secrets: `.env` на сервере, не в git; `docker secret` при переходе на swarm/k3s.
+- Secrets (dev): `qxapi.toml` (`jwt_secret`, `ssh_master_key`) — в `.gitignore`, не в git.
+- Secrets (prod): `infra/docker/.env.prod` + Docker secrets при переходе на swarm/k3s.
 
 ### 9.4 Бэкапы (обязательно для Self-Hosted)
 
@@ -1159,14 +1161,15 @@ infra/
 | ----- | ----------- | ------ |
 | MySQL | Daily | Restic → второй VPS / NAS |
 | MinIO buckets | Daily incremental | Restic |
-| `.env`, nginx configs | On change | Git (private) + encrypted backup |
+| `qxapi.toml`, nginx configs | On change | Git (private) + encrypted backup |
 | Launcher builds | On release | MinIO versioning |
 
 ### 9.5 Dev vs Prod
 
 | Env | Dev | Prod (Self-Hosted) |
 | --- | ----- | --------------------- |
-| Запуск | `docker compose up` локально | `deploy.sh` на VPS |
+| Конфиг | `*.toml` в корне репо | `infra/docker/.env.prod` |
+| Запуск | `make api`, `make dev-up` | `deploy.sh` на VPS |
 | TLS | mkcert / HTTP | Let's Encrypt |
 | Домен | localhost | Реальный домен |
 | MinIO | Local | Production VPS SSD |
@@ -1226,15 +1229,19 @@ QXProject/
 │   ├── qxweb/               # QXWeb — React SPA (+ Vitest, Playwright)
 │   └── README.md
 ├── pkg/
+│   ├── reporoot/            # find repo root (go.work)
 │   ├── mcmanifest/          # Mojang manifest helpers
 │   └── protocol/            # Agent ↔ API WSS types
-├── scripts/                 # e2e-manual, dev-vps, gen-dev-vps-key
-├── docs/                    # архитектура, API, ADR, schema.sql
+├── qxapi.toml.example
+├── web.toml.example
+├── launcher.toml.example
+├── agent.toml.example
+├── scripts/                 # e2e-manual, dev-vps, gen-jwt-secret
+├── docs/                    # architecture, API, configuration, ADR
 ├── infra/docker/            # compose dev + prod + vps-dev (Flow C)
 ├── .github/workflows/ci.yml # Go test + web test:coverage + Playwright
 ├── go.work                  # Go workspace
-├── Makefile                 # dev-up, dev-vps-up, api, test, e2e-alpha
-├── .env.example
+├── Makefile                 # dev-up, jwt-secret-config, api, test, e2e-alpha
 └── README.md
 ```
 
@@ -1249,6 +1256,17 @@ QXProject/
 | E2E manual | [qa/test-matrix.md](./qa/test-matrix.md) | ☑ dev (A09, L03, I04, I05, Flow C) | `make e2e-manual` |
 
 `make test` — unit-тесты; `make test-coverage` — с отчётом; `make e2e-alpha` — автоматизированный alpha smoke.
+
+### 10.2 Конфигурация (dev)
+
+| Файл | Сервис | Шаблон |
+| ------ | -------- | -------- |
+| `qxapi.toml` | QXApi | `qxapi.toml.example` |
+| `web.toml` | QXWeb | `web.toml.example` |
+| `launcher.toml` | QXLauncher | `launcher.toml.example` |
+| `agent.toml` | QXAgent (local) | `agent.toml.example` |
+
+Подробно: [configuration.md](./configuration.md). **Не** shell env и **не** `.env` в dev. Prod: `infra/docker/.env.prod`.
 
 ---
 
@@ -1504,4 +1522,4 @@ QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.9 — MVP alpha dev ✅, prod 🔲, roadmap Phase 0–3 + Alpha)
+Последнее обновление: 2026-06-21 (v1.11 — HWID device link, auto browser, prod 🔲)

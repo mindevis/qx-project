@@ -2,10 +2,8 @@ package launcher
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
-	"math/big"
 	"strings"
 	"time"
 
@@ -53,7 +51,6 @@ type RegisterDeviceInput struct {
 type RegisterDeviceResult struct {
 	DeviceID        string    `json:"device_id"`
 	Status          string    `json:"status"`
-	UserCode        string    `json:"user_code"`
 	LinkURL         string    `json:"link_url"`
 	PollIntervalSec int       `json:"poll_interval_sec"`
 	ExpiresAt       time.Time `json:"expires_at"`
@@ -67,26 +64,24 @@ func (s *Service) RegisterDevice(ctx context.Context, in RegisterDeviceInput) (*
 
 	now := time.Now().UTC()
 	expires := now.Add(linkTTL)
-	userCode := generateUserCode()
 	linkURL := fmt.Sprintf("%s/launcher/link?device=%s", s.webBaseURL, deviceID)
 
 	var device models.LauncherDevice
 	err := s.db.WithContext(ctx).Where("device_id = ?", deviceID).First(&device).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		device = models.LauncherDevice{
-			ID:              uuid.NewString(),
-			DeviceID:        deviceID,
-			Status:          models.DeviceStatusPendingLink,
-			UserCode:        &userCode,
-			LinkExpiresAt:   &expires,
-			LastSeenAt:      &now,
-			CreatedAt:       now,
+			ID:            uuid.NewString(),
+			DeviceID:      deviceID,
+			Status:        models.DeviceStatusPendingLink,
+			LinkExpiresAt: &expires,
+			LastSeenAt:    &now,
+			CreatedAt:     now,
 		}
 	} else if err != nil {
 		return nil, err
 	} else {
 		device.Status = models.DeviceStatusPendingLink
-		device.UserCode = &userCode
+		device.UserCode = nil
 		device.LinkExpiresAt = &expires
 		device.LastSeenAt = &now
 		device.UserID = nil
@@ -115,7 +110,6 @@ func (s *Service) RegisterDevice(ctx context.Context, in RegisterDeviceInput) (*
 	return &RegisterDeviceResult{
 		DeviceID:        deviceID,
 		Status:          models.DeviceStatusPendingLink,
-		UserCode:        userCode,
 		LinkURL:         linkURL,
 		PollIntervalSec: pollIntervalSec,
 		ExpiresAt:       expires,
@@ -175,7 +169,6 @@ func (s *Service) DeviceStatus(ctx context.Context, deviceID string) (*DeviceSta
 
 type LinkDeviceInput struct {
 	DeviceID string
-	UserCode string
 	UserID   string
 }
 
@@ -202,9 +195,6 @@ func (s *Service) LinkDevice(ctx context.Context, in LinkDeviceInput) (*LinkDevi
 	if device.LinkExpiresAt != nil && time.Now().UTC().After(*device.LinkExpiresAt) {
 		_ = s.db.WithContext(ctx).Model(device).Update("status", models.DeviceStatusExpired).Error
 		return nil, ErrLinkExpired
-	}
-	if in.UserCode != "" && device.UserCode != nil && !strings.EqualFold(in.UserCode, *device.UserCode) {
-		return nil, ErrValidation
 	}
 
 	now := time.Now().UTC()
@@ -409,18 +399,4 @@ func scopeOwner(q *gorm.DB, owner Owner) *gorm.DB {
 		return q.Where("guest_session_id = ?", owner.GuestSessionID)
 	}
 	return q.Where("user_id = ?", owner.UserID)
-}
-
-func generateUserCode() string {
-	const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-	const digits = "23456789"
-	part := func(charset string, n int) string {
-		out := make([]byte, n)
-		for i := range out {
-			n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
-			out[i] = charset[n.Int64()]
-		}
-		return string(out)
-	}
-	return part(letters, 4) + "-" + part(digits, 4)
 }

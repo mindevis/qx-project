@@ -81,7 +81,6 @@ func (s *Service) CreateLaunchRequest(ctx context.Context, owner Owner, in Creat
 }
 
 func (s *Service) FetchPendingLaunch(ctx context.Context, deviceID string) (*LaunchRequestView, error) {
-	deviceID = deviceID
 	if deviceID == "" {
 		return nil, ErrValidation
 	}

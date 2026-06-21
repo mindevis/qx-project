@@ -2,6 +2,7 @@
 
 > **F7:** Backend SSH → Linux VPS → systemd agent.
 > Security: [security-legal.md §3](./security-legal.md)
+> **Конфиг (dev):** [configuration.md](./configuration.md) — `public_api_url`, `agent_binary_path` в `qxapi.toml`
 > **Статус:** ✅ Phase 2. REST: base `/api/v1` (пути ниже относительные).
 
 ---
@@ -44,7 +45,7 @@ sequenceDiagram
 
 Panel shows **pre-flight checklist** before deploy.
 
-**Dev VPS:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. API на хосте: `QX_PUBLIC_API_URL=http://host.docker.internal:3000` (agent в Docker достучится до API).
+**Dev VPS:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 
 ---
 
@@ -143,6 +144,6 @@ Audit includes `actor_id` for every deploy.
 
 ---
 
-*См. [agent-protocol.md](./agent-protocol.md)*
+*См. [agent-protocol.md](./agent-protocol.md), [configuration.md](./configuration.md)*
 
-Последнее обновление: 2026-06-10 (Phase 2 ✅)
+Последнее обновление: 2026-06-21 (Phase 2 ✅, TOML config)

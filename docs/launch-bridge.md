@@ -3,7 +3,7 @@
 > **Статус реализации:** ✅ Phase 1 — API + QXLauncher + QXWeb «Играть»; manual JVM ☑ (I04, I05).  
 > REST base: `/api/v1`.
 > Решение **B1**: **гибрид** — QXWeb создаёт launch request в QXApi, QXLauncher poll'ит и запускает JVM.
-> ADR: [0008](./adr/0008-launch-bridge-hybrid.md)
+> ADR: [0008](./adr/0008-launch-bridge-hybrid.md) · **Конфиг:** [configuration.md](./configuration.md) (`launcher.toml`)
 
 ---
 
@@ -160,6 +160,8 @@ for {
 5. `exec.Command(java, args...)` with log file `%APPDATA%/QX/logs/{instance_id}.log`.
 6. Notify OS on failure; PATCH API status.
 
+Dry-run (без JVM): `launch_dry_run = true` в `launcher.toml` — см. [configuration.md](./configuration.md).
+
 ---
 
 ## 7. Offline tray
@@ -191,6 +193,6 @@ MVP: **online required** for launch.
 
 ---
 
-*См. [device-linking.md](./device-linking.md), [api.md](./api.md), [mojang-java.md](./mojang-java.md)*
+*См. [device-linking.md](./device-linking.md), [api.md](./api.md), [mojang-java.md](./mojang-java.md), [configuration.md](./configuration.md)*
 
-Последнее обновление: 2026-06-10
+Последнее обновление: 2026-06-21 (Phase 1 ✅, HWID device link)

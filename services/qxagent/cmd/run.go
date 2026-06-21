@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,14 +13,17 @@ import (
 	"github.com/qxproject/qx/services/qxagent/internal/config"
 )
 
-func run() {
-	qxlog.SetupFromEnv()
+var configPath = flag.String("config", "", "path to agent.toml (default: repo agent.toml or /etc/qx-agent/agent.toml)")
 
-	cfg, err := config.Load()
+func run() {
+	flag.Parse()
+
+	cfg, err := config.Load(*configPath)
 	if err != nil {
 		slog.Error("config load failed", "error", err)
 		return
 	}
+	qxlog.Setup(qxlog.Options{Level: cfg.LogLevel, Format: cfg.LogFormat})
 
 	wsURL := cfg.WSURL
 	if wsURL == "" {

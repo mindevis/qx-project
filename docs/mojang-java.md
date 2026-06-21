@@ -11,7 +11,9 @@
 | ---------- | -------- |
 | 1 | Mojang-provided Java manifest (launcher metadata) |
 | 2 | Cached copy in `%LOCALAPPDATA%/QX/java/` (Win) |
-| 3 | Fallback: system `JAVA_HOME` (warn user, post-MVP) |
+| 3 | Fallback: system `JAVA_HOME` (warn user); override — `java_path` в `launcher.toml` |
+
+Dev/test: `skip_java_download = true` в `launcher.toml` — system Java без Mojang download.
 
 Tray downloads and verifies Mojang runtime per MC version family.
 
@@ -119,6 +121,6 @@ UI shows «Installed runtimes» in `/launcher/settings/java` with delete option.
 
 ---
 
-*См. [launch-bridge.md](./launch-bridge.md)*
+*См. [launch-bridge.md](./launch-bridge.md), [configuration.md](./configuration.md)*
 
-Последнее обновление: 2026-06-10
+Последнее обновление: 2026-06-21 (MVP ✅, `java_path` / `skip_java_download` в `launcher.toml`)

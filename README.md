@@ -16,6 +16,7 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — ка�
 | [launch-bridge.md](docs/launch-bridge.md) | Site → QXLauncher → JVM |
 | [ssh-deploy.md](docs/ssh-deploy.md) | SSH deploy agent |
 | [faq.md](docs/faq.md) | FAQ alpha |
+| [configuration.md](docs/configuration.md) | TOML-конфиг (dev) |
 | [adr/](docs/adr/) | Architecture Decision Records |
 
 ## Требования
@@ -30,8 +31,10 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — ка�
 ## Быстрый старт
 
 ```bash
-cp .env.example .env
-make jwt-secret-env   # или: make jwt-secret — только вывести в консоль
+cp qxapi.toml.example qxapi.toml
+cp web.toml.example web.toml
+cp launcher.toml.example launcher.toml
+make jwt-secret-config   # или: make jwt-secret — только вывести в консоль
 make dev-up
 
 # терминал 1 — QXApi
@@ -47,16 +50,17 @@ make launcher
 
 - Web: [localhost:5173](http://localhost:5173)
 - API base: [localhost:3000/api/v1](http://localhost:3000/api/v1)
+- Swagger UI: [localhost:3000/swagger/index.html](http://localhost:3000/swagger/index.html)
 - Health: [health](http://localhost:3000/api/v1/health) · Ready: [health/ready](http://localhost:3000/api/v1/health/ready)
 
 ### Игра (Flow A / B)
 
-1. Запустите **QXLauncher** (`make launcher` или `make build-launcher`) — в консоли появится `link_url`, откройте его в браузере.
-2. **Guest:** подтвердите связку на `/launcher/link` без логина.
-3. **Registered:** войдите на сайте → `/launcher/link?device=…` → подтвердите связку.
+1. Запустите **QXLauncher** (`make launcher` или `make build-launcher`) — браузер автоматически откроет `/launcher/link?device=<HWID>`.
+2. **Guest:** на открывшейся странице нажмите «Продолжить как гость».
+3. **Registered:** войдите на сайте (или уже будете в аккаунте) → «Связать устройство» на той же странице.
 4. На `/launcher` создайте Vanilla-инстанс и offline-профиль → **Играть** (launch-bridge → QXLauncher → JVM).
 
-Переменные для dev: `QX_API_BASE_URL=http://localhost:3000/api/v1`, `QX_WEB_BASE_URL=http://localhost:5173`.
+Конфигурация dev: TOML в корне репозитория (`qxapi.toml`, `web.toml`, `launcher.toml` — см. `*.toml.example`).
 
 ### Сервер (Flow C)
 
@@ -64,13 +68,13 @@ make launcher
 
 ```bash
 make dev-vps-up      # контейнер qx-vps-dev, SSH :2222, ключ в infra/docker/vps-dev/keys/
-make dev-vps-info    # host/port/user/key + подсказки для .env
+make dev-vps-info    # host/port/user/key + подсказки для qxapi.toml
 ```
 
-В `.env` для реального SSH deploy (перезапустите API):
+В `qxapi.toml` для реального SSH deploy (перезапустите API):
 
-```env
-QX_PUBLIC_API_URL=http://host.docker.internal:3000
+```toml
+public_api_url = "http://host.docker.internal:3000"
 ```
 
 Agent binary (`bin/qx-agent-linux`) собирается через `make dev-vps-up` и подхватывается API автоматически.
@@ -85,7 +89,7 @@ Agent binary (`bin/qx-agent-linux`) собирается через `make dev-vp
 
 ## Отладка (Cursor / VS Code)
 
-1. `cp .env.example .env`
+1. Скопируйте `*.toml.example` → `*.toml` (см. быстрый старт)
 2. Run and Debug (`F5`) → выбрать конфигурацию из `.vscode/launch.json`:
 
 | Конфигурация | Что делает |
@@ -95,16 +99,25 @@ Agent binary (`bin/qx-agent-linux`) собирается через `make dev-vp
 | **QXWeb** | Vite dev-server в терминале |
 | **Dev VPS: up** | Flow C: Debian SSH на `:2222`, сборка `qx-agent-linux` |
 | **Dev VPS: down** | Остановить контейнер `qx-vps-dev` |
-| **Dev VPS: info** | SSH host/port и подсказки для `.env` |
+| **Dev VPS: info** | SSH host/port и подсказки для `qxapi.toml` |
 | **QX Dev Stack** | QXApi + QXWeb + QXLauncher (compound) |
 | **Go: текущий тест** | Отладка теста в открытом `*_test.go` |
 | **Vitest: текущий файл** | Отладка открытого `*.test.ts(x)` |
 
 Docker (MySQL, Redis, MinIO): **Terminal → Run Task → Docker: dev-up** (перед **QXApi**).
 
-Flow C (серверы): **F5 → Dev VPS: up**, затем **QXApi**. В `.env`: `QX_PUBLIC_API_URL=http://host.docker.internal:3000`.
+Flow C (серверы): **F5 → Dev VPS: up**, затем **QXApi**. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 
-Переменные окружения читаются из `.env` в корне репозитория.
+Конфигурация — TOML-файлы, **не** shell и не `.env`. Подробно: [docs/configuration.md](docs/configuration.md).
+
+| Файл | Сервис |
+| ------ | -------- |
+| `qxapi.toml` | QXApi (шаблон `qxapi.toml.example`) |
+| `web.toml` | QXWeb / Vite |
+| `launcher.toml` | QXLauncher (dev: корень; установленный: `~/.qx/`) |
+| `agent.toml` | QXAgent local dev |
+| `/etc/qx-agent/agent.toml` | QXAgent на VPS (deploy) |
+| `infra/docker/.env.prod` | Prod docker-compose only |
 
 Если отладчик Go не стартует (`cannot launch dlv dap`): перезапустите Cursor, затем `Ctrl+Shift+P` → **Go: Install/Update Tools** → отметьте `dlv` и `dlv-dap`. В проекте включён legacy-адаптер Delve для Windows.
 
@@ -130,8 +143,13 @@ services/
 web/
   qxweb/          QXWeb — React SPA (panel + /launcher + /servers)
 pkg/
+  reporoot/       find repo root (go.work)
   mcmanifest/     Mojang manifest helpers
   protocol/       Agent ↔ API WSS types
+qxapi.toml.example
+web.toml.example
+launcher.toml.example
+agent.toml.example
 infra/docker/     docker-compose dev stack
 docs/             архитектура & ADR
 go.work           Go workspace

@@ -131,6 +131,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 
 	r.GET("/agent/v1/connect", agentWS.Connect)
 
+	mountSwagger(r)
+
 	return r
 }
 

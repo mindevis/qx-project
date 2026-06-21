@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/qxproject/qx/pkg/reporoot"
 )
 
 const DefaultConfigPath = "/etc/qx-agent/agent.toml"
@@ -20,6 +22,8 @@ type File struct {
 	WSURL      string `toml:"ws_url"`
 	Hostname   string `toml:"hostname"`
 	DryRun     bool   `toml:"dry_run"`
+	LogLevel   string `toml:"log_level"`
+	LogFormat  string `toml:"log_format"`
 }
 
 type Runtime struct {
@@ -30,29 +34,47 @@ type Runtime struct {
 	WSURL      string
 	Hostname   string
 	DryRun     bool
+	LogLevel   string
+	LogFormat  string
 	ConfigPath string
 }
 
-func Load() (Runtime, error) {
-	path := os.Getenv("QX_AGENT_CONFIG")
-	if path == "" {
-		path = DefaultConfigPath
-	}
-
-	cfg := Runtime{ConfigPath: path}
-	if data, err := os.ReadFile(path); err == nil {
-		var file File
-		if err := toml.Unmarshal(data, &file); err != nil {
+func Load(configPath string) (Runtime, error) {
+	for _, path := range candidatePaths(configPath) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		cfg := Runtime{ConfigPath: path}
+		if err := cfg.unmarshalTOML(data); err != nil {
 			return Runtime{}, err
 		}
-		cfg.applyFile(file)
+		if strings.TrimSpace(cfg.AgentToken) != "" {
+			return cfg, nil
+		}
 	}
+	return Runtime{}, ErrMissingAgentToken
+}
 
-	cfg.applyEnv()
-	if strings.TrimSpace(cfg.AgentToken) == "" {
-		return Runtime{}, ErrMissingAgentToken
+func candidatePaths(override string) []string {
+	var paths []string
+	if override != "" {
+		paths = append(paths, override)
 	}
-	return cfg, nil
+	if p := reporoot.ConfigFile(".", "agent.toml"); p != "" {
+		paths = append(paths, p)
+	}
+	paths = append(paths, DefaultConfigPath)
+	return paths
+}
+
+func (c *Runtime) unmarshalTOML(data []byte) error {
+	var file File
+	if err := toml.Unmarshal(data, &file); err != nil {
+		return err
+	}
+	c.applyFile(file)
+	return nil
 }
 
 func (c *Runtime) applyFile(f File) {
@@ -77,28 +99,10 @@ func (c *Runtime) applyFile(f File) {
 	if f.DryRun {
 		c.DryRun = true
 	}
-}
-
-func (c *Runtime) applyEnv() {
-	if v := os.Getenv("QX_API_BASE_URL"); v != "" {
-		c.APIBaseURL = v
+	if f.LogLevel != "" {
+		c.LogLevel = f.LogLevel
 	}
-	if v := os.Getenv("QX_AGENT_TOKEN"); v != "" {
-		c.AgentToken = v
-	}
-	if v := os.Getenv("QX_SERVER_ID"); v != "" {
-		c.ServerID = v
-	}
-	if v := os.Getenv("QX_SERVER_ROOT"); v != "" {
-		c.ServerRoot = v
-	}
-	if v := os.Getenv("QX_AGENT_WS_URL"); v != "" {
-		c.WSURL = v
-	}
-	if v := os.Getenv("QX_AGENT_HOSTNAME"); v != "" {
-		c.Hostname = v
-	}
-	if os.Getenv("QX_AGENT_DRY_RUN") == "1" {
-		c.DryRun = true
+	if f.LogFormat != "" {
+		c.LogFormat = f.LogFormat
 	}
 }

@@ -2,6 +2,7 @@
 
 > Версия: **1.0** · Transport: **WebSocket (WSS)** · Format: **JSON**
 > Shared types: `pkg/protocol` (Go)
+> **Конфиг:** [configuration.md](./configuration.md) (`agent.toml` / `/etc/qx-agent/agent.toml`)
 > **Статус реализации:** ✅ Phase 2 — `pkg/protocol`, QXApi hub, QXAgent WSS client; idempotency cache (`request_id` replay); SSH deploy + systemd
 
 ---
@@ -37,7 +38,7 @@ sequenceDiagram
     U->>API: POST /api/v1/servers {ssh, server_type, modpack_id?}
     U->>API: POST /api/v1/servers/{id}/deploy
     API->>VPS: SSH: upload qx-agent binary
-    API->>VPS: SSH: write systemd unit + env
+    API->>VPS: SSH: write agent.toml + systemd unit
     API->>VPS: SSH: systemctl enable + restart qx-agent
     A->>API: WSS connect + auth
     API-->>U: agent_online (minecraft_running false)
@@ -70,7 +71,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-QXAgent reads `/etc/qx-agent/agent.toml` on startup (override: `QX_AGENT_CONFIG`).
+QXAgent reads `/etc/qx-agent/agent.toml` on startup. Local dev: `agent.toml` в корне репо; override: `-config /path/to/agent.toml`.
 
 Example `agent.toml`:
 
@@ -83,7 +84,7 @@ server_root = "/opt/qx/server"
 
 ### 2.4 SSH требования
 
-- Backend хранит `private_key_enc` (AES-GCM, master key из env).
+- Backend хранит `private_key_enc` (AES-GCM, master key из `qxapi.toml` → `ssh_master_key`).
 - Supported: Ed25519, RSA keys.
 - Minimum: user with sudo for `/opt/qx`, systemd.
 - Firewall: исходящий HTTPS/WSS к QXApi (443).
@@ -426,6 +427,6 @@ flowchart TB
 
 ---
 
-*См. также: [api.md](./api.md), [schema.sql](./schema.sql), [ssh-deploy.md](./ssh-deploy.md)*
+*См. также: [api.md](./api.md), [schema.sql](./schema.sql), [ssh-deploy.md](./ssh-deploy.md), [configuration.md](./configuration.md)*
 
-Последнее обновление: 2026-06-10 (Phase 2 ✅)
+Последнее обновление: 2026-06-21 (Phase 2 ✅, TOML config)

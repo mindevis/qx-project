@@ -51,7 +51,7 @@ Append-only table `audit_logs`. **Never delete** (retention 2 years, then archiv
 | `auth.login_failed` | Failed login | email hash, ip |
 | `auth.register` | Registration | user_id, ip |
 | `device.register` | Tray first connect | device_id, ip |
-| `device.link` | Site confirms link | device_id, user/guest_id |
+| `device.link` | Site confirms link (HWID URL) | device_id, user/guest_id |
 | `device.unlink` | Unlink | device_id, actor_id |
 | `launch.request` | Play clicked | instance_id, device_id |
 | `launch.start` | JVM spawned | instance_id, pid |
@@ -98,17 +98,17 @@ CREATE INDEX idx_audit_resource ON audit_logs (resource_type, resource_id);
 ```text
 ciphertext = AES-256-GCM(plaintext_key, DEK)
 DEK = HKDF(master_key, server_id)
-master_key = env QX_SECRETS_MASTER_KEY (32 bytes, base64)
+master_key = qxapi.toml ssh_master_key (dev) / Docker secret (prod, 32 bytes base64)
 ```
 
-- Master key **only** in env / Docker secret — never in DB or git.
+- Master key **only** in `qxapi.toml` (dev) / Docker secret (prod) — never in DB or git.
 - Per-server DEK derivation prevents bulk decrypt if one row leaked.
 
 ### 3.2 Rotation procedure
 
 | Step | Action |
 | ------ | -------- |
-| 1 | Generate `QX_SECRETS_MASTER_KEY_V2` |
+| 1 | Generate new `ssh_master_key` (v2) in `qxapi.toml` (dev) or Docker secret (prod) — base64, 32 bytes |
 | 2 | Run `qx-admin reencrypt-ssh-keys --from v1 --to v2` |
 | 3 | Deploy API with v2, keep v1 read-only 24h |
 | 4 | Revoke v1 |
@@ -239,4 +239,6 @@ No Cloudflare — all security on VPS:
 
 ---
 
-*См. [ssh-deploy.md](./ssh-deploy.md), [launch-bridge.md](./launch-bridge.md), [server-content-install.md](./server-content-install.md)*
+*См. [ssh-deploy.md](./ssh-deploy.md), [launch-bridge.md](./launch-bridge.md), [server-content-install.md](./server-content-install.md), [configuration.md](./configuration.md)*
+
+Последнее обновление: 2026-06-21 (HWID device link)

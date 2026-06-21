@@ -1,0 +1,17 @@
+# QXLauncher — copy to launcher.toml (repo root for dev, or ~/.qx/launcher.toml when installed).
+
+api_base_url = "http://localhost:3000/api/v1"
+web_base_url = "http://localhost:5173"
+
+# link_max_polls = 60
+# skip_tray = false
+# launch_dry_run = false
+# device_id = ""  # override HWID; default: UUID from MachineGuid / machine-id
+# email = "dev@example.com"       # optional auto-login (dev)
+# password = "secret"
+# java_path = "C:\\Program Files\\Java\\bin\\java.exe"
+# skip_java_download = false
+# log_level = "info"
+# log_format = "text"
+
+# device_token_path = "C:\\Users\\you\\.qx\\device_token"

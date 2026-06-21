@@ -13,9 +13,6 @@ func DeviceIDPath(dataDir string) string {
 }
 
 func LoadDeviceID(dataDir string) string {
-	if id := strings.TrimSpace(os.Getenv("QX_DEVICE_ID")); id != "" {
-		return id
-	}
 	b, err := os.ReadFile(DeviceIDPath(dataDir))
 	if err != nil {
 		return ""
@@ -38,7 +35,13 @@ func ResolveDeviceID(dataDir string) string {
 	if id := LoadDeviceID(dataDir); id != "" {
 		return id
 	}
-	return uuid.NewString()
+	if id := MachineDeviceID(); id != "" {
+		_ = SaveDeviceID(dataDir, id)
+		return id
+	}
+	id := uuid.NewString()
+	_ = SaveDeviceID(dataDir, id)
+	return id
 }
 
 func ReadToken(path string) string {

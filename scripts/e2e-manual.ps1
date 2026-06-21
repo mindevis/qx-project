@@ -1,6 +1,6 @@
 # QXProject - Phase Alpha manual E2E checklist (Windows)
 # Usage: .\scripts\e2e-manual.ps1 [-RunSmoke]
-# Prereq: Docker, Go, Node; copy .env.example to .env and run make jwt-secret-env
+# Prereq: Docker, Go, Node; copy *.toml.example to *.toml and run make jwt-secret-config
 
 param(
     [switch]$RunSmoke,
@@ -52,35 +52,35 @@ if (-not $checks[2].Ok) {
 Write-Host ""
 Write-Host "--- Flow A (registered) ---" -ForegroundColor Green
 Write-Host "  1. Register + login at http://localhost:5173"
-Write-Host "  2. make launcher (or bin/qx-launcher) - copy link_url from console"
-Write-Host "  3. Confirm link on /launcher/link (logged in)"
+Write-Host "  2. make launcher - browser opens /launcher/link?device=<HWID> automatically"
+Write-Host "  3. Confirm link on opened page (logged in) - «Связать устройство»"
 Write-Host "  4. /launcher - create Vanilla instance + offline profile - Play"
-Write-Host "  5. QXLauncher получает launch-request; JVM starts (or QX_LAUNCH_DRY_RUN=1)"
+Write-Host "  5. QXLauncher получает launch-request; JVM starts (or launch_dry_run in launcher.toml)"
 
 Write-Host "--- Flow B (guest) ---" -ForegroundColor Green
-Write-Host "  1. make launcher - open link_url without login"
-Write-Host "  2. Guest confirm on /launcher/link"
+Write-Host "  1. make launcher - browser opens link page automatically"
+Write-Host "  2. «Продолжить как гость» on /launcher/link"
 Write-Host "  3. Create instance - Play (default nick Player)"
 
 Write-Host "--- Flow C (server admin) ---" -ForegroundColor Green
 Write-Host "  Dev VPS (Debian 13 + SSH): make dev-vps-up"
 Write-Host "  SSH: localhost:2222, user root, key infra/docker/vps-dev/keys/dev_id_ed25519"
-Write-Host "  .env: QX_PUBLIC_API_URL=http://host.docker.internal:3000"
-Write-Host "        QX_PUBLIC_API_URL=http://host.docker.internal:3000 (make dev-vps-up builds agent binary)"
+Write-Host "  qxapi.toml: public_api_url = \"http://host.docker.internal:3000\""
+Write-Host "        (make dev-vps-up builds agent binary automatically)"
 Write-Host "  1. Servers - add VPS (SSH creds from make dev-vps-info) - Deploy agent"
 Write-Host "  2. Agent auto-starts in container via systemd after deploy (tag Agent)"
 Write-Host "  3. MC offline until JAR started - Stop/Restart + console only when minecraft_running"
-Write-Host "  Alt: POST /servers/{id}/start via API; QX_AGENT_DRY_RUN=1 on VPS for dry MC"
+Write-Host "  Alt: POST /servers/{id}/start via API; dry_run in agent.toml on VPS"
 
 Write-Host "--- QXLauncher manual (test matrix A09, L03) ---" -ForegroundColor Green
 Write-Host "  Icon in system tray - Link QXLauncher - browser opens /launcher/link"
-Write-Host "  Do NOT set QX_SKIP_TRAY=1 for this check."
+Write-Host "  Do NOT enable skip_tray in launcher.toml for this check."
 
 Write-Host ""
-Write-Host "Dev shortcuts:" -ForegroundColor DarkGray
-Write-Host "  QX_SKIP_TRAY=1          - console-only launcher"
-Write-Host "  QX_LAUNCH_DRY_RUN=1     - skip real JVM"
-Write-Host "  QX_AGENT_DRY_RUN=1      - agent without JAR process"
+Write-Host "Dev shortcuts (launcher.toml / agent.toml):" -ForegroundColor DarkGray
+Write-Host "  skip_tray = true        - console-only launcher"
+Write-Host "  launch_dry_run = true   - skip real JVM"
+Write-Host "  dry_run = true          - agent without JAR (agent.toml)"
 Write-Host ""
 Write-Host "Automated API smoke (Flow A/B/C):" -ForegroundColor Yellow
 Write-Host "  make e2e-api-smoke   - go test router Flow A/B/C against in-memory API"

@@ -4,6 +4,7 @@
 > REST base: `/api/v1` — пути в §3 API относительные к base.
 > Решение **E6**: обязательная привязка лаунчера к сайту **до** создания инстансов и игры.
 > Работает **без регистрации** (guest) и **с аккаунтом** (после login — re-link или merge).
+> **Конфиг:** [configuration.md](./configuration.md) — `launcher.toml` (`api_base_url`, `device_token_path`).
 
 ---
 
@@ -31,10 +32,10 @@ sequenceDiagram
 
     U->>Web: Раздел «Лаунчер» → Скачать
     U->>L: Запуск qx-launcher
-    L->>API: POST /api/v1/launcher/devices/register
-    API-->>L: pending_link, user_code, link_url
-    L->>U: OS notification «Свяжите лаунчер с сайтом»
-    U->>Web: Открыть link_url (или /launcher/link)
+    L->>API: POST /api/v1/launcher/devices/register (device_id = HWID ПК)
+    API-->>L: pending_link, link_url
+    L->>U: Авто-открытие браузера → /launcher/link?device=…
+    L->>U: OS notification «Подтвердите привязку в браузере»
     U->>Web: Подтвердить привязку (guest cookie или login)
     Web->>API: POST /api/v1/launcher/devices/link
     API-->>L: poll: status=linked, device_token
@@ -48,13 +49,12 @@ sequenceDiagram
 
 1. Зайти на сайт → **Лаунчер** → скачать установщик.
 2. Запустить **qx-launcher** (иконка в трее).
-3. Увидеть **уведомление ОС**: «Laунcher нужно связать с сайтом».
-4. Связать одним из способов:
-   - Клик по уведомлению → браузер → страница подтверждения;
-   - **ПКМ по иконке в трее** → **«Связать QXLauncher»** → браузер;
-   - Вручную: сайт → `/launcher/link` → код с tray (если показан).
-5. На сайте нажать **«Подтвердить»** (guest-сессия создаётся автоматически, если не залогинен).
+3. **Браузер откроется автоматически** на `/launcher/link?device=<HWID>` — подтвердите привязку.
+4. Если браузер не открылся: **ПКМ по иконке в трее** → **«Связать QXLauncher»**.
+5. На сайте нажать **«Продолжить как гость»** или **«Связать устройство»** (если вы в аккаунте).
 6. Создать инстанс на сайте → лаунчер sync → **Играть**.
+
+**Идентификатор устройства (`device_id`):** стабильный UUID, производный от HWID ПК (Windows: `MachineGuid`, Linux: `/etc/machine-id`). Хранится в `~/.qx/device_id`. Коды подтверждения не используются — секрет в URL + TTL 15 мин + кнопка на сайте.
 
 ---
 
@@ -77,7 +77,7 @@ sequenceDiagram
 | -------- | ------ | ----- | ---------- |
 | POST | `/launcher/devices/register` | Go app | `{ device_id, os, hostname, launcher_version }` |
 | GET | `/launcher/devices/{id}/status` | Go app | Poll: `pending_link` or `linked` |
-| POST | `/launcher/devices/link` | Web SPA | `{ device_id, user_code? }` + guest cookie или JWT |
+| POST | `/launcher/devices/link` | Web SPA | `{ device_id }` + guest cookie или JWT |
 | POST | `/launcher/devices/unlink` | Web / Go | Отвязка |
 | GET | `/launcher/devices/pending` | Web SPA | Список ожидающих (same browser IP/session) — optional |
 
@@ -85,10 +85,9 @@ sequenceDiagram
 
 ```json
 {
-  "device_id": "uuid",
+  "device_id": "uuid-from-hwid",
   "status": "pending_link",
-  "user_code": "ABCD-1234",
-  "link_url": "https://qx.example.com/launcher/link?device=uuid",
+  "link_url": "https://qx.example.com/launcher/link?device=uuid-from-hwid",
   "poll_interval_sec": 3,
   "expires_at": "2026-06-09T13:00:00Z"
 }
@@ -105,7 +104,7 @@ sequenceDiagram
 }
 ```
 
-После link Go сохраняет `device_token` локально (`~/.config/qx/device.json`).
+После link Go сохраняет `device_token` локально (`~/.qx/device_token`, путь — `device_token_path` в `launcher.toml`).
 
 ---
 
@@ -140,9 +139,9 @@ sequenceDiagram
 
 | Риск | Митигация |
 | ------ | ----------- |
-| Hijack device link | `user_code` + короткий TTL (15 min) + confirm на сайте |
+| Hijack device link | Уникальный HWID в URL + TTL 15 min + confirm на сайте |
 | Stolen device_token | Rotate on re-link; bind to device_id |
-| Fake register | Rate limit по IP; device_id UUID v4 local storage |
+| Fake register | Rate limit по IP; `device_id` = HWID (не угадываемый UUID) |
 
 ---
 
@@ -161,6 +160,6 @@ stateDiagram-v2
 
 ---
 
-*См. [api.md](./api.md), [schema.sql](./schema.sql), [launch-bridge.md](./launch-bridge.md)*
+*См. [api.md](./api.md), [schema.sql](./schema.sql), [launch-bridge.md](./launch-bridge.md), [configuration.md](./configuration.md)*
 
-Последнее обновление: 2026-06-10
+Последнее обновление: 2026-06-21 (HWID + auto browser, без user_code)

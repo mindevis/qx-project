@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-info api agent launcher web test lint jwt-secret jwt-secret-env prod-build prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha build-launcher-win build-agent-linux
+.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-info api agent launcher web test lint jwt-secret jwt-secret-config prod-build prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha build-launcher-win build-agent-linux swagger
 
 ifeq ($(OS),Windows_NT)
 EXE := .exe
@@ -50,6 +50,8 @@ test:
 	cd services/qxagent && go test ./...
 	cd services/qxlauncher && go test ./...
 	cd pkg/log && go test ./...
+	cd pkg/reporoot && go test ./...
+	cd pkg/envfile && go test ./...
 	cd pkg/mcmanifest && go test ./...
 	cd pkg/protocol && go test ./...
 	cd web/qxweb && npm test
@@ -97,13 +99,16 @@ build-web:
 jwt-secret:
 	cd scripts/gen-jwt-secret && go run .
 
-jwt-secret-env:
-	cd scripts/gen-jwt-secret && go run . -env ../../.env
+jwt-secret-config:
+	cd scripts/gen-jwt-secret && go run . -toml ../../qxapi.toml
 
 tidy:
 	cd services/qxapi && go mod tidy
 	cd services/qxagent && go mod tidy
 	cd services/qxlauncher && go mod tidy
+
+swagger:
+	cd services/qxapi && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g internal/api/openapi.go -o docs --parseInternal
 
 e2e-manual:
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/e2e-manual.ps1

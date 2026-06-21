@@ -19,8 +19,10 @@ type SystrayConfig struct {
 	TokenPath       string
 	APIBase         string
 	DataDir         string
-	LaunchDryRun    bool
-	DeviceClient    *device.Client
+	LaunchDryRun     bool
+	JavaPath         string
+	SkipJavaDownload bool
+	DeviceClient     *device.Client
 	UserToken       string
 	MaxLinkPolls    int
 	PendingRegister *device.RegisterResult
@@ -73,12 +75,14 @@ func RunSystrayApp(cfg SystrayConfig) {
 			}
 			currentToken = token
 			go RunLoop(ctx, Config{
-				APIBase:      cfg.APIBase,
-				DeviceToken:  token,
-				TokenPath:    cfg.TokenPath,
-				DeviceClient: cfg.DeviceClient,
-				DataDir:      cfg.DataDir,
-				LaunchDryRun: cfg.LaunchDryRun,
+				APIBase:          cfg.APIBase,
+				DeviceToken:      token,
+				TokenPath:        cfg.TokenPath,
+				DeviceClient:     cfg.DeviceClient,
+				DataDir:          cfg.DataDir,
+				LaunchDryRun:     cfg.LaunchDryRun,
+				JavaPath:         cfg.JavaPath,
+				SkipJavaDownload: cfg.SkipJavaDownload,
 			})
 		}
 

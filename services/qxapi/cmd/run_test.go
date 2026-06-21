@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -10,8 +12,34 @@ import (
 	"github.com/qxproject/qx/services/qxapi/internal/database"
 )
 
+func chdirRepo(t *testing.T, toml string) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.work"), []byte("go 1.22\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(root, "services", "qxapi")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if toml != "" {
+		if err := os.WriteFile(filepath.Join(root, "qxapi.toml"), []byte(toml), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+	if err := os.Chdir(sub); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
 func TestRunInvalidDatabase(t *testing.T) {
-	t.Setenv("DATABASE_DSN", "invalid-dsn")
+	chdirRepo(t, "database_dsn = \"invalid-dsn\"\n")
 	if err := run(); err == nil {
 		t.Fatal("expected database error")
 	}
@@ -41,7 +69,7 @@ func TestRunListenError(t *testing.T) {
 	}
 	t.Cleanup(func() { connectDB = old })
 
-	t.Setenv("API_ADDR", "invalid-address")
+	chdirRepo(t, "addr = \"invalid-address\"\n")
 	if err := run(); err == nil {
 		t.Fatal("expected listen error")
 	}

@@ -39,13 +39,13 @@ type javaPackageFile struct {
 }
 
 // EnsureJava returns a Mojang-provided Java binary for the launch manifest.
-// QX_JAVA skips download; QX_SKIP_JAVA_DOWNLOAD uses system Java (tests).
+// EnsureJRE uses Mojang JRE download unless java_path (.env QX_JAVA / launcher.toml) or skip_java_download is set.
 func (d *Downloader) EnsureJava(ctx context.Context, manifest *mcmanifest.InstanceLaunchManifest) (string, error) {
-	if custom := os.Getenv("QX_JAVA"); custom != "" {
+	if custom := strings.TrimSpace(d.JavaPath); custom != "" {
 		return custom, nil
 	}
-	if os.Getenv("QX_SKIP_JAVA_DOWNLOAD") == "1" {
-		return ResolveJavaBin(), nil
+	if d.SkipJavaDownload {
+		return ResolveJavaBin(""), nil
 	}
 	if manifest == nil {
 		return "", fmt.Errorf("missing manifest")

@@ -23,4 +23,5 @@ BYOS серверы — преимущественно Linux VPS. Ручной p
 
 - `internal/deploy/` в API с queue jobs.
 - Agent pairing через JWT at deploy, не manual token paste.
+- На VPS: `/etc/qx-agent/agent.toml` — см. [configuration.md](../configuration.md).
 - Документация firewall: outbound 443 to QXApi.

@@ -1,8 +1,8 @@
 # QXApi Specification
 
-> Версия: **1.6** · Base URL: `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`)
+> Версия: **1.8** · Base URL: `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`)
 > Backend: **Go + Gin + GORM** · Код: `services/qxapi/`
-> **Статус:** MVP alpha endpoints ✅ · Prod 🔲 · [mvp.md](./mvp.md)
+> **Конфиг (dev):** [configuration.md](./configuration.md) · **Статус:** MVP alpha endpoints ✅ · Prod 🔲 · [mvp.md](./mvp.md)
 
 Все REST-эндпоинты QXApi (включая health) живут под префиксом **`/api/v1`**.  
 В таблицах ниже пути **относительные** к base URL (например `/auth/login` → `…/api/v1/auth/login`).  
@@ -81,7 +81,7 @@
 }
 ```
 
-CORS: `CORS_ORIGIN` (default `http://localhost:5173`). Конфиг: `.env.example`.
+CORS: `cors_origin` в `qxapi.toml` (default `http://localhost:5173`). Полный список ключей: [configuration.md](./configuration.md).
 
 ### Health (Phase 0 ✅)
 
@@ -245,14 +245,28 @@ Response item:
 
 | Method | Path | Description |
 | -------- | ------ | ------------- |
-| POST | `/launcher/devices/register` | QXLauncher first launch |
+| POST | `/launcher/devices/register` | QXLauncher first launch — `{ device_id, os, hostname, launcher_version }`; `device_id` = HWID ПК |
 | GET | `/launcher/devices/{id}/status` | Poll link status |
-| POST | `/launcher/devices/link` | Web confirms link (guest or user) |
+| POST | `/launcher/devices/link` | Web confirms link — `{ device_id }` (guest cookie or user JWT) |
 | POST | `/launcher/devices/unlink` | Unlink device |
 | GET | `/launcher/devices/me/instances` | `Bearer <device_token>` | Tray sync — instances for linked owner |
 | GET | `/launcher/devices/me` | Current device (device_token) |
 
 Full spec: [device-linking.md](./device-linking.md)
+
+**Register response (201):**
+
+```json
+{
+  "device_id": "uuid-from-hwid",
+  "status": "pending_link",
+  "link_url": "http://localhost:5173/launcher/link?device=uuid-from-hwid",
+  "poll_interval_sec": 3,
+  "expires_at": "2026-06-21T12:00:00Z"
+}
+```
+
+QXLauncher открывает `link_url` в браузере автоматически. Поле `user_code` **не используется** (legacy в БД).
 
 ---
 
@@ -354,7 +368,8 @@ components:
       bearerFormat: JWT
 ```
 
-> Full OpenAPI export: `go run cmd/openapi/main.go` (TBD in repo).
+> Full OpenAPI: **Swagger UI** at `http://localhost:3000/swagger/index.html` when QXApi is running.  
+> Regenerate from annotations: `make swagger` → `services/qxapi/docs/swagger.{json,yaml}`.
 
 ---
 
@@ -383,8 +398,8 @@ components:
 
 ---
 
-*См. [schema.sql](./schema.sql), [agent-protocol.md](./agent-protocol.md), [security-legal.md](./security-legal.md)*
+*См. [schema.sql](./schema.sql), [agent-protocol.md](./agent-protocol.md), [security-legal.md](./security-legal.md), [configuration.md](./configuration.md)*
 
 ---
 
-Последнее обновление: 2026-06-10 (v1.6 — server status fields, console WS `access_token`, MVP alpha)
+Последнее обновление: 2026-06-21 (v1.9 — HWID device link, без user_code)

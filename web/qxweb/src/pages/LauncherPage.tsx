@@ -75,7 +75,7 @@ export function LauncherPage() {
   const [linkedDevice, setLinkedDevice] = useState<{ device_id: string; status: string } | null>(
     null,
   );
-  const [accessKey, setAccessKey] = useState(0);
+  const [, setAccessKey] = useState(0);
   const refreshAccess = useCallback(() => setAccessKey((k) => k + 1), []);
   const canManage = !authLoading && (isAuthenticated || hasLauncherAccess());
   const isGuestLauncher = !isAuthenticated && hasLauncherAccess();

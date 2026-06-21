@@ -16,9 +16,11 @@ import (
 )
 
 type Downloader struct {
-	RootDir    string
-	AssetsCDN  string
-	HTTPClient *http.Client
+	RootDir          string
+	JavaPath         string
+	SkipJavaDownload bool
+	AssetsCDN        string
+	HTTPClient       *http.Client
 }
 
 func NewDownloader(root string) *Downloader {
@@ -122,7 +124,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 		"--userType", "legacy",
 	)
 	if javaBin == "" {
-		javaBin = ResolveJavaBin()
+		javaBin = ResolveJavaBin("")
 	}
 	return LaunchPlan{
 		JavaBin:    javaBin,

@@ -17,10 +17,8 @@ import (
 )
 
 func TestEnsureJavaSkipDownload(t *testing.T) {
-	t.Setenv("QX_SKIP_JAVA_DOWNLOAD", "1")
-	t.Setenv("QX_JAVA", "")
-
 	dl := NewDownloader(t.TempDir())
+	dl.SkipJavaDownload = true
 	bin, err := dl.EnsureJava(context.Background(), &mcmanifest.InstanceLaunchManifest{
 		JavaMajor:     21,
 		JavaComponent: "java-runtime-delta",
@@ -34,10 +32,8 @@ func TestEnsureJavaSkipDownload(t *testing.T) {
 }
 
 func TestEnsureJavaCustomOverride(t *testing.T) {
-	t.Setenv("QX_JAVA", `C:\custom\java.exe`)
-	t.Setenv("QX_SKIP_JAVA_DOWNLOAD", "")
-
 	dl := NewDownloader(t.TempDir())
+	dl.JavaPath = `C:\custom\java.exe`
 	bin, err := dl.EnsureJava(context.Background(), &mcmanifest.InstanceLaunchManifest{})
 	if err != nil || bin != `C:\custom\java.exe` {
 		t.Fatalf("custom: %v %q", err, bin)
@@ -45,9 +41,6 @@ func TestEnsureJavaCustomOverride(t *testing.T) {
 }
 
 func TestEnsureJavaDownloadsPackage(t *testing.T) {
-	t.Setenv("QX_JAVA", "")
-	t.Setenv("QX_SKIP_JAVA_DOWNLOAD", "")
-
 	javaName := "java"
 	if runtime.GOOS == "windows" {
 		javaName = "java.exe"
@@ -158,10 +151,8 @@ func TestIntegrationJavaOnPath(t *testing.T) {
 		t.Skip("skipping JVM smoke test in short mode")
 	}
 
-	t.Setenv("QX_SKIP_JAVA_DOWNLOAD", "1")
-	t.Setenv("QX_JAVA", "")
-
 	dl := NewDownloader(t.TempDir())
+	dl.SkipJavaDownload = true
 	bin, err := dl.EnsureJava(context.Background(), &mcmanifest.InstanceLaunchManifest{
 		JavaMajor: 21,
 	})

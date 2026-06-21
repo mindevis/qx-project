@@ -8,16 +8,14 @@ import (
 )
 
 func TestResolveJavaBinCustom(t *testing.T) {
-	t.Setenv("QX_JAVA", `C:\custom\java.exe`)
 	t.Setenv("JAVA_HOME", "")
-	got := ResolveJavaBin()
+	got := ResolveJavaBin(`C:\custom\java.exe`)
 	if got != `C:\custom\java.exe` {
 		t.Fatalf("custom: %q", got)
 	}
 }
 
 func TestResolveJavaBinFromJavaHome(t *testing.T) {
-	t.Setenv("QX_JAVA", "")
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "bin")
 	if err := os.MkdirAll(bin, 0o755); err != nil {
@@ -32,16 +30,15 @@ func TestResolveJavaBinFromJavaHome(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("JAVA_HOME", dir)
-	got := ResolveJavaBin()
+	got := ResolveJavaBin("")
 	if got != javaPath {
 		t.Fatalf("java home: got %q want %q", got, javaPath)
 	}
 }
 
 func TestResolveJavaBinFallback(t *testing.T) {
-	t.Setenv("QX_JAVA", "")
 	t.Setenv("JAVA_HOME", "/nonexistent")
-	got := ResolveJavaBin()
+	got := ResolveJavaBin("")
 	if got == "" {
 		t.Fatal("expected non-empty fallback")
 	}

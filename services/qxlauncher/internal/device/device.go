@@ -25,7 +25,6 @@ type Client struct {
 type RegisterResult struct {
 	DeviceID        string    `json:"device_id"`
 	Status          string    `json:"status"`
-	UserCode        string    `json:"user_code"`
 	LinkURL         string    `json:"link_url"`
 	PollIntervalSec int       `json:"poll_interval_sec"`
 	ExpiresAt       time.Time `json:"expires_at"`
@@ -49,9 +48,11 @@ func NewClient(baseURL, deviceID string) *Client {
 }
 
 func (c *Client) Register(ctx context.Context) (*RegisterResult, error) {
+	hostname, _ := os.Hostname()
 	body, _ := json.Marshal(map[string]string{
 		"device_id":        c.DeviceID,
 		"os":               runtime.GOOS,
+		"hostname":         hostname,
 		"launcher_version": "0.1.0",
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/launcher/devices/register", bytes.NewReader(body))
@@ -96,10 +97,9 @@ func (c *Client) Status(ctx context.Context) (*StatusResult, error) {
 	return &out, nil
 }
 
-func (c *Client) LinkWithUserToken(ctx context.Context, userToken, userCode string) error {
+func (c *Client) LinkWithUserToken(ctx context.Context, userToken string) error {
 	body, _ := json.Marshal(map[string]string{
 		"device_id": c.DeviceID,
-		"user_code": userCode,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/launcher/devices/link", bytes.NewReader(body))
 	if err != nil {
@@ -163,15 +163,15 @@ func (c *Client) LinkLoopWithUserToken(ctx context.Context, maxPolls int, sleepF
 	if err != nil {
 		return nil, err
 	}
-	return c.PollUntilLinked(ctx, maxPolls, reg.PollIntervalSec, sleepFn, userToken, reg.UserCode)
+	return c.PollUntilLinked(ctx, maxPolls, reg.PollIntervalSec, sleepFn, userToken)
 }
 
-func (c *Client) PollUntilLinked(ctx context.Context, maxPolls int, pollIntervalSec int, sleepFn func(time.Duration), userToken, userCode string) (*StatusResult, error) {
+func (c *Client) PollUntilLinked(ctx context.Context, maxPolls int, pollIntervalSec int, sleepFn func(time.Duration), userToken string) (*StatusResult, error) {
 	if sleepFn == nil {
 		sleepFn = time.Sleep
 	}
 	if userToken != "" {
-		_ = c.LinkWithUserToken(ctx, userToken, userCode)
+		_ = c.LinkWithUserToken(ctx, userToken)
 	}
 	interval := time.Duration(pollIntervalSec) * time.Second
 	if interval <= 0 {

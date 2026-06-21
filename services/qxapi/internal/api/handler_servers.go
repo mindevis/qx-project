@@ -150,7 +150,7 @@ func (h *ServersHandler) Deploy(c *gin.Context) {
 		case errors.Is(err, deploy.ErrInvalidSSHKey):
 			JSONValidation(c, "invalid ssh private key")
 		case errors.Is(err, deploy.ErrBinaryNotConfigured):
-			JSONError(c, http.StatusFailedDependency, "AGENT_BINARY_MISSING", "set QX_AGENT_BINARY_PATH on the API server")
+			JSONError(c, http.StatusFailedDependency, "AGENT_BINARY_MISSING", "configure agent_binary_path in qxapi.toml (see qxapi.toml.example)")
 		default:
 			slog.Error("deploy failed", "error", err, "server_id", c.Param("id"))
 			msg := "deploy failed"

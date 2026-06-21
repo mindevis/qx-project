@@ -55,6 +55,19 @@ func TestDevSSHMasterKey(t *testing.T) {
 	}
 }
 
+func TestRouterSwaggerUI(t *testing.T) {
+	r := setupRouter(t)
+	req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("swagger UI: got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "swagger") {
+		t.Fatalf("expected swagger UI body")
+	}
+}
+
 func TestRouterAuthFlow(t *testing.T) {
 	r := setupRouter(t)
 

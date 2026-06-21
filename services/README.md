@@ -20,7 +20,7 @@ internal/
   api/         handlers, router, middleware, JSON errors
   auth/        JWT (user, guest, device, agent), bcrypt
   agenthub/    in-memory WSS hub for agents
-  config/      env (API_ADDR, DATABASE_DSN, JWT_*, CORS, SSH_MASTER_KEY)
+  config/      qxapi.toml at repo root
   crypto/      AES-GCM for SSH private keys
   database/    GORM Open, migrate, Ping
   launcher/    device link, instances, launch-requests
@@ -33,26 +33,33 @@ internal/
 
 **REST prefix:** `/api/v1` — auth, users, launcher, servers, health.
 
+**Swagger UI:** `GET /swagger/index.html` (OpenAPI 3; regenerate: `make swagger` from repo root).
+
 **Agent WSS:** `GET /agent/v1/connect` — Bearer agent JWT.
+
+**Config:** [configuration.md](../docs/configuration.md) · [qxapi.toml.example](../qxapi.toml.example) · [launcher.toml.example](../launcher.toml.example) · [agent.toml.example](../agent.toml.example)
 
 Тесты: `go test ./...`.
 
 ## QXLauncher (`services/qxlauncher/`)
 
-Device register/link, launch-bridge poll, Mojang Vanilla download + JVM launch.
+Device register/link (HWID ПК, auto-open browser), launch-bridge poll, Mojang Vanilla download + JVM launch.
 
-Env: `QX_API_BASE_URL`, `QX_DEVICE_ID`, `QX_LAUNCH_DRY_RUN=1`.
+См. [device-linking.md](../docs/device-linking.md) · [configuration.md](../docs/configuration.md) (`device_id`, `web_base_url`).
+
+**Config:** [launcher.toml.example](../launcher.toml.example) → `launcher.toml` (repo root dev; `~/.qx/` when installed). См. [configuration.md](../docs/configuration.md).
 
 ## QXAgent (`services/qxagent/`)
 
 WSS client к QXApi; обрабатывает `cmd.server.start/stop`, шлёт heartbeat и `res.server.*`.
 
-Config: `/etc/qx-agent/agent.toml` on VPS (written by SSH deploy). Local dev: env vars.
+**Prod:** `/etc/qx-agent/agent.toml` (записывается при SSH deploy).
 
-| Variable | Description |
+**Local dev:** [agent.toml.example](../agent.toml.example) → `agent.toml` в корне репо, или `-config /path/to/agent.toml`.
+
+| Key (`agent.toml`) | Description |
 | -------- | ----------- |
-| `QX_AGENT_CONFIG` | path to TOML (default `/etc/qx-agent/agent.toml`) |
-| `QX_AGENT_TOKEN` | JWT от deploy (env override / local dev) |
-| `QX_API_BASE_URL` | e.g. `http://localhost:3000/api/v1` |
-| `QX_AGENT_WS_URL` | override WSS URL |
-| `QX_AGENT_DRY_RUN=1` | не запускать java, только лог |
+| `agent_token` | JWT от deploy |
+| `api_base_url` | e.g. `http://localhost:3000/api/v1` |
+| `ws_url` | override WSS URL |
+| `dry_run` | не запускать java, только лог |
