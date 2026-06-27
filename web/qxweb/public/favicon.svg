@@ -1,4 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="6" fill="#1677ff"/>
-  <text x="16" y="22" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="700" fill="#fff">QX</text>
+  <defs>
+    <linearGradient id="qx-core" x1="7" y1="6" x2="25" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1677ff"/>
+      <stop offset="100%" stop-color="#0958d9"/>
+    </linearGradient>
+    <radialGradient id="qx-outer-glow" cx="16" cy="16" r="15" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1677ff" stop-opacity="0.1"/>
+      <stop offset="72%" stop-color="#1677ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="qx-inner-glow" cx="16" cy="16" r="10" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#722ed1" stop-opacity="0.1"/>
+      <stop offset="70%" stop-color="#722ed1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="16" cy="16" r="14.7" fill="url(#qx-outer-glow)"/>
+  <circle cx="16" cy="16" r="14.7" fill="none" stroke="#1677ff" stroke-opacity="0.3" stroke-width="0.7" stroke-dasharray="2.4 2"/>
+  <circle cx="16" cy="16" r="9.4" fill="url(#qx-inner-glow)"/>
+  <circle cx="16" cy="16" r="9.4" fill="none" stroke="#722ed1" stroke-opacity="0.26" stroke-width="0.65" stroke-dasharray="2 1.6"/>
+  <rect x="6" y="6" width="20" height="20" rx="5.77" fill="url(#qx-core)"/>
+  <rect x="6" y="6" width="20" height="11" rx="5.77" fill="#ffffff" fill-opacity="0.22"/>
+  <text
+    x="16"
+    y="16.2"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="Segoe UI, system-ui, -apple-system, sans-serif"
+    font-size="5.8"
+    font-weight="800"
+    letter-spacing="-0.22"
+    fill="#ffffff"
+  >QX</text>
 </svg>

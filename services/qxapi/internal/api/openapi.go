@@ -5,10 +5,10 @@ package api
 
 // @title           QX API
 // @version         1.0
-// @description     QXProject REST API. Base path `/api/v1`. Agent WSS: `GET /agent/v1/connect`.
+// @description     QXSystem REST API. Base path `/api/v1`. Agent WSS: `GET /agent/v1/connect`.
 // @description     Interactive docs: `GET /swagger/index.html`
 
-// @contact.name   QXProject
+// @contact.name   QXSystem
 // @contact.url    https://github.com/mindevis/qx-project
 
 // @license.name   MIT

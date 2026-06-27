@@ -1,4 +1,4 @@
-# QXProject - Phase Alpha manual E2E checklist (Windows)
+# QXSystem - Phase Alpha manual E2E checklist (Windows)
 # Usage: .\scripts\e2e-manual.ps1 [-RunSmoke]
 # Prereq: Docker, Go, Node; copy *.toml.example to *.toml and run make jwt-secret-config
 
@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
 Write-Host ""
-Write-Host "=== QXProject Alpha - manual E2E ===" -ForegroundColor Cyan
+Write-Host "=== QXSystem Alpha - manual E2E ===" -ForegroundColor Cyan
 Write-Host "Docs: docs/qa/test-matrix.md, docs/mvp.md section 2 (DoD)"
 Write-Host ""
 

@@ -1,4 +1,4 @@
-# QXProject
+# QXSystem
 
 Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — каждый в своей папке.
 
@@ -68,6 +68,7 @@ make launcher
 
 ```bash
 make dev-vps-up      # контейнер qx-vps-dev, SSH :2222, ключ в infra/docker/vps-dev/keys/
+make dev-vps-rm      # удалить контейнер, тома и образ (чистый VPS при следующем up)
 make dev-vps-info    # host/port/user/key + подсказки для qxapi.toml
 ```
 
@@ -114,7 +115,7 @@ Flow C (серверы): **F5 → Dev VPS: up**, затем **QXApi**. В `qxapi
 | ------ | -------- |
 | `qxapi.toml` | QXApi (шаблон `qxapi.toml.example`) |
 | `web.toml` | QXWeb / Vite |
-| `launcher.toml` | QXLauncher (dev: корень; установленный: `~/.qx/`) |
+| `launcher.toml` | QXLauncher (dev: корень; установленный: `~/.qxlauncher/`) |
 | `agent.toml` | QXAgent local dev |
 | `/etc/qx-agent/agent.toml` | QXAgent на VPS (deploy) |
 | `infra/docker/.env.prod` | Prod docker-compose only |

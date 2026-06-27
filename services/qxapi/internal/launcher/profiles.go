@@ -17,6 +17,7 @@ var usernamePattern = regexp.MustCompile(`^[a-zA-Z0-9_]{3,16}$`)
 
 type CreateProfileInput struct {
 	Username string
+	Model    string
 }
 
 func offlineUUID(username string) string {
@@ -38,17 +39,18 @@ func (s *Service) CreateProfile(ctx context.Context, owner Owner, in CreateProfi
 	if !usernamePattern.MatchString(username) {
 		return nil, ErrValidation
 	}
+	model, err := normalizeProfileModel(in.Model)
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC()
 	profile := models.OfflineProfile{
-		ID:           uuid.NewString(),
-		Username:     username,
-		OfflineUUID:  offlineUUID(username),
-		CreatedAt:    now,
-	}
-	if owner.IsGuest {
-		profile.GuestSessionID = &owner.GuestSessionID
-	} else {
-		profile.UserID = &owner.UserID
+		ID:          uuid.NewString(),
+		Username:    username,
+		OfflineUUID: offlineUUID(username),
+		Model:       model,
+		UserID:      &owner.UserID,
+		CreatedAt:   now,
 	}
 	if err := s.db.WithContext(ctx).Create(&profile).Error; err != nil {
 		return nil, err
@@ -80,4 +82,15 @@ func (s *Service) getProfile(ctx context.Context, owner Owner, profileID string)
 		return nil, err
 	}
 	return &profile, nil
+}
+
+func normalizeProfileModel(model string) (string, error) {
+	model = strings.ToLower(strings.TrimSpace(model))
+	if model == "" {
+		return models.ProfileModelSteve, nil
+	}
+	if model != models.ProfileModelSteve && model != models.ProfileModelAlex {
+		return "", ErrValidation
+	}
+	return model, nil
 }

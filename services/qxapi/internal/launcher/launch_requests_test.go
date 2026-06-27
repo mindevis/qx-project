@@ -11,7 +11,7 @@ import (
 func TestProfilesCRUD(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
 	ctx := context.Background()
-	owner := Owner{UserID: "user-1", IsGuest: false}
+	owner := Owner{UserID: "user-1"}
 
 	profile, err := svc.CreateProfile(ctx, owner, CreateProfileInput{Username: "Steve"})
 	if err != nil || profile.Username != "Steve" {
@@ -47,16 +47,10 @@ func TestLaunchRequestFlow(t *testing.T) {
 	}
 	_ = reg
 
-	link, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-launch"})
-	if err != nil {
+	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-launch", UserID: "user-launch"}); err != nil {
 		t.Fatalf("link: %v", err)
 	}
-	_ = link
-	device, err := svc.getDevice(ctx, "dev-launch")
-	if err != nil || device.GuestSessionID == nil {
-		t.Fatalf("device: err=%v guest=%v", err, device)
-	}
-	owner := Owner{GuestSessionID: *device.GuestSessionID, IsGuest: true}
+	owner := Owner{UserID: "user-launch"}
 
 	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
@@ -65,7 +59,7 @@ func TestLaunchRequestFlow(t *testing.T) {
 		t.Fatalf("instance: %v", err)
 	}
 
-	profile, err := svc.CreateProfile(ctx, owner, CreateProfileInput{Username: "GuestPlayer"})
+	profile, err := svc.CreateProfile(ctx, owner, CreateProfileInput{Username: "LaunchPlayer"})
 	if err != nil {
 		t.Fatalf("profile: %v", err)
 	}
@@ -100,6 +94,19 @@ func TestLaunchRequestFlow(t *testing.T) {
 }
 
 func intPtr(v int) *int { return &v }
+
+func TestFetchPendingLaunchEmpty(t *testing.T) {
+	svc, _, _ := newLauncherService(t)
+	ctx := context.Background()
+
+	pending, err := svc.FetchPendingLaunch(ctx, "dev-empty")
+	if err != nil {
+		t.Fatalf("fetch pending: %v", err)
+	}
+	if pending != nil {
+		t.Fatalf("expected nil pending, got %+v", pending)
+	}
+}
 
 func TestFindLinkedDevice(t *testing.T) {
 	svc, _, _ := newLauncherService(t)

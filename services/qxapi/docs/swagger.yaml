@@ -96,10 +96,10 @@ definitions:
 host: localhost:3000
 info:
   contact:
-    name: QXProject
+    name: QXSystem
     url: https://github.com/mindevis/qx-project
   description: |-
-    QXProject REST API. Base path `/api/v1`. Agent WSS: `GET /agent/v1/connect`.
+    QXSystem REST API. Base path `/api/v1`. Agent WSS: `GET /agent/v1/connect`.
     Interactive docs: `GET /swagger/index.html`
   license:
     name: MIT

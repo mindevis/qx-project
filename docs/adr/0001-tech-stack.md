@@ -5,7 +5,7 @@
 
 ## Context
 
-QXProject — launcher + panel + agent. Команда: 1 senior + 1 junior. Нужен единый язык для backend/agent и зрелая
+QXSystem — launcher + panel + agent. Команда: 1 senior + 1 junior. Нужен единый язык для backend/agent и зрелая
 SPA-экосистема для UI.
 
 ## Decision

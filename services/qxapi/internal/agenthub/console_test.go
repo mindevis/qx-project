@@ -45,6 +45,33 @@ func TestBroadcastConsoleToSubscriber(t *testing.T) {
 	}
 }
 
+func TestConsoleHistoryReplay(t *testing.T) {
+	h := New(nil)
+	h.BroadcastConsole("srv-1", protocol.ConsoleOutputPayload{Stream: "stdout", Line: "before subscribe"})
+
+	server := wsTestServer(t, func(c *websocket.Conn) {
+		h.SubscribeConsole("srv-1", c)
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer server.Close()
+
+	panelConn, _, err := websocket.DefaultDialer.Dial(wsURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial panel: %v", err)
+	}
+	defer panelConn.Close()
+
+	_ = panelConn.SetReadDeadline(time.Now().Add(time.Second))
+	_, data, err := panelConn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	var msg ConsolePanelMessage
+	if err := json.Unmarshal(data, &msg); err != nil || msg.Line != "before subscribe" {
+		t.Fatalf("replay msg: %s err=%v", data, err)
+	}
+}
+
 func TestSendConsoleInput(t *testing.T) {
 	h := New(nil)
 	received := make(chan protocol.Envelope, 1)

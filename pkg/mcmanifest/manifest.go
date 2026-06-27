@@ -41,14 +41,16 @@ type VersionManifestV2 struct {
 }
 
 type VersionMeta struct {
-	ID          string         `json:"id"`
-	Type        string         `json:"type"`
-	MainClass   string         `json:"mainClass"`
-	Assets      string         `json:"assets"`
-	AssetIndex  AssetIndexRef  `json:"assetIndex"`
-	Downloads   Downloads      `json:"downloads"`
-	Libraries   []Library      `json:"libraries"`
-	JavaVersion JavaVersion    `json:"javaVersion"`
+	ID           string            `json:"id"`
+	Type         string            `json:"type"`
+	MainClass    string            `json:"mainClass"`
+	Assets       string            `json:"assets"`
+	InheritsFrom string            `json:"inheritsFrom,omitempty"`
+	AssetIndex   AssetIndexRef     `json:"assetIndex"`
+	Downloads    Downloads         `json:"downloads"`
+	Libraries    []Library         `json:"libraries"`
+	JavaVersion  JavaVersion       `json:"javaVersion"`
+	Arguments    *VersionArguments `json:"arguments,omitempty"`
 }
 
 type AssetIndexRef struct {
@@ -73,6 +75,8 @@ type Library struct {
 	Name      string            `json:"name"`
 	Downloads *LibraryDownloads `json:"downloads,omitempty"`
 	Rules     []Rule            `json:"rules,omitempty"`
+	RepoURL   string            `json:"url,omitempty"`
+	Sha1      string            `json:"sha1,omitempty"`
 }
 
 type LibraryDownloads struct {
@@ -81,8 +85,9 @@ type LibraryDownloads struct {
 }
 
 type Rule struct {
-	Action string `json:"action"`
-	OS     *RuleOS `json:"os,omitempty"`
+	Action   string                     `json:"action"`
+	OS       *RuleOS                    `json:"os,omitempty"`
+	Features map[string]json.RawMessage `json:"features,omitempty"`
 }
 
 type RuleOS struct {
@@ -95,17 +100,53 @@ type JavaVersion struct {
 }
 
 type InstanceLaunchManifest struct {
-	InstanceID  string        `json:"instance_id"`
-	Name        string        `json:"name"`
-	MCVersion   string        `json:"mc_version"`
-	Loader      string        `json:"loader"`
-	VersionURL  string        `json:"version_url"`
-	MainClass   string        `json:"main_class"`
-	AssetIndex  AssetIndexRef `json:"asset_index"`
-	ClientJar   DownloadFile  `json:"client_jar"`
-	Libraries   []Library     `json:"libraries"`
-	JavaMajor     int    `json:"java_major"`
-	JavaComponent string `json:"java_component,omitempty"`
+	InstanceID    string        `json:"instance_id"`
+	Name          string        `json:"name"`
+	MCVersion     string        `json:"mc_version"`
+	Loader          string        `json:"loader"`
+	LoaderVersion   string        `json:"loader_version,omitempty"`
+	VersionID       string        `json:"version_id,omitempty"`
+	VersionURL    string        `json:"version_url"`
+	MainClass     string        `json:"main_class"`
+	AssetIndex    AssetIndexRef `json:"asset_index"`
+	ClientJar     DownloadFile  `json:"client_jar"`
+	Libraries     []Library     `json:"libraries"`
+	JavaMajor       int      `json:"java_major"`
+	JavaComponent   string   `json:"java_component,omitempty"`
+	GameArguments    []string           `json:"game_arguments,omitempty"`
+	JVMArguments     []string           `json:"jvm_arguments,omitempty"`
+	LoaderClientJar  LoaderGeneratedJar `json:"loader_client_jar,omitempty"`
+}
+
+// LoaderGeneratedJar is produced locally by Forge/NeoForge installer processors (not on Maven).
+type LoaderGeneratedJar struct {
+	RelativePath string `json:"relative_path,omitempty"`
+	Sha1         string `json:"sha1,omitempty"`
+}
+
+type McVersionItem struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
+type McVersionsList struct {
+	Latest map[string]string `json:"latest"`
+	Items  []McVersionItem   `json:"items"`
+}
+
+func (c *Client) ListVersions(ctx context.Context) (*McVersionsList, error) {
+	manifest, err := c.FetchVersionManifest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]McVersionItem, 0, len(manifest.Versions))
+	for _, v := range manifest.Versions {
+		items = append(items, McVersionItem{ID: v.ID, Type: v.Type})
+	}
+	return &McVersionsList{
+		Latest: manifest.Latest,
+		Items:  items,
+	}, nil
 }
 
 func (c *Client) FetchVersionManifest(ctx context.Context) (*VersionManifestV2, error) {
@@ -152,31 +193,6 @@ func (c *Client) FetchVersionMeta(ctx context.Context, versionURL string) (*Vers
 	return &meta, nil
 }
 
-func (c *Client) BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader string) (*InstanceLaunchManifest, error) {
-	versionURL, err := c.ResolveVersionURL(ctx, mcVersion)
-	if err != nil {
-		return nil, err
-	}
-	meta, err := c.FetchVersionMeta(ctx, versionURL)
-	if err != nil {
-		return nil, err
-	}
-	libs := filterLibraries(meta.Libraries)
-	return &InstanceLaunchManifest{
-		InstanceID: instanceID,
-		Name:       name,
-		MCVersion:  mcVersion,
-		Loader:     loader,
-		VersionURL: versionURL,
-		MainClass:  meta.MainClass,
-		AssetIndex: meta.AssetIndex,
-		ClientJar:  meta.Downloads.Client,
-		Libraries:  libs,
-		JavaMajor:     meta.JavaVersion.MajorVersion,
-		JavaComponent: meta.JavaVersion.Component,
-	}, nil
-}
-
 func filterLibraries(libs []Library) []Library {
 	out := make([]Library, 0, len(libs))
 	for _, lib := range libs {
@@ -189,12 +205,43 @@ func filterLibraries(libs []Library) []Library {
 }
 
 func libraryAllowed(lib Library) bool {
-	if len(lib.Rules) == 0 {
+	return rulesAllow(lib.Rules)
+}
+
+// defaultRuleFeatures drives Mojang argument/library rule evaluation for our launcher.
+var defaultRuleFeatures = map[string]bool{
+	"is_demo_user":            false,
+	"has_custom_resolution":   true,
+	"has_quick_plays_support": false,
+}
+
+func ruleMatches(rule Rule) bool {
+	if rule.OS != nil && !osMatches(rule.OS.Name) {
+		return false
+	}
+	for name, raw := range rule.Features {
+		var want bool
+		if err := json.Unmarshal(raw, &want); err != nil {
+			return false
+		}
+		have, ok := defaultRuleFeatures[name]
+		if !ok {
+			have = false
+		}
+		if want != have {
+			return false
+		}
+	}
+	return true
+}
+
+func rulesAllow(rules []Rule) bool {
+	if len(rules) == 0 {
 		return true
 	}
 	allowed := false
-	for _, rule := range lib.Rules {
-		if rule.OS != nil && !osMatches(rule.OS.Name) {
+	for _, rule := range rules {
+		if !ruleMatches(rule) {
 			continue
 		}
 		switch rule.Action {

@@ -33,13 +33,13 @@ describe('BackendUnavailableNotification', () => {
     );
   }
 
-  it('destroys notification when backend is available', () => {
+  it('does not open notification when backend is available', () => {
     vi.mocked(useBackendStatus).mockReturnValue({ available: true });
 
     renderNotification();
 
     expect(error).not.toHaveBeenCalled();
-    expect(destroy).toHaveBeenCalledWith(BACKEND_UNAVAILABLE_NOTIFICATION_KEY);
+    expect(destroy).not.toHaveBeenCalled();
   });
 
   it('opens persistent antd notification when backend is unavailable', () => {
@@ -49,7 +49,7 @@ describe('BackendUnavailableNotification', () => {
 
     expect(error).toHaveBeenCalledWith({
       key: BACKEND_UNAVAILABLE_NOTIFICATION_KEY,
-      message: 'Сервер недоступен',
+      title: 'Сервер недоступен',
       description:
         'Не удаётся связаться с API. Некоторые функции недоступны — ожидаем восстановление…',
       duration: 0,

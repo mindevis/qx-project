@@ -51,6 +51,7 @@ func TestDevicesHandlerRegisterLinkStatus(t *testing.T) {
 	c, _ = gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(linkBody))
 	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set(UserIDKey, "user-dev-1")
 	h.Link(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("link: %d %s", w.Code, w.Body.String())
@@ -118,7 +119,7 @@ func TestDevicesHandlerMeInstances(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := h.Service.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "me-dev"}); err != nil {
+	if _, err := h.Service.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "me-dev", UserID: "user-me"}); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 
@@ -195,7 +196,7 @@ func TestDevicesHandlerUnlinkSelf(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := h.Service.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "unlink-self"}); err != nil {
+	if _, err := h.Service.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "unlink-self", UserID: "user-self"}); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 

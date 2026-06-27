@@ -11,7 +11,7 @@ vi.mock('@/hooks/useMessage', () => ({
 
 vi.mock('@/backend/BackendStatusContext', () => ({
   BackendStatusProvider: ({ children }: { children: React.ReactNode }) => children,
-  useBackendStatus: () => ({ available: true }),
+  useBackendStatus: vi.fn(() => ({ available: true })),
   BACKEND_HEALTH_POLL_MS: 10_000,
 }));
 
@@ -34,9 +34,20 @@ function mockMatchMedia() {
 
 mockMatchMedia();
 
+class ResizeObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
   window.history.pushState({}, '', '/');
   mockMatchMedia();
+  message.destroy();
+  // Re-apply after tests that call vi.unstubAllGlobals() (only unstubs fetch).
+  vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 });

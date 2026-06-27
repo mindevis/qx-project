@@ -129,7 +129,7 @@ master_key = qxapi.toml ssh_master_key (dev) / Docker secret (prod, 32 bytes bas
 
 ### 4.1 Position
 
-QXProject provides **tools** for Minecraft community. Users responsible for compliance with [Minecraft
+QXSystem provides **tools** for Minecraft community. Users responsible for compliance with [Minecraft
 EULA](https://www.minecraft.net/en-us/eula) and [Usage Guidelines](https://www.minecraft.net/en-us/usage-guidelines).
 
 | Feature | Legal note |

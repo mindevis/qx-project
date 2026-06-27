@@ -1,4 +1,4 @@
--- QXProject initial schema
+-- QXSystem initial schema
 -- MySQL 8.0+
 
 SET NAMES utf8mb4;
@@ -89,6 +89,7 @@ CREATE TABLE offline_profiles (
     guest_session_id CHAR(36) NULL,
     username         VARCHAR(16) NOT NULL,
     offline_uuid     CHAR(36) NOT NULL,
+    model            VARCHAR(16) NOT NULL DEFAULT 'steve',
     created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_offline_profiles_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT fk_offline_profiles_guest FOREIGN KEY (guest_session_id) REFERENCES guest_sessions (id) ON DELETE CASCADE,

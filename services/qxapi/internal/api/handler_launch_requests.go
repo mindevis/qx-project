@@ -82,8 +82,6 @@ func (h *LaunchRequestsHandler) Create(c *gin.Context) {
 		switch {
 		case errors.Is(err, launcher.ErrNotFound):
 			JSONError(c, http.StatusNotFound, "NOT_FOUND", "instance or profile not found")
-		case errors.Is(err, launcher.ErrGuestLoaderOnly):
-			JSONError(c, http.StatusForbidden, "FORBIDDEN", "guest may only launch vanilla instances")
 		case errors.Is(err, launcher.ErrValidation):
 			JSONValidation(c, "invalid launch request")
 		default:

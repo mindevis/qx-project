@@ -40,6 +40,15 @@ func (d *Downloader) EnsureLibraries(ctx context.Context, manifest *mcmanifest.I
 		return nil, fmt.Errorf("missing manifest")
 	}
 	paths := make([]string, 0, len(manifest.Libraries))
+	total := 0
+	for _, lib := range manifest.Libraries {
+		if lib.Downloads == nil || lib.Downloads.Artifact == nil || lib.Downloads.Artifact.URL == "" {
+			continue
+		}
+		total++
+	}
+	d.progressf("libraries", "checking %d libraries …", total)
+	done := 0
 	for _, lib := range manifest.Libraries {
 		if lib.Downloads == nil || lib.Downloads.Artifact == nil || lib.Downloads.Artifact.URL == "" {
 			continue
@@ -53,6 +62,10 @@ func (d *Downloader) EnsureLibraries(ctx context.Context, manifest *mcmanifest.I
 			return nil, fmt.Errorf("library %s: %w", lib.Name, err)
 		}
 		paths = append(paths, dest)
+		done++
+		if done == 1 || done%10 == 0 || done == total {
+			d.progressf("libraries", "%d/%d", done, total)
+		}
 	}
 	return paths, nil
 }
@@ -160,4 +173,36 @@ func extractZipFile(f *zip.File, dest string) error {
 func BuildClasspath(entries []string) string {
 	sep := string(os.PathListSeparator)
 	return strings.Join(entries, sep)
+}
+
+func buildLegacyClassPath(libPaths []string) string {
+	sep := string(os.PathListSeparator)
+	entries := make([]string, 0, len(libPaths))
+	seen := make(map[string]struct{}, len(libPaths))
+	for _, p := range libPaths {
+		p = filepath.Clean(p)
+		if p == "" || excludedFromLegacyClasspath(p) {
+			continue
+		}
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		entries = append(entries, filepath.ToSlash(p))
+	}
+	return strings.Join(entries, sep)
+}
+
+func excludedFromLegacyClasspath(path string) bool {
+	base := strings.ToLower(filepath.Base(path))
+	switch {
+	case strings.HasSuffix(base, "-universal.jar"):
+		return true
+	case strings.HasSuffix(base, "-client.jar") && (strings.Contains(base, "neoforge") || strings.Contains(base, "forge")):
+		return true
+	case strings.Contains(strings.ToLower(path), "net/minecraft/client") && strings.Contains(base, "client-"):
+		return true
+	default:
+		return false
+	}
 }

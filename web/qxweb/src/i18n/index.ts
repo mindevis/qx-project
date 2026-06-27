@@ -52,6 +52,18 @@ export function getLaunchStatusKey(status: string): string {
   return `launcher.launchStatus.${status}`;
 }
 
+export function getVpsHostStatusKey(status: string): string {
+  return `servers.vpsStatus.${status}`;
+}
+
+export function getAgentDeployStatusKey(status: string): string {
+  return `servers.agentDeploy.${status}`;
+}
+
+export function getAgentConnectionStatusKey(status: string): string {
+  return `servers.agentConnection.${status}`;
+}
+
 export function getServerStatusKey(status: string): string {
   return `servers.status.${status}`;
 }

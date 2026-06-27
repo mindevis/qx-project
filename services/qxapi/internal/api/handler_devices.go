@@ -74,9 +74,12 @@ func (h *DevicesHandler) Link(c *gin.Context) {
 	in := launcher.LinkDeviceInput{
 		DeviceID: req.DeviceID,
 	}
-	if userID, ok := c.Get(UserIDKey); ok {
-		in.UserID = userID.(string)
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
 	}
+	in.UserID = userID.(string)
 
 	result, err := h.Service.LinkDevice(c.Request.Context(), in)
 	if err != nil {
@@ -87,6 +90,8 @@ func (h *DevicesHandler) Link(c *gin.Context) {
 			JSONError(c, http.StatusGone, "LINK_EXPIRED", "link request expired")
 		case errors.Is(err, launcher.ErrDeviceNotPending):
 			JSONError(c, http.StatusConflict, "CONFLICT", "device is not pending link")
+		case errors.Is(err, launcher.ErrAuthRequired):
+			JSONUnauthorized(c)
 		case errors.Is(err, launcher.ErrValidation):
 			JSONValidation(c, "invalid link data")
 		default:

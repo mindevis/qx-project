@@ -14,3 +14,8 @@ func TestEscapeHelpers(t *testing.T) {
 func TestShowDoesNotPanic(t *testing.T) {
 	Show("QX", "test")
 }
+
+func TestShowDedupesWithinWindow(t *testing.T) {
+	Show("QX", "dup")
+	Show("QX", "dup")
+}

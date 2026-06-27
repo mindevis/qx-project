@@ -17,9 +17,10 @@ type consoleSubscriber struct {
 
 // ConsolePanelMessage is the JSON shape sent to web console clients.
 type ConsolePanelMessage struct {
-	Type   string `json:"type"`
-	Stream string `json:"stream,omitempty"`
-	Line   string `json:"line,omitempty"`
+	Type         string `json:"type"`
+	Stream       string `json:"stream,omitempty"`
+	Line         string `json:"line,omitempty"`
+	GameServerID string `json:"game_server_id,omitempty"`
 }
 
 func (h *Hub) SubscribeConsole(serverID string, conn *websocket.Conn) {
@@ -32,6 +33,7 @@ func (h *Hub) SubscribeConsole(serverID string, conn *websocket.Conn) {
 	}
 	h.consoleSubs[serverID][conn] = &consoleSubscriber{conn: conn}
 	h.mu.Unlock()
+	h.replayConsoleHistory(serverID, conn)
 }
 
 func (h *Hub) UnsubscribeConsole(serverID string, conn *websocket.Conn) {
@@ -46,7 +48,13 @@ func (h *Hub) UnsubscribeConsole(serverID string, conn *websocket.Conn) {
 }
 
 func (h *Hub) BroadcastConsole(serverID string, payload protocol.ConsoleOutputPayload) {
-	msg := ConsolePanelMessage{Type: "output", Stream: payload.Stream, Line: payload.Line}
+	msg := ConsolePanelMessage{
+		Type:         "output",
+		Stream:       payload.Stream,
+		Line:         payload.Line,
+		GameServerID: payload.GameServerID,
+	}
+	h.appendConsoleHistory(serverID, msg)
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return
@@ -62,6 +70,44 @@ func (h *Hub) BroadcastConsole(serverID string, payload protocol.ConsoleOutputPa
 
 	for _, sub := range clients {
 		_ = h.writeConsoleLocked(sub, data)
+	}
+}
+
+func (h *Hub) appendConsoleHistory(serverID string, msg ConsolePanelMessage) {
+	if msg.Line == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.consoleHistory == nil {
+		h.consoleHistory = make(map[string][]ConsolePanelMessage)
+	}
+	history := append(h.consoleHistory[serverID], msg)
+	if len(history) > consoleHistoryLimit {
+		history = history[len(history)-consoleHistoryLimit:]
+	}
+	h.consoleHistory[serverID] = history
+}
+
+func (h *Hub) replayConsoleHistory(serverID string, conn *websocket.Conn) {
+	h.mu.RLock()
+	history := append([]ConsolePanelMessage(nil), h.consoleHistory[serverID]...)
+	var sub *consoleSubscriber
+	if subs := h.consoleSubs[serverID]; subs != nil {
+		sub = subs[conn]
+	}
+	h.mu.RUnlock()
+
+	for _, msg := range history {
+		data, err := json.Marshal(msg)
+		if err != nil {
+			continue
+		}
+		if sub != nil {
+			_ = h.writeConsoleLocked(sub, data)
+		} else {
+			_ = conn.WriteMessage(websocket.TextMessage, data)
+		}
 	}
 }
 

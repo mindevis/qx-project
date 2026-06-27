@@ -16,29 +16,32 @@ type InstancesHandler struct {
 }
 
 type instanceResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	MCVersion string `json:"mc_version"`
-	Loader    string `json:"loader"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	MCVersion     string  `json:"mc_version"`
+	Loader        string  `json:"loader"`
+	LoaderVersion *string `json:"loader_version,omitempty"`
+	CreatedAt     string  `json:"created_at"`
+	UpdatedAt     string  `json:"updated_at"`
 }
 
 func instanceFromModel(inst models.LauncherInstance) instanceResponse {
 	return instanceResponse{
-		ID:        inst.ID,
-		Name:      inst.Name,
-		MCVersion: inst.MCVersion,
-		Loader:    inst.Loader,
-		CreatedAt: inst.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: inst.UpdatedAt.UTC().Format(time.RFC3339),
+		ID:            inst.ID,
+		Name:          inst.Name,
+		MCVersion:     inst.MCVersion,
+		Loader:        inst.Loader,
+		LoaderVersion: inst.LoaderVersion,
+		CreatedAt:     inst.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:     inst.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
 type createInstanceRequest struct {
-	Name      string `json:"name" binding:"required"`
-	MCVersion string `json:"mc_version" binding:"required"`
-	Loader    string `json:"loader"`
+	Name          string `json:"name" binding:"required"`
+	MCVersion     string `json:"mc_version" binding:"required"`
+	Loader        string `json:"loader"`
+	LoaderVersion string `json:"loader_version"`
 }
 
 func (h *InstancesHandler) List(c *gin.Context) {
@@ -71,19 +74,17 @@ func (h *InstancesHandler) Create(c *gin.Context) {
 		return
 	}
 	inst, err := h.Service.CreateInstance(c.Request.Context(), owner, launcher.CreateInstanceInput{
-		Name:      req.Name,
-		MCVersion: req.MCVersion,
-		Loader:    req.Loader,
+		Name:          req.Name,
+		MCVersion:     req.MCVersion,
+		Loader:        req.Loader,
+		LoaderVersion: req.LoaderVersion,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, launcher.ErrValidation):
+		if errors.Is(err, launcher.ErrValidation) {
 			JSONValidation(c, "invalid instance data")
-		case errors.Is(err, launcher.ErrGuestLoaderOnly):
-			JSONError(c, http.StatusForbidden, "FORBIDDEN", "guest may only create vanilla instances")
-		default:
-			JSONInternal(c)
+			return
 		}
+		JSONInternal(c)
 		return
 	}
 	c.JSON(http.StatusCreated, instanceFromModel(*inst))

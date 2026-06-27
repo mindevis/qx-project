@@ -69,6 +69,9 @@ func TestCreateListGetDelete(t *testing.T) {
 	if view.Name != "Test Server" || view.Status != models.ServerStatusPending {
 		t.Fatalf("view: %+v", view)
 	}
+	if view.AgentDeployed {
+		t.Fatal("expected agent_deployed false before deploy")
+	}
 
 	items, err := svc.List(ctx, owner)
 	if err != nil || len(items) != 1 {
@@ -130,6 +133,9 @@ func TestDeployAndAgentToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deploy: %v", err)
 	}
+	if deployed.View.AgentDeployed != true {
+		t.Fatal("expected agent_deployed true after deploy")
+	}
 	if deployed.View.Status != models.ServerStatusOffline {
 		t.Fatalf("status: %s", deployed.View.Status)
 	}
@@ -181,6 +187,15 @@ func TestAgentConnectDisconnect(t *testing.T) {
 	svc, _, _ := newServersService(t)
 	ctx := context.Background()
 	view := createTestServer(t, svc, "owner-1")
+	now := time.Now().UTC()
+	if err := svc.db.WithContext(ctx).Create(&models.Agent{
+		ID:        "agent-test-1",
+		ServerID:  view.ID,
+		OS:        "linux",
+		CreatedAt: now,
+	}).Error; err != nil {
+		t.Fatalf("create agent row: %v", err)
+	}
 
 	if err := svc.AgentConnected(ctx, view.ID, "vps-1", "0.1.0"); err != nil {
 		t.Fatalf("connected: %v", err)
@@ -191,6 +206,9 @@ func TestAgentConnectDisconnect(t *testing.T) {
 	}
 	if got.LastSeenAt == nil {
 		t.Fatal("expected last_seen_at after agent connect")
+	}
+	if got.AgentVersion == nil || *got.AgentVersion != "0.1.0" {
+		t.Fatalf("expected agent_version 0.1.0, got %v", got.AgentVersion)
 	}
 
 	_ = svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Update("status", models.ServerStatusOnline).Error
@@ -300,6 +318,65 @@ func TestSendConsoleInput(t *testing.T) {
 
 	if err := svc.SendConsoleInput(ctx, "owner-1", view.ID, "say hi"); err != nil {
 		t.Fatalf("send: %v", err)
+	}
+}
+
+func TestAttachConsole(t *testing.T) {
+	svc, _, hub := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+	if _, err := svc.Deploy(ctx, "owner-1", view.ID); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+
+	received := make(chan protocol.ConsoleAttachPayload, 1)
+	server := httptestWSServer(t, func(conn *websocket.Conn) {
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		var env protocol.Envelope
+		if json.Unmarshal(data, &env) != nil || env.Type != protocol.TypeCmdConsoleAttach {
+			return
+		}
+		var payload protocol.ConsoleAttachPayload
+		if json.Unmarshal(env.Payload, &payload) == nil {
+			received <- payload
+		}
+	})
+	defer server.Close()
+
+	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer wsConn.Close()
+	agentConn := hub.Register(view.ID, wsConn)
+	go hub.ReadLoop(agentConn)
+
+	if err := svc.db.WithContext(ctx).Create(&models.GameServer{
+		ID:       "gs-attach",
+		ServerID: view.ID,
+		Name:     "Test",
+		ServerType: "forge",
+		MCVersion: "1.20.1",
+		Status:   models.GameServerStatusRunning,
+		WorkDir:  "/opt/qx/server/instances/gs-attach",
+	}).Error; err != nil {
+		t.Fatalf("create game server: %v", err)
+	}
+
+	if err := svc.AttachConsole(ctx, "owner-1", view.ID, "gs-attach"); err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+
+	select {
+	case payload := <-received:
+		if payload.WorkDir != "/opt/qx/server/instances/gs-attach" || payload.GameServerID != "gs-attach" {
+			t.Fatalf("payload: %+v", payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for attach command")
 	}
 }
 

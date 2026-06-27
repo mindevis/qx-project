@@ -13,6 +13,7 @@ type OfflineProfile = {
   id: string;
   username: string;
   offline_uuid: string;
+  model?: 'steve' | 'alex';
   created_at: string;
 };
 
@@ -28,7 +29,7 @@ export type MockApiState = {
   instances: LauncherInstance[];
   profiles: OfflineProfile[];
   launchRequests: Map<string, LaunchRequest>;
-  linkedDevice: { device_id: string; owner_type: 'guest' | 'user' } | null;
+  linkedDevice: { device_id: string; owner_type: 'user' } | null;
 };
 
 export function createMockState(): MockApiState {
@@ -94,11 +95,12 @@ export async function installLauncherApiMock(page: Page, state: MockApiState) {
       return json(route, 200, { items: state.profiles });
     }
     if (path === '/launcher/profiles' && method === 'POST') {
-      const body = route.request().postDataJSON() as { username: string };
+      const body = route.request().postDataJSON() as { username: string; model?: 'steve' | 'alex' };
       const profile: OfflineProfile = {
         id: `prof-${state.profiles.length + 1}`,
         username: body.username,
         offline_uuid: '00000000-0000-0000-0000-000000000001',
+        model: body.model === 'alex' ? 'alex' : 'steve',
         created_at: '2026-06-10T00:00:00Z',
       };
       state.profiles.push(profile);
@@ -107,19 +109,13 @@ export async function installLauncherApiMock(page: Page, state: MockApiState) {
 
     if (path === '/launcher/devices/link' && method === 'POST') {
       const body = route.request().postDataJSON() as { device_id: string };
-      if (isAuthUser(route.request())) {
-        state.linkedDevice = { device_id: body.device_id, owner_type: 'user' };
-        return json(route, 200, {
-          status: 'linked',
-          owner_type: 'user',
-        });
+      if (!isAuthUser(route.request())) {
+        return json(route, 401, { error: { code: 'UNAUTHORIZED', message: 'auth required' } });
       }
-      state.linkedDevice = { device_id: body.device_id, owner_type: 'guest' };
+      state.linkedDevice = { device_id: body.device_id, owner_type: 'user' };
       return json(route, 200, {
         status: 'linked',
-        guest_token: 'guest-e2e-token',
-        guest_expires_in: 86_400,
-        owner_type: 'guest',
+        owner_type: 'user',
       });
     }
 
@@ -169,17 +165,17 @@ export async function installLauncherApiMock(page: Page, state: MockApiState) {
       return json(route, 200, { linked: false });
     }
 
-    return json(route, 404, { error: { code: 'NOT_FOUND', message: `unmocked ${method} ${path}` } });
-  });
-}
+    if (path === '/launcher/mc-versions' && method === 'GET') {
+      return json(route, 200, {
+        latest: { release: '1.21' },
+        items: [
+          { id: '1.21', type: 'release' },
+          { id: '1.20.4', type: 'release' },
+        ],
+      });
+    }
 
-export function seedGuestSession(page: Page) {
-  return page.addInitScript(() => {
-    localStorage.setItem(
-      'qx.guest',
-      JSON.stringify({ guest_token: 'guest-e2e-token', expires_in: 86_400 }),
-    );
-    localStorage.setItem('qx.device', JSON.stringify({ device_id: 'dev-e2e' }));
+    return json(route, 404, { error: { code: 'NOT_FOUND', message: `unmocked ${method} ${path}` } });
   });
 }
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -155,5 +156,51 @@ func TestUnlink(t *testing.T) {
 	client := NewClient(srv.URL+"/api/v1", "dev")
 	if err := client.Unlink(context.Background(), "device-tok"); err != nil {
 		t.Fatalf("unlink: %v", err)
+	}
+}
+
+func TestUnlinkWithRefresh(t *testing.T) {
+	unlinkCalls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/launcher/devices/me":
+			if r.Header.Get("Authorization") == "Bearer stale-token" {
+				_, _ = w.Write([]byte(`{"device_id":"dev-1","status":"linked"}`))
+				return
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/launcher/devices/dev-1/status":
+			token := "fresh-device-tok"
+			_ = json.NewEncoder(w).Encode(StatusResult{Status: "linked", DeviceToken: &token})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/launcher/devices/unlink":
+			unlinkCalls++
+			auth := r.Header.Get("Authorization")
+			if auth == "Bearer stale-token" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if auth != "Bearer fresh-device-tok" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "pending_link"})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	tokenPath := filepath.Join(dir, "device_token")
+	if err := os.WriteFile(tokenPath, []byte("stale-token"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	client := NewClient(srv.URL+"/api/v1", "dev-1")
+	if err := client.UnlinkWithRefresh(context.Background(), tokenPath); err != nil {
+		t.Fatalf("unlink with refresh: %v", err)
+	}
+	if unlinkCalls != 2 {
+		t.Fatalf("unlink calls: %d", unlinkCalls)
 	}
 }

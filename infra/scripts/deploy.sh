@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy QXProject prod stack on a VPS (Docker Compose Tier 0).
+# Deploy QXSystem prod stack on a VPS (Docker Compose Tier 0).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

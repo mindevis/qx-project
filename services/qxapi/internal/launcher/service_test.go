@@ -20,13 +20,15 @@ func newLauncherService(t *testing.T) (*Service, *gorm.DB, *auth.TokenService) {
 	return NewService(db, tokens, "http://localhost:5173"), db, tokens
 }
 
-func TestRegisterAndLinkDeviceGuest(t *testing.T) {
+func TestRegisterAndLinkDevice(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
 	ctx := context.Background()
 
 	reg, err := svc.RegisterDevice(ctx, RegisterDeviceInput{
-		DeviceID: "device-1",
-		OS:       "windows",
+		DeviceID:        "device-1",
+		OS:              "windows",
+		Hostname:        "DESKTOP-TEST",
+		LauncherVersion: "0.1.0",
 	})
 	if err != nil || reg.LinkURL == "" {
 		t.Fatalf("register: err=%v reg=%+v", err, reg)
@@ -36,10 +38,16 @@ func TestRegisterAndLinkDeviceGuest(t *testing.T) {
 	if err != nil || status.Status != models.DeviceStatusPendingLink {
 		t.Fatalf("status pending: err=%v status=%+v", err, status)
 	}
+	if status.DeviceID != "device-1" || status.Hostname == nil || *status.Hostname != "DESKTOP-TEST" {
+		t.Fatalf("status metadata: %+v", status)
+	}
+	if status.OS == nil || *status.OS != "windows" || status.LauncherVersion == nil || *status.LauncherVersion != "0.1.0" {
+		t.Fatalf("status os/version: %+v", status)
+	}
 
-	link, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "device-1"})
-	if err != nil || link.GuestToken == "" || link.OwnerType != "guest" {
-		t.Fatalf("link guest: err=%v link=%+v", err, link)
+	link, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "device-1", UserID: "user-1"})
+	if err != nil || link.OwnerType != "user" {
+		t.Fatalf("link: err=%v link=%+v", err, link)
 	}
 
 	status, err = svc.DeviceStatus(ctx, "device-1")
@@ -58,7 +66,7 @@ func TestLinkDeviceAsUser(t *testing.T) {
 	}
 
 	link, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "device-user", UserID: "user-1"})
-	if err != nil || link.OwnerType != "user" || link.GuestToken != "" {
+	if err != nil || link.OwnerType != "user" {
 		t.Fatalf("link user: err=%v link=%+v", err, link)
 	}
 }
@@ -66,7 +74,7 @@ func TestLinkDeviceAsUser(t *testing.T) {
 func TestInstancesCRUD(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
 	ctx := context.Background()
-	owner := Owner{UserID: "user-1", IsGuest: false}
+	owner := Owner{UserID: "user-1"}
 
 	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:      "Survival",
@@ -90,18 +98,110 @@ func TestInstancesCRUD(t *testing.T) {
 	}
 }
 
-func TestGuestVanillaOnly(t *testing.T) {
+func TestCreateInstanceModLoader(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
 	ctx := context.Background()
-	owner := Owner{GuestSessionID: "guest-1", IsGuest: true}
+	owner := Owner{UserID: "user-1"}
 
-	_, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
-		Name:      "Modded",
-		MCVersion: "1.21",
-		Loader:    "fabric",
+	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "Modded",
+		MCVersion:     "1.20.1",
+		Loader:        models.LoaderFabric,
+		LoaderVersion: "0.16.14",
 	})
-	if !errors.Is(err, ErrGuestLoaderOnly) {
-		t.Fatalf("expected guest loader error, got %v", err)
+	if err != nil {
+		t.Fatalf("create fabric: %v", err)
+	}
+	if inst.LoaderVersion == nil || *inst.LoaderVersion != "0.16.14" {
+		t.Fatalf("loader version: %+v", inst.LoaderVersion)
+	}
+
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:      "Bad",
+		MCVersion: "1.20.1",
+		Loader:    models.LoaderForge,
+	})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected validation without loader version, got %v", err)
+	}
+
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "Bad",
+		MCVersion:     "1.20.1",
+		Loader:        "paper",
+		LoaderVersion: "1",
+	})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected validation for unsupported loader, got %v", err)
+	}
+
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "Bad NeoForge",
+		MCVersion:     "1.21.1",
+		Loader:        models.LoaderNeoForge,
+		LoaderVersion: "47.4.20",
+	})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected validation for forge version on neoforge, got %v", err)
+	}
+
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "Bad Forge",
+		MCVersion:     "1.21.1",
+		Loader:        models.LoaderForge,
+		LoaderVersion: "21.1.234",
+	})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected validation for neoforge version on forge, got %v", err)
+	}
+
+	inst, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "NeoForge",
+		MCVersion:     "1.21.1",
+		Loader:        models.LoaderNeoForge,
+		LoaderVersion: "21.1.234",
+	})
+	if err != nil {
+		t.Fatalf("create neoforge: %v", err)
+	}
+	if inst.LoaderVersion == nil || *inst.LoaderVersion != "21.1.234" {
+		t.Fatalf("loader version: %+v", inst.LoaderVersion)
+	}
+
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "Bad Fabric",
+		MCVersion:     "1.21.1",
+		Loader:        models.LoaderFabric,
+		LoaderVersion: "47.4.20",
+	})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected validation for forge version on fabric, got %v", err)
+	}
+
+	inst, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "Fabric",
+		MCVersion:     "1.21.1",
+		Loader:        models.LoaderFabric,
+		LoaderVersion: "0.19.3",
+	})
+	if err != nil {
+		t.Fatalf("create fabric: %v", err)
+	}
+	if inst.LoaderVersion == nil || *inst.LoaderVersion != "0.19.3" {
+		t.Fatalf("loader version: %+v", inst.LoaderVersion)
+	}
+
+	inst, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "Quilt",
+		MCVersion:     "1.21.1",
+		Loader:        models.LoaderQuilt,
+		LoaderVersion: "0.28.1",
+	})
+	if err != nil {
+		t.Fatalf("create quilt: %v", err)
+	}
+	if inst.LoaderVersion == nil || *inst.LoaderVersion != "0.28.1" {
+		t.Fatalf("loader version: %+v", inst.LoaderVersion)
 	}
 }
 
@@ -126,7 +226,7 @@ func TestLinkExpiredAndWrongCode(t *testing.T) {
 	if err := db.Model(&models.LauncherDevice{}).Where("device_id = ?", "expired-device").Update("link_expires_at", past).Error; err != nil {
 		t.Fatalf("expire: %v", err)
 	}
-	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "expired-device"}); !errors.Is(err, ErrLinkExpired) {
+	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "expired-device", UserID: "user-expired"}); !errors.Is(err, ErrLinkExpired) {
 		t.Fatalf("expected link expired, got %v", err)
 	}
 	_ = reg
@@ -154,19 +254,15 @@ func TestListInstancesForDevice(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
 	ctx := context.Background()
 
-	_, err := svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "sync-guest"})
+	_, err := svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "sync-user"})
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "sync-guest"}); err != nil {
+	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "sync-user", UserID: "user-sync"}); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 
-	device, err := svc.getDevice(ctx, "sync-guest")
-	if err != nil || device.GuestSessionID == nil {
-		t.Fatalf("device: err=%v", err)
-	}
-	owner := Owner{GuestSessionID: *device.GuestSessionID, IsGuest: true}
+	owner := Owner{UserID: "user-sync"}
 
 	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "A", MCVersion: "1.21", Loader: models.LoaderVanilla,
@@ -175,7 +271,7 @@ func TestListInstancesForDevice(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	items, err := svc.ListInstancesForDevice(ctx, "sync-guest")
+	items, err := svc.ListInstancesForDevice(ctx, "sync-user")
 	if err != nil || len(items) != 1 {
 		t.Fatalf("list for device: err=%v len=%d", err, len(items))
 	}
@@ -224,29 +320,6 @@ func TestUnlinkDevice(t *testing.T) {
 	}
 }
 
-func TestLinkDeviceGuestRelinkAfterUnlink(t *testing.T) {
-	svc, _, _ := newLauncherService(t)
-	ctx := context.Background()
-
-	_, err := svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "relink-dev"})
-	if err != nil {
-		t.Fatalf("register: %v", err)
-	}
-	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "relink-dev"}); err != nil {
-		t.Fatalf("link guest: %v", err)
-	}
-	if _, err := svc.UnlinkDevice(ctx, "relink-dev"); err != nil {
-		t.Fatalf("unlink: %v", err)
-	}
-	if _, err := svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "relink-dev"}); err != nil {
-		t.Fatalf("re-register: %v", err)
-	}
-	link, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "relink-dev"})
-	if err != nil || link.GuestToken == "" {
-		t.Fatalf("relink guest: err=%v link=%+v", err, link)
-	}
-}
-
 func TestUnlinkDeviceForOwner(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
 	ctx := context.Background()
@@ -255,22 +328,18 @@ func TestUnlinkDeviceForOwner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "owner-unlink"}); err != nil {
+	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "owner-unlink", UserID: "user-owner"}); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 
-	device, err := svc.getDevice(ctx, "owner-unlink")
-	if err != nil || device.GuestSessionID == nil {
-		t.Fatalf("device: err=%v", err)
-	}
-	owner := Owner{GuestSessionID: *device.GuestSessionID, IsGuest: true}
+	owner := Owner{UserID: "user-owner"}
 
 	result, err := svc.UnlinkDeviceForOwner(ctx, owner)
 	if err != nil || result.Status != models.DeviceStatusPendingLink {
 		t.Fatalf("unlink owner: err=%v result=%+v", err, result)
 	}
 
-	_, err = svc.UnlinkDeviceForOwner(ctx, Owner{UserID: "nobody", IsGuest: false})
+	_, err = svc.UnlinkDeviceForOwner(ctx, Owner{UserID: "nobody"})
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("no device: %v", err)
 	}

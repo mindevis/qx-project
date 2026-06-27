@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-info api agent launcher web test lint jwt-secret jwt-secret-config prod-build prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha build-launcher-win build-agent-linux swagger
+.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-rm dev-vps-rm-data dev-vps-info dev-vps-sh api agent launcher web test lint jwt-secret jwt-secret-config gen-tray-icons prod-build prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha test-forge-client test-neoforge-client test-fabric-client test-quilt-client build-launcher-win build-agent-linux swagger
 
 ifeq ($(OS),Windows_NT)
 EXE := .exe
@@ -21,8 +21,17 @@ dev-vps-up:
 dev-vps-down:
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-vps.ps1 -Down
 
+dev-vps-rm:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-vps.ps1 -Rm
+
+dev-vps-rm-data:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-vps.ps1 -Rm -WipeData
+
 dev-vps-info:
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-vps.ps1 -Info
+
+dev-vps-sh:
+	docker exec -it qx-vps-dev bash
 
 prod-build:
 	docker compose -f infra/docker/docker-compose.prod.yml build
@@ -41,6 +50,9 @@ agent:
 
 launcher:
 	cd services/qxlauncher && go run ./cmd
+
+gen-tray-icons:
+	cd scripts/gen-tray-icon && go run . ../../services/qxlauncher/internal/tray/assets
 
 web:
 	cd web/qxweb && npm run dev
@@ -68,18 +80,21 @@ lint:
 	cd services/qxlauncher && go vet ./...
 	cd web/qxweb && npm run lint
 
+AGENT_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)
+AGENT_LDFLAGS = -X main.agentVersion=$(AGENT_VERSION)
+
 build-api:
 	cd services/qxapi && go build -o ../../bin/qx-api ./cmd
 
 build-agent:
-	cd services/qxagent && go build -o ../../bin/qx-agent ./cmd
+	cd services/qxagent && go build -ldflags "$(AGENT_LDFLAGS)" -o ../../bin/qx-agent ./cmd
 
 ifeq ($(OS),Windows_NT)
 build-agent-linux:
-	cd services/qxagent && set GOOS=linux&& set GOARCH=amd64&& go build -o ../../bin/qx-agent-linux ./cmd
+	cd services/qxagent && set GOOS=linux&& set GOARCH=amd64&& go build -ldflags "$(AGENT_LDFLAGS)" -o ../../bin/qx-agent-linux ./cmd
 else
 build-agent-linux:
-	cd services/qxagent && GOOS=linux GOARCH=amd64 go build -o ../../bin/qx-agent-linux ./cmd
+	cd services/qxagent && GOOS=linux GOARCH=amd64 go build -ldflags "$(AGENT_LDFLAGS)" -o ../../bin/qx-agent-linux ./cmd
 endif
 
 build-launcher:
@@ -130,3 +145,23 @@ e2e-web:
 	cd web/qxweb && npm run test:e2e:install && npm run test:e2e
 
 e2e-alpha: e2e-api-smoke e2e-dry-run e2e-web
+
+ifeq ($(OS),Windows_NT)
+test-forge-client:
+	cd services/qxlauncher && set QX_FORGE_E2E=1&& go test ./internal/minecraft -run TestIntegrationForgeClientLaunch -count=1 -timeout 30m -v
+test-neoforge-client:
+	cd services/qxlauncher && set QX_NEOFORGE_E2E=1&& go test ./internal/minecraft -run TestIntegrationNeoForgeClientLaunch -count=1 -timeout 30m -v
+test-fabric-client:
+	cd services/qxlauncher && set QX_FABRIC_E2E=1&& go test ./internal/minecraft -run TestIntegrationFabricClientLaunch -count=1 -timeout 30m -v
+test-quilt-client:
+	cd services/qxlauncher && set QX_QUILT_E2E=1&& go test ./internal/minecraft -run TestIntegrationQuiltClientLaunch -count=1 -timeout 30m -v
+else
+test-forge-client:
+	cd services/qxlauncher && QX_FORGE_E2E=1 go test ./internal/minecraft -run TestIntegrationForgeClientLaunch -count=1 -timeout 30m -v
+test-neoforge-client:
+	cd services/qxlauncher && QX_NEOFORGE_E2E=1 go test ./internal/minecraft -run TestIntegrationNeoForgeClientLaunch -count=1 -timeout 30m -v
+test-fabric-client:
+	cd services/qxlauncher && QX_FABRIC_E2E=1 go test ./internal/minecraft -run TestIntegrationFabricClientLaunch -count=1 -timeout 30m -v
+test-quilt-client:
+	cd services/qxlauncher && QX_QUILT_E2E=1 go test ./internal/minecraft -run TestIntegrationQuiltClientLaunch -count=1 -timeout 30m -v
+endif

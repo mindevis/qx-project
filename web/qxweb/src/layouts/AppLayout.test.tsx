@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '@/test/test-utils';
 import { AppLayout } from './AppLayout';
+import * as BackendStatus from '@/backend/BackendStatusContext';
 import { HomePage } from '@/pages/HomePage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { saveTokens } from '@/api/client';
@@ -11,13 +12,14 @@ import { saveTokens } from '@/api/client';
 describe('AppLayout', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    vi.mocked(BackendStatus.useBackendStatus).mockReturnValue({ available: true });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('shows guest navigation', async () => {
+  it('shows login navigation for unauthenticated users', async () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
@@ -26,8 +28,22 @@ describe('AppLayout', () => {
       </Routes>,
     );
 
-    await waitFor(() => expect(screen.getByText('QXProject')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('QXSystem')).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'Вход' }).length).toBeGreaterThan(0);
+  });
+
+  it('disables login button when backend is unavailable', async () => {
+    vi.mocked(BackendStatus.useBackendStatus).mockReturnValue({ available: false });
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<HomePage />} />
+        </Route>
+      </Routes>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Вход' })).toBeDisabled());
   });
 
   it('shows header spinner while auth is loading', () => {
@@ -80,7 +96,7 @@ describe('AppLayout', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'Светлая тема' }));
+    await user.click(screen.getByRole('radio', { name: 'Светлая тема' }));
     expect(window.localStorage.getItem('qxweb-theme')).toBe('light');
   });
 
@@ -131,7 +147,7 @@ describe('AppLayout', () => {
     );
 
     const header = document.querySelector('header');
-    expect(header?.className).toContain('app-header--home');
+    expect(header?.className).toContain('app-header--landing');
     expect(header?.className).not.toContain('app-header--scrolled');
 
     Object.defineProperty(window, 'scrollY', { value: 32, configurable: true });
@@ -140,7 +156,7 @@ describe('AppLayout', () => {
     await waitFor(() => expect(header?.className).toContain('app-header--scrolled'));
   });
 
-  it('uses standard sticky header on inner routes', () => {
+  it('uses landing sticky header on launcher route', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
@@ -151,7 +167,7 @@ describe('AppLayout', () => {
     );
 
     const header = document.querySelector('header');
-    expect(header?.className).not.toContain('app-header--home');
+    expect(header?.className).toContain('app-header--landing');
     expect(header?.className).toContain('app-header--sticky');
   });
 });

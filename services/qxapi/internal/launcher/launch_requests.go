@@ -50,9 +50,6 @@ func (s *Service) CreateLaunchRequest(ctx context.Context, owner Owner, in Creat
 	if err != nil {
 		return nil, err
 	}
-	if owner.IsGuest && inst.Loader != models.LoaderVanilla {
-		return nil, ErrGuestLoaderOnly
-	}
 
 	var profileID *string
 	var profile *models.OfflineProfile
@@ -87,17 +84,19 @@ func (s *Service) FetchPendingLaunch(ctx context.Context, deviceID string) (*Lau
 	now := time.Now().UTC()
 	s.expireStaleRequests(ctx, deviceID, now)
 
-	var req models.LaunchRequest
+	var reqs []models.LaunchRequest
 	err := s.db.WithContext(ctx).
 		Where("device_id = ? AND status = ?", deviceID, models.LaunchStatusQueued).
 		Order("created_at asc").
-		First(&req).Error
+		Limit(1).
+		Find(&reqs).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
 		return nil, err
 	}
+	if len(reqs) == 0 {
+		return nil, nil
+	}
+	req := reqs[0]
 
 	dispatched := now
 	if err := s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
@@ -169,7 +168,7 @@ func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest
 	if err := s.db.WithContext(ctx).Where("id = ?", req.InstanceID).First(&inst).Error; err != nil {
 		return nil, err
 	}
-	manifest, err := s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader)
+	manifest, err := s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, instanceLoaderVersion(inst))
 	if err != nil {
 		return nil, err
 	}

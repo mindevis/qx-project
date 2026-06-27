@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,14 +20,13 @@ var (
 	ErrValidation       = errors.New("validation error")
 	ErrDeviceNotLinked  = errors.New("device not linked")
 	ErrLinkExpired      = errors.New("link expired")
-	ErrGuestLoaderOnly  = errors.New("guest may only use vanilla loader")
+	ErrAuthRequired     = errors.New("authentication required")
 	ErrDeviceNotPending = errors.New("device is not pending link")
 )
 
 const (
 	linkTTL         = 15 * time.Minute
 	deviceTokenTTL  = 30 * 24 * time.Hour
-	guestSessionTTL = 24 * time.Hour
 	pollIntervalSec = 3
 )
 
@@ -85,7 +85,6 @@ func (s *Service) RegisterDevice(ctx context.Context, in RegisterDeviceInput) (*
 		device.LinkExpiresAt = &expires
 		device.LastSeenAt = &now
 		device.UserID = nil
-		device.GuestSessionID = nil
 		device.DeviceTokenHash = nil
 		device.LinkedAt = nil
 	}
@@ -117,11 +116,16 @@ func (s *Service) RegisterDevice(ctx context.Context, in RegisterDeviceInput) (*
 }
 
 type DeviceStatusResult struct {
-	Status         string  `json:"status"`
-	DeviceToken    *string `json:"device_token,omitempty"`
-	OwnerType      *string `json:"owner_type,omitempty"`
-	GuestSessionID *string `json:"guest_session_id,omitempty"`
-	UserID         *string `json:"user_id,omitempty"`
+	Status          string     `json:"status"`
+	DeviceID        string     `json:"device_id,omitempty"`
+	Hostname        *string    `json:"hostname,omitempty"`
+	OS              *string    `json:"os,omitempty"`
+	LauncherVersion *string    `json:"launcher_version,omitempty"`
+	LinkExpiresAt   *time.Time `json:"link_expires_at,omitempty"`
+	LastSeenAt      *time.Time `json:"last_seen_at,omitempty"`
+	DeviceToken     *string    `json:"device_token,omitempty"`
+	OwnerType *string `json:"owner_type,omitempty"`
+	UserID    *string `json:"user_id,omitempty"`
 }
 
 func (s *Service) DeviceStatus(ctx context.Context, deviceID string) (*DeviceStatusResult, error) {
@@ -144,7 +148,15 @@ func (s *Service) DeviceStatus(ctx context.Context, deviceID string) (*DeviceSta
 		_ = s.db.WithContext(ctx).Model(device).Update("status", models.DeviceStatusExpired).Error
 	}
 
-	result := &DeviceStatusResult{Status: device.Status}
+	result := &DeviceStatusResult{
+		Status:          device.Status,
+		DeviceID:        device.DeviceID,
+		Hostname:        device.Hostname,
+		OS:              device.OS,
+		LauncherVersion: device.LauncherVersion,
+		LinkExpiresAt:   device.LinkExpiresAt,
+		LastSeenAt:      device.LastSeenAt,
+	}
 	if device.Status != models.DeviceStatusLinked {
 		return result, nil
 	}
@@ -159,10 +171,6 @@ func (s *Service) DeviceStatus(ctx context.Context, deviceID string) (*DeviceSta
 		owner := "user"
 		result.OwnerType = &owner
 		result.UserID = device.UserID
-	} else if device.GuestSessionID != nil {
-		owner := "guest"
-		result.OwnerType = &owner
-		result.GuestSessionID = device.GuestSessionID
 	}
 	return result, nil
 }
@@ -173,16 +181,18 @@ type LinkDeviceInput struct {
 }
 
 type LinkDeviceResult struct {
-	Status         string `json:"status"`
-	GuestToken     string `json:"guest_token,omitempty"`
-	GuestExpiresIn int64  `json:"guest_expires_in,omitempty"`
-	OwnerType      string `json:"owner_type"`
+	Status    string `json:"status"`
+	OwnerType string `json:"owner_type"`
 }
 
 func (s *Service) LinkDevice(ctx context.Context, in LinkDeviceInput) (*LinkDeviceResult, error) {
 	deviceID := strings.TrimSpace(in.DeviceID)
+	userID := strings.TrimSpace(in.UserID)
 	if deviceID == "" {
 		return nil, ErrValidation
+	}
+	if userID == "" {
+		return nil, ErrAuthRequired
 	}
 
 	device, err := s.getDevice(ctx, deviceID)
@@ -199,61 +209,23 @@ func (s *Service) LinkDevice(ctx context.Context, in LinkDeviceInput) (*LinkDevi
 
 	now := time.Now().UTC()
 	updates := map[string]any{
-		"status":     models.DeviceStatusLinked,
-		"linked_at":  now,
-		"user_code":  nil,
+		"status":           models.DeviceStatusLinked,
+		"linked_at":        now,
+		"user_code":        nil,
+		"user_id":          userID,
+		"guest_session_id": nil,
 	}
-
-	if in.UserID != "" {
-		updates["user_id"] = in.UserID
-		updates["guest_session_id"] = nil
-		if err := s.db.WithContext(ctx).Model(device).Updates(updates).Error; err != nil {
-			return nil, err
-		}
-		return &LinkDeviceResult{Status: models.DeviceStatusLinked, OwnerType: "user"}, nil
-	}
-
-	guestID := uuid.NewString()
-	guestToken, ttl, err := s.tokens.IssueGuestToken(guestID)
-	if err != nil {
-		return nil, err
-	}
-	_ = s.db.WithContext(ctx).Where("device_id = ?", deviceID).Delete(&models.GuestSession{}).Error
-	guest := models.GuestSession{
-		ID:             guestID,
-		DeviceID:       deviceID,
-		GuestTokenHash: auth.HashToken(guestToken),
-		ExpiresAt:      now.Add(guestSessionTTL),
-		CreatedAt:      now,
-	}
-	if err := s.db.WithContext(ctx).Create(&guest).Error; err != nil {
-		return nil, err
-	}
-
-	updates["guest_session_id"] = guestID
-	updates["user_id"] = nil
 	if err := s.db.WithContext(ctx).Model(device).Updates(updates).Error; err != nil {
 		return nil, err
 	}
-
-	return &LinkDeviceResult{
-		Status:         models.DeviceStatusLinked,
-		GuestToken:     guestToken,
-		GuestExpiresIn: int64(ttl.Seconds()),
-		OwnerType:      "guest",
-	}, nil
-}
-
-type Owner struct {
-	UserID         string
-	GuestSessionID string
-	IsGuest        bool
+	return &LinkDeviceResult{Status: models.DeviceStatusLinked, OwnerType: "user"}, nil
 }
 
 type CreateInstanceInput struct {
-	Name      string
-	MCVersion string
-	Loader    string
+	Name          string
+	MCVersion     string
+	Loader        string
+	LoaderVersion string
 }
 
 func (s *Service) ListInstances(ctx context.Context, owner Owner) ([]models.LauncherInstance, error) {
@@ -273,11 +245,18 @@ func (s *Service) CreateInstance(ctx context.Context, owner Owner, in CreateInst
 	if loader == "" {
 		loader = models.LoaderVanilla
 	}
+	loaderVersion := strings.TrimSpace(in.LoaderVersion)
 	if name == "" || mcVersion == "" {
 		return nil, ErrValidation
 	}
-	if owner.IsGuest && loader != models.LoaderVanilla {
-		return nil, ErrGuestLoaderOnly
+	if !isSupportedInstanceLoader(loader) {
+		return nil, ErrValidation
+	}
+	if loaderRequiresVersion(loader) && loaderVersion == "" {
+		return nil, ErrValidation
+	}
+	if err := validateLoaderVersion(loader, loaderVersion); err != nil {
+		return nil, err
 	}
 
 	now := time.Now().UTC()
@@ -286,18 +265,68 @@ func (s *Service) CreateInstance(ctx context.Context, owner Owner, in CreateInst
 		Name:      name,
 		MCVersion: mcVersion,
 		Loader:    loader,
+		UserID:    &owner.UserID,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	if owner.IsGuest {
-		inst.GuestSessionID = &owner.GuestSessionID
-	} else {
-		inst.UserID = &owner.UserID
+	if loaderVersion != "" {
+		inst.LoaderVersion = &loaderVersion
 	}
 	if err := s.db.WithContext(ctx).Create(&inst).Error; err != nil {
 		return nil, err
 	}
 	return &inst, nil
+}
+
+func isSupportedInstanceLoader(loader string) bool {
+	switch loader {
+	case models.LoaderVanilla, models.LoaderForge, models.LoaderNeoForge, models.LoaderFabric, models.LoaderQuilt:
+		return true
+	default:
+		return false
+	}
+}
+
+func loaderRequiresVersion(loader string) bool {
+	return loader != models.LoaderVanilla
+}
+
+func validateLoaderVersion(loader, loaderVersion string) error {
+	loaderVersion = strings.TrimSpace(loaderVersion)
+	if loaderVersion == "" {
+		return nil
+	}
+	switch loader {
+	case models.LoaderNeoForge:
+		parts := strings.Split(loaderVersion, ".")
+		if len(parts) < 2 {
+			return ErrValidation
+		}
+		major, err := strconv.Atoi(parts[0])
+		if err != nil || (major != 20 && major != 21) {
+			return ErrValidation
+		}
+	case models.LoaderForge:
+		if strings.HasPrefix(loaderVersion, "20.") || strings.HasPrefix(loaderVersion, "21.") {
+			return ErrValidation
+		}
+	case models.LoaderFabric, models.LoaderQuilt:
+		if strings.HasPrefix(loaderVersion, "47.") || strings.HasPrefix(loaderVersion, "21.") {
+			return ErrValidation
+		}
+		parts := strings.Split(loaderVersion, ".")
+		if len(parts) < 2 || parts[0] != "0" {
+			return ErrValidation
+		}
+	}
+	return nil
+}
+
+func instanceLoaderVersion(inst models.LauncherInstance) string {
+	if inst.LoaderVersion == nil {
+		return ""
+	}
+	return *inst.LoaderVersion
 }
 
 func (s *Service) DeleteInstance(ctx context.Context, owner Owner, instanceID string) error {
@@ -325,11 +354,10 @@ func (s *Service) getDevice(ctx context.Context, deviceID string) (*models.Launc
 }
 
 type DeviceMeResult struct {
-	DeviceID       string  `json:"device_id"`
-	Status         string  `json:"status"`
-	OwnerType      string  `json:"owner_type"`
-	UserID         *string `json:"user_id,omitempty"`
-	GuestSessionID *string `json:"guest_session_id,omitempty"`
+	DeviceID  string  `json:"device_id"`
+	Status    string  `json:"status"`
+	OwnerType string  `json:"owner_type"`
+	UserID    *string `json:"user_id,omitempty"`
 }
 
 type UnlinkDeviceResult struct {
@@ -348,7 +376,6 @@ func (s *Service) UnlinkDevice(ctx context.Context, deviceID string) (*UnlinkDev
 	if device.Status != models.DeviceStatusLinked {
 		return nil, ErrDeviceNotLinked
 	}
-	_ = s.db.WithContext(ctx).Where("device_id = ?", deviceID).Delete(&models.GuestSession{}).Error
 	updates := map[string]any{
 		"status":            models.DeviceStatusPendingLink,
 		"user_id":           nil,
@@ -385,18 +412,8 @@ func (s *Service) DeviceMe(ctx context.Context, deviceID string) (*DeviceMeResul
 	case device.UserID != nil:
 		out.OwnerType = "user"
 		out.UserID = device.UserID
-	case device.GuestSessionID != nil:
-		out.OwnerType = "guest"
-		out.GuestSessionID = device.GuestSessionID
 	default:
 		out.OwnerType = "none"
 	}
 	return out, nil
-}
-
-func scopeOwner(q *gorm.DB, owner Owner) *gorm.DB {
-	if owner.IsGuest {
-		return q.Where("guest_session_id = ?", owner.GuestSessionID)
-	}
-	return q.Where("user_id = ?", owner.UserID)
 }

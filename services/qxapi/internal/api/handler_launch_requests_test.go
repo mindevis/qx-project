@@ -20,7 +20,7 @@ import (
 
 type testManifestProvider struct{}
 
-func (testManifestProvider) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader string) (*mcmanifest.InstanceLaunchManifest, error) {
+func (testManifestProvider) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error) {
 	return &mcmanifest.InstanceLaunchManifest{
 		InstanceID: instanceID,
 		Name:       name,
@@ -47,12 +47,12 @@ func TestLaunchRequestsHandlerCreateWithLinkedDevice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	link, err := svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-web"})
-	if err != nil {
+	if _, err := svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-web", UserID: "user-web"}); err != nil {
 		t.Fatalf("link: %v", err)
 	}
-	claims, _ := tokens.Parse(link.GuestToken)
-	owner := launcher.Owner{GuestSessionID: claims.UserID, IsGuest: true}
+	pair, _ := tokens.IssueUserTokens("user-web", "u@test.com")
+	claims, _ := tokens.Parse(pair.AccessToken)
+	owner := launcher.Owner{UserID: claims.UserID}
 
 	inst, err := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
@@ -66,8 +66,7 @@ func TestLaunchRequestsHandlerCreateWithLinkedDevice(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set(GuestSessionIDKey, claims.UserID)
-	c.Set(IsGuestKey, true)
+	c.Set(UserIDKey, claims.UserID)
 	h.Create(c)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create launch: %d %s", w.Code, w.Body.String())
@@ -77,7 +76,7 @@ func TestLaunchRequestsHandlerCreateWithLinkedDevice(t *testing.T) {
 func TestLaunchRequestsHandlerCreateNoDevice(t *testing.T) {
 	h, svc, tokens := newLaunchHandler(t)
 	ctx := context.Background()
-	owner := launcher.Owner{UserID: "user-1", IsGuest: false}
+	owner := launcher.Owner{UserID: "user-1"}
 	inst, err := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
@@ -104,16 +103,14 @@ func TestLaunchRequestsHandlerPending(t *testing.T) {
 	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-poll"})
-	link, _ := svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-poll"})
-	device, _ := svc.DeviceStatus(ctx, "dev-poll")
-	owner := launcher.Owner{GuestSessionID: *device.GuestSessionID, IsGuest: true}
+	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-poll", UserID: "user-poll"})
+	owner := launcher.Owner{UserID: "user-poll"}
 	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
 	_, _ = svc.CreateLaunchRequest(ctx, owner, launcher.CreateLaunchRequestInput{
 		InstanceID: inst.ID, DeviceID: "dev-poll",
 	})
-	_ = link
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -130,9 +127,10 @@ func TestLaunchRequestsHandlerGet(t *testing.T) {
 	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-get"})
-	link, _ := svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-get"})
-	claims, _ := tokens.Parse(link.GuestToken)
-	owner := launcher.Owner{GuestSessionID: claims.UserID, IsGuest: true}
+	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-get", UserID: "user-get"})
+	pair, _ := tokens.IssueUserTokens("user-get", "u@test.com")
+	claims, _ := tokens.Parse(pair.AccessToken)
+	owner := launcher.Owner{UserID: claims.UserID}
 	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
@@ -144,8 +142,7 @@ func TestLaunchRequestsHandlerGet(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
 	c.Params = gin.Params{{Key: "id", Value: created.ID}}
-	c.Set(GuestSessionIDKey, claims.UserID)
-	c.Set(IsGuestKey, true)
+	c.Set(UserIDKey, claims.UserID)
 	h.Get(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("get: %d %s", w.Code, w.Body.String())
@@ -157,9 +154,8 @@ func TestLaunchRequestsHandlerUpdate(t *testing.T) {
 	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-patch"})
-	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-patch"})
-	device, _ := svc.DeviceStatus(ctx, "dev-patch")
-	owner := launcher.Owner{GuestSessionID: *device.GuestSessionID, IsGuest: true}
+	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-patch", UserID: "user-patch"})
+	owner := launcher.Owner{UserID: "user-patch"}
 	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
@@ -185,9 +181,10 @@ func TestLaunchRequestsHandlerCreateWithXDeviceToken(t *testing.T) {
 	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-header"})
-	link, _ := svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-header"})
-	claims, _ := tokens.Parse(link.GuestToken)
-	owner := launcher.Owner{GuestSessionID: claims.UserID, IsGuest: true}
+	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-header", UserID: "user-header"})
+	pair, _ := tokens.IssueUserTokens("user-header", "u@test.com")
+	claims, _ := tokens.Parse(pair.AccessToken)
+	owner := launcher.Owner{UserID: claims.UserID}
 	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
@@ -200,8 +197,7 @@ func TestLaunchRequestsHandlerCreateWithXDeviceToken(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Request.Header.Set("X-Device-Token", deviceToken)
-	c.Set(GuestSessionIDKey, claims.UserID)
-	c.Set(IsGuestKey, true)
+	c.Set(UserIDKey, claims.UserID)
 	h.Create(c)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create with device header: %d %s", w.Code, w.Body.String())

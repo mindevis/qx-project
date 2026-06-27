@@ -57,7 +57,6 @@ func OpenSQLiteDB(t testing.TB) *gorm.DB {
 var autoMigrateUsers = func(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&models.User{},
-		&models.GuestSession{},
 		&models.LauncherDevice{},
 		&models.LauncherInstance{},
 		&models.OfflineProfile{},
@@ -65,6 +64,7 @@ var autoMigrateUsers = func(db *gorm.DB) error {
 		&models.Server{},
 		&models.SSHCredential{},
 		&models.Agent{},
+		&models.GameServer{},
 	)
 }
 

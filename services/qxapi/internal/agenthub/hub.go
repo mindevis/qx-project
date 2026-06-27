@@ -27,16 +27,20 @@ type Conn struct {
 }
 
 type Hub struct {
-	mu          sync.RWMutex
-	agents      map[string]*Conn
-	consoleSubs map[string]map[*websocket.Conn]*consoleSubscriber
-	onEvent     func(serverID string, env protocol.Envelope)
+	mu             sync.RWMutex
+	agents         map[string]*Conn
+	consoleSubs    map[string]map[*websocket.Conn]*consoleSubscriber
+	consoleHistory map[string][]ConsolePanelMessage
+	onEvent        func(serverID string, env protocol.Envelope)
 }
+
+const consoleHistoryLimit = 500
 
 func New(onEvent func(serverID string, env protocol.Envelope)) *Hub {
 	return &Hub{
-		agents:  make(map[string]*Conn),
-		onEvent: onEvent,
+		agents:         make(map[string]*Conn),
+		consoleHistory: make(map[string][]ConsolePanelMessage),
+		onEvent:        onEvent,
 	}
 }
 

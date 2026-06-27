@@ -5,11 +5,11 @@ import { message } from 'antd';
 import { Routes, Route } from 'react-router-dom';
 import { renderWithProviders, waitForNoDialog } from '@/test/test-utils';
 import { AppLayout } from '@/layouts/AppLayout';
-import { HomePage } from './HomePage';
+import { HomePage, highlightMinecraft } from './HomePage';
 import { LauncherPage } from './LauncherPage';
 import { ProfilePage } from './ProfilePage';
 import { PlaceholderPage } from './PlaceholderPage';
-import { clearGuestSession, clearTokens, saveGuestSession, saveTokens } from '@/api/client';
+import { clearTokens, saveTokens, api } from '@/api/client';
 
 function requestUrl(input: RequestInfo | URL): string {
   return typeof input === 'string'
@@ -50,6 +50,20 @@ function mockLauncherFetch(
     if (url.includes('/launcher/profiles') && init?.method !== 'POST' && init?.method !== 'DELETE') {
       return Promise.resolve(emptyProfilesResponse());
     }
+    if (url.includes('/launcher/mc-versions')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            latest: { release: '1.21' },
+            items: [
+              { id: '1.21', type: 'release' },
+              { id: '1.20.4', type: 'release' },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    }
     if (url.includes('/users/me/launcher-device')) {
       return Promise.resolve(new Response(JSON.stringify({ linked: false }), { status: 200 }));
     }
@@ -66,7 +80,6 @@ describe('pages', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     clearTokens();
-    clearGuestSession();
   });
 
   afterEach(() => {
@@ -75,12 +88,16 @@ describe('pages', () => {
 
   it('renders home as description page', () => {
     renderWithProviders(<HomePage />);
-    expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument();
-    expect(screen.getByText('QXWeb')).toBeInTheDocument();
-    expect(screen.getByText('QXLauncher')).toBeInTheDocument();
-    expect(screen.getByText('QXAgent')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Единая экосистема для Minecraft',
+    );
+    expect(screen.getAllByText('QXLauncher').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('QXAgent').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /Открыть лаунчер/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: /Скачать QXLauncher/ }).length).toBeGreaterThan(0);
+  });
+
+  it('highlightMinecraft returns plain text when marker is absent', () => {
+    expect(highlightMinecraft('No game here')).toBe('No game here');
   });
 
   it('shows servers CTA on home for authenticated users', async () => {
@@ -109,17 +126,10 @@ describe('pages', () => {
     );
   });
 
-  it('opens auth modal from guest launcher alert', async () => {
+  it('opens auth modal from launcher sign-in prompt', async () => {
     const user = userEvent.setup({ delay: null });
-    const { saveGuestSession } = await import('@/api/client');
-    saveGuestSession({ guest_token: 'guest', expires_in: 3600 });
     vi.mocked(fetch).mockImplementation(
-      mockLauncherFetch((url) => {
-        if (url.includes('/instances')) {
-          return new Response(JSON.stringify({ items: [] }), { status: 200 });
-        }
-        return null;
-      }),
+      mockLauncherFetch(() => null),
     );
 
     renderWithProviders(
@@ -131,12 +141,14 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByText('Гостевой режим')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'Войти' }));
+    await waitFor(() =>
+      expect(screen.getByText('Войдите в аккаунт, чтобы управлять инстансами и профилями.')).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: 'Войти в аккаунт' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 
-  it('opens auth modal from launcher page for guests', async () => {
+  it('opens auth modal from launcher page when unauthenticated', async () => {
     const user = userEvent.setup({ delay: null });
     renderWithProviders(
       <Routes>
@@ -151,7 +163,7 @@ describe('pages', () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 
-  it('renders launcher page for guests', () => {
+  it('renders launcher page for unauthenticated users', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
@@ -161,9 +173,11 @@ describe('pages', () => {
       '/launcher',
     );
 
-    expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument();
     expect(screen.getByText('Сначала свяжите QXLauncher')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Проверить связь/ })).toBeInTheDocument();
+    expect(
+      screen.getByText('Войдите в аккаунт, чтобы управлять инстансами и профилями.'),
+    ).toBeInTheDocument();
   });
 
   it('refreshes launcher access on storage and focus events', async () => {
@@ -272,7 +286,7 @@ describe('pages', () => {
 
     await user.click(screen.getByRole('button', { name: /Создать/ }));
     await user.type(screen.getByLabelText('Название'), 'New');
-    await user.click(screen.getByRole('button', { name: 'Создать Vanilla' }));
+    await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('create failed'));
 
     await user.click(screen.getByRole('button', { name: 'delete' }));
@@ -299,22 +313,22 @@ describe('pages', () => {
       created_at: 't',
       updated_at: 't',
     };
-    vi.mocked(fetch).mockImplementation((input, init) => {
-      const url = requestUrl(input);
-      if (url.includes('/launcher/profiles')) {
-        return Promise.resolve(emptyProfilesResponse());
-      }
-      if (url.includes('/instances') && init?.method === 'POST') {
-        return Promise.reject('boom');
-      }
-      if (url.includes('/instances') && init?.method === 'DELETE') {
-        return Promise.reject('boom');
-      }
-      if (url.includes('/instances')) {
-        return Promise.resolve(new Response(JSON.stringify({ items: [instance] }), { status: 200 }));
-      }
-      return Promise.resolve(meResponse());
-    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/instances') && init?.method === 'POST') {
+          return null;
+        }
+        if (url.includes('/instances') && init?.method === 'DELETE') {
+          return null;
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+    const createSpy = vi.spyOn(api, 'createInstance').mockRejectedValueOnce('boom' as never);
+    const deleteSpy = vi.spyOn(api, 'deleteInstance').mockRejectedValueOnce('boom' as never);
 
     renderWithProviders(
       <Routes>
@@ -328,25 +342,22 @@ describe('pages', () => {
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Создать/ }));
     await user.type(screen.getByLabelText('Название'), 'X');
-    await user.click(screen.getByRole('button', { name: 'Создать Vanilla' }));
+    await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось создать инстанс'));
+    createSpy.mockRestore();
 
     await user.click(screen.getByRole('button', { name: 'delete' }));
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось удалить'));
+    deleteSpy.mockRestore();
     errorSpy.mockRestore();
   });
 
-  it('handles guest launcher access and malformed instance list', async () => {
-    const { saveGuestSession } = await import('@/api/client');
-    saveGuestSession({ guest_token: 'guest', expires_in: 3600 });
+  it('shows sign-in required when unauthenticated on launcher workspace', async () => {
     vi.mocked(fetch).mockImplementation((input) => {
       const url = requestUrl(input);
       if (url.includes('/launcher/profiles')) {
         return Promise.resolve(emptyProfilesResponse());
-      }
-      if (url.includes('/instances')) {
-        return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
       }
       return Promise.resolve(emptyProfilesResponse());
     });
@@ -360,7 +371,9 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByText('Пока нет инстансов')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Войдите в аккаунт, чтобы управлять инстансами и профилями.')).toBeInTheDocument(),
+    );
   });
 
   it('shows error when instances fail to load', async () => {
@@ -450,7 +463,7 @@ describe('pages', () => {
     await waitFor(() => expect(screen.getByText('Пока нет инстансов')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Создать/ }));
     await user.type(screen.getByLabelText('Название'), 'Survival');
-    await user.click(screen.getByRole('button', { name: 'Создать Vanilla' }));
+    await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     expect(successSpy).toHaveBeenCalledWith('Инстанс создан');
@@ -459,12 +472,12 @@ describe('pages', () => {
         'Создайте offline-профиль с ником или играйте с Player по умолчанию',
       ),
     );
-    await waitFor(() => expect(screen.getByText('Новый offline-профиль')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Добавить профиль')).toBeInTheDocument());
     await user.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
     await waitForNoDialog();
 
     await user.click(screen.getByRole('button', { name: /Создать/ }));
-    await waitFor(() => expect(screen.getByText('Новый инстанс')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Новый инстанс' })).toBeInTheDocument());
     await user.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
     await waitForNoDialog();
 
@@ -548,9 +561,7 @@ describe('pages', () => {
     infoSpy.mockRestore();
   });
 
-  it('shows linked device alert and download info', async () => {
-    const user = userEvent.setup({ delay: null });
-    const infoSpy = vi.spyOn(message, 'info');
+  it('shows linked device without download prompt', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -584,9 +595,7 @@ describe('pages', () => {
     await waitFor(() =>
       expect(screen.getByText(/QXLauncher связан \(dev-99\)/)).toBeInTheDocument(),
     );
-    await user.click(screen.getByRole('button', { name: /Скачать QXLauncher/ }));
-    expect(infoSpy).toHaveBeenCalled();
-    infoSpy.mockRestore();
+    expect(screen.queryByRole('button', { name: /Скачать QXLauncher/ })).not.toBeInTheDocument();
   });
 
   it('unlinks launcher device from alert', async () => {
@@ -1008,7 +1017,7 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Добавить/ }));
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
@@ -1064,12 +1073,12 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Создать/ }));
     await user.type(screen.getByLabelText('Название'), 'Survival');
-    await user.click(screen.getByRole('button', { name: 'Создать Vanilla' }));
+    await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    expect(screen.queryByText('Новый offline-профиль')).not.toBeInTheDocument();
+    expect(screen.queryByText('Добавить профиль')).not.toBeInTheDocument();
   });
 
   it('reports failed launch and deletes profile', async () => {
@@ -1153,7 +1162,7 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: /Добавить/ }));
     await user.type(screen.getByLabelText('Никнейм'), 'Steve');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('JAVA_MISSING'));
@@ -1241,7 +1250,7 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: /Добавить/ }));
     await user.type(screen.getByLabelText('Никнейм'), 'Steve');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'));
@@ -1398,7 +1407,12 @@ describe('pages', () => {
   });
 
   it('shows raw message for unknown launch status', async () => {
-    saveGuestSession({ guest_token: 'g', expires_in: 3600 });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
     const user = userEvent.setup({ delay: null });
     const infoSpy = vi.spyOn(message, 'info');
     const successSpy = vi.spyOn(message, 'success');
@@ -1503,6 +1517,7 @@ describe('pages', () => {
   it('shows generic profile errors for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
     const errorSpy = vi.spyOn(message, 'error');
+    const createSpy = vi.spyOn(api, 'createProfile').mockRejectedValueOnce('profile boom');
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1525,12 +1540,6 @@ describe('pages', () => {
     };
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url, init) => {
-        if (url.includes('/launcher/profiles') && init?.method === 'POST') {
-          return Promise.reject('profile boom');
-        }
-        if (url.includes('/launcher/profiles') && init?.method === 'DELETE') {
-          return Promise.reject('delete boom');
-        }
         if (url.includes('/launcher/profiles')) {
           return new Response(JSON.stringify({ items: [profile] }), { status: 200 });
         }
@@ -1550,17 +1559,19 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Добавить/ }));
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось создать профиль'));
     errorSpy.mockRestore();
+    createSpy.mockRestore();
   });
 
   it('shows generic delete profile error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
     const errorSpy = vi.spyOn(message, 'error');
+    const deleteSpy = vi.spyOn(api, 'deleteProfile').mockRejectedValueOnce('delete boom');
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1575,9 +1586,6 @@ describe('pages', () => {
     };
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url, init) => {
-        if (url.includes('/launcher/profiles/prof-1') && init?.method === 'DELETE') {
-          return Promise.reject('delete boom');
-        }
         if (url.includes('/launcher/profiles')) {
           return new Response(JSON.stringify({ items: [profile] }), { status: 200 });
         }
@@ -1597,11 +1605,12 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
     await user.click(screen.getAllByRole('button', { name: 'delete' })[0]!);
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось удалить профиль'));
     errorSpy.mockRestore();
+    deleteSpy.mockRestore();
   });
 
   it('shows delete profile api error', async () => {
@@ -1646,7 +1655,7 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'delete' }));
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('delete denied'));
@@ -1692,7 +1701,7 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Steve' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'delete' }));
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Профиль удалён'));
@@ -1750,7 +1759,7 @@ describe('pages', () => {
     await waitFor(() => expect(screen.getByText('Пока нет инстансов')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Создать/ }));
     await user.type(screen.getByLabelText('Название'), 'Survival');
-    await user.click(screen.getByRole('button', { name: 'Создать Vanilla' }));
+    await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
     await waitFor(() =>
       expect(infoSpy).toHaveBeenCalledWith(
         'Создайте offline-профиль с ником или играйте с Player по умолчанию',
@@ -1823,7 +1832,7 @@ describe('pages', () => {
   });
 
   it('logs in successfully', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.mocked(fetch)
       .mockResolvedValueOnce(
         new Response(
@@ -1864,14 +1873,19 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: 'Войти' }));
 
     await waitFor(() => {
-      expect(screen.getAllByText('u@test.com').length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: 'Меню аккаунта' })).toBeInTheDocument();
     });
     await waitForNoDialog();
   });
 
   it('shows login error message', async () => {
-    const user = userEvent.setup();
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('invalid credentials'));
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'AUTH', message: 'invalid credentials' } }), {
+        status: 401,
+        statusText: 'Unauthorized',
+      }),
+    );
 
     renderWithProviders(
       <Routes>
@@ -1891,8 +1905,8 @@ describe('pages', () => {
   });
 
   it('shows generic login error for non-error throws', async () => {
-    const user = userEvent.setup();
-    vi.mocked(fetch).mockRejectedValueOnce('fail');
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
     renderWithProviders(
       <Routes>
@@ -1908,7 +1922,11 @@ describe('pages', () => {
     await user.type(screen.getByLabelText('Пароль'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Войти' }));
 
-    await waitFor(() => expect(screen.getByText('Ошибка входа')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Сервер недоступен. Не удаётся связаться с API.'),
+      ).toBeInTheDocument(),
+    );
   });
 
   it('registers successfully', async () => {
@@ -1955,14 +1973,19 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
 
     await waitFor(() => {
-      expect(screen.getAllByText('new@test.com').length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: 'Меню аккаунта' })).toBeInTheDocument();
     });
     await waitForNoDialog();
   });
 
   it('shows register error message', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('boom'));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'AUTH', message: 'boom' } }), {
+        status: 400,
+        statusText: 'Bad Request',
+      }),
+    );
 
     renderWithProviders(
       <Routes>
@@ -1985,7 +2008,7 @@ describe('pages', () => {
 
   it('shows generic register error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockRejectedValueOnce('fail');
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
     renderWithProviders(
       <Routes>
@@ -2003,7 +2026,11 @@ describe('pages', () => {
     await user.type(screen.getByLabelText('Повтор пароля'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
 
-    await waitFor(() => expect(screen.getByText('Ошибка регистрации')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Сервер недоступен. Не удаётся связаться с API.'),
+      ).toBeInTheDocument(),
+    );
   });
 
   it('shows profile spinner and content', async () => {

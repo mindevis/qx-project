@@ -100,6 +100,24 @@ func TestRefreshAndEnsureFresh(t *testing.T) {
 	}
 }
 
+func TestEnsureFreshAccessTokenOfflineUsesStaleToken(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "auth.json")
+	stale := &Session{
+		AccessToken:  "offline-access",
+		RefreshToken: "refresh-old",
+		ExpiresIn:    60,
+		SavedAt:      time.Now().UTC().Add(-2 * time.Hour).Unix(),
+	}
+	if err := SaveSession(path, stale); err != nil {
+		t.Fatal(err)
+	}
+	token, err := EnsureFreshAccessToken(context.Background(), "http://127.0.0.1:1", path)
+	if err != nil || token != "offline-access" {
+		t.Fatalf("offline ensure: token=%q err=%v", token, err)
+	}
+}
+
 func TestLoadSessionMissingFile(t *testing.T) {
 	if _, err := LoadSession(filepath.Join(t.TempDir(), "missing.json")); err == nil {
 		t.Fatal("expected error for missing file")

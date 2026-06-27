@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { apiProxyConfig, suppressProxyErrorLogs } from './vite.proxy';
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -47,7 +48,7 @@ function applyWebToml() {
 applyWebToml();
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [suppressProxyErrorLogs(), react()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -73,12 +74,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        ws: true,
-      },
-    },
+    proxy: apiProxyConfig(),
   },
 });

@@ -68,6 +68,15 @@ func (h *ServerConsoleHandler) Connect(c *gin.Context) {
 	hub.SubscribeConsole(serverID, conn)
 	defer hub.UnsubscribeConsole(serverID, conn)
 
+	gameServerID := strings.TrimSpace(c.Query("game_server_id"))
+	if err := h.Servers.AttachConsole(c.Request.Context(), claims.UserID, serverID, gameServerID); err != nil {
+		detail := "attach failed"
+		if errors.Is(err, servers.ErrAgentOffline) {
+			detail = "agent offline"
+		}
+		_ = hub.WriteConsolePanel(serverID, conn, agenthubConsoleStatus("error", detail))
+	}
+
 	_ = hub.WriteConsolePanel(serverID, conn, agenthubConsoleStatus("connected", ""))
 
 	for {

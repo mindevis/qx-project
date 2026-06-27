@@ -5,10 +5,19 @@ import { useI18n } from '@/i18n/I18nContext';
 
 type ServerConsolePanelProps = {
   serverId: string;
+  /** When set, only lines tagged for this game server instance are shown. */
+  gameServerId?: string;
   agentOnline: boolean;
+  /** Smaller output area when embedded in a game server card. */
+  embedded?: boolean;
 };
 
-export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanelProps) {
+export function ServerConsolePanel({
+  serverId,
+  gameServerId,
+  agentOnline,
+  embedded = false,
+}: ServerConsolePanelProps) {
   const { t } = useI18n();
   const [lines, setLines] = useState<string[]>([]);
   const [connected, setConnected] = useState(false);
@@ -20,25 +29,41 @@ export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanel
     setLines((prev) => [...prev.slice(-499), line]);
   }, []);
 
+  const handleMessage = useCallback(
+    (msg: ConsoleMessage) => {
+      if (
+        gameServerId &&
+        msg.game_server_id &&
+        msg.game_server_id !== gameServerId
+      ) {
+        return;
+      }
+      if (msg.type === 'output' && msg.line != null && msg.line !== '') {
+        appendLine(`[${msg.stream ?? 'out'}] ${msg.line}`);
+      }
+      if (msg.type === 'status') {
+        setConnected(msg.status === 'connected');
+        if (msg.detail) {
+          appendLine(`[status] ${msg.detail}`);
+        } else if (msg.status === 'error') {
+          appendLine(`[status] ${t('console.error')}`);
+        }
+      }
+    },
+    [appendLine, gameServerId, t],
+  );
+
   useEffect(() => {
     let session: ReturnType<typeof openServerConsole> | null = null;
     const timer = window.setTimeout(() => {
-      session = openServerConsole(serverId, {
-        onMessage: (msg: ConsoleMessage) => {
-          if (msg.type === 'output' && msg.line) {
-            appendLine(`[${msg.stream ?? 'out'}] ${msg.line}`);
-          }
-          if (msg.type === 'status') {
-            setConnected(msg.status === 'connected');
-            if (msg.detail) {
-              appendLine(`[status] ${msg.detail}`);
-            } else if (msg.status === 'error') {
-              appendLine(`[status] ${t('console.error')}`);
-            }
-          }
+      session = openServerConsole(
+        serverId,
+        {
+          onMessage: handleMessage,
+          onClose: () => setConnected(false),
         },
-        onClose: () => setConnected(false),
-      });
+        gameServerId,
+      );
       sessionRef.current = session;
     }, 0);
 
@@ -48,7 +73,7 @@ export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanel
       sessionRef.current = null;
       setConnected(false);
     };
-  }, [serverId, appendLine, t]);
+  }, [serverId, gameServerId, handleMessage]);
 
   useEffect(() => {
     const el = preRef.current;
@@ -66,28 +91,17 @@ export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanel
   };
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
-      <Typography.Text type={connected && agentOnline ? 'success' : 'secondary'}>
+    <div className={`servers-console${embedded ? ' servers-console--embedded' : ''}`}>
+      <Typography.Text
+        type={connected && agentOnline ? 'success' : 'secondary'}
+        className="servers-console-status"
+      >
         {connected && agentOnline ? t('console.connected') : t('console.connecting')}
       </Typography.Text>
-      <pre
-        ref={preRef}
-        style={{
-          margin: 0,
-          padding: 12,
-          minHeight: 240,
-          maxHeight: 360,
-          overflow: 'auto',
-          background: '#1e1e1e',
-          color: '#d4d4d4',
-          borderRadius: 8,
-          fontSize: 13,
-          fontFamily: 'Consolas, monospace',
-        }}
-      >
+      <pre ref={preRef} className="servers-console-output">
         {lines.join('\n')}
       </pre>
-      <Space.Compact style={{ width: '100%' }}>
+      <Space.Compact className="servers-console-input">
         <Input
           placeholder={t('console.commandPlaceholder')}
           value={command}
@@ -99,7 +113,7 @@ export function ServerConsolePanel({ serverId, agentOnline }: ServerConsolePanel
           {t('console.send')}
         </Button>
       </Space.Compact>
-    </Space>
+    </div>
   );
 }
 
@@ -108,14 +122,18 @@ export function shouldShowMinecraftControls(server: { minecraft_running?: boolea
   return server.minecraft_running === true;
 }
 
-/** Console is meaningful only after Start (or while a start attempt is in progress). */
-export function shouldShowServerConsole(server: {
-  status: string;
-  minecraft_running?: boolean;
-}): boolean {
+/** Console inside a game server card while provisioning or running. */
+export function shouldShowGameServerConsole(
+  game: { status: string },
+  agentOnline: boolean,
+): boolean {
   return (
-    server.minecraft_running === true ||
-    server.status === 'starting' ||
-    server.status === 'error'
+    agentOnline &&
+    (game.status === 'running' || game.status === 'starting' || game.status === 'installing')
   );
+}
+
+/** @deprecated Use shouldShowGameServerConsole for per-game consoles. */
+export function shouldShowServerConsole(server: { minecraft_running?: boolean }): boolean {
+  return server.minecraft_running === true;
 }

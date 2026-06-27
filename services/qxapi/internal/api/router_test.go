@@ -122,13 +122,6 @@ func TestRouterAuthFlow(t *testing.T) {
 		t.Fatalf("logout: %d", w.Code)
 	}
 
-	w = httptest.NewRecorder()
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/guest", bytes.NewBufferString(`{"device_id":"dev-1"}`))
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("guest: %d %s", w.Code, w.Body.String())
-	}
 
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -148,9 +141,24 @@ func TestRouterAuthFlow(t *testing.T) {
 func TestRouterLauncherFlow(t *testing.T) {
 	r := setupRouter(t)
 
-	regBody := `{"device_id":"router-dev","os":"windows"}`
+	regBody := `{"email":"router-launcher@test.com","password":"password123"}`
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/launcher/devices/register", bytes.NewBufferString(regBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBufferString(regBody))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("register: %d %s", w.Code, w.Body.String())
+	}
+	var userTokens struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &userTokens); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+
+	devBody := `{"device_id":"router-dev","os":"windows"}`
+	w = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/launcher/devices/register", bytes.NewBufferString(devBody))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusCreated {
@@ -161,23 +169,17 @@ func TestRouterLauncherFlow(t *testing.T) {
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/launcher/devices/link", bytes.NewBufferString(linkBody))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+userTokens.AccessToken)
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("device link: %d %s", w.Code, w.Body.String())
-	}
-
-	var linkResp struct {
-		GuestToken string `json:"guest_token"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &linkResp); err != nil || linkResp.GuestToken == "" {
-		t.Fatalf("guest token: %v body=%s", err, w.Body.String())
 	}
 
 	instBody := `{"name":"Survival","mc_version":"1.21","loader":"vanilla"}`
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/instances", bytes.NewBufferString(instBody))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+linkResp.GuestToken)
+	req.Header.Set("Authorization", "Bearer "+userTokens.AccessToken)
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create instance: %d %s", w.Code, w.Body.String())
@@ -185,7 +187,7 @@ func TestRouterLauncherFlow(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/instances", nil)
-	req.Header.Set("Authorization", "Bearer "+linkResp.GuestToken)
+	req.Header.Set("Authorization", "Bearer "+userTokens.AccessToken)
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("list instances: %d %s", w.Code, w.Body.String())
@@ -205,17 +207,23 @@ func TestRouterLauncherFlow(t *testing.T) {
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/launcher/profiles", bytes.NewBufferString(profileBody))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+linkResp.GuestToken)
+	req.Header.Set("Authorization", "Bearer "+userTokens.AccessToken)
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create profile: %d %s", w.Code, w.Body.String())
 	}
+	var profileResp struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &profileResp); err != nil {
+		t.Fatalf("profile json: %v", err)
+	}
 
-	launchBody := `{"instance_id":"` + instanceID + `"}`
+	launchBody := `{"instance_id":"` + instanceID + `","offline_profile_id":"` + profileResp.ID + `"}`
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/launcher/launch-requests", bytes.NewBufferString(launchBody))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+linkResp.GuestToken)
+	req.Header.Set("Authorization", "Bearer "+userTokens.AccessToken)
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create launch request: %d %s", w.Code, w.Body.String())
@@ -259,10 +267,6 @@ func TestRouterLauncherFlow(t *testing.T) {
 	}
 }
 
-// Flow B (guest): device link → instance → launch-bridge full cycle.
-func TestRouterFlowB_GuestLauncher(t *testing.T) {
-	TestRouterLauncherFlow(t)
-}
 
 // Flow A (registered user): register → link device → instances → launch-bridge poll.
 func TestRouterFlowA_RegisteredUserLauncher(t *testing.T) {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
 import { Routes, Route } from 'react-router-dom';
@@ -30,9 +30,10 @@ function meResponse() {
 const sampleServer = {
   id: 'srv-1',
   name: 'Survival',
-  status: 'offline',
+  status: 'pending',
   server_type: 'vanilla',
   mc_version: '1.21',
+  agent_deployed: false,
   agent_online: false,
   ssh: { host: '1.2.3.4', port: 22, username: 'root' },
   config: { jar_path: '/opt/qx/server/server.jar' },
@@ -72,6 +73,14 @@ class MockWebSocket {
   send() {}
 }
 
+async function clickAddVps(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => {
+    expect(screen.getAllByRole('button', { name: /Добавить VPS/i }).length).toBeGreaterThan(0);
+  });
+  const buttons = screen.getAllByRole('button', { name: /Добавить VPS/i });
+  await user.click(buttons[0]!);
+}
+
 describe('ServersPage', () => {
   beforeEach(() => {
     MockWebSocket.instances = [];
@@ -86,12 +95,12 @@ describe('ServersPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('prompts login for guests', async () => {
+  it('prompts login when unauthenticated', async () => {
     const user = userEvent.setup({ delay: null });
     vi.mocked(fetch).mockImplementation(() => Promise.resolve(meResponse()));
     renderServers('/servers');
     expect(await screen.findByText('Управление серверами доступно после входа.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Войти' }));
+    await user.click(screen.getByRole('button', { name: /Войти/i }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 
@@ -112,7 +121,11 @@ describe('ServersPage', () => {
     );
 
     renderServers('/servers');
-    await waitFor(() => expect(screen.getByText('Нет серверов — добавьте Linux VPS с SSH-доступом')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Добавьте Linux VPS с SSH-доступом — мы установим QXAgent и подготовим сервер к запуску.'),
+      ).toBeInTheDocument(),
+    );
   });
 
   it('creates server with default ssh port when omitted', async () => {
@@ -147,8 +160,8 @@ describe('ServersPage', () => {
 
     const user = userEvent.setup({ delay: null });
     renderServers('/servers');
-    await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
-    await user.click(screen.getByText('Добавить VPS'));
+    await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
+    await clickAddVps(user);
     await user.type(screen.getByLabelText('Название'), 'New VPS');
     await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
     await user.type(screen.getByLabelText('SSH User'), 'ubuntu');
@@ -195,9 +208,10 @@ describe('ServersPage', () => {
     renderServers('/servers');
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    expect(screen.getByText('Оффлайн')).toBeInTheDocument();
+    expect(screen.getAllByText('Не развёрнут').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Новый').length).toBeGreaterThan(0);
 
-    await user.click(screen.getByText('Добавить VPS'));
+    await clickAddVps(user);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close' }));
     await waitForNoDialog();
@@ -236,13 +250,27 @@ describe('ServersPage', () => {
       mockAuthedFetch((url, init) => {
         if (url.includes('/servers') && init?.method === 'POST') {
           return new Response(
-            JSON.stringify({ ...sampleServer, id: 'srv-new', name: 'New VPS', agent_online: true, status: 'online' }),
+            JSON.stringify({
+              ...sampleServer,
+              id: 'srv-new',
+              name: 'New VPS',
+              agent_deployed: true,
+              agent_online: true,
+              status: 'online',
+            }),
             { status: 201 },
           );
         }
         if (url.includes('/servers/srv-new')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, id: 'srv-new', name: 'New VPS', agent_online: true, status: 'online' }),
+            JSON.stringify({
+              ...sampleServer,
+              id: 'srv-new',
+              name: 'New VPS',
+              agent_deployed: true,
+              agent_online: true,
+              status: 'online',
+            }),
             { status: 200 },
           );
         }
@@ -256,8 +284,8 @@ describe('ServersPage', () => {
     const user = userEvent.setup({ delay: null });
     renderServers('/servers');
 
-    await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
-    await user.click(screen.getByText('Добавить VPS'));
+    await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
+    await clickAddVps(user);
     await user.type(screen.getByLabelText('Название'), 'New VPS');
     await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
     await user.type(screen.getByLabelText('SSH User'), 'ubuntu');
@@ -268,7 +296,7 @@ describe('ServersPage', () => {
     await user.click(screen.getByRole('button', { name: 'OK' }));
 
     await waitFor(() => expect(screen.getByText('New VPS')).toBeInTheDocument());
-    expect(screen.getByText('Agent подключён')).toBeInTheDocument();
+    expect(screen.getAllByText('Онлайн').length).toBeGreaterThan(0);
   });
 
   it('renders server detail actions when agent is online', async () => {
@@ -278,9 +306,12 @@ describe('ServersPage', () => {
       token_type: 'Bearer',
       expires_in: 60,
     });
-    let server = { ...sampleServer, agent_online: true };
+    let server = { ...sampleServer, agent_deployed: true, agent_online: true };
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
         if (url.includes('/servers/srv-1/deploy')) {
           server = { ...server, status: 'offline' };
           return new Response(JSON.stringify(server), { status: 200 });
@@ -305,13 +336,88 @@ describe('ServersPage', () => {
     const view = renderServers('/servers/srv-1');
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    expect(screen.getByText('Agent подключён')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /Deploy agent/i }));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
-    expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Stop' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Онлайн').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Deploy agent/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Start/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Игровые серверы')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Добавить игровой сервер/i })).toBeInTheDocument();
     view.unmount();
+  });
+
+  it('adds a game server when agent is online', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    let gameServers = { items: [] as Record<string, unknown>[] };
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url, init) => {
+        if (url.includes('/launcher/mc-versions')) {
+          return new Response(
+            JSON.stringify({
+              latest: { release: '1.21' },
+              items: [
+                { id: '1.21', type: 'release' },
+                { id: '1.20.4', type: 'release' },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/versions/') && url.includes('/builds')) {
+          return new Response(JSON.stringify({ builds: [{ build: 456 }] }), { status: 200 });
+        }
+        if (url.includes('api.papermc.io/v2/projects/paper') || url.includes('/upstream/papermc/v2/projects/paper')) {
+          return new Response(JSON.stringify({ versions: ['1.20.4', '1.21'] }), { status: 200 });
+        }
+        if (url.includes('/servers/srv-1/game-servers') && init?.method === 'POST') {
+          const created = {
+            id: 'gs-1',
+            name: 'Survival MC',
+            server_type: 'paper',
+            mc_version: '1.21',
+            loader_version: '456',
+            address: '1.2.3.4',
+            port: 25565,
+            status: 'installing',
+            created_at: '2026-01-01T00:00:00Z',
+          };
+          gameServers = { items: [created] };
+          return new Response(JSON.stringify(created), { status: 201 });
+        }
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(JSON.stringify(gameServers), { status: 200 });
+        }
+        if (url.includes('/servers/srv-1')) {
+          return new Response(JSON.stringify({ ...sampleServer, agent_deployed: true, agent_online: true }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /Добавить игровой сервер/i }));
+    await user.type(screen.getByLabelText('Название'), 'Survival MC');
+    const dialog = screen.getByRole('dialog');
+    const comboboxes = within(dialog).getAllByRole('combobox');
+    await user.click(comboboxes[0]!);
+    await user.click(await screen.findByText('Paper'));
+    await waitFor(() => {
+      expect(within(dialog).getByText('#456')).toBeInTheDocument();
+    });
+    await user.click(within(dialog).getByRole('button', { name: /Добавить игровой сервер/i }));
+
+    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    expect(screen.getByText('Survival MC')).toBeInTheDocument();
+    expect(screen.getByText('Paper')).toBeInTheDocument();
+    expect(screen.getAllByText('1.21').length).toBeGreaterThan(0);
+    expect(screen.getByText('456')).toBeInTheDocument();
+    expect(screen.getByText('1.2.3.4:25565')).toBeInTheDocument();
   });
 
   it('shows offline agent hint on detail page', async () => {
@@ -323,19 +429,23 @@ describe('ServersPage', () => {
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
         if (url.includes('/servers/srv-1')) {
-          return new Response(JSON.stringify({ ...sampleServer, agent_online: false }), { status: 200 });
+          return new Response(JSON.stringify({ ...sampleServer, agent_deployed: false, agent_online: false, status: 'pending' }), { status: 200 });
         }
         return null;
       }),
     );
 
     renderServers('/servers/srv-1');
-    await waitFor(() => expect(screen.getByText('Agent оффлайн')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Не развёрнут').length).toBeGreaterThan(0));
     expect(screen.getByText(/После Deploy агент подключится по WSS автоматически/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Deploy agent/i })).toBeInTheDocument();
   });
 
-  it('stops server from detail page', async () => {
+  it('shows deploy error when agent is offline', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -344,19 +454,19 @@ describe('ServersPage', () => {
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
-        if (url.includes('/servers/srv-1/stop')) {
-          return new Response(JSON.stringify({ status: 'stopping' }), { status: 200 });
-        }
-        if (url.includes('/servers/srv-1')) {
+        if (url.includes('/servers/srv-1/deploy')) {
           return new Response(
             JSON.stringify({
-              ...sampleServer,
-              agent_online: true,
-              status: 'online',
-              minecraft_running: true,
+              error: {
+                code: 'HOST_NOT_LINUX',
+                message: 'QX agent requires a Linux VPS',
+              },
             }),
-            { status: 200 },
+            { status: 422 },
           );
+        }
+        if (url.includes('/servers/srv-1')) {
+          return new Response(JSON.stringify({ ...sampleServer, agent_deployed: false, agent_online: false, status: 'pending' }), { status: 200 });
         }
         return null;
       }),
@@ -365,42 +475,11 @@ describe('ServersPage', () => {
     const user = userEvent.setup({ delay: null });
     renderServers('/servers/srv-1');
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    await user.click(screen.getByText('Stop'));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
-  });
 
-  it('restarts server from detail page', async () => {
-    saveTokens({
-      access_token: 'a',
-      refresh_token: 'r',
-      token_type: 'Bearer',
-      expires_in: 60,
-    });
-    vi.mocked(fetch).mockImplementation(
-      mockAuthedFetch((url) => {
-        if (url.includes('/servers/srv-1/restart')) {
-          return new Response(JSON.stringify({ status: 'starting' }), { status: 200 });
-        }
-        if (url.includes('/servers/srv-1')) {
-          return new Response(
-            JSON.stringify({
-              ...sampleServer,
-              agent_online: true,
-              status: 'online',
-              minecraft_running: true,
-            }),
-            { status: 200 },
-          );
-        }
-        return null;
-      }),
+    await user.click(screen.getByRole('button', { name: /Deploy agent/i }));
+    await waitFor(() =>
+      expect(message.error).toHaveBeenCalledWith('QX agent requires a Linux VPS'),
     );
-
-    const user = userEvent.setup({ delay: null });
-    renderServers('/servers/srv-1');
-    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    await user.click(screen.getByText('Restart'));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
   });
 
   it('redirects when server missing', async () => {
@@ -446,6 +525,7 @@ describe('ServersPage', () => {
                 id: `srv-${i}`,
                 name: `Server ${status}`,
                 status,
+                agent_deployed: status !== 'pending',
                 agent_online: status === 'online',
               })),
             }),
@@ -459,11 +539,11 @@ describe('ServersPage', () => {
     renderServers('/servers');
     await waitFor(() => expect(screen.getByText('Server online')).toBeInTheDocument());
     expect(screen.getByText('Server custom')).toBeInTheDocument();
-    expect(screen.getByText('custom')).toBeInTheDocument();
-    expect(screen.getByText('Deploy…')).toBeInTheDocument();
+    expect(screen.getAllByText('Оффлайн').length).toBeGreaterThan(0);
+    expect(screen.getByText('Развёртывается…')).toBeInTheDocument();
   });
 
-  it('shows raw status label on detail for unknown status', async () => {
+  it('shows VPS offline on detail for unknown backend status without agent', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -472,9 +552,12 @@ describe('ServersPage', () => {
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
         if (url.includes('/servers/srv-1')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, status: 'custom_detail' }),
+            JSON.stringify({ ...sampleServer, status: 'custom_detail', agent_online: false }),
             { status: 200 },
           );
         }
@@ -483,7 +566,7 @@ describe('ServersPage', () => {
     );
 
     renderServers('/servers/srv-1');
-    await waitFor(() => expect(screen.getByText('custom_detail')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Не развёрнут').length).toBeGreaterThanOrEqual(1));
   });
 
   it('deletes server from detail page', async () => {
@@ -499,7 +582,7 @@ describe('ServersPage', () => {
           return new Response(null, { status: 204 });
         }
         if (url.includes('/servers/srv-1')) {
-          return new Response(JSON.stringify({ ...sampleServer, agent_online: true, status: 'online' }), {
+          return new Response(JSON.stringify({ ...sampleServer, agent_deployed: true, agent_online: true, status: 'online' }), {
             status: 200,
           });
         }
@@ -545,9 +628,9 @@ describe('ServersPage', () => {
 
     const user = userEvent.setup({ delay: null });
     renderServers('/servers');
-    await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
 
-    await user.click(screen.getByText('Добавить VPS'));
+    await clickAddVps(user);
     await user.type(screen.getByLabelText('Название'), 'Bad VPS');
     await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
     await user.type(screen.getByLabelText('SSH User'), 'ubuntu');
@@ -555,7 +638,6 @@ describe('ServersPage', () => {
       screen.getByLabelText('SSH Private Key'),
       '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----',
     );
-    await user.type(screen.getByLabelText('JVM args (по одному на строку)'), '-Xmx2G\n-Xms1G');
     await user.click(screen.getByRole('button', { name: 'OK' }));
 
     await waitFor(() => expect(message.error).toHaveBeenCalledWith('invalid ssh key'));
@@ -570,23 +652,6 @@ describe('ServersPage', () => {
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
-        if (url.includes('/servers/srv-1/deploy')) {
-          return new Response(
-            JSON.stringify({
-              error: {
-                code: 'HOST_NOT_LINUX',
-                message: 'QX agent requires a Linux VPS',
-              },
-            }),
-            { status: 422 },
-          );
-        }
-        if (url.includes('/servers/srv-1/stop')) {
-          return new Response(
-            JSON.stringify({ error: { code: 'FAIL', message: 'stop failed' } }),
-            { status: 500 },
-          );
-        }
         if (url.includes('/servers/srv-1') && init?.method === 'DELETE') {
           return new Response(
             JSON.stringify({ error: { code: 'FAIL', message: 'delete failed' } }),
@@ -595,7 +660,13 @@ describe('ServersPage', () => {
         }
         if (url.includes('/servers/srv-1')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, agent_online: true, minecraft_running: true, config: {} }),
+            JSON.stringify({
+              ...sampleServer,
+              agent_deployed: true,
+              agent_online: true,
+              minecraft_running: true,
+              config: {},
+            }),
             { status: 200 },
           );
         }
@@ -606,14 +677,7 @@ describe('ServersPage', () => {
     const user = userEvent.setup({ delay: null });
     renderServers('/servers/srv-1');
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-
-    await user.click(screen.getByRole('button', { name: /Deploy agent/i }));
-    await waitFor(() =>
-      expect(message.error).toHaveBeenCalledWith('QX agent requires a Linux VPS'),
-    );
-
-    await user.click(screen.getByRole('button', { name: /^Stop$/i }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('stop failed'));
+    expect(screen.queryByRole('button', { name: /Deploy agent/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Удалить/i }));
     await user.click(screen.getByRole('button', { name: /^OK$/i }));
@@ -629,15 +693,18 @@ describe('ServersPage', () => {
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
-        if (url.includes('/servers/srv-1/stop')) {
-          return Promise.reject('stop boom');
-        }
         if (url.includes('/servers/srv-1') && init?.method === 'DELETE') {
           return Promise.reject('delete boom');
         }
         if (url.includes('/servers/srv-1')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, agent_online: true, minecraft_running: true, config: {} }),
+            JSON.stringify({
+              ...sampleServer,
+              agent_deployed: true,
+              agent_online: true,
+              minecraft_running: true,
+              config: {},
+            }),
             { status: 200 },
           );
         }
@@ -649,12 +716,9 @@ describe('ServersPage', () => {
     renderServers('/servers/srv-1');
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: /^Stop$/i }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('Ошибка'));
-
     await user.click(screen.getByRole('button', { name: /Удалить/i }));
     await user.click(screen.getByRole('button', { name: /^OK$/i }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(message.error).toHaveBeenCalledWith('Backend unavailable'));
   });
 
   it('ignores create errors without message', async () => {
@@ -667,7 +731,10 @@ describe('ServersPage', () => {
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
         if (url.includes('/servers') && init?.method === 'POST') {
-          return Promise.reject(new Error(''));
+          return new Response(JSON.stringify({ error: { code: 'X', message: '' } }), {
+            status: 500,
+            statusText: 'Error',
+          });
         }
         if (url.includes('/servers')) {
           return new Response(JSON.stringify({ items: [] }), { status: 200 });
@@ -678,9 +745,9 @@ describe('ServersPage', () => {
 
     const user = userEvent.setup({ delay: null });
     renderServers('/servers');
-    await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
 
-    await user.click(screen.getByText('Добавить VPS'));
+    await clickAddVps(user);
     await user.type(screen.getByLabelText('Название'), 'Silent fail');
     await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
     await user.type(screen.getByLabelText('SSH User'), 'ubuntu');
@@ -693,7 +760,7 @@ describe('ServersPage', () => {
     await waitFor(() => expect(message.error).not.toHaveBeenCalled());
   });
 
-  it('shows server console when minecraft is starting', async () => {
+  it('hides game server console until instance is running', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -702,13 +769,34 @@ describe('ServersPage', () => {
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'gs-1',
+                  name: 'qRPG',
+                  server_type: 'forge',
+                  mc_version: '1.20.1',
+                  loader_version: '47.4.20',
+                  address: 'localhost',
+                  port: 25565,
+                  status: 'stopped',
+                  created_at: 'now',
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
         if (url.includes('/servers/srv-1')) {
           return new Response(
             JSON.stringify({
               ...sampleServer,
+              agent_deployed: true,
               agent_online: true,
-              status: 'starting',
-              minecraft_running: false,
+              status: 'online',
+              minecraft_running: true,
             }),
             { status: 200 },
           );
@@ -718,7 +806,60 @@ describe('ServersPage', () => {
     );
 
     renderServers('/servers/srv-1');
-    await waitFor(() => expect(screen.getByText('Консоль')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('qRPG')).toBeInTheDocument());
+    expect(screen.queryByPlaceholderText('Команда сервера (Enter)')).not.toBeInTheDocument();
+  });
+
+  it('shows game server console inside running instance card', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'gs-1',
+                  name: 'qRPG',
+                  server_type: 'forge',
+                  mc_version: '1.20.1',
+                  loader_version: '47.4.20',
+                  address: 'localhost',
+                  port: 25565,
+                  status: 'running',
+                  created_at: 'now',
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/servers/srv-1')) {
+          return new Response(
+            JSON.stringify({
+              ...sampleServer,
+              agent_deployed: true,
+              agent_online: true,
+              status: 'online',
+              minecraft_running: true,
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderServers('/servers/srv-1/game-servers/gs-1');
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('Команда сервера (Enter)')).toBeInTheDocument(),
+    );
+    expect(screen.getByRole('tab', { name: /RCON консоль/i })).toBeInTheDocument();
   });
 
   it('polls server detail on interval', async () => {
@@ -732,9 +873,12 @@ describe('ServersPage', () => {
     let detailCalls = 0;
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
         if (url.includes('/servers/srv-1')) {
           detailCalls += 1;
-          return new Response(JSON.stringify({ ...sampleServer, agent_online: true }), { status: 200 });
+          return new Response(JSON.stringify({ ...sampleServer, agent_deployed: true, agent_online: true }), { status: 200 });
         }
         return null;
       }),
@@ -766,6 +910,6 @@ describe('ServersPage', () => {
     );
 
     renderServers('/servers/extra/nested');
-    await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
   });
 });

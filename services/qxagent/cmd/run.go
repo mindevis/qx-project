@@ -15,6 +15,9 @@ import (
 
 var configPath = flag.String("config", "", "path to agent.toml (default: repo agent.toml or /etc/qx-agent/agent.toml)")
 
+// agentVersion is set at link time via -ldflags (see Makefile).
+var agentVersion = "0.1.0-dev"
+
 func run() {
 	flag.Parse()
 
@@ -40,17 +43,19 @@ func run() {
 	}
 
 	client := agent.NewClient(agent.Config{
-		WSURL:    wsURL,
-		Token:    cfg.AgentToken,
-		Hostname: hostname,
-		Version:  "0.1.0",
-		DryRun:   cfg.DryRun,
+		WSURL:      wsURL,
+		Token:      cfg.AgentToken,
+		Hostname:   hostname,
+		Version:    agentVersion,
+		ServerRoot: cfg.ServerRoot,
+		DryRun:     cfg.DryRun,
 	})
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	slog.Info("qx-agent starting",
+		"version", agentVersion,
 		"ws_url", wsURL,
 		"hostname", hostname,
 		"config", cfg.ConfigPath,

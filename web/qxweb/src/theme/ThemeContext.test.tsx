@@ -66,7 +66,7 @@ describe('ThemeProvider', () => {
     expect(screen.getByTestId('theme-mode')).toHaveTextContent('light');
     expect(document.documentElement.dataset.theme).toBe('light');
 
-    await user.click(screen.getByRole('button', { name: 'Тёмная тема' }));
+    await user.click(screen.getByRole('radio', { name: 'Тёмная тема' }));
 
     expect(screen.getByTestId('theme-mode')).toHaveTextContent('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');

@@ -47,7 +47,7 @@ Device register/link (HWID ПК, auto-open browser), launch-bridge poll, Mojang 
 
 См. [device-linking.md](../docs/device-linking.md) · [configuration.md](../docs/configuration.md) (`device_id`, `web_base_url`).
 
-**Config:** [launcher.toml.example](../launcher.toml.example) → `launcher.toml` (repo root dev; `~/.qx/` when installed). См. [configuration.md](../docs/configuration.md).
+**Config:** [launcher.toml.example](../launcher.toml.example) → `launcher.toml` (repo root dev; `~/.qxlauncher/` when installed). См. [configuration.md](../docs/configuration.md).
 
 ## QXAgent (`services/qxagent/`)
 

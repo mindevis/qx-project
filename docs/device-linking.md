@@ -54,7 +54,7 @@ sequenceDiagram
 5. На сайте нажать **«Продолжить как гость»** или **«Связать устройство»** (если вы в аккаунте).
 6. Создать инстанс на сайте → лаунчер sync → **Играть**.
 
-**Идентификатор устройства (`device_id`):** стабильный UUID, производный от HWID ПК (Windows: `MachineGuid`, Linux: `/etc/machine-id`). Хранится в `~/.qx/device_id`. Коды подтверждения не используются — секрет в URL + TTL 15 мин + кнопка на сайте.
+**Идентификатор устройства (`device_id`):** стабильный UUID, производный от HWID ПК (Windows: `MachineGuid`, Linux: `/etc/machine-id`). Хранится в `~/.qxlauncher/device_id`. Коды подтверждения не используются — секрет в URL + TTL 15 мин + кнопка на сайте.
 
 ---
 
@@ -104,7 +104,7 @@ sequenceDiagram
 }
 ```
 
-После link Go сохраняет `device_token` локально (`~/.qx/device_token`, путь — `device_token_path` в `launcher.toml`).
+После link Go сохраняет `device_token` локально (`~/.qxlauncher/device_token`, путь — `device_token_path` в `launcher.toml`).
 
 ---
 

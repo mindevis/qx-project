@@ -4,9 +4,11 @@ use (
 	./pkg/envfile
 	./pkg/log
 	./pkg/mcmanifest
+	./pkg/mojangjava
 	./pkg/protocol
 	./pkg/reporoot
 	./scripts/gen-jwt-secret
+	./scripts/gen-tray-icon
 	./services/qxagent
 	./services/qxapi
 	./services/qxlauncher

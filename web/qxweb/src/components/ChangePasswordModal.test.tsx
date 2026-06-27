@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { saveTokens } from '@/api/client';
+import { saveTokens, api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
@@ -50,7 +50,11 @@ describe('ChangePasswordModal', () => {
 
   it('shows error when api fails', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('bad password'));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'sX', message: 'bad password' } }), {
+        status: 400,
+      }),
+    );
 
     renderModal();
 
@@ -64,7 +68,7 @@ describe('ChangePasswordModal', () => {
 
   it('shows generic error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockImplementationOnce(() => Promise.reject('fail'));
+    vi.spyOn(api, 'changePassword').mockRejectedValueOnce('fail');
 
     renderModal();
 

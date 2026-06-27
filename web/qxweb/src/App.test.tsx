@@ -37,7 +37,9 @@ describe('App', () => {
     );
     renderApp('/');
     await waitFor(() =>
-      expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Единая экосистема для Minecraft',
+      ),
     );
   });
 
@@ -47,7 +49,7 @@ describe('App', () => {
     );
     renderApp('/launcher');
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'Войти в аккаунт' })).toBeInTheDocument(),
     );
 
     renderApp('/servers');
@@ -62,7 +64,9 @@ describe('App', () => {
     );
     renderApp('/unknown-route');
     await waitFor(() =>
-      expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Единая экосистема для Minecraft',
+      ),
     );
   });
 

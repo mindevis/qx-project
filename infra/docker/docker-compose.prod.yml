@@ -1,4 +1,4 @@
-# QXProject — production stack (Tier 0, single VPS)
+# QXSystem — production stack (Tier 0, single VPS)
 # Usage: cp .env.prod.example .env.prod && docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 services:

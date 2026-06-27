@@ -48,7 +48,7 @@ func TestResolveVersionAndBuildManifest(t *testing.T) {
 		t.Fatalf("meta: %v %+v", err, meta)
 	}
 
-	launch, err := client.BuildInstanceManifest(context.Background(), "inst-1", "Test", "1.21", "vanilla")
+	launch, err := client.BuildInstanceManifest(context.Background(), "inst-1", "Test", "1.21", "vanilla", "")
 	if err != nil || launch.ClientJar.URL == "" {
 		t.Fatalf("launch manifest: %v %+v", err, launch)
 	}
@@ -90,5 +90,27 @@ func TestResolveVersionEmptyID(t *testing.T) {
 	client := NewClient()
 	if _, err := client.ResolveVersionURL(context.Background(), ""); err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestListVersions(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"latest":{"release":"1.21.4"},
+			"versions":[
+				{"id":"1.21.4","type":"release","url":"https://example/1.21.4.json"},
+				{"id":"25w02a","type":"snapshot","url":"https://example/25w02a.json"}
+			]
+		}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	client := &Client{ManifestURL: srv.URL, HTTPClient: srv.Client()}
+	list, err := client.ListVersions(context.Background())
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if list.Latest["release"] != "1.21.4" || len(list.Items) != 2 {
+		t.Fatalf("list: %+v", list)
 	}
 }

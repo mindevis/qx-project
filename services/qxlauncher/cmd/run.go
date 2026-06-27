@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"log/slog"
+	"os"
 	"path/filepath"
 
 	qxlog "github.com/qxproject/qx/pkg/log"
+	"github.com/qxproject/qx/services/qxlauncher/internal/apiclient"
 	"github.com/qxproject/qx/services/qxlauncher/internal/auth"
 	"github.com/qxproject/qx/services/qxlauncher/internal/config"
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
@@ -47,23 +49,28 @@ func run() {
 	if deviceToken == "" {
 		reg, err := client.Register(ctx)
 		if err != nil {
-			slog.Error("device register failed", "err", err)
-			return
+			if apiclient.IsUnavailable(err) {
+				slog.Warn("backend unavailable, device registration deferred", "err", err)
+				notify.Show("QXLauncher", "Сервер недоступен. Лаунчер работает в автономном режиме.")
+			} else {
+				slog.Error("device register failed", "err", err)
+			}
+		} else {
+			if err := device.SaveDeviceID(dataDir, reg.DeviceID); err != nil {
+				slog.Warn("save device id failed", "err", err)
+			}
+			client.DeviceID = reg.DeviceID
+			pendingReg = reg
+			linkURL = reg.LinkURL
+			tray.OpenLinkPage(reg.LinkURL)
+			notify.Show("QXLauncher", "Подтвердите привязку в браузере")
+			slog.Info("device registered",
+				"device_id", reg.DeviceID,
+				"link_url", reg.LinkURL,
+			)
 		}
-		if err := device.SaveDeviceID(dataDir, reg.DeviceID); err != nil {
-			slog.Warn("save device id failed", "err", err)
-		}
-		client.DeviceID = reg.DeviceID
-		pendingReg = reg
-		linkURL = reg.LinkURL
-		tray.OpenLinkPage(reg.LinkURL)
-		notify.Show("QXLauncher", "Подтвердите привязку в браузере")
-		slog.Info("device registered",
-			"device_id", reg.DeviceID,
-			"link_url", reg.LinkURL,
-		)
 
-		if cfg.SkipTray {
+		if cfg.SkipTray && pendingReg != nil {
 			if maxPolls <= 0 {
 				return
 			}
@@ -71,7 +78,7 @@ func run() {
 				TokenPath:    tokenPath,
 				MaxLinkPolls: maxPolls,
 				UserToken:    userToken,
-			}, reg)
+			}, pendingReg)
 			if err != nil {
 				slog.Warn("device link pending", "err", err)
 				return
@@ -138,7 +145,7 @@ func resolveUserToken(ctx context.Context, apiBase, authPath string, cfg config.
 		return session.AccessToken
 	}
 	token, err := auth.EnsureFreshAccessToken(ctx, apiBase, authPath)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) && !apiclient.IsUnavailable(err) {
 		slog.Warn("session refresh failed", "err", err)
 	}
 	return token

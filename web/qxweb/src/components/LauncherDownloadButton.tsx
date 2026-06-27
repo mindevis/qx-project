@@ -5,9 +5,13 @@ import { useI18n } from '@/i18n/I18nContext';
 
 type LauncherDownloadButtonProps = {
   type?: 'primary' | 'default';
+  size?: 'small' | 'middle' | 'large';
 };
 
-export function LauncherDownloadButton({ type = 'default' }: LauncherDownloadButtonProps) {
+export function LauncherDownloadButton({
+  type = 'default',
+  size,
+}: LauncherDownloadButtonProps) {
   const message = useMessage();
   const { t } = useI18n();
 
@@ -15,6 +19,7 @@ export function LauncherDownloadButton({ type = 'default' }: LauncherDownloadBut
     <Button
       icon={<DownloadOutlined />}
       type={type}
+      size={size}
       onClick={() => {
         const url = import.meta.env.VITE_LAUNCHER_DOWNLOAD_URL?.trim();
         if (url) {

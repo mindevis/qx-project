@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/auth/AuthContext';
 import { renderWithTheme } from '@/test/test-utils';
 import { AuthModal } from './AuthModal';
+import * as BackendStatus from '@/backend/BackendStatusContext';
 
 function renderAuthModal(props: Partial<ComponentProps<typeof AuthModal>> = {}) {
   const onClose = vi.fn();
@@ -19,6 +20,7 @@ function renderAuthModal(props: Partial<ComponentProps<typeof AuthModal>> = {}) 
           <AuthModal
             open
             mode="login"
+            returnTo="/"
             onModeChange={onModeChange}
             onClose={onClose}
             {...props}
@@ -32,10 +34,22 @@ function renderAuthModal(props: Partial<ComponentProps<typeof AuthModal>> = {}) 
 describe('AuthModal', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    vi.mocked(BackendStatus.useBackendStatus).mockReturnValue({ available: true });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('disables submit when backend is unavailable', async () => {
+    vi.mocked(BackendStatus.useBackendStatus).mockReturnValue({ available: false });
+
+    renderAuthModal();
+
+    expect(screen.getByRole('button', { name: 'Войти' })).toBeDisabled();
+    expect(
+      screen.getByText('Сервер недоступен. Не удаётся связаться с API.'),
+    ).toBeInTheDocument();
   });
 
   it('logs in and navigates to profile', async () => {
@@ -73,9 +87,50 @@ describe('AuthModal', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  it('shows backend unavailable on login network error', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    renderAuthModal();
+
+    await user.type(screen.getByLabelText('Email'), 'user@test.com');
+    await user.type(screen.getByLabelText('Пароль'), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Войти' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Сервер недоступен. Не удаётся связаться с API.'),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it('shows backend unavailable on bad gateway', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('bad gateway', { status: 502, statusText: 'Bad Gateway' }),
+    );
+
+    renderAuthModal();
+
+    await user.type(screen.getByLabelText('Email'), 'user@test.com');
+    await user.type(screen.getByLabelText('Пароль'), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Войти' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Сервер недоступен. Не удаётся связаться с API.'),
+      ).toBeInTheDocument(),
+    );
+  });
+
   it('shows login error', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('bad login'));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'AUTH', message: 'bad login' } }), {
+        status: 401,
+        statusText: 'Unauthorized',
+      }),
+    );
 
     renderAuthModal();
 
@@ -88,7 +143,9 @@ describe('AuthModal', () => {
 
   it('shows generic login error', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockRejectedValueOnce('fail');
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('fail', { status: 418, statusText: 'Teapot' }),
+    );
 
     renderAuthModal();
 
@@ -96,7 +153,7 @@ describe('AuthModal', () => {
     await user.type(screen.getByLabelText('Пароль'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Войти' }));
 
-    await waitFor(() => expect(screen.getByText('Ошибка входа')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Teapot')).toBeInTheDocument());
   });
 
   it('registers successfully', async () => {
@@ -137,7 +194,9 @@ describe('AuthModal', () => {
 
   it('shows generic register error', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockImplementationOnce(() => Promise.reject('fail'));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('fail', { status: 418, statusText: 'Teapot' }),
+    );
 
     renderAuthModal({ mode: 'register' });
 
@@ -146,12 +205,17 @@ describe('AuthModal', () => {
     await user.type(screen.getByLabelText('Повтор пароля'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
 
-    await waitFor(() => expect(screen.getByText('Ошибка регистрации')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Teapot')).toBeInTheDocument());
   });
 
   it('shows register error', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('register fail'));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'AUTH', message: 'register fail' } }), {
+        status: 400,
+        statusText: 'Bad Request',
+      }),
+    );
 
     renderAuthModal({ mode: 'register' });
 

@@ -66,7 +66,7 @@ export function ChangeEmailModal({
       width={420}
       {...modalMotionProps}
     >
-      {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} style={{ marginBottom: 16 }} />}
       <Typography.Paragraph type="secondary">{t('profile.changeEmailHint')}</Typography.Paragraph>
       <Form form={form} layout="vertical" onFinish={onFinish}>
         <Form.Item

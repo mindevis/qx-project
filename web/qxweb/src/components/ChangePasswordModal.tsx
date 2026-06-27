@@ -55,7 +55,7 @@ export function ChangePasswordModal({ open, onClose, onSuccess }: ChangePassword
       width={420}
       {...modalMotionProps}
     >
-      {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
+      {error && <Alert type="error" title={error} style={{ marginBottom: 16 }} />}
       <Form form={form} layout="vertical" onFinish={onFinish}>
         <Form.Item
           label={t('profile.currentPassword')}

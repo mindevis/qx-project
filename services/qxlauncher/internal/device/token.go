@@ -15,11 +15,16 @@ func EnsureDeviceToken(ctx context.Context, client *Client, tokenPath string) (s
 		api := apiclient.New(client.BaseURL, token)
 		if err := api.PingDevice(ctx); err == nil {
 			return token, nil
+		} else if apiclient.IsUnavailable(err) {
+			return token, nil
 		}
 	}
 
 	status, err := client.Status(ctx)
 	if err != nil {
+		if token != "" && apiclient.IsUnavailable(err) {
+			return token, nil
+		}
 		return "", err
 	}
 	if status.Status != "linked" || status.DeviceToken == nil {

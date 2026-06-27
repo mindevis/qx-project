@@ -118,6 +118,31 @@ describe('AuthContext', () => {
     expect(result.current.user).toBeNull();
   });
 
+  it('login stores tokens and loads profile', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'a',
+            refresh_token: 'r',
+            token_type: 'Bearer',
+            expires_in: 60,
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify(profile), { status: 200 }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.login('user@test.com', 'password123');
+    });
+
+    expect(result.current.user?.email).toBe('user@test.com');
+  });
+
   it('logout clears state even when api fails', async () => {
     saveTokens({
       access_token: 'a',

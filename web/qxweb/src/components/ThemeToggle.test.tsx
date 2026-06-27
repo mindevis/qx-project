@@ -5,12 +5,19 @@ import { renderWithProviders } from '@/test/test-utils';
 import { ThemeToggle } from './ThemeToggle';
 
 describe('ThemeToggle', () => {
-  it('toggles theme', async () => {
+  it('switches between light and dark themes', async () => {
     const user = userEvent.setup({ delay: null });
     renderWithProviders(<ThemeToggle />);
 
-    expect(screen.getByRole('button', { name: 'Тёмная тема' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Тёмная тема' }));
-    expect(screen.getByRole('button', { name: 'Светлая тема' })).toBeInTheDocument();
+    const lightBtn = screen.getByRole('radio', { name: 'Светлая тема' });
+    const darkBtn = screen.getByRole('radio', { name: 'Тёмная тема' });
+
+    expect(lightBtn).toHaveAttribute('aria-checked', 'true');
+    expect(darkBtn).toHaveAttribute('aria-checked', 'false');
+
+    await user.click(darkBtn);
+
+    expect(lightBtn).toHaveAttribute('aria-checked', 'false');
+    expect(darkBtn).toHaveAttribute('aria-checked', 'true');
   });
 });

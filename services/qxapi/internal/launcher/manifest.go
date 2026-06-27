@@ -14,15 +14,15 @@ var (
 )
 
 type ManifestProvider interface {
-	BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader string) (*mcmanifest.InstanceLaunchManifest, error)
+	BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error)
 }
 
 type mcManifestProvider struct {
 	client *mcmanifest.Client
 }
 
-func (p *mcManifestProvider) BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader string) (*mcmanifest.InstanceLaunchManifest, error) {
-	return p.client.BuildInstanceManifest(ctx, instanceID, name, mcVersion, loader)
+func (p *mcManifestProvider) BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error) {
+	return p.client.BuildInstanceManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion)
 }
 
 func defaultManifestProvider() ManifestProvider {
@@ -58,16 +58,12 @@ func (s *Service) InstanceManifest(ctx context.Context, owner Owner, instanceID 
 	if err != nil {
 		return nil, err
 	}
-	return s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader)
+	return s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, instanceLoaderVersion(*inst))
 }
 
 func (s *Service) FindLinkedDevice(ctx context.Context, owner Owner) (string, error) {
-	q := s.db.WithContext(ctx).Model(&models.LauncherDevice{}).Where("status = ?", models.DeviceStatusLinked)
-	if owner.IsGuest {
-		q = q.Where("guest_session_id = ?", owner.GuestSessionID)
-	} else {
-		q = q.Where("user_id = ?", owner.UserID)
-	}
+	q := s.db.WithContext(ctx).Model(&models.LauncherDevice{}).
+		Where("status = ? AND user_id = ?", models.DeviceStatusLinked, owner.UserID)
 	var device models.LauncherDevice
 	if err := q.Order("linked_at desc").First(&device).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -79,7 +75,7 @@ func (s *Service) FindLinkedDevice(ctx context.Context, owner Owner) (string, er
 }
 
 func (s *Service) UserLinkedDevice(ctx context.Context, userID string) (*DeviceMeResult, error) {
-	deviceID, err := s.FindLinkedDevice(ctx, Owner{UserID: userID, IsGuest: false})
+	deviceID, err := s.FindLinkedDevice(ctx, Owner{UserID: userID})
 	if err != nil {
 		return nil, err
 	}
@@ -94,16 +90,10 @@ func (s *Service) ListInstancesForDevice(ctx context.Context, deviceID string) (
 	if device.Status != models.DeviceStatusLinked {
 		return nil, ErrDeviceNotLinked
 	}
-	var owner Owner
-	switch {
-	case device.GuestSessionID != nil:
-		owner = Owner{GuestSessionID: *device.GuestSessionID, IsGuest: true}
-	case device.UserID != nil:
-		owner = Owner{UserID: *device.UserID, IsGuest: false}
-	default:
+	if device.UserID == nil {
 		return nil, ErrDeviceNotLinked
 	}
-	return s.ListInstances(ctx, owner)
+	return s.ListInstances(ctx, Owner{UserID: *device.UserID})
 }
 
 func (s *Service) ValidateDeviceForOwner(ctx context.Context, owner Owner, deviceID string) error {
@@ -113,12 +103,6 @@ func (s *Service) ValidateDeviceForOwner(ctx context.Context, owner Owner, devic
 	}
 	if device.Status != models.DeviceStatusLinked {
 		return ErrDeviceNotLinked
-	}
-	if owner.IsGuest {
-		if device.GuestSessionID == nil || *device.GuestSessionID != owner.GuestSessionID {
-			return ErrDeviceMismatch
-		}
-		return nil
 	}
 	if device.UserID == nil || *device.UserID != owner.UserID {
 		return ErrDeviceMismatch

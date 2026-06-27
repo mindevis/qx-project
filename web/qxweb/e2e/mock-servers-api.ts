@@ -17,6 +17,7 @@ export type GameServer = {
     port: number;
     username: string;
   };
+  agent_deployed: boolean;
   agent_online: boolean;
   minecraft_running?: boolean;
   created_at: string;
@@ -101,6 +102,7 @@ export async function installServersApiMock(page: Page, state: ServersMockState)
           port: body.ssh.port ?? 22,
           username: body.ssh.username,
         },
+        agent_deployed: false,
         agent_online: false,
         created_at: '2026-06-10T00:00:00Z',
         updated_at: '2026-06-10T00:00:00Z',
@@ -127,6 +129,7 @@ export async function installServersApiMock(page: Page, state: ServersMockState)
       }
       if (action === 'deploy' && method === 'POST') {
         server.status = 'offline';
+        server.agent_deployed = true;
         server.agent_online = true;
         server.updated_at = '2026-06-10T00:01:00Z';
         state.servers.set(id, server);

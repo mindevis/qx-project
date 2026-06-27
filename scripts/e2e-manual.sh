@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# QXProject - Phase Alpha manual E2E checklist (Linux/macOS)
+# QXSystem - Phase Alpha manual E2E checklist (Linux/macOS)
 # Usage: ./scripts/e2e-manual.sh [--smoke]
 set -euo pipefail
 
@@ -14,7 +14,7 @@ port_open() {
 }
 
 echo ""
-echo "=== QXProject Alpha - manual E2E ==="
+echo "=== QXSystem Alpha - manual E2E ==="
 echo "Docs: docs/qa/test-matrix.md, docs/mvp.md section 2 (DoD)"
 echo ""
 

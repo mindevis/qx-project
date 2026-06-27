@@ -88,7 +88,7 @@ func RunSystrayApp(cfg SystrayConfig) {
 
 		if cfg.DeviceToken != "" {
 			restartLoop(cfg.DeviceToken)
-		} else if cfg.DeviceClient != nil {
+		} else if cfg.PendingRegister != nil {
 			go pollDeviceLink(ctx, cfg, systrayMenuItem{mLink}, &linkURL, restartLoop, func() {
 				systray.SetIcon(iconLinkedPNG)
 				systray.SetTooltip("QXLauncher — связан")
@@ -103,6 +103,15 @@ func RunSystrayApp(cfg SystrayConfig) {
 				case <-ctx.Done():
 					return
 				case <-mLink.ClickedCh:
+					if currentToken == "" && cfg.DeviceClient != nil {
+						go pollDeviceLink(ctx, cfg, systrayMenuItem{mLink}, &linkURL, restartLoop, func() {
+							systray.SetIcon(iconLinkedPNG)
+							systray.SetTooltip("QXLauncher — связан")
+							mLink.Disable()
+							mUnlink.Enable()
+						})
+						continue
+					}
 					target := linkURL
 					if target == "" {
 						target = launcherURL
@@ -119,7 +128,7 @@ func RunSystrayApp(cfg SystrayConfig) {
 						continue
 					}
 					unlinkCtx := context.Background()
-					if err := cfg.DeviceClient.Unlink(unlinkCtx, currentToken); err != nil {
+					if err := cfg.DeviceClient.UnlinkWithRefresh(unlinkCtx, cfg.TokenPath); err != nil {
 						slog.Warn("device unlink failed", "err", err)
 						notify.Show("QXLauncher", "Не удалось отвязать устройство")
 						continue
@@ -136,12 +145,6 @@ func RunSystrayApp(cfg SystrayConfig) {
 					systray.SetIcon(iconPendingPNG)
 					systray.SetTooltip("QXLauncher — ожидает привязки")
 					notify.Show("QXLauncher", "Устройство отвязано")
-					go pollDeviceLink(ctx, cfg, systrayMenuItem{mLink}, &linkURL, restartLoop, func() {
-						systray.SetIcon(iconLinkedPNG)
-						systray.SetTooltip("QXLauncher — связан")
-						mLink.Disable()
-						mUnlink.Enable()
-					})
 				case <-mQuit.ClickedCh:
 					cancel()
 					systray.Quit()

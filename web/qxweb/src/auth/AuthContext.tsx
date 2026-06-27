@@ -9,7 +9,6 @@ import {
 } from 'react';
 import {
   api,
-  clearGuestSession,
   clearLinkedDevice,
   clearTokens,
   loadTokens,
@@ -64,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyTokens = useCallback(
     async (tokens: TokenResponse) => {
-      clearGuestSession();
       saveTokens(tokens);
       await refreshProfile();
     },

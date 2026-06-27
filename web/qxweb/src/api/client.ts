@@ -9,6 +9,32 @@ export type ApiError = {
   };
 };
 
+export const API_ERROR_BACKEND_UNAVAILABLE = 'BACKEND_UNAVAILABLE' as const;
+
+export class ApiRequestError extends Error {
+  readonly code?: typeof API_ERROR_BACKEND_UNAVAILABLE;
+
+  constructor(message: string, code?: typeof API_ERROR_BACKEND_UNAVAILABLE) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.code = code;
+  }
+}
+
+export function isBackendUnavailableError(error: unknown): boolean {
+  return error instanceof ApiRequestError && error.code === API_ERROR_BACKEND_UNAVAILABLE;
+}
+
+const BACKEND_UNAVAILABLE_HTTP_STATUSES = new Set([502, 503, 504]);
+
+function throwBackendUnavailable(): never {
+  throw new ApiRequestError('Backend unavailable', API_ERROR_BACKEND_UNAVAILABLE);
+}
+
+function isBackendUnavailableStatus(status: number): boolean {
+  return BACKEND_UNAVAILABLE_HTTP_STATUSES.has(status);
+}
+
 export type TokenResponse = {
   access_token: string;
   refresh_token: string;
@@ -25,24 +51,23 @@ export type UserProfile = {
   created_at: string;
 };
 
-export type GuestSession = {
-  guest_token: string;
-  expires_in: number;
-};
-
 export type LauncherInstance = {
   id: string;
   name: string;
   mc_version: string;
   loader: string;
+  loader_version?: string;
   created_at: string;
   updated_at: string;
 };
+
+export type ProfileModel = 'steve' | 'alex';
 
 export type OfflineProfile = {
   id: string;
   username: string;
   offline_uuid: string;
+  model: ProfileModel;
   created_at: string;
 };
 
@@ -66,6 +91,9 @@ export type GameServer = {
   mc_version?: string;
   config: {
     jar_path?: string;
+    work_dir?: string;
+    command?: string;
+    args?: string[];
     jvm_args?: string[];
     extra_args?: string[];
   };
@@ -74,18 +102,72 @@ export type GameServer = {
     port: number;
     username: string;
   };
+  agent_deployed?: boolean;
   agent_online: boolean;
+  agent_version?: string;
   minecraft_running?: boolean;
   last_seen_at?: string;
   created_at: string;
   updated_at: string;
 };
 
+export type VpsGameServerInstance = {
+  id: string;
+  name: string;
+  server_type: string;
+  mc_version: string;
+  loader_version?: string;
+  address?: string;
+  port: number;
+  rcon_password?: string;
+  rcon_port?: number;
+  status: string;
+  created_at: string;
+};
+
+export type GameServerProperty = {
+  key: string;
+  value: string;
+  boolean?: boolean;
+};
+
+export type GameServerFileEntry = {
+  name: string;
+  path: string;
+  dir: boolean;
+  size?: number;
+};
+
+export type GameServerFileContent = {
+  path: string;
+  content: string;
+  size: number;
+};
+
 export type LinkDeviceResult = {
   status: string;
-  guest_token?: string;
-  guest_expires_in?: number;
   owner_type: string;
+};
+
+export type DeviceStatus = {
+  status: string;
+  device_id?: string;
+  hostname?: string;
+  os?: string;
+  launcher_version?: string;
+  link_expires_at?: string;
+  last_seen_at?: string;
+  owner_type?: string;
+};
+
+export type McVersionItem = {
+  id: string;
+  type: string;
+};
+
+export type McVersionsList = {
+  latest?: Record<string, string>;
+  items: McVersionItem[];
 };
 
 export type UserLauncherDevice = {
@@ -96,7 +178,6 @@ export type UserLauncherDevice = {
 };
 
 const STORAGE_KEY = 'qx.auth';
-const GUEST_KEY = 'qx.guest';
 const DEVICE_KEY = 'qx.device';
 
 export function loadTokens(): TokenResponse | null {
@@ -117,24 +198,6 @@ export function clearTokens() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-export function loadGuestSession(): GuestSession | null {
-  const raw = localStorage.getItem(GUEST_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as GuestSession;
-  } catch {
-    return null;
-  }
-}
-
-export function saveGuestSession(session: GuestSession) {
-  localStorage.setItem(GUEST_KEY, JSON.stringify(session));
-}
-
-export function clearGuestSession() {
-  localStorage.removeItem(GUEST_KEY);
-}
-
 export function saveLinkedDevice(deviceId: string) {
   localStorage.setItem(DEVICE_KEY, deviceId);
 }
@@ -148,15 +211,12 @@ export function clearLinkedDevice() {
 }
 
 export function hasLauncherAccess(): boolean {
-  return !!loadTokens()?.access_token || !!loadGuestSession()?.guest_token;
+  return !!loadTokens()?.access_token;
 }
 
 function launcherAuthHeader(): string | null {
   const user = loadTokens()?.access_token;
-  if (user) return `Bearer ${user}`;
-  const guest = loadGuestSession()?.guest_token;
-  if (guest) return `Bearer ${guest}`;
-  return null;
+  return user ? `Bearer ${user}` : null;
 }
 
 export async function checkBackendHealth(): Promise<boolean> {
@@ -192,7 +252,9 @@ async function request<T>(
     }
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers }).catch(() => {
+    throwBackendUnavailable();
+  });
 
   if (!res.ok) {
     let message = res.statusText;
@@ -208,7 +270,10 @@ async function request<T>(
     } else {
       logger.warn('API request failed', details);
     }
-    throw new Error(message);
+    if (isBackendUnavailableStatus(res.status)) {
+      throwBackendUnavailable();
+    }
+    throw new ApiRequestError(message);
   }
 
   if (res.status === 204) {
@@ -242,13 +307,23 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  deviceStatus: (deviceId: string) =>
+    request<DeviceStatus>(`/launcher/devices/${encodeURIComponent(deviceId)}/status`, {}, false),
+
+  listMcVersions: () => request<McVersionsList>('/launcher/mc-versions', {}, false),
+
   unlinkDevice: () =>
     request<{ status: string }>('/launcher/devices/unlink', { method: 'POST' }, 'launcher'),
 
   listInstances: () =>
     request<{ items: LauncherInstance[] }>('/instances', { method: 'GET' }, 'launcher'),
 
-  createInstance: (body: { name: string; mc_version: string; loader?: string }) =>
+  createInstance: (body: {
+    name: string;
+    mc_version: string;
+    loader?: string;
+    loader_version?: string;
+  }) =>
     request<LauncherInstance>('/instances', { method: 'POST', body: JSON.stringify(body) }, 'launcher'),
 
   deleteInstance: (id: string) =>
@@ -257,7 +332,7 @@ export const api = {
   listProfiles: () =>
     request<{ items: OfflineProfile[] }>('/launcher/profiles', { method: 'GET' }, 'launcher'),
 
-  createProfile: (body: { username: string }) =>
+  createProfile: (body: { username: string; model?: ProfileModel }) =>
     request<OfflineProfile>('/launcher/profiles', { method: 'POST', body: JSON.stringify(body) }, 'launcher'),
 
   deleteProfile: (id: string) =>
@@ -297,6 +372,115 @@ export const api = {
 
   restartServer: (id: string) =>
     request<{ status: string }>(`/servers/${id}/restart`, { method: 'POST' }),
+
+  listVpsGameServers: (vpsId: string) =>
+    request<{ items: VpsGameServerInstance[] }>(`/servers/${encodeURIComponent(vpsId)}/game-servers`),
+
+  createVpsGameServer: (
+    vpsId: string,
+    body: {
+      name: string;
+      server_type: string;
+      mc_version: string;
+      loader_version?: string;
+      address?: string;
+      port?: number;
+    },
+  ) =>
+    request<VpsGameServerInstance>(`/servers/${encodeURIComponent(vpsId)}/game-servers`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateVpsGameServer: (
+    vpsId: string,
+    gameServerId: string,
+    body: {
+      name?: string;
+      address?: string;
+      port?: number;
+    },
+  ) =>
+    request<VpsGameServerInstance>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+    ),
+
+  deleteVpsGameServer: (vpsId: string, gameServerId: string) =>
+    request<void>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}`,
+      { method: 'DELETE' },
+    ),
+
+  reinstallVpsGameServer: (vpsId: string, gameServerId: string) =>
+    request<VpsGameServerInstance>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/reinstall`,
+      { method: 'POST' },
+    ),
+
+  startVpsGameServer: (vpsId: string, gameServerId: string) =>
+    request<VpsGameServerInstance>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/start`,
+      { method: 'POST' },
+    ),
+
+  stopVpsGameServer: (vpsId: string, gameServerId: string) =>
+    request<VpsGameServerInstance>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/stop`,
+      { method: 'POST' },
+    ),
+
+  restartVpsGameServer: (vpsId: string, gameServerId: string) =>
+    request<VpsGameServerInstance>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/restart`,
+      { method: 'POST' },
+    ),
+
+  getVpsGameServer: (vpsId: string, gameServerId: string) =>
+    request<VpsGameServerInstance>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}`,
+    ),
+
+  getVpsGameServerProperties: (vpsId: string, gameServerId: string) =>
+    request<{ properties: GameServerProperty[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/properties`,
+    ),
+
+  patchVpsGameServerProperties: (
+    vpsId: string,
+    gameServerId: string,
+    updates: Record<string, string>,
+  ) =>
+    request<{ status: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/properties`,
+      { method: 'PATCH', body: JSON.stringify({ updates }) },
+    ),
+
+  listVpsGameServerMods: (vpsId: string, gameServerId: string) =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods`,
+    ),
+
+  listVpsGameServerFiles: (vpsId: string, gameServerId: string, path = '') =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files?path=${encodeURIComponent(path)}`,
+    ),
+
+  readVpsGameServerFile: (vpsId: string, gameServerId: string, path: string) =>
+    request<GameServerFileContent>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files/content?path=${encodeURIComponent(path)}`,
+    ),
+
+  writeVpsGameServerFile: (
+    vpsId: string,
+    gameServerId: string,
+    path: string,
+    content: string,
+  ) =>
+    request<{ status: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files/content?path=${encodeURIComponent(path)}`,
+      { method: 'PUT', body: JSON.stringify({ content }) },
+    ),
 };
 
 export type ConsoleMessage = {
@@ -305,6 +489,7 @@ export type ConsoleMessage = {
   line?: string;
   status?: string;
   detail?: string;
+  game_server_id?: string;
 };
 
 function wsBaseUrl(apiBase: string = API_BASE): string {
@@ -328,9 +513,13 @@ export function openServerConsole(
     onMessage: (msg: ConsoleMessage) => void;
     onClose?: () => void;
   },
+  gameServerId?: string,
 ) {
   const token = loadTokens()?.access_token;
-  const url = `${wsBaseUrl()}/api/v1/servers/${serverId}/console?access_token=${encodeURIComponent(token ?? '')}`;
+  const params = new URLSearchParams();
+  if (token) params.set('access_token', token);
+  if (gameServerId) params.set('game_server_id', gameServerId);
+  const url = `${wsBaseUrl()}/api/v1/servers/${serverId}/console?${params.toString()}`;
   let closedByClient = false;
   const ws = new WebSocket(url);
 

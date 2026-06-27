@@ -12,7 +12,7 @@ type stubManifestProvider struct {
 	err      error
 }
 
-func (s stubManifestProvider) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader string) (*mcmanifest.InstanceLaunchManifest, error) {
+func (s stubManifestProvider) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error) {
 	if s.err != nil {
 		return nil, s.err
 	}

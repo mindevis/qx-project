@@ -4,9 +4,28 @@ import (
 	"log/slog"
 	"os/exec"
 	"runtime"
+	"sync"
+	"time"
+)
+
+const dedupeWindow = 60 * time.Second
+
+var (
+	notifyMu   sync.Mutex
+	notifyLast = make(map[string]time.Time)
 )
 
 func Show(title, message string) {
+	key := title + "\x00" + message
+	notifyMu.Lock()
+	if last, ok := notifyLast[key]; ok && time.Since(last) < dedupeWindow {
+		notifyMu.Unlock()
+		slog.Debug("notification suppressed (duplicate)", "title", title)
+		return
+	}
+	notifyLast[key] = time.Now()
+	notifyMu.Unlock()
+
 	slog.Info("notification", "title", title, "message", message)
 	switch runtime.GOOS {
 	case "windows":

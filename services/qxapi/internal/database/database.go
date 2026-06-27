@@ -3,6 +3,8 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -13,7 +15,11 @@ import (
 )
 
 func Connect(dsn string) (*gorm.DB, error) {
-	return Open(mysql.Open(dsn))
+	db, err := Open(mysql.Open(dsn))
+	if err != nil {
+		return nil, wrapConnectError(err)
+	}
+	return db, nil
 }
 
 var openGORM = gorm.Open
@@ -21,7 +27,12 @@ var openGORM = gorm.Open
 // Open initializes GORM with the given dialector (used in tests with SQLite).
 func Open(dialector gorm.Dialector) (*gorm.DB, error) {
 	db, err := openGORM(dialector, &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger: logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), logger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  true,
+		}),
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -45,7 +56,6 @@ var migrateUsers = func(db *gorm.DB) error {
 	dropRedundantUsersEmailIndex(db)
 	return db.AutoMigrate(
 		&models.User{},
-		&models.GuestSession{},
 		&models.LauncherDevice{},
 		&models.LauncherInstance{},
 		&models.OfflineProfile{},
@@ -53,6 +63,7 @@ var migrateUsers = func(db *gorm.DB) error {
 		&models.Server{},
 		&models.SSHCredential{},
 		&models.Agent{},
+		&models.GameServer{},
 	)
 }
 

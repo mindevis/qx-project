@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as apiClient from '@/api/client';
 import { renderWithTheme, I18nThemeWrapper } from '@/test/test-utils';
-import { ServerConsolePanel, shouldShowMinecraftControls, shouldShowServerConsole } from './ServerConsolePanel';
+import { ServerConsolePanel, shouldShowGameServerConsole, shouldShowMinecraftControls, shouldShowServerConsole } from './ServerConsolePanel';
 
 class MockWebSocket {
   static OPEN = 1;
@@ -46,13 +46,23 @@ describe('shouldShowMinecraftControls', () => {
   });
 });
 
+describe('shouldShowGameServerConsole', () => {
+  it('shows console for provisioning and running game servers with online agent', () => {
+    expect(shouldShowGameServerConsole({ status: 'stopped' }, true)).toBe(false);
+    expect(shouldShowGameServerConsole({ status: 'running' }, false)).toBe(false);
+    expect(shouldShowGameServerConsole({ status: 'installing' }, true)).toBe(true);
+    expect(shouldShowGameServerConsole({ status: 'starting' }, true)).toBe(true);
+    expect(shouldShowGameServerConsole({ status: 'running' }, true)).toBe(true);
+  });
+});
+
 describe('shouldShowServerConsole', () => {
-  it('is hidden until minecraft start is attempted', () => {
-    expect(shouldShowServerConsole({ status: 'offline' })).toBe(false);
-    expect(shouldShowServerConsole({ status: 'offline', agent_online: true } as never)).toBe(false);
-    expect(shouldShowServerConsole({ status: 'starting' })).toBe(true);
-    expect(shouldShowServerConsole({ status: 'error' })).toBe(true);
-    expect(shouldShowServerConsole({ status: 'offline', minecraft_running: true })).toBe(true);
+  it('is hidden until minecraft process is running', () => {
+    expect(shouldShowServerConsole({})).toBe(false);
+    expect(shouldShowServerConsole({ minecraft_running: false })).toBe(false);
+    expect(shouldShowServerConsole({ status: 'starting' } as never)).toBe(false);
+    expect(shouldShowServerConsole({ status: 'error' } as never)).toBe(false);
+    expect(shouldShowServerConsole({ minecraft_running: true })).toBe(true);
   });
 });
 
@@ -150,6 +160,27 @@ describe('ServerConsolePanel', () => {
     expect(ws?.close).toHaveBeenCalled();
 
     await waitFor(() => expect(MockWebSocket.instances.length).toBeGreaterThan(1));
+  });
+
+  it('filters output by game server id when provided', async () => {
+    renderWithTheme(
+      <ServerConsolePanel serverId="srv-1" gameServerId="gs-1" agentOnline />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
+    );
+
+    const ws = MockWebSocket.instances.at(-1);
+    ws?.onmessage?.({
+      data: JSON.stringify({ type: 'output', stream: 'out', line: 'other', game_server_id: 'gs-2' }),
+    });
+    ws?.onmessage?.({
+      data: JSON.stringify({ type: 'output', stream: 'out', line: 'mine', game_server_id: 'gs-1' }),
+    });
+
+    await waitFor(() => expect(screen.getByText(/\[out\] mine/)).toBeInTheDocument());
+    expect(screen.queryByText(/\[out\] other/)).not.toBeInTheDocument();
   });
 
   it('renders output without stream as out', async () => {

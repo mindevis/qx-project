@@ -19,20 +19,27 @@ type offlineProfileResponse struct {
 	ID          string `json:"id"`
 	Username    string `json:"username"`
 	OfflineUUID string `json:"offline_uuid"`
+	Model       string `json:"model"`
 	CreatedAt   string `json:"created_at"`
 }
 
 func offlineProfileFromModel(p models.OfflineProfile) offlineProfileResponse {
+	model := p.Model
+	if model == "" {
+		model = models.ProfileModelSteve
+	}
 	return offlineProfileResponse{
 		ID:          p.ID,
 		Username:    p.Username,
 		OfflineUUID: p.OfflineUUID,
+		Model:       model,
 		CreatedAt:   p.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
 type createProfileRequest struct {
 	Username string `json:"username" binding:"required"`
+	Model    string `json:"model"`
 }
 
 func (h *ProfilesHandler) List(c *gin.Context) {
@@ -66,13 +73,15 @@ func (h *ProfilesHandler) Create(c *gin.Context) {
 	}
 	profile, err := h.Service.CreateProfile(c.Request.Context(), owner, launcher.CreateProfileInput{
 		Username: req.Username,
+		Model:    req.Model,
 	})
 	if err != nil {
-		if errors.Is(err, launcher.ErrValidation) {
+		switch {
+		case errors.Is(err, launcher.ErrValidation):
 			JSONValidation(c, "invalid username (3-16 chars, a-z A-Z 0-9 _)")
-			return
+		default:
+			JSONInternal(c)
 		}
-		JSONInternal(c)
 		return
 	}
 	c.JSON(http.StatusCreated, offlineProfileFromModel(*profile))

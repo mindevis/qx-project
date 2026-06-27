@@ -49,14 +49,29 @@ func deviceIDFromContext(c *gin.Context) (string, bool) {
 
 func DeviceOrLauncherOwnerMiddleware(tokens *auth.TokenService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if token := deviceTokenFromRequest(c); token != "" {
-			claims, err := tokens.Parse(token)
-			if err == nil && claims.Kind == auth.TokenDevice && claims.DeviceID != "" {
-				c.Set(DeviceIDKey, claims.DeviceID)
-				c.Next()
+		token := deviceTokenFromRequest(c)
+		if token == "" {
+			LauncherOwnerMiddleware(tokens)(c)
+			return
+		}
+		claims, err := tokens.Parse(token)
+		if err != nil {
+			JSONUnauthorized(c)
+			return
+		}
+		switch claims.Kind {
+		case auth.TokenDevice:
+			if claims.DeviceID == "" {
+				JSONUnauthorized(c)
 				return
 			}
+			c.Set(DeviceIDKey, claims.DeviceID)
+			c.Next()
+		case auth.TokenAccess:
+			c.Set(UserIDKey, claims.UserID)
+			c.Next()
+		default:
+			JSONUnauthorized(c)
 		}
-		LauncherOwnerMiddleware(tokens)(c)
 	}
 }

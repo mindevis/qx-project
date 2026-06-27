@@ -82,31 +82,6 @@ func TestInstancesHandlerCRUD(t *testing.T) {
 	}
 }
 
-func TestInstancesHandlerGuestForbiddenLoader(t *testing.T) {
-	h, tokens := newInstancesHandler(t)
-	guestToken, _, err := tokens.IssueGuestToken("guest-1")
-	if err != nil {
-		t.Fatalf("guest token: %v", err)
-	}
-	claims, _ := tokens.Parse(guestToken)
-
-	body, _ := json.Marshal(map[string]string{
-		"name":       "Modded",
-		"mc_version": "1.21",
-		"loader":     "fabric",
-	})
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
-	c.Request.Header.Set("Content-Type", "application/json")
-	c.Set(GuestSessionIDKey, claims.UserID)
-	c.Set(IsGuestKey, true)
-	h.Create(c)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("forbidden: %d", w.Code)
-	}
-}
-
 func TestInstancesHandlerUnauthorized(t *testing.T) {
 	h, _ := newInstancesHandler(t)
 	w := httptest.NewRecorder()
@@ -155,7 +130,7 @@ func TestInstancesHandlerManifest(t *testing.T) {
 	ctx := context.Background()
 	pair, _ := tokens.IssueUserTokens("user-1", "u@test.com")
 	claims, _ := tokens.Parse(pair.AccessToken)
-	owner := launcher.Owner{UserID: claims.UserID, IsGuest: false}
+	owner := launcher.Owner{UserID: claims.UserID}
 
 	inst, err := h.Service.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,

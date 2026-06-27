@@ -1,0 +1,302 @@
+.launcher-link-page {
+  width: 100%;
+}
+
+.launcher-link-hero--success .launcher-orbit-core {
+  background: linear-gradient(145deg, #52c41a, #389e0d);
+  box-shadow:
+    0 24px 56px rgba(82, 196, 26, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.launcher-link-hero--error .launcher-orbit-core {
+  background: linear-gradient(145deg, #ff4d4f, #cf1322);
+  box-shadow:
+    0 24px 56px rgba(255, 77, 79, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.launcher-link-device-band {
+  margin-bottom: 20px;
+  padding: 22px 24px;
+  border-radius: 18px;
+  border: 1px solid rgba(114, 46, 209, 0.2);
+  background: rgba(114, 46, 209, 0.05);
+}
+
+html[data-theme='dark'] .launcher-link-device-band {
+  border-color: rgba(179, 127, 235, 0.24);
+  background: rgba(114, 46, 209, 0.12);
+}
+
+.launcher-link-device-band-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(114, 46, 209, 0.14);
+}
+
+html[data-theme='dark'] .launcher-link-device-band-head {
+  border-bottom-color: rgba(179, 127, 235, 0.18);
+}
+
+.launcher-link-device-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 20px;
+  color: #722ed1;
+  background: rgba(114, 46, 209, 0.14);
+}
+
+html[data-theme='dark'] .launcher-link-device-icon {
+  color: #b37feb;
+  background: rgba(114, 46, 209, 0.22);
+}
+
+.launcher-link-device-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.launcher-link-device-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #722ed1;
+}
+
+html[data-theme='dark'] .launcher-link-device-label {
+  color: #b37feb;
+}
+
+.launcher-link-device-id {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-all;
+}
+
+.launcher-link-device-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+}
+
+.launcher-link-device-row {
+  min-width: 0;
+}
+
+.launcher-link-device-row-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.launcher-link-device-row-value {
+  display: block;
+  font-size: 15px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.launcher-link-device-loading {
+  display: flex;
+  justify-content: center;
+  padding: 28px 0;
+}
+
+.launcher-link-status-tag {
+  display: inline-flex;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+.launcher-link-status-tag--pending {
+  color: #d48806;
+  background: rgba(250, 173, 20, 0.14);
+  border: 1px solid rgba(250, 173, 20, 0.28);
+}
+
+.launcher-link-status-tag--linked {
+  color: #389e0d;
+  background: rgba(82, 196, 26, 0.14);
+  border: 1px solid rgba(82, 196, 26, 0.28);
+}
+
+.launcher-link-status-tag--expired,
+.launcher-link-status-tag--revoked {
+  color: #cf1322;
+  background: rgba(255, 77, 79, 0.1);
+  border: 1px solid rgba(255, 77, 79, 0.24);
+}
+
+.launcher-link-security {
+  margin-bottom: 24px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(250, 173, 20, 0.28);
+  background: rgba(250, 173, 20, 0.06);
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+html[data-theme='dark'] .launcher-link-security {
+  color: rgba(255, 255, 255, 0.72);
+  border-color: rgba(250, 173, 20, 0.32);
+  background: rgba(250, 173, 20, 0.08);
+}
+
+.launcher-link-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.launcher-link-options--single {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 560px;
+}
+
+.launcher-link-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 24px;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+html[data-theme='dark'] .launcher-link-option {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.launcher-link-option:hover {
+  border-color: rgba(114, 46, 209, 0.28);
+  box-shadow: 0 16px 40px rgba(114, 46, 209, 0.1);
+  transform: translateY(-2px);
+}
+
+.launcher-link-option--recommended {
+  border-color: rgba(114, 46, 209, 0.32);
+  background: linear-gradient(160deg, rgba(114, 46, 209, 0.08) 0%, rgba(255, 255, 255, 0.55) 55%);
+}
+
+html[data-theme='dark'] .launcher-link-option--recommended {
+  border-color: rgba(179, 127, 235, 0.34);
+  background: linear-gradient(160deg, rgba(114, 46, 209, 0.18) 0%, rgba(255, 255, 255, 0.03) 55%);
+}
+
+.launcher-link-option-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  color: #722ed1;
+  background: rgba(114, 46, 209, 0.12);
+  border: 1px solid rgba(114, 46, 209, 0.2);
+}
+
+html[data-theme='dark'] .launcher-link-option-badge {
+  color: #b37feb;
+  border-color: rgba(179, 127, 235, 0.28);
+}
+
+.launcher-link-option-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.launcher-link-option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 22px;
+  color: #722ed1;
+  background: rgba(114, 46, 209, 0.12);
+}
+
+.launcher-link-option-icon--guest {
+  color: #1677ff;
+  background: rgba(22, 119, 255, 0.12);
+}
+
+.launcher-link-option-title {
+  margin: 0 !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+
+.launcher-link-option-desc {
+  margin: 0 !important;
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.65;
+  opacity: 0.85;
+}
+
+.launcher-link-option-actions {
+  margin-top: auto;
+}
+
+.launcher-link-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.launcher-link-error-actions {
+  margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+  .launcher-link-options {
+    grid-template-columns: 1fr;
+  }
+
+  .launcher-link-device-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .launcher-link-device-band-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Form, Input, Modal, Tabs } from 'antd';
+import { isBackendUnavailableError } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import type { AuthMode } from '@/auth/AuthModalContext';
+import { useBackendStatus } from '@/backend/BackendStatusContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { modalMotionProps } from '@/lib/modal';
 
@@ -20,12 +22,14 @@ type RegisterFormValues = {
 type AuthModalProps = {
   open: boolean;
   mode: AuthMode;
+  returnTo: string;
   onModeChange: (mode: AuthMode) => void;
   onClose: () => void;
 };
 
-export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps) {
+export function AuthModal({ open, mode, returnTo, onModeChange, onClose }: AuthModalProps) {
   const { login, register } = useAuth();
+  const { available: backendAvailable } = useBackendStatus();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [loginForm] = Form.useForm<LoginFormValues>();
@@ -45,7 +49,14 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
 
   const handleSuccess = () => {
     handleClose();
-    navigate('/profile');
+    navigate(returnTo, { replace: true });
+  };
+
+  const resolveAuthError = (e: unknown, fallback: string) => {
+    if (isBackendUnavailableError(e)) {
+      return t('auth.backendUnavailable');
+    }
+    return e instanceof Error ? e.message : fallback;
   };
 
   const onLoginFinish = async (values: LoginFormValues) => {
@@ -55,7 +66,7 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
       await login(values.email, values.password);
       handleSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('auth.loginError'));
+      setError(resolveAuthError(e, t('auth.loginError')));
     } finally {
       setSubmitting(false);
     }
@@ -68,7 +79,7 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
       await register(values.email, values.password);
       handleSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('auth.registerError'));
+      setError(resolveAuthError(e, t('auth.registerError')));
     } finally {
       setSubmitting(false);
     }
@@ -84,7 +95,13 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
       width={420}
       {...modalMotionProps}
     >
-      {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
+      {(!backendAvailable || error) && (
+        <Alert
+          type="error"
+          title={error ?? t('auth.backendUnavailable')}
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Tabs
         activeKey={mode}
         destroyOnHidden
@@ -112,7 +129,13 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
                 >
                   <Input.Password autoComplete="current-password" />
                 </Form.Item>
-                <Button type="primary" htmlType="submit" block loading={submitting}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  block
+                  loading={submitting}
+                  disabled={!backendAvailable}
+                >
                   {t('auth.signIn')}
                 </Button>
               </Form>
@@ -158,7 +181,13 @@ export function AuthModal({ open, mode, onModeChange, onClose }: AuthModalProps)
                 >
                   <Input.Password autoComplete="new-password" />
                 </Form.Item>
-                <Button type="primary" htmlType="submit" block loading={submitting}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  block
+                  loading={submitting}
+                  disabled={!backendAvailable}
+                >
                   {t('auth.createAccount')}
                 </Button>
               </Form>

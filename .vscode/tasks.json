@@ -55,6 +55,20 @@
       "problemMatcher": []
     },
     {
+      "label": "Docker: dev-vps-rm",
+      "type": "shell",
+      "command": "make dev-vps-rm",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Docker: dev-vps-info",
       "type": "shell",
       "command": "make dev-vps-info",

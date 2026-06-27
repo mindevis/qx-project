@@ -1,8 +1,9 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Menu, Button, Space, Typography, Spin, theme } from 'antd';
+import { Layout, Menu, Button, Space, Typography, Spin, Tooltip, theme } from 'antd';
 import { useAuth } from '@/auth/AuthContext';
 import { useAuthModal } from '@/auth/AuthModalContext';
+import { useBackendStatus } from '@/backend/BackendStatusContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useTheme } from '@/theme/ThemeContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -18,12 +19,26 @@ const SCROLL_THRESHOLD = 16;
 export function AppLayout() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const { openAuthModal } = useAuthModal();
+  const { available: backendAvailable } = useBackendStatus();
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const location = useLocation();
-  const isHome = location.pathname === '/';
+  const isLandingPage =
+    location.pathname === '/' ||
+    location.pathname === '/launcher' ||
+    location.pathname === '/launcher/link' ||
+    location.pathname === '/servers' ||
+    location.pathname.startsWith('/servers/');
+  const footerClassName =
+    location.pathname === '/'
+      ? 'app-footer app-footer--landing app-footer--landing-home'
+      : location.pathname === '/launcher' || location.pathname === '/launcher/link'
+        ? 'app-footer app-footer--landing app-footer--landing-launcher'
+        : location.pathname === '/servers' || location.pathname.startsWith('/servers/')
+          ? 'app-footer app-footer--landing app-footer--landing-servers'
+          : 'app-footer';
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -39,7 +54,7 @@ export function AppLayout() {
   const headerClassName = [
     'app-header',
     'app-header--sticky',
-    isHome && 'app-header--home',
+    isLandingPage && 'app-header--landing',
     scrolled && 'app-header--scrolled',
   ]
     .filter(Boolean)
@@ -66,7 +81,7 @@ export function AppLayout() {
         }
       >
         <Typography.Title level={4} style={{ color: token.colorText, margin: 0 }}>
-          QXProject
+          QXSystem
         </Typography.Title>
         <Menu
           theme={isDark ? 'dark' : 'light'}
@@ -75,9 +90,9 @@ export function AppLayout() {
           items={menuItems}
           style={{ flex: 1, minWidth: 0, background: 'transparent' }}
         />
-        <Space>
-          <LanguageSwitcher />
+        <Space className="app-header-controls" size={8}>
           <ThemeToggle />
+          <LanguageSwitcher />
           {loading ? (
             <Spin size="small" />
           ) : isAuthenticated && user ? (
@@ -89,19 +104,30 @@ export function AppLayout() {
               }}
             />
           ) : (
-            <Button type="primary" onClick={() => openAuthModal('login')}>
-              {t('common.login')}
-            </Button>
+            <Tooltip title={!backendAvailable ? t('auth.backendUnavailable') : undefined}>
+              <span>
+                <Button
+                  type="primary"
+                  className="app-header-login-btn"
+                  disabled={!backendAvailable}
+                  onClick={() => openAuthModal('login')}
+                >
+                  {t('common.login')}
+                </Button>
+              </span>
+            </Tooltip>
           )}
         </Space>
       </Header>
       <Content
-        className={isHome ? 'app-content--home' : undefined}
-        style={{ padding: isHome ? '0 48px 24px' : '24px 48px' }}
+        className={isLandingPage ? 'app-content--landing' : undefined}
+        style={{ padding: isLandingPage ? '0' : '24px 48px' }}
       >
         <Outlet />
       </Content>
-      <Footer style={{ textAlign: 'center' }}>{t('layout.footer')}</Footer>
+      <Footer className={footerClassName}>
+        {t('layout.footer')}
+      </Footer>
     </Layout>
   );
 }

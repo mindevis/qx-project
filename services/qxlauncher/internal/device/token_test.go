@@ -66,3 +66,16 @@ func TestEnsureDeviceTokenKeepsValidToken(t *testing.T) {
 		t.Fatalf("ensure: err=%v token=%q", err, token)
 	}
 }
+
+func TestEnsureDeviceTokenKeepsCachedTokenOffline(t *testing.T) {
+	dir := t.TempDir()
+	tokenPath := filepath.Join(dir, "device_token")
+	if err := os.WriteFile(tokenPath, []byte("cached-offline-token"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	client := NewClient("http://127.0.0.1:1/api/v1", "dev-1")
+	token, err := EnsureDeviceToken(context.Background(), client, tokenPath)
+	if err != nil || token != "cached-offline-token" {
+		t.Fatalf("ensure offline: err=%v token=%q", err, token)
+	}
+}

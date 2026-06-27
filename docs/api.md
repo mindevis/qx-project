@@ -321,7 +321,7 @@ Site creates request → QXLauncher polls → spawns JVM. Full spec: [launch-bri
 ```yaml
 openapi: 3.0.3
 info:
-  title: QXProject API
+  title: QXSystem API
   version: 1.0.0
 servers:
   - url: https://api.qx.example.com/api/v1

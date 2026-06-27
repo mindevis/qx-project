@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -39,6 +41,7 @@ type OfflineProfile struct {
 	ID          string `json:"id"`
 	Username    string `json:"username"`
 	OfflineUUID string `json:"offline_uuid"`
+	Model       string `json:"model"`
 }
 
 type InstanceItem struct {
@@ -82,6 +85,35 @@ func IsUnauthorized(err error) bool {
 		return false
 	}
 	return strings.Contains(err.Error(), ": 401 ")
+}
+
+// IsUnavailable reports whether err is a transient network or connectivity failure.
+func IsUnavailable(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	for _, sub := range []string{
+		"connection refused",
+		"connectex",
+		"actively refused",
+		"no such host",
+		"network is unreachable",
+		"connection reset",
+		"i/o timeout",
+	} {
+		if strings.Contains(msg, sub) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Client) FetchDeviceInstances(ctx context.Context) ([]InstanceItem, error) {

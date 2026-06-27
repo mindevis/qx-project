@@ -4,6 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"path/filepath"
+	"strings"
+
+	"github.com/qxproject/qx/pkg/protocol"
 )
 
 func streamLines(stream string, r io.Reader, onOutput func(string, string)) {
@@ -11,14 +15,43 @@ func streamLines(stream string, r io.Reader, onOutput func(string, string)) {
 		return
 	}
 	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		onOutput(stream, scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		onOutput("stderr", stream+" read error: "+err.Error())
 	}
 }
 
 func (r *ProcessRunner) SetOutputHandler(fn func(stream, line string)) {
 	r.mu.Lock()
 	r.onOutput = fn
+	r.mu.Unlock()
+}
+
+func (r *ProcessRunner) AttachConsole(payload protocol.ConsoleAttachPayload) {
+	workDir := strings.TrimSpace(payload.WorkDir)
+	if workDir == "" {
+		return
+	}
+	r.mu.Lock()
+	if id := strings.TrimSpace(payload.GameServerID); id != "" {
+		r.gameServerID = id
+	}
+	r.mu.Unlock()
+
+	logPath := filepath.Join(workDir, "logs", "latest.log")
+	if lines, err := readRecentLogLines(logPath, 500); err == nil {
+		for _, line := range lines {
+			r.emit("log", line)
+		}
+	} else {
+		r.emit("stderr", "log file not ready: "+logPath)
+	}
+
+	r.mu.Lock()
+	r.startLogFollowLocked(workDir)
 	r.mu.Unlock()
 }
 

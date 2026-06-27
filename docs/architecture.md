@@ -1,4 +1,4 @@
-# QXProject — Архитектура
+# QXSystem — Архитектура
 
 > Документ описывает целевую архитектуру платформы и **текущий статус реализации**.
 > **Версия:** v1.11 (2026-06-21) — HWID device link, auto browser · TOML config · **MVP alpha (dev) ✅** · **Prod 🔲** · [configuration.md](./configuration.md)
@@ -51,7 +51,7 @@
 
 ## 1. Видение продукта
 
-**QXProject** — единая экосистема для Minecraft, объединяющая:
+**QXSystem** — единая экосистема для Minecraft, объединяющая:
 
 | Компонент | Назначение |
 | ----------- | ------------ |
@@ -1220,7 +1220,7 @@ flowchart TB
 ## 10. Структура репозитория (monorepo)
 
 ```text
-QXProject/
+QXSystem/
 ├── services/
 │   ├── qxapi/               # QXApi (go.mod, cmd/, internal/)
 │   ├── qxagent/             # QXAgent — WSS daemon, start/stop JAR
@@ -1362,7 +1362,7 @@ flowchart TB
 
 ```mermaid
 gantt
-    title Roadmap QXProject (2 человека)
+    title Roadmap QXSystem (2 человека)
     dateFormat YYYY-MM
     section Foundation
     Phase 0 API + Web auth     :p0, 2026-06, 2M
@@ -1478,10 +1478,10 @@ quadrantChart
     KLauncher: [0.25, 0.2]
     GML: [0.5, 0.3]
     AuroraLauncher: [0.6, 0.35]
-    QXProject: [0.85, 0.9]
+    QXSystem: [0.85, 0.9]
 ```
 
-QXProject = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (инстансы с сайта, `/launcher` UI) +
+QXSystem = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (инстансы с сайта, `/launcher` UI) +
 **уникально:** панель управления сервером через QXAgent (BYOS). **Свой QXLauncher**, не GML.
 
 **Ключевые паттерны из референсов:**

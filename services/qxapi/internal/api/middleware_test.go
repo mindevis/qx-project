@@ -156,4 +156,17 @@ func TestDeviceOrLauncherOwnerMiddleware(t *testing.T) {
 			t.Fatalf("status: %d", w.Code)
 		}
 	})
+
+	t.Run("invalid bearer", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		_, r := gin.CreateTestContext(w)
+		r.Use(DeviceOrLauncherOwnerMiddleware(tokens))
+		r.POST("/", func(c *gin.Context) { c.Status(200) })
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req.Header.Set("Authorization", "Bearer not-a-jwt")
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("status: %d", w.Code)
+		}
+	})
 }

@@ -1,4 +1,4 @@
-# QXProject — QA Test Matrix (Alpha)
+# QXSystem — QA Test Matrix (Alpha)
 
 > REST base: `http://localhost:3000/api/v1` (prod: `https://api.qx.example.com/api/v1`).  
 > Пути в таблицах — относительные к base, если не указано иное.

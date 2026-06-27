@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { saveTokens } from '@/api/client';
+import { saveTokens, api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { ChangeEmailModal } from './ChangeEmailModal';
 
@@ -66,7 +66,11 @@ describe('ChangeEmailModal', () => {
 
   it('shows error when api fails', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockImplementationOnce(() => Promise.reject(new Error('email taken')));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'X', message: 'email taken' } }), {
+        status: 422,
+      }),
+    );
 
     renderModal();
     await waitFor(() => expect(screen.getByLabelText('Новый email')).toHaveValue('old@test.com'));
@@ -78,7 +82,7 @@ describe('ChangeEmailModal', () => {
 
   it('shows generic error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockImplementationOnce(() => Promise.reject('fail'));
+    vi.spyOn(api, 'changeEmail').mockRejectedValueOnce('fail');
 
     renderModal();
     await waitFor(() => expect(screen.getByLabelText('Новый email')).toHaveValue('old@test.com'));

@@ -50,7 +50,9 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	instancesH := &InstancesHandler{Service: launcherSvc}
 	profilesH := &ProfilesHandler{Service: launcherSvc}
 	launchH := &LaunchRequestsHandler{Service: launcherSvc, Tokens: tokens}
+	mcVersionsH := &McVersionsHandler{}
 	serversH := &ServersHandler{Service: serversSvc}
+	gameServersH := &GameServersHandler{Service: serversSvc}
 	consoleH := &ServerConsoleHandler{Servers: serversSvc, Tokens: tokens}
 	agentWS := &AgentWSHandler{Hub: hub, Tokens: tokens, Servers: serversSvc}
 	health := &HealthHandler{DB: db}
@@ -63,7 +65,6 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 		v1.POST("/auth/register", authH.Register)
 		v1.POST("/auth/login", authH.Login)
 		v1.POST("/auth/refresh", authH.Refresh)
-		v1.POST("/auth/guest", authH.Guest)
 		v1.POST("/auth/logout", AuthMiddleware(tokens), authH.Logout)
 
 		// WebSocket clients pass access_token as a query param (no Authorization header).
@@ -71,9 +72,10 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 
 		v1.POST("/launcher/devices/register", devicesH.Register)
 		v1.GET("/launcher/devices/:id/status", devicesH.Status)
+		v1.GET("/launcher/mc-versions", mcVersionsH.List)
 
 		link := v1.Group("")
-		link.Use(OptionalAuthMiddleware(tokens))
+		link.Use(AuthMiddleware(tokens))
 		{
 			link.POST("/launcher/devices/link", devicesH.Link)
 		}
@@ -94,6 +96,22 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.POST("/servers/:id/start", serversH.Start)
 			authed.POST("/servers/:id/stop", serversH.Stop)
 			authed.POST("/servers/:id/restart", serversH.Restart)
+
+			authed.GET("/servers/:id/game-servers", gameServersH.List)
+			authed.POST("/servers/:id/game-servers", gameServersH.Create)
+			authed.GET("/servers/:id/game-servers/:gameServerId", gameServersH.Get)
+			authed.PATCH("/servers/:id/game-servers/:gameServerId", gameServersH.Update)
+			authed.GET("/servers/:id/game-servers/:gameServerId/properties", gameServersH.GetProperties)
+			authed.PATCH("/servers/:id/game-servers/:gameServerId/properties", gameServersH.PatchProperties)
+			authed.GET("/servers/:id/game-servers/:gameServerId/mods", gameServersH.ListMods)
+			authed.GET("/servers/:id/game-servers/:gameServerId/files", gameServersH.ListFiles)
+			authed.GET("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.ReadFile)
+			authed.PUT("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.WriteFile)
+			authed.POST("/servers/:id/game-servers/:gameServerId/reinstall", gameServersH.Reinstall)
+			authed.POST("/servers/:id/game-servers/:gameServerId/start", gameServersH.Start)
+			authed.POST("/servers/:id/game-servers/:gameServerId/stop", gameServersH.Stop)
+			authed.POST("/servers/:id/game-servers/:gameServerId/restart", gameServersH.Restart)
+			authed.DELETE("/servers/:id/game-servers/:gameServerId", gameServersH.Delete)
 		}
 
 		launcherOwner := v1.Group("")

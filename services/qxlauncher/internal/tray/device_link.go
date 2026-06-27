@@ -4,11 +4,15 @@ import (
 	"context"
 	"log/slog"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
+	"github.com/qxproject/qx/services/qxlauncher/internal/apiclient"
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
 )
+
+var deviceLinkPollActive atomic.Bool
 
 type DeviceLinkConfig struct {
 	TokenPath    string
@@ -54,12 +58,23 @@ func pollDeviceLink(
 	startLoop func(string),
 	onLinked func(),
 ) {
+	if !deviceLinkPollActive.CompareAndSwap(false, true) {
+		slog.Debug("device link poll already in progress")
+		return
+	}
+	defer deviceLinkPollActive.Store(false)
+
 	reg := cfg.PendingRegister
 	if reg == nil {
 		var err error
 		reg, err = cfg.DeviceClient.Register(ctx)
 		if err != nil {
-			slog.Error("device register failed", "err", err)
+			if apiclient.IsUnavailable(err) {
+				slog.Warn("backend unavailable, device link deferred", "err", err)
+				notify.Show("QXLauncher", "Сервер недоступен. Повторите привязку позже.")
+			} else {
+				slog.Error("device register failed", "err", err)
+			}
 			return
 		}
 	}

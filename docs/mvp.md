@@ -1,4 +1,4 @@
-# QXProject — MVP
+# QXSystem — MVP
 
 > Минимально жизнеспособный продукт для закрытой alpha.
 > Полная архитектура: [architecture.md](./architecture.md)
@@ -306,7 +306,7 @@ Infra-скрипты есть (`docker-compose.prod.yml`, `infra/scripts/deploy.
 | 1.5 | Local profile (offline username) | Senior | ✅ |
 | 1.6 | API: instances CRUD (linked device) | Senior | ✅ |
 | 1.7 | Web: /launcher pages, create instance | Junior | ✅ |
-| 1.8 | QXLauncher sync instances | Senior | ✅ poll → `~/.qx/instances.json` |
+| 1.8 | QXLauncher sync instances | Senior | ✅ poll → `~/.qxlauncher/instances.json` |
 | 1.9 | QXLauncher UI в трее (icon, menu, OS notify) | Senior | ✅ `fyne.io/systray` |
 
 ### Phase 2 — Agent + Panel *(8–12 нед)*
@@ -351,7 +351,7 @@ Infra-скрипты есть (`docker-compose.prod.yml`, `infra/scripts/deploy.
 
 ```mermaid
 gantt
-    title QXProject MVP
+    title QXSystem MVP
     dateFormat YYYY-MM-DD
     axisFormat %Y-%m
     section P0

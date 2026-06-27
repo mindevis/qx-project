@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -69,6 +70,81 @@ func TestExecuteLaunchDryRun(t *testing.T) {
 	}
 }
 
+func TestExecuteLaunchDryRunNeoForge(t *testing.T) {
+	jarSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("jar-bytes"))
+	}))
+	t.Cleanup(jarSrv.Close)
+
+	indexBody, _ := json.Marshal(map[string]any{
+		"objects": map[string]any{},
+	})
+	indexSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(indexBody)
+	}))
+	t.Cleanup(indexSrv.Close)
+
+	var lastStatus string
+	apiSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			http.NotFound(w, r)
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if s, ok := body["status"].(string); ok {
+			lastStatus = s
+		}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "req-neoforge", "status": lastStatus})
+	}))
+	t.Cleanup(apiSrv.Close)
+
+	dataDir := filepath.Join(t.TempDir(), "data")
+	clientJar := mcmanifest.DefaultLoaderClientJar(mcmanifest.LoaderNeoForge, "1.21.1", "21.1.234")
+	if err := os.MkdirAll(filepath.Join(dataDir, filepath.Dir(clientJar.RelativePath)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, clientJar.RelativePath), []byte("neoforge-client"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	api := apiclient.New(apiSrv.URL, "token")
+	dl := minecraft.NewDownloader(dataDir)
+	dl.SkipJavaDownload = true
+
+	executeLaunch(context.Background(), api, dl, Config{LaunchDryRun: true}, &apiclient.LaunchRequestItem{
+		ID: "req-neoforge",
+		Profile: &apiclient.OfflineProfile{
+			Username:    "NeoForgeTest",
+			OfflineUUID: "00000000-0000-0000-0000-000000000001",
+		},
+		Manifest: &mcmanifest.InstanceLaunchManifest{
+			InstanceID:    "inst-neoforge",
+			MCVersion:     "1.21.1",
+			Loader:        mcmanifest.LoaderNeoForge,
+			LoaderVersion: "21.1.234",
+			VersionID:     "1.21.1-neoforge-21.1.234",
+			MainClass:     "cpw.mods.bootstraplauncher.BootstrapLauncher",
+			AssetIndex:    mcmanifest.AssetIndexRef{ID: "1.21.1", URL: indexSrv.URL},
+			ClientJar:     mcmanifest.DownloadFile{URL: jarSrv.URL, Sha1: ""},
+			LoaderClientJar: clientJar,
+			JVMArguments: []string{
+				"-DlibraryDirectory=${library_directory}",
+				"-p", "${library_directory}/cpw/mods/bootstraplauncher/2.0.2/bootstraplauncher-2.0.2.jar",
+			},
+			GameArguments: []string{
+				"--username", "${auth_player_name}",
+				"--launchTarget", "forgeclient",
+			},
+		},
+	})
+
+	if lastStatus != "completed" {
+		t.Fatalf("expected completed, got %q", lastStatus)
+	}
+}
+
 func TestSyncInstances(t *testing.T) {
 	apiSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/launcher/devices/me/instances" {
@@ -84,9 +160,16 @@ func TestSyncInstances(t *testing.T) {
 	t.Cleanup(apiSrv.Close)
 
 	dir := t.TempDir()
+	stale := filepath.Join(dir, "instances", "stale-id")
+	if err := os.MkdirAll(stale, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	api := apiclient.New(apiSrv.URL, "token")
 	if err := syncInstances(context.Background(), api, dir); err != nil {
 		t.Fatalf("sync: %v", err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale instance dir still exists: %v", err)
 	}
 }
 

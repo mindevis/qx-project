@@ -233,47 +233,6 @@ func TestAuthHandlerRefreshErrors(t *testing.T) {
 	}
 }
 
-func TestDefaultGuestTokenIssue(t *testing.T) {
-	h := newAuthHandler(t)
-	token, expiresIn, err := defaultGuestTokenIssue(h.Service, "device-1")
-	if err != nil || token == "" || expiresIn <= 0 {
-		t.Fatalf("guest issue: err=%v token=%q expires=%d", err, token, expiresIn)
-	}
-
-	auth.BreakSigningForTest(t)
-
-	if _, _, err := defaultGuestTokenIssue(h.Service, "device-2"); err == nil {
-		t.Fatal("expected guest token issue error")
-	}
-}
-
-func TestAuthHandlerGuestErrors(t *testing.T) {
-	h := newAuthHandler(t)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(`{}`))
-	c.Request.Header.Set("Content-Type", "application/json")
-	h.Guest(c)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("validation: %d", w.Code)
-	}
-
-	old := guestTokenIssue
-	t.Cleanup(func() { guestTokenIssue = old })
-	guestTokenIssue = func(_ authService, _ string) (string, int64, error) {
-		return "", 0, errors.New("fail")
-	}
-	w = httptest.NewRecorder()
-	c, _ = gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(`{"device_id":"d1"}`))
-	c.Request.Header.Set("Content-Type", "application/json")
-	h.Guest(c)
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("internal: %d", w.Code)
-	}
-}
-
 func TestAuthHandlerLogout(t *testing.T) {
 	h := newAuthHandler(t)
 	w := httptest.NewRecorder()

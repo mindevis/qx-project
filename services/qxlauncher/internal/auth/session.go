@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/qxproject/qx/services/qxlauncher/internal/apiclient"
 )
 
 type Session struct {
@@ -138,6 +140,9 @@ func EnsureFreshAccessToken(ctx context.Context, baseURL, sessionPath string) (s
 	}
 	refreshed, err := Refresh(ctx, baseURL, session.RefreshToken)
 	if err != nil {
+		if apiclient.IsUnavailable(err) {
+			return session.AccessToken, nil
+		}
 		return session.AccessToken, err
 	}
 	if err := SaveSession(sessionPath, refreshed); err != nil {

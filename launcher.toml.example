@@ -1,4 +1,4 @@
-# QXLauncher — copy to launcher.toml (repo root for dev, or ~/.qx/launcher.toml when installed).
+# QXLauncher — copy to launcher.toml (repo root for dev, or ~/.qxlauncher/launcher.toml when installed).
 
 api_base_url = "http://localhost:3000/api/v1"
 web_base_url = "http://localhost:5173"
@@ -14,4 +14,4 @@ web_base_url = "http://localhost:5173"
 # log_level = "info"
 # log_format = "text"
 
-# device_token_path = "C:\\Users\\you\\.qx\\device_token"
+# device_token_path = "C:\\Users\\you\\.qxlauncher\\device_token"

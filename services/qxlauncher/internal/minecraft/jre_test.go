@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/pkg/mojangjava"
 )
 
 func TestEnsureJavaSkipDownload(t *testing.T) {
@@ -51,16 +52,15 @@ func TestEnsureJavaDownloadsPackage(t *testing.T) {
 	var serverURL string
 	mux.HandleFunc("/catalog.json", func(w http.ResponseWriter, r *http.Request) {
 		platform := javaPlatformKey()
-		_ = json.NewEncoder(w).Encode(map[string]map[string][]javaRuntimeEntry{
+		_ = json.NewEncoder(w).Encode(map[string]map[string][]map[string]any{
 			platform: {
 				"java-runtime-delta": {{
-					Manifest: struct {
-						URL  string `json:"url"`
-						Sha1 string `json:"sha1"`
-					}{URL: serverURL + "/package.json"},
-					Version: struct {
-						Name string `json:"name"`
-					}{Name: "21.0.7"},
+					"manifest": map[string]string{
+						"url": serverURL + "/package.json",
+					},
+					"version": map[string]string{
+						"name": "21.0.7",
+					},
 				}},
 			},
 		})
@@ -88,9 +88,9 @@ func TestEnsureJavaDownloadsPackage(t *testing.T) {
 	t.Cleanup(catalogSrv.Close)
 	serverURL = catalogSrv.URL
 
-	oldURL := javaRuntimeCatalogURL
-	javaRuntimeCatalogURL = catalogSrv.URL + "/catalog.json"
-	t.Cleanup(func() { javaRuntimeCatalogURL = oldURL })
+	oldURL := mojangjava.RuntimeCatalogURL
+	mojangjava.RuntimeCatalogURL = catalogSrv.URL + "/catalog.json"
+	t.Cleanup(func() { mojangjava.RuntimeCatalogURL = oldURL })
 
 	root := t.TempDir()
 	dl := NewDownloader(root)

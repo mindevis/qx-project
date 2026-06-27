@@ -10,7 +10,7 @@ const docTemplate = `{
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
         "contact": {
-            "name": "QXProject",
+            "name": "QXSystem",
             "url": "https://github.com/mindevis/qx-project"
         },
         "license": {
@@ -1281,7 +1281,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "QX API",
-	Description:      "QXProject REST API. Base path `/api/v1`. Agent WSS: `GET /agent/v1/connect`.\nInteractive docs: `GET /swagger/index.html`",
+	Description:      "QXSystem REST API. Base path `/api/v1`. Agent WSS: `GET /agent/v1/connect`.\nInteractive docs: `GET /swagger/index.html`",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -1,0 +1,8 @@
+//go:build !windows
+
+package tray
+
+import _ "embed"
+
+//go:embed assets/icon.png
+var trayIconData []byte

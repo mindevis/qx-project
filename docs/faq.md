@@ -1,4 +1,4 @@
-# QXProject — FAQ (MVP Alpha)
+# QXSystem — FAQ (MVP Alpha)
 
 Краткие ответы для закрытой beta (dev). **MVP alpha flows ✅ · Prod 🔲** — [mvp.md](./mvp.md).
 

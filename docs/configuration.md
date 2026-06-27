@@ -70,14 +70,14 @@ public_api_url = "http://host.docker.internal:3000"
 
 ## 4. QXLauncher — `launcher.toml`
 
-**Dev:** корень репозитория (перекрывает `~/.qx/launcher.toml`, если оба существуют).  
-**Установленный:** `%USERPROFILE%\.qx\launcher.toml` (Windows) или `~/.qx/launcher.toml`.
+**Dev:** корень репозитория (перекрывает `~/.qxlauncher/launcher.toml`, если оба существуют).  
+**Установленный:** `%USERPROFILE%\.qxlauncher\launcher.toml` (Windows) или `~/.qxlauncher/launcher.toml`.
 
 | Key | Default | Описание |
 | ----- | --------- | ---------- |
 | `api_base_url` | `http://localhost:3000/api/v1` | QXApi REST |
 | `web_base_url` | `http://localhost:5173` | QXWeb для tray menu |
-| `device_token_path` | `~/.qx/device_token` | Файл device JWT |
+| `device_token_path` | `~/.qxlauncher/device_token` | Файл device JWT |
 | `link_max_polls` | `60` | Poll device link |
 | `skip_tray` | `false` | Консольный режим (без systray) |
 | `launch_dry_run` | `false` | Launch-bridge без JVM |
@@ -87,7 +87,7 @@ public_api_url = "http://host.docker.internal:3000"
 | `email` / `password` | — | Опционально: auto-login на сайте (dev) |
 | `log_level` / `log_format` | `info` / `text` | Логирование |
 
-**HWID (`device_id`):** UUID v5 от идентификатора машины — Windows `MachineGuid`, Linux `/etc/machine-id`, macOS `IOPlatformUUID`. Кэш: `~/.qx/device_id`. Ссылка привязки: `{web_base_url}/launcher/link?device=<id>` — QXLauncher открывает её в браузере при первом запуске. Коды подтверждения не используются.
+**HWID (`device_id`):** UUID v5 от идентификатора машины — Windows `MachineGuid`, Linux `/etc/machine-id`, macOS `IOPlatformUUID`. Кэш: `~/.qxlauncher/device_id`. Ссылка привязки: `{web_base_url}/launcher/link?device=<id>` — QXLauncher открывает её в браузере при первом запуске. Коды подтверждения не используются.
 
 ---
 
@@ -123,7 +123,7 @@ QXApi в prod-контейнере пока получает переменны�
 ```text
 QXApi:     repo/qxapi.toml
 QXWeb:     repo/web.toml → Vite env
-Launcher:  ~/.qx/launcher.toml → repo/launcher.toml (repo wins in dev)
+Launcher:  ~/.qxlauncher/launcher.toml → repo/launcher.toml (repo wins in dev)
 Agent:     -config flag → repo/agent.toml → /etc/qx-agent/agent.toml
 Repo root: pkg/reporoot (walk up to go.work)
 ```

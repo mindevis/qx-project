@@ -5,25 +5,36 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AuthModal } from '@/components/AuthModal';
+import { buildAuthReturnPath } from '@/auth/authReturn';
 
 export type AuthMode = 'login' | 'register';
 
 type AuthModalContextValue = {
-  openAuthModal: (mode?: AuthMode) => void;
+  openAuthModal: (mode?: AuthMode, returnTo?: string) => void;
   closeAuthModal: () => void;
 };
 
 const AuthModalContext = createContext<AuthModalContextValue | null>(null);
 
 export function AuthModalProvider({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AuthMode>('login');
+  const [returnTo, setReturnTo] = useState('/');
 
-  const openAuthModal = useCallback((nextMode: AuthMode = 'login') => {
-    setMode(nextMode);
-    setOpen(true);
-  }, []);
+  const openAuthModal = useCallback(
+    (nextMode: AuthMode = 'login', explicitReturnTo?: string) => {
+      const path =
+        explicitReturnTo ??
+        buildAuthReturnPath(location.pathname, location.search, location.hash);
+      setReturnTo(path);
+      setMode(nextMode);
+      setOpen(true);
+    },
+    [location.pathname, location.search, location.hash],
+  );
 
   const closeAuthModal = useCallback(() => {
     setOpen(false);
@@ -35,6 +46,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
       <AuthModal
         open={open}
         mode={mode}
+        returnTo={returnTo}
         onModeChange={setMode}
         onClose={closeAuthModal}
       />

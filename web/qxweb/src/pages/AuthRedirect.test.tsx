@@ -25,7 +25,9 @@ describe('AuthRedirect', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByText('Единая экосистема для Minecraft')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Единая экосистема для Minecraft',
+      );
     });
   });
 
@@ -41,5 +43,20 @@ describe('AuthRedirect', () => {
     await waitFor(() =>
       expect(screen.getByRole('tab', { name: 'Регистрация' })).toHaveAttribute('aria-selected', 'true'),
     );
+  });
+
+  it('honors returnTo query when opening auth route', async () => {
+    renderWithProviders(
+      <Routes>
+        <Route path="/launcher" element={<div>Launcher page</div>} />
+        <Route path="/auth/:mode" element={<AuthRedirect />} />
+      </Routes>,
+      '/auth/login?returnTo=/launcher',
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByText('Launcher page')).toBeInTheDocument();
+    });
   });
 });

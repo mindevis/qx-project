@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -19,20 +21,24 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/qxproject/qx/pkg/protocol"
+	"github.com/qxproject/qx/services/qxagent/internal/fs"
+	"github.com/qxproject/qx/services/qxagent/internal/installer"
 )
 
 type Config struct {
-	WSURL    string
-	Token    string
-	Hostname string
-	Version  string
-	DryRun   bool
+	WSURL      string
+	Token      string
+	Hostname   string
+	Version    string
+	ServerRoot string
+	DryRun     bool
 }
 
 type Client struct {
-	cfg    Config
-	runner *ProcessRunner
-	dialer *websocket.Dialer
+	cfg     Config
+	runner  *ProcessRunner
+	dialer  *websocket.Dialer
+	writeMu sync.Mutex
 }
 
 func NewClient(cfg Config) *Client {
@@ -106,13 +112,7 @@ func (c *Client) connectOnce(ctx context.Context) error {
 	slog.Info("agent connected", "url", c.cfg.WSURL)
 
 	c.runner.SetOutputHandler(func(stream, line string) {
-		payload, _ := json.Marshal(protocol.ConsoleOutputPayload{Stream: stream, Line: line})
-		_ = conn.WriteJSON(protocol.Envelope{
-			V:       protocol.Version,
-			Type:    protocol.TypeEvtConsoleOutput,
-			TS:      time.Now().UTC().Format(time.RFC3339),
-			Payload: payload,
-		})
+		c.emitConsoleStream(conn, c.runner.ConsoleGameServerID(), stream, line)
 	})
 
 	heartbeat := time.NewTicker(30 * time.Second)
@@ -131,10 +131,10 @@ func (c *Client) connectOnce(ctx context.Context) error {
 			return err
 		case <-heartbeat.C:
 			payload, _ := json.Marshal(protocol.HeartbeatPayload{})
-			_ = conn.WriteJSON(protocol.Envelope{
-				V:    protocol.Version,
-				Type: protocol.TypeEvtAgentHeartbeat,
-				TS:   time.Now().UTC().Format(time.RFC3339),
+			_ = c.writeEnvelope(conn, protocol.Envelope{
+				V:       protocol.Version,
+				Type:    protocol.TypeEvtAgentHeartbeat,
+				TS:      time.Now().UTC().Format(time.RFC3339),
 				Payload: payload,
 			})
 		}
@@ -152,9 +152,13 @@ func (c *Client) readLoop(conn *websocket.Conn) error {
 		if err := json.Unmarshal(data, &env); err != nil {
 			continue
 		}
+		if env.Type == protocol.TypeCmdServerInstall {
+			go c.runInstallAsync(conn, cache, env)
+			continue
+		}
 		if env.RequestID != "" {
 			if cached, ok := cache.Get(env.RequestID); ok {
-				if err := conn.WriteJSON(cached); err != nil {
+				if err := c.writeEnvelope(conn, cached); err != nil {
 					return err
 				}
 				continue
@@ -171,15 +175,109 @@ func (c *Client) readLoop(conn *websocket.Conn) error {
 		if env.RequestID != "" {
 			cache.Set(env.RequestID, *res)
 		}
-		if err := conn.WriteJSON(res); err != nil {
+		if err := c.writeEnvelope(conn, *res); err != nil {
 			return err
 		}
 	}
 }
 
+func (c *Client) writeEnvelope(conn *websocket.Conn, env protocol.Envelope) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return conn.WriteJSON(env)
+}
+
+func (c *Client) emitConsole(conn *websocket.Conn, line string) {
+	c.emitConsoleStream(conn, "", "stdout", line)
+}
+
+func (c *Client) emitConsoleStream(conn *websocket.Conn, gameServerID, stream, line string) {
+	payload, _ := json.Marshal(protocol.ConsoleOutputPayload{
+		Stream:       stream,
+		Line:         line,
+		GameServerID: gameServerID,
+	})
+	_ = c.writeEnvelope(conn, protocol.Envelope{
+		V:       protocol.Version,
+		Type:    protocol.TypeEvtConsoleOutput,
+		TS:      time.Now().UTC().Format(time.RFC3339),
+		Payload: payload,
+	})
+}
+
+func (c *Client) runInstallAsync(conn *websocket.Conn, cache *requestCache, env protocol.Envelope) {
+	res, err := c.buildInstallResponse(conn, env)
+	if err != nil {
+		slog.Error("install command failed", "err", err)
+		return
+	}
+	if res == nil {
+		return
+	}
+	if env.RequestID != "" {
+		cache.Set(env.RequestID, *res)
+	}
+	if err := c.writeEnvelope(conn, *res); err != nil {
+		slog.Error("install response write failed", "err", err)
+	}
+}
+
+func (c *Client) buildInstallResponse(conn *websocket.Conn, env protocol.Envelope) (*protocol.Envelope, error) {
+	ts := time.Now().UTC().Format(time.RFC3339)
+	var payload protocol.ServerInstallPayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		return nil, err
+	}
+	installCtx, cancel := context.WithTimeout(context.Background(), forgeInstallTimeout())
+	defer cancel()
+	spec, err := installer.Install(installCtx, installer.Options{
+		DryRun: c.cfg.DryRun,
+		OnLog: func(line string) {
+			c.emitConsoleStream(conn, payload.GameServerID, "stdout", line)
+		},
+		JavaRoot: installer.JavaRootFromServerRoot(c.cfg.ServerRoot),
+	}, installer.InstallConfig{
+		ServerType:    payload.ServerType,
+		WorkDir:       payload.WorkDir,
+		MCVersion:     payload.MCVersion,
+		LoaderVersion: payload.LoaderVersion,
+		Name:          payload.Name,
+		Address:       payload.Address,
+		Port:          payload.Port,
+		RconPassword:  payload.RconPassword,
+	})
+	var resPayload []byte
+	if err != nil {
+		resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+	} else {
+		resPayload, _ = json.Marshal(protocol.ServerInstallResult{
+			WorkDir:   spec.WorkDir,
+			JarPath:   spec.JarPath,
+			Command:   spec.Command,
+			Args:      spec.Args,
+			JVMArgs:   spec.JVMArgs,
+			ExtraArgs: spec.ExtraArgs,
+			JavaBin:   spec.JavaBin,
+		})
+	}
+	return &protocol.Envelope{
+		V:         protocol.Version,
+		Type:      protocol.TypeResServerInstall,
+		RequestID: env.RequestID,
+		TS:        ts,
+		Payload:   resPayload,
+	}, nil
+}
+
+func forgeInstallTimeout() time.Duration {
+	return 25 * time.Minute
+}
+
 func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, error) {
 	ts := time.Now().UTC().Format(time.RFC3339)
 	switch env.Type {
+	case protocol.TypeCmdServerInstall:
+		return nil, nil
 	case protocol.TypeCmdServerStart:
 		var payload protocol.ServerStartPayload
 		if err := json.Unmarshal(env.Payload, &payload); err != nil {
@@ -220,6 +318,30 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 			TS:        ts,
 			Payload:   resPayload,
 		}, nil
+	case protocol.TypeCmdServerConfigure:
+		var payload protocol.ServerConfigurePayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := installer.ConfigureServerProperties(payload.WorkDir, installer.ServerPropertiesConfig{
+			Name:         payload.Name,
+			Address:      payload.Address,
+			Port:         payload.Port,
+			RconPassword: payload.RconPassword,
+		})
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(map[string]string{"status": "ok"})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerConfigure,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
 	case protocol.TypeCmdConsoleInput:
 		var payload protocol.ConsoleInputPayload
 		if err := json.Unmarshal(env.Payload, &payload); err != nil {
@@ -229,6 +351,131 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 			return nil, err
 		}
 		return nil, nil
+	case protocol.TypeCmdConsoleAttach:
+		var payload protocol.ConsoleAttachPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		c.runner.AttachConsole(payload)
+		return nil, nil
+	case protocol.TypeCmdServerPropertiesGet:
+		var payload protocol.GameServerWorkDirPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		props, err := fs.ReadServerProperties(payload.WorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerPropertiesResult{Properties: props})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerPropertiesGet,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerPropertiesPatch:
+		var payload protocol.ServerPropertiesPatchPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := fs.PatchServerProperties(payload.WorkDir, payload.Updates)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(map[string]string{"status": "ok"})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerPropertiesPatch,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerFilesList:
+		var payload protocol.ServerFilesPathPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListDir(payload.WorkDir, payload.Path)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerFilesListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerFilesList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerFilesRead:
+		var payload protocol.ServerFilesPathPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		content, size, err := fs.ReadFile(payload.WorkDir, payload.Path)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerFilesReadResult{
+				Path:    payload.Path,
+				Content: content,
+				Size:    size,
+			})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerFilesRead,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerFilesWrite:
+		var payload protocol.ServerFilesWritePayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := fs.WriteFile(payload.WorkDir, payload.Path, payload.Content)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(map[string]string{"status": "ok"})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerFilesWrite,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerModsList:
+		var payload protocol.ServerModsListPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListMods(payload.WorkDir, payload.ServerType)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerModsListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerModsList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
 	case protocol.TypeCmdAgentPing:
 		return &protocol.Envelope{
 			V:         protocol.Version,
@@ -242,32 +489,86 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 }
 
 type ProcessRunner struct {
-	DryRun      bool
-	mu          sync.Mutex
-	cmd         *exec.Cmd
-	dryPID      int
-	stdin       io.WriteCloser
-	pipeClosers []io.Closer
-	onOutput    func(stream, line string)
+	DryRun          bool
+	mu              sync.Mutex
+	cmd             *exec.Cmd
+	dryPID          int
+	stdin           io.WriteCloser
+	pipeClosers     []io.Closer
+	onOutput        func(stream, line string)
+	gameServerID    string
+	logFollowCancel context.CancelFunc
+}
+
+func (r *ProcessRunner) ConsoleGameServerID() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.gameServerID
+}
+
+func (r *ProcessRunner) emit(stream, line string) {
+	r.mu.Lock()
+	fn := r.onOutput
+	r.mu.Unlock()
+	if fn != nil {
+		fn(stream, line)
+	}
+}
+
+func (r *ProcessRunner) emitLocked(stream, line string) {
+	if r.onOutput != nil {
+		r.onOutput(stream, line)
+	}
+}
+
+func (r *ProcessRunner) stopLogFollowLocked() {
+	if r.logFollowCancel != nil {
+		r.logFollowCancel()
+		r.logFollowCancel = nil
+	}
+}
+
+func (r *ProcessRunner) startLogFollowLocked(workDir string) {
+	r.stopLogFollowLocked()
+	if workDir == "" {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	r.logFollowCancel = cancel
+	go followServerLog(ctx, workDir, func(line string) {
+		r.emit("log", line)
+	})
 }
 
 func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.cmd != nil && r.cmd.Process != nil {
+		if payload.WorkDir != "" {
+			r.startLogFollowLocked(payload.WorkDir)
+		}
+		if id := strings.TrimSpace(payload.GameServerID); id != "" {
+			r.gameServerID = id
+		}
 		return r.cmd.Process.Pid, nil
 	}
+	r.gameServerID = strings.TrimSpace(payload.GameServerID)
 	if r.DryRun {
 		if r.dryPID == 0 {
 			r.dryPID = os.Getpid()
 		}
-		slog.Info("dry-run start server", "jar", payload.JarPath, "pid", r.dryPID)
-		if r.onOutput != nil {
-			r.onOutput("stdout", "[QX Agent dry-run] Starting "+payload.JarPath)
-			r.onOutput("stdout", "Done ("+fmt.Sprintf("%d", r.dryPID)+"ms)")
-			r.onOutput("stdout", "For help, type \"help\"")
+		target := payload.JarPath
+		if target == "" {
+			target = payload.Command
 		}
+		slog.Info("dry-run start server", "target", target, "work_dir", payload.WorkDir, "pid", r.dryPID)
+		r.emitLocked("stdout", "[QX Agent dry-run] Starting "+target)
+		r.emitLocked("stdout", "Done ("+fmt.Sprintf("%d", r.dryPID)+"ms)")
+		r.emitLocked("stdout", "For help, type \"help\"")
 		return r.dryPID, nil
+	}
+	if payload.Command != "" {
+		return r.startCommandLocked(payload)
 	}
 	if payload.JarPath == "" {
 		return 0, errors.New("jar_path required")
@@ -280,7 +581,44 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 
-	cmd := exec.Command("java", args...)
+	cmd := exec.Command(javaBin(payload), args...)
+	cmd.Stdin = stdinR
+	cmd.Stdout = stdoutW
+	cmd.Stderr = stderrW
+	if payload.WorkDir != "" {
+		cmd.Dir = payload.WorkDir
+	}
+	applyJavaEnv(cmd, payload.JavaBin)
+	if err := cmd.Start(); err != nil {
+		_ = stdinR.Close()
+		_ = stdinW.Close()
+		_ = stdoutR.Close()
+		_ = stdoutW.Close()
+		_ = stderrR.Close()
+		_ = stderrW.Close()
+		return 0, err
+	}
+	r.cmd = cmd
+	r.stdin = stdinW
+	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
+	go streamLines("stdout", stdoutR, r.emit)
+	go streamLines("stderr", stderrR, r.emit)
+	r.startLogFollowLocked(payload.WorkDir)
+	return cmd.Process.Pid, nil
+}
+
+func (r *ProcessRunner) startCommandLocked(payload protocol.ServerStartPayload) (int, error) {
+	args := append([]string{}, payload.Args...)
+	args = append(args, payload.ExtraArgs...)
+	stdinR, stdinW := io.Pipe()
+	stdoutR, stdoutW := io.Pipe()
+	stderrR, stderrW := io.Pipe()
+
+	cmd := exec.Command(payload.Command, args...)
+	if payload.WorkDir != "" {
+		cmd.Dir = payload.WorkDir
+	}
+	applyJavaEnv(cmd, payload.JavaBin)
 	cmd.Stdin = stdinR
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
@@ -296,9 +634,9 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 	r.cmd = cmd
 	r.stdin = stdinW
 	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
-	onOutput := r.onOutput
-	go streamLines("stdout", stdoutR, onOutput)
-	go streamLines("stderr", stderrR, onOutput)
+	go streamLines("stdout", stdoutR, r.emit)
+	go streamLines("stderr", stderrR, r.emit)
+	r.startLogFollowLocked(payload.WorkDir)
 	return cmd.Process.Pid, nil
 }
 
@@ -308,14 +646,20 @@ func (r *ProcessRunner) Stop(graceful bool, timeout time.Duration) (int, error) 
 	if r.DryRun {
 		slog.Info("dry-run stop server")
 		r.dryPID = 0
+		r.gameServerID = ""
+		r.stopLogFollowLocked()
 		return 0, nil
 	}
 	if r.cmd == nil || r.cmd.Process == nil {
 		r.closePipesLocked()
+		r.gameServerID = ""
+		r.stopLogFollowLocked()
 		return 0, nil
 	}
 	cmd := r.cmd
 	r.cmd = nil
+	r.gameServerID = ""
+	r.stopLogFollowLocked()
 	r.closePipesLocked()
 
 	if graceful {
@@ -340,6 +684,26 @@ func (r *ProcessRunner) Stop(graceful bool, timeout time.Duration) (int, error) 
 		return -1, err
 	}
 	return cmd.ProcessState.ExitCode(), nil
+}
+
+func javaBin(payload protocol.ServerStartPayload) string {
+	if bin := strings.TrimSpace(payload.JavaBin); bin != "" {
+		return bin
+	}
+	return "java"
+}
+
+func applyJavaEnv(cmd *exec.Cmd, javaBinPath string) {
+	javaBinPath = strings.TrimSpace(javaBinPath)
+	if javaBinPath == "" || javaBinPath == "java" {
+		return
+	}
+	binDir := filepath.Dir(javaBinPath)
+	javaHome := filepath.Dir(binDir)
+	cmd.Env = append(os.Environ(),
+		"JAVA_HOME="+javaHome,
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
 }
 
 func DefaultHostname() string {

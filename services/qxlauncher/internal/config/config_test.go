@@ -46,7 +46,7 @@ func TestLoadFromUserTOML(t *testing.T) {
 	}
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("HOME", home)
-	qxDir := filepath.Join(home, ".qx")
+	qxDir := filepath.Join(home, DefaultDataDirName)
 	if err := os.MkdirAll(qxDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

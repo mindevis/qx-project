@@ -9,17 +9,6 @@ import (
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
 )
 
-func defaultGuestTokenIssue(s authService, deviceID string) (string, int64, error) {
-	token, ttl, err := s.Tokens().IssueGuestToken(deviceID)
-	if err != nil {
-		return "", 0, err
-	}
-	return token, int64(ttl.Seconds()), nil
-}
-
-// guestTokenIssue is overridden in tests to cover error paths.
-var guestTokenIssue = defaultGuestTokenIssue
-
 type AuthHandler struct {
 	Service authService
 }
@@ -37,10 +26,6 @@ type loginRequest struct {
 
 type refreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
-}
-
-type guestRequest struct {
-	DeviceID string `json:"device_id" binding:"required"`
 }
 
 type tokenResponse struct {
@@ -114,23 +99,6 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, tokenFromPair(pair))
-}
-
-func (h *AuthHandler) Guest(c *gin.Context) {
-	var req guestRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		JSONValidation(c, err.Error())
-		return
-	}
-	token, expiresIn, err := guestTokenIssue(h.Service, req.DeviceID)
-	if err != nil {
-		JSONInternal(c)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"guest_token": token,
-		"expires_in":  expiresIn,
-	})
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {

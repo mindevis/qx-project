@@ -151,6 +151,35 @@ func (c *Client) Unlink(ctx context.Context, deviceToken string) error {
 	return nil
 }
 
+func isHTTPUnauthorized(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "401")
+}
+
+// UnlinkWithRefresh unlinks the device, refreshing the JWT from /status when needed.
+func (c *Client) UnlinkWithRefresh(ctx context.Context, tokenPath string) error {
+	token, err := EnsureDeviceToken(ctx, c, tokenPath)
+	if err != nil {
+		return err
+	}
+	if token == "" {
+		return fmt.Errorf("device not linked")
+	}
+	if err := c.Unlink(ctx, token); err != nil {
+		if !isHTTPUnauthorized(err) {
+			return err
+		}
+		token, refreshErr := RefreshDeviceToken(ctx, c, tokenPath)
+		if refreshErr != nil {
+			return err
+		}
+		return c.Unlink(ctx, token)
+	}
+	return nil
+}
+
 func (c *Client) LinkLoop(ctx context.Context, maxPolls int, sleepFn func(time.Duration)) (*StatusResult, error) {
 	return c.LinkLoopWithUserToken(ctx, maxPolls, sleepFn, "")
 }

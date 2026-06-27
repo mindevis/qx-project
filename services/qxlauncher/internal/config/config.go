@@ -9,7 +9,16 @@ import (
 	"github.com/qxproject/qx/pkg/reporoot"
 )
 
-const defaultLauncherTOML = "launcher.toml"
+const (
+	defaultLauncherTOML = "launcher.toml"
+	// DefaultDataDirName is the launcher config and cache root under the user home directory.
+	DefaultDataDirName = ".qxlauncher"
+)
+
+// UserDataDir returns ~/.qxlauncher (or platform equivalent).
+func UserDataDir(home string) string {
+	return filepath.Join(home, DefaultDataDirName)
+}
 
 type file struct {
 	APIBaseURL       string `toml:"api_base_url"`
@@ -62,7 +71,7 @@ func Load() Config {
 
 func defaults() Config {
 	home, _ := os.UserHomeDir()
-	tokenPath := filepath.Join(home, ".qx", "device_token")
+	tokenPath := filepath.Join(UserDataDir(home), "device_token")
 	return Config{
 		APIBaseURL:      "http://localhost:3000/api/v1",
 		WebBaseURL:      "http://localhost:5173",
@@ -78,7 +87,7 @@ func userLauncherConfigPath() string {
 	if err != nil {
 		return ""
 	}
-	path := filepath.Join(home, ".qx", defaultLauncherTOML)
+	path := filepath.Join(UserDataDir(home), defaultLauncherTOML)
 	if _, err := os.Stat(path); err != nil {
 		return ""
 	}

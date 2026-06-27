@@ -2,15 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   api,
   checkBackendHealth,
-  clearGuestSession,
   clearLinkedDevice,
   clearTokens,
   hasLauncherAccess,
-  loadGuestSession,
   loadLinkedDevice,
   loadTokens,
   openServerConsole,
-  saveGuestSession,
   saveLinkedDevice,
   saveTokens,
   wsBaseUrl,
@@ -42,28 +39,12 @@ describe('token storage', () => {
     expect(loadTokens()).toBeNull();
   });
 
-  it('saves and clears guest session', () => {
-    saveGuestSession({ guest_token: 'g', expires_in: 3600 });
-    expect(loadGuestSession()?.guest_token).toBe('g');
-    expect(hasLauncherAccess()).toBe(true);
-    clearGuestSession();
-    expect(loadGuestSession()).toBeNull();
+  it('detects launcher access from user token', () => {
     expect(hasLauncherAccess()).toBe(false);
-  });
-
-  it('detects launcher access from user or guest token', () => {
     saveTokens(tokens);
     expect(hasLauncherAccess()).toBe(true);
     clearTokens();
-    saveGuestSession({ guest_token: 'g', expires_in: 3600 });
-    expect(hasLauncherAccess()).toBe(true);
-    saveTokens({ ...tokens, access_token: '' });
-    expect(hasLauncherAccess()).toBe(true);
-  });
-
-  it('loads null guest session for invalid json', () => {
-    localStorage.setItem('qx.guest', '{bad');
-    expect(loadGuestSession()).toBeNull();
+    expect(hasLauncherAccess()).toBe(false);
   });
 
   it('saves linked device id', () => {
@@ -127,6 +108,24 @@ describe('api client', () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
 
     await expect(api.logout()).resolves.toBeUndefined();
+  });
+
+  it('throws backend unavailable on network failure', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    await expect(api.login({ email: 'a@b.com', password: 'x' })).rejects.toMatchObject({
+      code: 'BACKEND_UNAVAILABLE',
+    });
+  });
+
+  it('throws backend unavailable on gateway errors', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(new Response('bad gateway', { status: 502, statusText: 'Bad Gateway' }));
+
+    await expect(api.login({ email: 'a@b.com', password: 'x' })).rejects.toMatchObject({
+      code: 'BACKEND_UNAVAILABLE',
+    });
   });
 
   it('throws api error message when present', async () => {
@@ -248,32 +247,20 @@ describe('api client', () => {
     expect(methods).toEqual(['POST', 'POST', 'POST']);
   });
 
-  it('uses guest bearer or omits auth for launcher api', async () => {
-    clearTokens();
-    clearGuestSession();
-    saveGuestSession({ guest_token: 'guest-token', expires_in: 3600 });
+  it('uses user bearer for launcher api', async () => {
+    saveTokens(tokens);
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ items: [] }), { status: 200 }),
     );
 
     await api.listProfiles();
 
-    let [, init] = vi.mocked(fetch).mock.calls[0]!;
-    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer guest-token');
-
-    clearGuestSession();
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ items: [] }), { status: 200 }),
-    );
-    await api.listProfiles();
-    [, init] = vi.mocked(fetch).mock.calls[1]!;
-    expect(new Headers(init?.headers).get('Authorization')).toBeNull();
+    const [, init] = vi.mocked(fetch).mock.calls[0]!;
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer access');
   });
 
-  it('calls launcher endpoints without auth when session is missing', async () => {
+  it('calls launcher endpoints without auth when not signed in', async () => {
     clearTokens();
-    clearGuestSession();
-    saveGuestSession({ guest_token: 'guest', expires_in: 3600 });
     const fetchMock = vi.mocked(fetch);
     fetchMock
       .mockResolvedValueOnce(

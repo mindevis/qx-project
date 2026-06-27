@@ -6,6 +6,7 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,6 +25,10 @@ var (
 	ErrForbidden     = errors.New("forbidden")
 	ErrAgentOffline  = errors.New("agent offline")
 	ErrNotDeployed   = errors.New("agent not deployed")
+	ErrGameServerBusy          = errors.New("game server provisioning in progress")
+	ErrGameServerNotInstalled  = errors.New("game server is not installed")
+	ErrGameServerNotRunning    = errors.New("game server is not running")
+	ErrGameServerAlreadyRunning = errors.New("game server already running")
 )
 
 const agentTokenTTL = 365 * 24 * time.Hour
@@ -34,6 +39,8 @@ type Service struct {
 	enc      *crypto.Encryptor
 	hub      *agenthub.Hub
 	deployer DeployExecutor
+	pending    sync.Map
+	pendingRPC sync.Map
 }
 
 type DeployExecutor interface {
@@ -68,11 +75,18 @@ func (s *Service) OnAgentEvent(serverID string, env protocol.Envelope) {
 	switch env.Type {
 	case protocol.TypeEvtAgentHeartbeat:
 		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("last_seen_at", now).Error
+	case protocol.TypeResServerInstall:
+		s.applyServerInstallResult(ctx, serverID, env.RequestID, env.Payload)
 	case protocol.TypeResServerStart:
-		s.applyServerStartResult(ctx, serverID, env.Payload)
+		s.applyServerStartResult(ctx, serverID, env.RequestID, env.Payload)
 	case protocol.TypeResServerStop:
-		_ = s.markMinecraftStopped(ctx, serverID)
-	case protocol.TypeEvtConsoleOutput:
+		s.applyServerStopResult(ctx, serverID, env.RequestID, env.Payload)
+	default:
+		if isRPCResponseType(env.Type) {
+			s.deliverRPCResponse(env.RequestID, env.Payload)
+		}
+	}
+	if env.Type == protocol.TypeEvtConsoleOutput {
 		var payload protocol.ConsoleOutputPayload
 		if err := json.Unmarshal(env.Payload, &payload); err == nil && s.hub != nil {
 			s.hub.BroadcastConsole(serverID, payload)
@@ -88,10 +102,15 @@ type SSHInput struct {
 }
 
 type ServerConfig struct {
-	JarPath   string   `json:"jar_path"`
-	JVMArgs   []string `json:"jvm_args"`
-	ExtraArgs []string `json:"extra_args"`
-	McPID     *int     `json:"mc_pid,omitempty"`
+	JarPath            string   `json:"jar_path"`
+	WorkDir            string   `json:"work_dir,omitempty"`
+	Command            string   `json:"command,omitempty"`
+	Args               []string `json:"args,omitempty"`
+	JVMArgs            []string `json:"jvm_args"`
+	ExtraArgs          []string `json:"extra_args"`
+	JavaBin            string   `json:"java_bin,omitempty"`
+	McPID              *int     `json:"mc_pid,omitempty"`
+	ActiveGameServerID string   `json:"active_game_server_id,omitempty"`
 }
 
 type CreateServerInput struct {
@@ -111,7 +130,9 @@ type ServerView struct {
 	MCVersion        *string       `json:"mc_version,omitempty"`
 	Config           ServerConfig  `json:"config"`
 	SSH              SSHPublicView `json:"ssh"`
+	AgentDeployed    bool          `json:"agent_deployed"`
 	AgentOnline      bool          `json:"agent_online"`
+	AgentVersion     *string       `json:"agent_version,omitempty"`
 	MinecraftRunning bool          `json:"minecraft_running"`
 	LastSeenAt       *time.Time    `json:"last_seen_at,omitempty"`
 	CreatedAt        time.Time     `json:"created_at"`
@@ -224,6 +245,7 @@ func (s *Service) Delete(ctx context.Context, ownerID, serverID string) error {
 	if res.RowsAffected == 0 {
 		return ErrNotFound
 	}
+	_ = s.deleteGameServersForVPS(ctx, serverID)
 	return nil
 }
 
@@ -270,9 +292,9 @@ func (s *Service) Deploy(ctx context.Context, ownerID, serverID string) (*Deploy
 
 	_ = s.db.WithContext(ctx).Model(server).Update("status", models.ServerStatusOffline).Error
 	_ = s.setMcPID(ctx, serverID, nil)
-	server.Status = models.ServerStatusOffline
-	hashCopy := hash
-	server.AgentTokenHash = &hashCopy
+	if err := s.db.WithContext(ctx).Where("id = ?", serverID).First(server).Error; err != nil {
+		return nil, err
+	}
 	view, err := s.viewFromModel(ctx, server)
 	if err != nil {
 		return nil, err
@@ -294,7 +316,7 @@ func (s *Service) ValidateAgentToken(ctx context.Context, serverID, token string
 	return nil
 }
 
-func (s *Service) applyServerStartResult(ctx context.Context, serverID string, payload []byte) {
+func (s *Service) applyServerStartResult(ctx context.Context, serverID, requestID string, payload []byte) {
 	status := models.ServerStatusOffline
 	var mcPID *int
 	var errPayload struct {
@@ -308,12 +330,14 @@ func (s *Service) applyServerStartResult(ctx context.Context, serverID string, p
 				Line:   errPayload.Error,
 			})
 		}
+		s.markPendingGameServerError(ctx, requestID, errPayload.Error)
 	} else {
 		var result protocol.ServerStartResult
 		if json.Unmarshal(payload, &result) == nil && result.PID > 0 {
 			status = models.ServerStatusOnline
 			pid := result.PID
 			mcPID = &pid
+			s.markPendingGameServerRunning(ctx, requestID)
 		}
 	}
 	_ = s.setMcPID(ctx, serverID, mcPID)
@@ -321,8 +345,20 @@ func (s *Service) applyServerStartResult(ctx context.Context, serverID string, p
 }
 
 func (s *Service) markMinecraftStopped(ctx context.Context, serverID string) error {
+	server, err := s.getByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+	cfg, err := parseConfig(server.ConfigJSON)
+	if err != nil {
+		return err
+	}
+	activeGameServerID := cfg.ActiveGameServerID
 	if err := s.setMcPID(ctx, serverID, nil); err != nil {
 		return err
+	}
+	if activeGameServerID != "" {
+		s.setGameServerStatus(ctx, activeGameServerID, models.GameServerStatusStopped)
 	}
 	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
 }
@@ -393,8 +429,12 @@ func (s *Service) Start(ctx context.Context, ownerID, serverID string) error {
 	payload, _ := json.Marshal(protocol.ServerStartPayload{
 		ServerType: server.ServerType,
 		JarPath:    cfg.JarPath,
+		WorkDir:    cfg.WorkDir,
+		Command:    cfg.Command,
+		Args:       cfg.Args,
 		JVMArgs:    cfg.JVMArgs,
 		ExtraArgs:  cfg.ExtraArgs,
+		JavaBin:    cfg.JavaBin,
 	})
 	_ = s.db.WithContext(ctx).Model(server).Update("status", models.ServerStatusStarting).Error
 	return s.hub.SendCommand(ctx, serverID, protocol.Envelope{
@@ -439,6 +479,56 @@ func (s *Service) SendConsoleInput(ctx context.Context, ownerID, serverID, line 
 	return s.hub.SendConsoleInput(ctx, serverID, line)
 }
 
+func (s *Service) AttachConsole(ctx context.Context, ownerID, serverID, gameServerID string) error {
+	if _, err := s.getOwned(ctx, ownerID, serverID); err != nil {
+		return err
+	}
+	if s.hub == nil || !s.hub.IsOnline(serverID) {
+		return ErrAgentOffline
+	}
+	workDir, taggedGameServerID, err := s.consoleWorkDir(ctx, serverID, gameServerID)
+	if err != nil {
+		return err
+	}
+	if workDir == "" {
+		return nil
+	}
+	payload, err := json.Marshal(protocol.ConsoleAttachPayload{
+		GameServerID: taggedGameServerID,
+		WorkDir:      workDir,
+	})
+	if err != nil {
+		return err
+	}
+	return s.hub.SendCommand(ctx, serverID, protocol.Envelope{
+		Type:    protocol.TypeCmdConsoleAttach,
+		Payload: payload,
+	})
+}
+
+func (s *Service) consoleWorkDir(ctx context.Context, serverID, gameServerID string) (workDir, taggedGameServerID string, err error) {
+	gameServerID = strings.TrimSpace(gameServerID)
+	if gameServerID != "" {
+		var item models.GameServer
+		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", gameServerID, serverID).First(&item).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return "", "", ErrNotFound
+			}
+			return "", "", err
+		}
+		return item.WorkDir, item.ID, nil
+	}
+	server, err := s.getByID(ctx, serverID)
+	if err != nil {
+		return "", "", err
+	}
+	cfg, err := parseConfig(server.ConfigJSON)
+	if err != nil {
+		return "", "", err
+	}
+	return cfg.WorkDir, cfg.ActiveGameServerID, nil
+}
+
 func (s *Service) getOwned(ctx context.Context, ownerID, serverID string) (*models.Server, error) {
 	server, err := s.getByID(ctx, serverID)
 	if err != nil {
@@ -477,6 +567,11 @@ func (s *Service) viewFromModel(ctx context.Context, server *models.Server) (*Se
 	if status == models.ServerStatusOnline && !minecraftRunning {
 		status = models.ServerStatusOffline
 	}
+	var agentVersion *string
+	var agent models.Agent
+	if err := s.db.WithContext(ctx).Where("server_id = ?", server.ID).First(&agent).Error; err == nil {
+		agentVersion = agent.AgentVersion
+	}
 	return &ServerView{
 		ID:               server.ID,
 		Name:             server.Name,
@@ -486,12 +581,25 @@ func (s *Service) viewFromModel(ctx context.Context, server *models.Server) (*Se
 		MCVersion:        server.MCVersion,
 		Config:           cfg,
 		SSH:              sshView,
+		AgentDeployed:    s.isAgentDeployed(ctx, server),
 		AgentOnline:      online,
+		AgentVersion:     agentVersion,
 		MinecraftRunning: minecraftRunning,
 		LastSeenAt:       server.LastSeenAt,
 		CreatedAt:        server.CreatedAt,
 		UpdatedAt:        server.UpdatedAt,
 	}, nil
+}
+
+func (s *Service) isAgentDeployed(ctx context.Context, server *models.Server) bool {
+	if server.AgentTokenHash != nil && strings.TrimSpace(*server.AgentTokenHash) != "" {
+		return true
+	}
+	var n int64
+	if err := s.db.WithContext(ctx).Model(&models.Agent{}).Where("server_id = ?", server.ID).Count(&n).Error; err != nil {
+		return false
+	}
+	return n > 0
 }
 
 func parseConfig(raw string) (ServerConfig, error) {

@@ -35,7 +35,7 @@ func run() error {
 
 	router, err := bootstrap(cfg)
 	if err != nil {
-		slog.Error("bootstrap failed", "error", err)
+		slog.Error("QXApi failed to start", "error", err)
 		return err
 	}
 	slog.Info("QXApi listening",
