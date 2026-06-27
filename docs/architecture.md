@@ -22,16 +22,16 @@
 | Auth bridge (registered flow) | Phase 3 | ✅ JWT refresh в QXLauncher, device status в UI |
 | **Prod deploy** | Post-alpha | 🔲 см. [mvp §7.1](./mvp.md) |
 
-Следующий шаг: **Prod readiness** — VPS, TLS, smoke на prod ([mvp §7.1](./mvp.md)); MVP alpha flows в dev — ✅.
+Следующий шаг: **Prod readiness** — [production-deploy.md](./production-deploy.md), чеклист [mvp §7.1](./mvp.md).
 
 ### URL и префиксы API
 
-| Контекст | Base URL (dev) | Пример |
-| ---------- | ---------------- | -------- |
-| **REST (QXApi)** | `http://localhost:3000/api/v1` | `POST …/api/v1/auth/login` |
+| Контекст | Dev | Prod |
+| ---------- | ----- | ------ |
+| **REST (QXApi)** | `http://localhost:3000/api/v1` | `https://api.qx-dev.ru/api/v1` |
 | **Health** | тот же префикс | `GET …/api/v1/health`, `GET …/api/v1/health/ready` |
-| **QXWeb (Vite)** | `http://localhost:5173` | `web.toml` → `api_base_url` |
-| **Agent Hub (WSS)** | `wss://api.qx.example.com` | `WS /agent/v1/connect` — **вне** `/api/v1` |
+| **QXWeb** | `http://localhost:5173` | `https://mc.qx-dev.ru` |
+| **Agent Hub (WSS)** | `ws://localhost:3000` (dev) | `wss://api.qx-dev.ru/agent/v1/connect` — **вне** `/api/v1` |
 
 В спецификации [api.md](./api.md) пути REST указаны **относительно** `/api/v1` (например `/auth/login` = `/api/v1/auth/login`).
 Исключение: WebSocket агента и внешние API (CurseForge, Modrinth) — свои base URL.
@@ -1112,43 +1112,58 @@ flowchart TB
 ```text
 infra/
 ├── docker/
-│   ├── docker-compose.yml          # Dev
-│   ├── docker-compose.prod.yml     # Production
-│   ├── .env.prod.example           # Prod compose only (not dev TOML)
+│   ├── docker-compose.yml          # Dev (MySQL, Redis, MinIO)
+│   ├── docker-compose.prod.yml     # Production Tier 0
+│   ├── docker-compose.vps-dev.yml  # Flow C dev VPS
+│   ├── .env.prod.example           # Prod secrets template
+│   ├── .env.prod.qx-dev.example    # Prod split domains (api + mc)
+│   ├── Dockerfile.api / Dockerfile.web
 │   └── nginx/
-│       ├── nginx.conf
-│       └── conf.d/qx.conf          # api.*, panel.*, cdn.*
+│       ├── prod-split.conf         # Prod: api.* + mc.* (recommended)
+│       ├── prod.conf               # Prod: single origin (legacy / IP)
+│       └── web-spa.conf            # Static SPA in web container
 ├── scripts/
-│   ├── backup.sh                   # mysqldump + restic
-│   ├── restore.sh
-│   └── deploy.sh                   # pull + compose up
-└── ansible/                        # Tier 1+: provisioning VPS (TBD)
+│   └── deploy.sh                   # build + compose up (prod)
+└── ansible/                        # Tier 1+ (TBD)
 ```
+
+**Пошаговый deploy:** [production-deploy.md](./production-deploy.md).
 
 **Сервисы в `docker-compose.prod.yml`:**
 
-| Service | Image | Ports (internal) | Volume |
+| Service | Image | Ports (host) | Volume |
 | --------- | ------- | ------------------ | -------- |
-| `nginx` | nginx:alpine | 80, 443 | `./nginx`, certs |
-| `api` | qx-api:latest | 3000 | — |
-| `web` | qx-web:latest | 3001 | — |
-| `mysql` | mysql:8 | 3306 | `mysql_data` |
-| `redis` | redis:7-alpine | 6379 | `redis_data` |
-| `minio` | minio/minio | 9000, 9001 | `minio_data` |
-| `uptime-kuma` | louislam/uptime-kuma | 3002 | `kuma_data` |
+| `nginx` | nginx:alpine | `${HTTP_PORT:-8080}:80` | `${NGINX_CONF}` (`prod-split.conf` or `prod.conf`), optional TLS |
+| `api` | build `Dockerfile.api` | internal 3000 | `qx-agent-linux` ro mount |
+| `web` | build `Dockerfile.web` | internal 80 | — |
+| `mysql` | mysql:8.4 | internal 3306 | `mysql_data` |
+| `redis` | redis:7-alpine | internal 6379 | `redis_data` |
+| `minio` | minio/minio | internal 9000/9001 | `minio_data` |
 
 ### 9.2 Домены и маршрутизация (Nginx)
 
-| Subdomain | Backend | Назначение |
-| ----------- | --------- | ------------ |
-| `qx.example.com` | `web:3001` | Лендинг, ЛК, панель |
-| `api.qx.example.com` | `api:3000` | REST API |
-| `ws.qx.example.com` | `api:3000` | WebSocket (Agent Hub, консоль) |
-| `cdn.qx.example.com` | `minio:9000` | Launcher builds, skins, backups (не modpacks) |
+**Prod (рекомендуется):** два поддомена на одном VPS — `prod-split.conf` + `NGINX_CONF=prod-split.conf`:
+
+| Host | Backend | Назначение |
+| ------ | --------- | ------------ |
+| `api.qx-dev.ru` | `api:3000` | REST `/api/v1`, Agent WSS `/agent/v1/connect`, console WS |
+| `mc.qx-dev.ru` | `web:80` | QXWeb SPA (panel, `/launcher`, `/servers`) |
+
+Env: `CORS_ORIGIN=https://mc.qx-dev.ru`, `QX_PUBLIC_API_URL=https://api.qx-dev.ru`, `VITE_API_BASE_URL=https://api.qx-dev.ru/api/v1`.
+
+**Альтернатива — один origin** (`prod.conf`, path-based):
+
+| Path | Backend | Назначение |
+| ------ | --------- | ------------ |
+| `/` | `web` | QXWeb SPA |
+| `/api/` | `api:3000` | REST API |
+| `/agent/` | `api:3000` | Agent WSS |
+
+См. [production-deploy.md](./production-deploy.md) · ADR-0004.
 
 ### 9.3 TLS и безопасность
 
-- **Let's Encrypt** через Certbot (auto-renew cron).
+- **Let's Encrypt** через Certbot — см. [production-deploy.md §6](./production-deploy.md).
 - Firewall: только 80/443 наружу; SSH по ключу, non-default port.
 - MinIO: bucket policy public-read только для `cdn/` prefix.
 - MySQL / Redis: **не** expose наружу, только docker network.
@@ -1207,7 +1222,7 @@ flowchart TB
 
 | Задача | Кто | Частота |
 | -------- | ----- | --------- |
-| `deploy.sh`, обновления | Senior | По релизам |
+| `deploy.sh`, обновления | Senior | [production-deploy.md §11](./production-deploy.md) |
 | Проверка бэкапов | Senior | Weekly |
 | Certbot renew | Cron (auto) | — |
 | Disk space alert | Uptime Kuma | Daily check |
@@ -1522,4 +1537,4 @@ QXSystem = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и�
 
 ---
 
-Последнее обновление: 2026-06-21 (v1.11 — HWID device link, auto browser, prod 🔲)
+Последнее обновление: 2026-06-25 (v1.13 — prod split domains api/mc.qx-dev.ru)

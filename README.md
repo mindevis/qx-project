@@ -2,7 +2,7 @@
 
 Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — каждый в своей папке.
 
-**Статус:** MVP alpha (dev) ✅ · Prod 🔲
+**Статус:** MVP alpha (dev) ✅ · Prod guide ☑ · Prod smoke 🔲
 
 Документация: [architecture](docs/architecture.md) · [mvp](docs/mvp.md) · [FAQ](docs/faq.md) · [test matrix](docs/qa/test-matrix.md)
 
@@ -16,7 +16,8 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — ка�
 | [launch-bridge.md](docs/launch-bridge.md) | Site → QXLauncher → JVM |
 | [ssh-deploy.md](docs/ssh-deploy.md) | SSH deploy agent |
 | [faq.md](docs/faq.md) | FAQ alpha |
-| [configuration.md](docs/configuration.md) | TOML-конфиг (dev) |
+| [configuration.md](docs/configuration.md) | TOML-конфиг (dev) · [prod .env](docs/configuration.md#6-prod--infradockerenvprod) |
+| [production-deploy.md](docs/production-deploy.md) | **Prod: deploy на VPS** (`api.qx-dev.ru` + `mc.qx-dev.ru`) |
 | [adr/](docs/adr/) | Architecture Decision Records |
 
 ## Требования
@@ -80,13 +81,14 @@ public_api_url = "http://host.docker.internal:3000"
 
 Agent binary (`bin/qx-agent-linux`) собирается через `make dev-vps-up` и подхватывается API автоматически.
 
-1. **Servers** → Add server: `localhost`, port `2222`, user `root`, private key из `infra/docker/vps-dev/keys/dev_id_ed25519`
-2. **Deploy agent** → agent ставится в контейнер через SSH + systemd; в panel — тег **Agent** (`agent_online`)
-3. **Minecraft** — JAR на VPS вручную (или post-MVP install pipeline); **Stop/Restart** и live-консоль в UI — только когда `minecraft_running`
+1. **Servers** → Add server: SSH credentials
+2. **Deploy agent** → QXAgent на VPS через SSH + systemd
+3. **Add game server** → выбор типа/версии, автоматическая установка
+4. Страница сервера: RCON-консоль, `server.properties`, моды, файлы
 
-Проверка SSH: `ssh -i infra/docker/vps-dev/keys/dev_id_ed25519 -p 2222 -o StrictHostKeyChecking=no root@localhost`
+**Dev VPS:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 
-Подробнее: [docs/mvp.md](docs/mvp.md) · [docs/device-linking.md](docs/device-linking.md) · [docs/launch-bridge.md](docs/launch-bridge.md)
+**Prod:** см. [production-deploy.md](docs/production-deploy.md) §9.
 
 ## Отладка (Cursor / VS Code)
 
@@ -165,16 +167,20 @@ go.work           Go workspace
 - [x] **Phase 2** — servers CRUD, SSH deploy, agent WSS; Stop/Restart/консоль при `minecraft_running`
 - [x] **Phase 3** — registered user device status, JWT refresh в QXLauncher
 - [x] **Phase Alpha (flows)** — manual Flow A/B/C ☑ ([test matrix](docs/qa/test-matrix.md), [FAQ](docs/faq.md))
-- [ ] **Prod** — TLS, реальный VPS, smoke — **не готов** ([mvp §7.1](docs/mvp.md))
+- [ ] **Prod** — TLS, smoke на VPS ([production-deploy.md](docs/production-deploy.md), [mvp §7.1](docs/mvp.md))
 
-### Prod (Tier 0) — 🔲 заготовка, не validated
+### Prod (Tier 0)
 
-Скрипты и compose есть, но **к production пока не готовы** — см. [mvp §7.1](docs/mvp.md).
+Platform VPS: **`178.172.136.26`**. Домены: **API** `api.qx-dev.ru`, **панель** `mc.qx-dev.ru`.  
+Гайд: **[docs/production-deploy.md](docs/production-deploy.md)** (§ Prod: api + mc).
 
 ```bash
-cp infra/docker/.env.prod.example infra/docker/.env.prod
-# JWT, MySQL, SSH_MASTER_KEY — см. .env.prod.example
-make prod-build
+cp infra/docker/.env.prod.qx-dev.example infra/docker/.env.prod
+make jwt-secret   # JWT_SECRET + SSH_MASTER_KEY в .env.prod
+make build-agent-linux
+make prod-build   # пересборка web с VITE_API_BASE_URL
 make prod-up
-# → http://localhost:8080 (local smoke only; не prod-ready)
+# smoke: curl https://api.qx-dev.ru/api/v1/health
 ```
+
+Далее: TLS (Certbot для обоих доменов), game VPS + Deploy agent. Чеклист: [mvp §7.1](docs/mvp.md#71-prod-readiness).

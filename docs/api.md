@@ -1,8 +1,8 @@
 # QXApi Specification
 
-> Версия: **1.8** · Base URL: `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`)
+> Версия: **1.8** · Base URL: `https://api.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`)
 > Backend: **Go + Gin + GORM** · Код: `services/qxapi/`
-> **Конфиг (dev):** [configuration.md](./configuration.md) · **Статус:** MVP alpha endpoints ✅ · Prod 🔲 · [mvp.md](./mvp.md)
+> **Конфиг (dev):** [configuration.md](./configuration.md) · **Prod:** [production-deploy.md](./production-deploy.md)
 
 Все REST-эндпоинты QXApi (включая health) живут под префиксом **`/api/v1`**.  
 В таблицах ниже пути **относительные** к base URL (например `/auth/login` → `…/api/v1/auth/login`).  
@@ -44,6 +44,7 @@
 | GET | `/launcher/launch-requests/pending` | ✅ device JWT |
 | PATCH | `/launcher/launch-requests/:id` | ✅ device JWT |
 | GET/POST/DELETE | `/servers` … | ✅ Phase 2 |
+| GET/PATCH/… | `/servers/:id/game-servers/…` | ✅ |
 | POST | `/servers/:id/deploy|start|stop|restart` | ✅ |
 | GET | `/servers/:id/console` | ✅ WebSocket |
 | WS | `/agent/v1/connect` | ✅ Agent Hub |
@@ -157,6 +158,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | POST | `/servers/{id}/start` | Bearer | admin+ |
 | POST | `/servers/{id}/stop` | Bearer | admin+ |
 | POST | `/servers/{id}/restart` | Bearer | admin+ |
+| GET | `/servers/{id}/console` | Bearer (WS) | Live console; `?game_server_id=` для фильтра |
 
 **GET `/servers/{id}` response (status fields):**
 
@@ -167,7 +169,31 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | `status` | string | MC lifecycle: `offline`, `starting`, `online`, `error` |
 | `config.mc_pid` | int? | PID on VPS (when running) |
 
-### 4.2 Server content (mods / plugins)
+### 4.2 Game servers (per VPS)
+
+Игровые инстансы Minecraft на VPS с QXAgent. UI: таблица на странице VPS → `/servers/:vpsId/game-servers/:id`.
+
+| Method | Path | Description |
+| -------- | ------ | ------------- |
+| GET | `/servers/{id}/game-servers` | List |
+| POST | `/servers/{id}/game-servers` | Create `{ name, server_type, mc_version, loader_version?, address?, port? }` |
+| GET | `/servers/{id}/game-servers/{gameServerId}` | Detail |
+| PATCH | `/servers/{id}/game-servers/{gameServerId}` | Update name/address/port |
+| DELETE | `/servers/{id}/game-servers/{gameServerId}` | Delete |
+| POST | `…/reinstall` | Reinstall core |
+| POST | `…/start` \| `…/stop` \| `…/restart` | Power |
+| GET | `…/properties` | Read `server.properties` (agent RPC) |
+| PATCH | `…/properties` | `{ updates: { key: value } }` |
+| GET | `…/mods` | List mods/plugins folder |
+| GET | `…/files?path=` | List directory |
+| GET | `…/files/content?path=` | Read file |
+| PUT | `…/files/content?path=` | `{ content }` — write file |
+
+**Game server status:** `installing` | `starting` | `running` | `stopped` | `error`
+
+Deploy/onboarding: [production-deploy.md §9](./production-deploy.md) · [ssh-deploy.md](./ssh-deploy.md).
+
+### 4.3 Server content (mods / plugins) — post-MVP API
 
 По `server_type` — см. [server-content-install.md](./server-content-install.md).  
 Ошибка `403 CONTENT_NOT_ALLOWED` если тип не поддерживает контент.
@@ -179,7 +205,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 | POST | `/servers/{id}/modpack` | Bearer admin+ | compatible loader |
 | GET | `/servers/{id}/content` | Bearer admin+ | List installed mods/plugins metadata |
 
-### 4.3 Server members (multi-admin)
+### 4.4 Server members (multi-admin) — post-MVP
 
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |
@@ -294,7 +320,7 @@ Site creates request → QXLauncher polls → spawns JVM. Full spec: [launch-bri
 | GET | `/launcher/updates/latest` | — | `{ version, url, sha256, mandatory }` |
 | GET | `/launcher/updates/latest.yml` | — | Electron-style (optional) |
 
-**QXLauncher** polls update endpoint on startup. **UI** — QXWeb static на `https://qx.example.com/launcher` (не WebView,
+**QXLauncher** polls update endpoint on startup. **UI** — QXWeb static на `https://mc.qx-dev.ru/launcher` (не WebView,
 не через API).
 
 ---
@@ -324,7 +350,7 @@ info:
   title: QXSystem API
   version: 1.0.0
 servers:
-  - url: https://api.qx.example.com/api/v1
+  - url: https://api.qx-dev.ru/api/v1
 paths:
   /auth/login:
     post:

@@ -34,9 +34,11 @@ dev-vps-sh:
 	docker exec -it qx-vps-dev bash
 
 prod-build:
+	make build-agent-linux
 	docker compose -f infra/docker/docker-compose.prod.yml build
 
 prod-up:
+	make build-agent-linux
 	docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d
 
 prod-down:

@@ -35,46 +35,46 @@ Linux x86_64 (Ubuntu 22.04+, Debian 12+), SSH по ключу. Подробне�
 
 ### Deploy не подключает agent
 
-- Проверьте SSH-ключ и firewall (исходящий HTTPS/HTTP к API).
-- Deploy всегда выполняет SSH на VPS. Нужен бинарник агента (`make build-agent-linux` или `make dev-vps-up`).
-- Укажите `agent_binary_path` в `qxapi.toml` для реального deploy (prod: `infra/docker/.env.prod`).
-- **Dev VPS:** в `qxapi.toml` — `public_api_url = "http://host.docker.internal:3000"` (не `localhost` из контейнера).
-- После **повторного Deploy** agent перезапускается через `systemctl restart` — ждите тег **Agent** в panel.
+- Проверьте SSH-ключ и firewall (исходящий HTTPS/WSS к platform VPS).
+- Deploy выполняет SSH на game VPS. Нужен бинарник: `make build-agent-linux` (prod: монтируется в API-контейнер).
+- **Dev:** `agent_binary_path` в `qxapi.toml`; `public_api_url = "http://host.docker.internal:3000"`.
+- **Prod:** `QX_PUBLIC_API_URL=https://api.qx-dev.ru`, `CORS_ORIGIN=https://mc.qx-dev.ru` — [production-deploy.md](./production-deploy.md).
+- После **повторного Deploy** agent перезапускается через `systemctl restart`.
 
-### Почему нет кнопки Start и консоли?
+### Как управлять Minecraft-сервером?
 
-MVP UI показывает **Stop/Restart** и live-консоль только когда `minecraft_running === true`. Deploy agent ≠ запущенный Minecraft.
+1. **Servers** → VPS → **Add game server** (Vanilla/Paper/Forge/…).
+2. Дождитесь статуса **running** или нажмите **Start**.
+3. Откройте строку в таблице → страница сервера: RCON-консоль, настройки, моды, файлы.
 
-- Тег **Agent** (синий) — QXAgent подключён по WSS (`agent_online`).
-- Статус MC — **offline**, пока JAR не запущен (вручную на VPS или через API `POST …/start`; кнопка Start в UI — post-MVP).
+### Почему нет консоли?
 
-### Agent online, но Minecraft offline — это нормально?
-
-Да. `agent_online` и `minecraft_running` — разные поля. После Deploy ожидайте Agent ☑ и MC offline до start JAR.
+Консоль доступна на **странице игрового сервера**, когда статус `running`, `starting` или `installing` и агент онлайн. Deploy agent ≠ запущенный Minecraft.
 
 ---
 
 ## Prod / Self-Hosted
 
-> **Статус:** infra-скрипты есть, **к production пока не готовы**. Чеклист: [mvp §7.1](./mvp.md).
+> **Гайд:** [production-deploy.md](./production-deploy.md) · Чеклист: [mvp §7.1](./mvp.md).
 
 ### Мы готовы к prod?
 
-**Нет.** MVP alpha (Flow A/B/C в dev) пройден; prod требует TLS, реальный VPS, секреты и smoke — см. [test-matrix §8](./qa/test-matrix.md).
+**Частично.** MVP alpha (Flow A/B/C в dev) пройден. Production требует выполнить чеклист §7.1: TLS, секреты, smoke на VPS, бэкапы.
 
-### Как поднять prod на одном VPS? *(когда будете готовы)*
+### Как поднять prod на одном VPS?
+
+См. **[production-deploy.md](./production-deploy.md)** — API `api.qx-dev.ru`, панель `mc.qx-dev.ru`, game VPS, QXLauncher.
 
 ```bash
-cp infra/docker/.env.prod.example infra/docker/.env.prod
-# отредактируйте секреты
+cp infra/docker/.env.prod.qx-dev.example infra/docker/.env.prod
+make jwt-secret && make build-agent-linux
+make prod-build   # VITE_API_BASE_URL → api.qx-dev.ru
 make prod-up
 ```
 
-Или: `bash infra/scripts/deploy.sh`. Стек: nginx + api + web + MySQL + Redis + MinIO. См. [architecture.md §9](./architecture.md).
-
 ### TLS и домены
 
-MVP compose отдаёт HTTP на порту `HTTP_PORT` (8080). Для Let's Encrypt добавьте Certbot на хосте или расширьте nginx — [architecture.md §9.3](./architecture.md).
+Prod: **два A-записи** (`api.qx-dev.ru`, `mc.qx-dev.ru`) → platform VPS. Compose отдаёт HTTP на `HTTP_PORT`; Certbot на оба имени — §6 в [production-deploy.md](./production-deploy.md).
 
 ---
 

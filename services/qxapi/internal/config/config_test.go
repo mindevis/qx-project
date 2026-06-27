@@ -92,6 +92,22 @@ agent_binary_path = "/opt/qx/qx-agent"
 	}
 }
 
+func TestLoadFromEnv(t *testing.T) {
+	root := t.TempDir()
+	writeRepo(t, root)
+	t.Setenv("JWT_SECRET", "from-env")
+	t.Setenv("DATABASE_DSN", "env-dsn")
+	t.Setenv("QX_PUBLIC_API_URL", "https://prod.example.com")
+
+	cfg := config.Load()
+	if cfg.JWTSecret != "from-env" || cfg.DatabaseDSN != "env-dsn" {
+		t.Fatalf("env: %+v", cfg)
+	}
+	if cfg.PublicAPIURL != "https://prod.example.com" {
+		t.Fatalf("public url: %s", cfg.PublicAPIURL)
+	}
+}
+
 func TestLoadInvalidDurationFallback(t *testing.T) {
 	root := t.TempDir()
 	writeRepo(t, root)

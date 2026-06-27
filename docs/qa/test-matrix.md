@@ -1,6 +1,6 @@
 # QXSystem — QA Test Matrix (Alpha)
 
-> REST base: `http://localhost:3000/api/v1` (prod: `https://api.qx.example.com/api/v1`).  
+> REST base: `http://localhost:3000/api/v1` (prod: `https://api.qx-dev.ru/api/v1`).  
 > Пути в таблицах — относительные к base, если не указано иное.
 >
 > Для закрытой beta / MVP Definition of Done.
@@ -125,7 +125,7 @@
 
 - [x] Flow A/B — manual QXLauncher + full JVM (A09, L03, I04, I05)
 - [x] Flow C deploy agent — manual dev VPS
-- [ ] **Prod readiness** — P.1–P.6 ([mvp §7.1](../mvp.md))
+- [ ] **Prod readiness** — P.1–P.7 ([production-deploy.md](../production-deploy.md), [mvp §7.1](../mvp.md))
 - [ ] All ☑ MVP rows passed (manual + E2E)
 - [ ] All 🤖 unit tests green in CI
 - [ ] No P0/P1 open bugs
@@ -137,17 +137,20 @@
 
 ## 8. Prod readiness *(не blocking MVP alpha dev)*
 
+Гайд: [production-deploy.md](../production-deploy.md).
+
 | ID | Сценарий | Ожидание | Статус |
 | ---- | ---------- | ---------- | -------- |
 | P.1 | Prod compose smoke | `make prod-up` на VPS | 🔲 |
-| P.2 | TLS + домены | HTTPS valid | 🔲 N02 |
-| P.3 | Secrets rotation | JWT, DB, SSH master key | 🔲 |
-| P.4 | Prod Flow A smoke | register → play | 🔲 |
-| P.5 | MySQL backup | restore test | ⊘ v2 |
-| P.6 | Prod bug bash | no P0/P1 | 🔲 |
+| P.2 | TLS + DNS | HTTPS valid (`api.qx-dev.ru`, `mc.qx-dev.ru`) | 🔲 N02 |
+| P.3 | Secrets | JWT, DB, SSH master key в `.env.prod` | 🔲 |
+| P.4 | Prod Flow A | register → launcher → play | 🔲 |
+| P.5 | Game server | deploy agent → create → console | 🔲 |
+| P.6 | MySQL backup | restore test | ⊘ v2 |
+| P.7 | Prod bug bash | no P0/P1 | 🔲 |
 
 ---
 
 Legend: ☑ = required for MVP alpha · ⊘ = tracked but not blocking MVP · 🤖 = automated unit test in CI
 
-Последнее обновление: 2026-06-21 (v1.13 — HWID + auto browser)
+Последнее обновление: 2026-06-25 (prod domains api/mc.qx-dev.ru)

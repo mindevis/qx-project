@@ -20,7 +20,7 @@
 **Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → QXLauncher → JVM
 **RBAC:** [security-legal.md §8](./security-legal.md) — MVP: Guest и Registered — **Vanilla only**; mods/shaders/RP — v2+
 **Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)  
-**Prod:** 🔲 [§7.1](./mvp.md#71-prod-readiness-не-пройдено)
+**Prod:** 🔲 [§7.1](./mvp.md#71-prod-readiness) · **Гайд:** [production-deploy.md](./production-deploy.md)
 
 ---
 
@@ -30,10 +30,9 @@
 
 1. **Игра с регистрацией** — register → login → download QXLauncher → **link device** → инстанс → launch-bridge → Vanilla.
 2. **Игра без регистрации** — download QXLauncher → **link device** → guest → инстанс → игра.
-3. **Управление сервером** — BYOS Linux VPS → **SSH deploy** agent → (при запущенном MC) Stop/Restart + live-консоль.
+3. **Управление сервером** — BYOS Linux VPS → **SSH deploy** agent → **игровые серверы** (provision, start/stop) → RCON-консоль, `server.properties`, моды, файлы.
 
-**Не цель MVP:** modpacks, modloaders (Forge / NeoForge / Fabric / Quilt), Premium, Microsoft OAuth, macOS/Linux, полный
-agent (RCON, files), **кнопка Start и install JAR из UI** (API готов, UI — post-MVP).
+**Не цель MVP (v1):** modpacks, billing, Microsoft OAuth, macOS/Linux launcher, public server list.
 
 ---
 
@@ -52,7 +51,7 @@ MVP считается готовым, когда:
 - [x] Launcher UI на сайте **`/launcher`** (React, не WebView) показывает инстансы и кнопку «Играть».
 - [x] Test matrix: [qa/test-matrix.md](./qa/test-matrix.md) — **Flow A/B manual ☑** (A09, L03, I04, I05); **Flow C deploy ☑** (S01, S02, S11); S03–S06 MC из UI — post-MVP.
 
-> **Prod ≠ MVP alpha.** Definition of Done выше — для **закрытой alpha в dev** (local + dev VPS). Выход в **production** (TLS, домены, секреты, smoke на реальном VPS, бэкапы) — отдельный чеклист, см. §7.1.
+> **Prod ≠ MVP alpha.** Definition of Done выше — для **закрытой alpha в dev** (local + dev VPS). Production: [production-deploy.md](./production-deploy.md) + чеклист §7.1.
 
 ---
 
@@ -67,7 +66,8 @@ MVP считается готовым, когда:
 | **Guest (linked)** | Vanilla, Local profile, базовые инстансы |
 | **Registered** | MVP: то же (Vanilla); mods/shaders/RP/modpacks — **v2+** |
 | **API** | Go + Gin + GORM |
-| **Agent** | Go, **Linux only**, SSH deploy, systemd |
+| **Agent** | Go, **Linux only**, SSH deploy, systemd, game server install, files/properties RPC |
+| **Game servers UI** | Таблица на VPS, страница сервера: RCON, settings, mods, files |
 | **QXLauncher** (`services/qxlauncher/`) | Windows — HWID device link, auto browser, launch-bridge poll, JVM, Mojang Java |
 | **Интеграции** | **Mojang** manifest + assets (Vanilla) |
 | **Infra** | Docker Compose: API, Web, MySQL, Redis, MinIO, Nginx |
@@ -76,12 +76,12 @@ MVP считается готовым, когда:
 
 | Область | Отложено |
 | --------- | ---------- |
-| Modloaders | Forge, NeoForge, Fabric, Quilt |
+| Modloaders (client) | Forge, NeoForge, Fabric, Quilt — частично в QXLauncher; server-side install ✅ |
 | Modpacks | CurseForge, Modrinth |
 | Auth | Microsoft OAuth, QXAccount sync между устройствами |
 | Launcher | macOS, Linux |
-| Agent | RCON, файловый менеджер, mods/plugins по `server_type`, метрики TPS |
-| **Server UI** | Кнопка **Start**, install JAR/modpack из panel |
+| Agent | TPS metrics, modpack auto-install |
+| **Server UI** | Upload mod JAR из panel (только list/read/write files) |
 | Skin/Cape server | Только registered users |
 | Public server list | Launcher UI → GET /public/servers |
 | Modpack client↔server sync | Shared modpack_id + agent install |
@@ -174,7 +174,7 @@ flowchart TB
 
 ### 5.2 QXApi (Senior)
 
-**REST base:** `https://api.qx.example.com/api/v1` (dev: `http://localhost:3000/api/v1`).  
+**REST base:** `https://api.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`).  
 Пути ниже — относительно base. Agent WSS: `/agent/v1/connect` (вне `/api/v1`).
 
 | Модуль | MVP endpoints | Phase 0 |
@@ -250,28 +250,31 @@ Agent         — id, server_id, hostname, connected_at
 | `redis` | Sessions, pub/sub |
 | `minio` | Launcher builds, server backups, skins (не client/server modpack files) |
 
-**Домены (пример):**
+**Домены (prod):**
 
-- `qx.example.com` — web
-- `api.qx.example.com/api/v1` — REST
-- `api.qx.example.com/agent/v1/connect` — Agent WSS
+- `mc.qx-dev.ru` — QXWeb (панель, `/launcher`)
+- `api.qx-dev.ru/api/v1` — REST
+- `api.qx-dev.ru/agent/v1/connect` — Agent WSS
+
+Platform VPS: `178.172.136.26` (оба A-записи на один IP).
 
 Детали: [architecture.md §8.3 Tier 0](./architecture.md).
 
 **Бюджет:** $5–30/мес.
 
-### 7.1 Prod readiness *(не пройдено)*
+### 7.1 Prod readiness
 
-Infra-скрипты есть (`docker-compose.prod.yml`, `infra/scripts/deploy.sh`), но **prod пока не готов**:
+Пошаговый deploy: **[production-deploy.md](./production-deploy.md)**.
 
 | # | Задача | Статус |
 | --- | -------- | -------- |
-| P.1 | Prod VPS + `make prod-up` smoke | 🔲 |
-| P.2 | TLS (Let's Encrypt) + домены | 🔲 |
-| P.3 | Секреты: JWT, MySQL, `ssh_master_key` (`qxapi.toml` dev / `.env.prod` prod) | 🔲 |
-| P.4 | N02 — HTTPS valid (test matrix) | 🔲 |
+| P.1 | Platform VPS + `make prod-up` smoke | 🔲 |
+| P.2 | TLS (Let's Encrypt) + DNS (`api.qx-dev.ru`, `mc.qx-dev.ru`) | 🔲 |
+| P.3 | Секреты: JWT, MySQL, `SSH_MASTER_KEY` в `.env.prod` | 🔲 |
+| P.4 | N02 — HTTPS valid ([test-matrix](./qa/test-matrix.md)) | 🔲 |
 | P.5 | Бэкапы MySQL, мониторинг | 🔲 |
-| P.6 | Bug bash на prod-окружении | 🔲 |
+| P.6 | Game VPS: deploy agent + game server + console | 🔲 |
+| P.7 | QXLauncher с prod URLs (`api.qx-dev.ru`, `mc.qx-dev.ru`) | 🔲 |
 
 ---
 
@@ -341,7 +344,7 @@ Infra-скрипты есть (`docker-compose.prod.yml`, `infra/scripts/deploy.
 | --- | -------- | --------------- | -------- |
 | A.1 | E2E: Flow A, B, C | Senior | ✅ `TestRouterFlowA_*`, `TestRouterFlowB_*`, `TestRouterFlowC_*` + Playwright |
 | A.2 | Test matrix + bug bash (dev) | Junior | ✅ Flow A/B manual ☑ (A09, L03, I04, I05); Flow C deploy ☑ (S01, S02, S11) |
-| A.3 | Prod deploy на VPS | Senior | 🔲 infra ☑ (`docker-compose.prod.yml`); prod smoke + TLS — не пройдены |
+| A.3 | Prod deploy на VPS | Senior | 🔲 гайд ☑ [production-deploy.md](./production-deploy.md); smoke + TLS — не пройдены |
 | A.4 | User docs (README, FAQ) | Junior | ✅ [faq.md](./faq.md), README |
 | A.5 | Fix P0/P1 bugs (dev) | Senior | ✅ Agent vs MC status, console WS auth, redeploy restart |
 
@@ -410,4 +413,4 @@ gantt
 
 ---
 
-Последнее обновление: 2026-06-21 (v1.20 — HWID + auto browser, prod 🔲)
+Последнее обновление: 2026-06-25 (v1.22 — prod domains api/mc.qx-dev.ru)

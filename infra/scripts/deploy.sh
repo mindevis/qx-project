@@ -11,9 +11,15 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
+cd "$ROOT"
+if [[ ! -f bin/qx-agent-linux ]]; then
+  echo "Building qx-agent-linux for SSH deploy..."
+  make build-agent-linux
+fi
+
 cd "$COMPOSE_DIR"
 docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" build
 docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d
 docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" ps
 
-echo "Stack up. Open http://localhost:\${HTTP_PORT:-8080} (or your VPS IP)."
+echo "Stack up. Check health: curl -fsS \"\${QX_PUBLIC_API_URL:-http://localhost:\${HTTP_PORT:-8080}}/api/v1/health\""

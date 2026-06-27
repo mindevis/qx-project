@@ -98,10 +98,10 @@ CREATE INDEX idx_audit_resource ON audit_logs (resource_type, resource_id);
 ```text
 ciphertext = AES-256-GCM(plaintext_key, DEK)
 DEK = HKDF(master_key, server_id)
-master_key = qxapi.toml ssh_master_key (dev) / Docker secret (prod, 32 bytes base64)
+master_key = qxapi.toml ssh_master_key (dev) / `.env.prod` SSH_MASTER_KEY (prod, 32 bytes base64)
 ```
 
-- Master key **only** in `qxapi.toml` (dev) / Docker secret (prod) — never in DB or git.
+- Master key **only** in `qxapi.toml` (dev) / `infra/docker/.env.prod` (prod) — never in DB or git. См. [production-deploy.md](./production-deploy.md).
 - Per-server DEK derivation prevents bulk decrypt if one row leaked.
 
 ### 3.2 Rotation procedure
@@ -207,7 +207,7 @@ No Cloudflare — all security on VPS:
 | TLS 1.2+ | Let's Encrypt, Nginx |
 | HSTS | `Strict-Transport-Security` max-age 31536000 |
 | CSP | Strict policy on `/launcher` |
-| CORS | `https://qx.example.com` only |
+| CORS | `https://mc.qx-dev.ru` only (origin панели; API на `api.qx-dev.ru`) |
 | Cookies | `HttpOnly`, `Secure`, `SameSite=Lax` |
 | JWT | Short access 15m, refresh 7d rotation |
 

@@ -54,8 +54,54 @@ func Load() Config {
 			}
 		}
 	}
+	cfg.applyEnv()
 	cfg.AgentBinaryPath = resolveAgentBinaryPath(cfg.AgentBinaryPath)
 	return cfg
+}
+
+// applyEnv overrides config from process environment (prod Docker Compose).
+// Env wins over qxapi.toml so secrets stay out of images.
+func (c *Config) applyEnv() {
+	if v := os.Getenv("API_ADDR"); v != "" {
+		c.Addr = v
+	}
+	if v := os.Getenv("GIN_MODE"); v != "" {
+		c.GinMode = v
+	}
+	if v := os.Getenv("LOG_LEVEL"); v != "" {
+		c.LogLevel = v
+	}
+	if v := os.Getenv("LOG_FORMAT"); v != "" {
+		c.LogFormat = v
+	}
+	if v := os.Getenv("DATABASE_DSN"); v != "" {
+		c.DatabaseDSN = v
+	}
+	if v := os.Getenv("JWT_SECRET"); v != "" {
+		c.JWTSecret = v
+	}
+	if v := os.Getenv("ACCESS_TOKEN_TTL"); v != "" {
+		if d := parseDuration(v, c.AccessTokenTTL); d > 0 {
+			c.AccessTokenTTL = d
+		}
+	}
+	if v := os.Getenv("REFRESH_TOKEN_TTL"); v != "" {
+		if d := parseDuration(v, c.RefreshTokenTTL); d > 0 {
+			c.RefreshTokenTTL = d
+		}
+	}
+	if v := os.Getenv("CORS_ORIGIN"); v != "" {
+		c.CORSOrigin = v
+	}
+	if v := os.Getenv("SSH_MASTER_KEY"); v != "" {
+		c.SSHMasterKey = v
+	}
+	if v := os.Getenv("QX_PUBLIC_API_URL"); v != "" {
+		c.PublicAPIURL = v
+	}
+	if v := os.Getenv("QX_AGENT_BINARY_PATH"); v != "" {
+		c.AgentBinaryPath = v
+	}
 }
 
 func defaults() Config {

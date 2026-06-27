@@ -3,7 +3,7 @@
 > **I9:** Pure **self-hosted**, no Cloudflare. **I8:** VPS TBD.  
 > **Dev:** `infra/docker/docker-compose.yml` — MySQL, Redis, MinIO; API/web локально. **Flow C:** `make dev-vps-up`.  
 > **Конфиг (dev):** [configuration.md](./configuration.md) — `log_level`, `log_format` в `qxapi.toml`, `launcher.toml`, `agent.toml`.  
-> **Prod:** 🔲 не готов — [mvp §7.1](./mvp.md).
+> **Prod:** [production-deploy.md](./production-deploy.md) · Чеклист: [mvp §7.1](./mvp.md).
 
 ---
 
@@ -46,9 +46,9 @@ Structured JSON logs from Go (`slog`):
 
 | Check | Interval |
 | ------- | ---------- |
-| `https://api.qx.example.com/api/v1/health` | 60s (liveness) |
-| `https://api.qx.example.com/api/v1/health/ready` | 60s (readiness) |
-| `https://qx.example.com` | 60s |
+| `https://api.qx-dev.ru/api/v1/health` | 60s (liveness) |
+| `https://api.qx-dev.ru/api/v1/health/ready` | 60s (readiness) |
+| `https://mc.qx-dev.ru` | 60s |
 | MySQL TCP | 5m |
 | Disk > 85% | daily script |
 

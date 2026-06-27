@@ -15,7 +15,7 @@ QXAgent устанавливает **WSS** к Agent Hub и обменивает�
 | Свойство | Значение |
 | ---------- | ---------- |
 | Platform | **Linux only** (amd64, arm64 TBD) |
-| Transport | WSS (`wss://api.qx.example.com/agent/v1/connect`) |
+| Transport | WSS (`wss://api.qx-dev.ru/agent/v1/connect`) |
 | Auth | JWT agent token (issued at deploy) |
 | Idempotency | `request_id` UUID на каждую command |
 | Ordering | At-least-once delivery; agent dedupe by `request_id` |
@@ -76,7 +76,7 @@ QXAgent reads `/etc/qx-agent/agent.toml` on startup. Local dev: `agent.toml` в 
 Example `agent.toml`:
 
 ```toml
-api_base_url = "https://api.qx.example.com/api/v1"
+api_base_url = "https://api.qx-dev.ru/api/v1"
 server_id = "uuid"
 agent_token = "eyJ..."
 server_root = "/opt/qx/server"
@@ -427,6 +427,6 @@ flowchart TB
 
 ---
 
-*См. также: [api.md](./api.md), [schema.sql](./schema.sql), [ssh-deploy.md](./ssh-deploy.md), [configuration.md](./configuration.md)*
+*См. также: [api.md](./api.md), [schema.sql](./schema.sql), [ssh-deploy.md](./ssh-deploy.md), [production-deploy.md](./production-deploy.md), [configuration.md](./configuration.md)*
 
 Последнее обновление: 2026-06-21 (Phase 2 ✅, TOML config)

@@ -2,6 +2,7 @@
 # Prod VPS: /etc/qx-agent/agent.toml (written by SSH deploy).
 
 api_base_url = "http://localhost:3000/api/v1"
+# Prod (deploy writes this): api_base_url = "https://api.qx-dev.ru/api/v1"
 # agent_token = "eyJ..."  # from deploy or API test helper
 # server_id = "uuid"
 # server_root = "/opt/qx/server"

@@ -112,9 +112,24 @@ public_api_url = "http://host.docker.internal:3000"
 ## 6. Prod — `infra/docker/.env.prod`
 
 Только для `docker compose -f docker-compose.prod.yml --env-file .env.prod`.  
-Шаблон: `infra/docker/.env.prod.example`.
+Шаблон: `infra/docker/.env.prod.example` (split: `.env.prod.qx-dev.example`).  
+**Пошаговый гайд:** [production-deploy.md](./production-deploy.md).
 
-QXApi в prod-контейнере пока получает переменные через compose (не TOML). Dev monorepo — TOML.
+QXApi в prod-контейнере читает переменные окружения (перекрывают `qxapi.toml`, если он есть). Dev monorepo — TOML.
+
+| Env | Описание |
+| ----- | ---------- |
+| `NGINX_CONF` | `prod-split.conf` (api + mc) или `prod.conf` (один origin) |
+| `CORS_ORIGIN` | Origin панели, напр. `https://mc.qx-dev.ru` |
+| `QX_PUBLIC_API_URL` | Публичный URL API, напр. `https://api.qx-dev.ru` |
+| `VITE_API_BASE_URL` | Build-arg QXWeb, напр. `https://api.qx-dev.ru/api/v1` |
+| `JWT_SECRET` | Подпись JWT |
+| `SSH_MASTER_KEY` | base64, 32 bytes — шифрование SSH keys |
+| `DATABASE_DSN` | MySQL DSN (`mysql:3306` внутри compose) |
+| `QX_AGENT_BINARY_PATH` | Путь внутри API-контейнера |
+| `QX_AGENT_BINARY_HOST_PATH` | Путь на хосте к `qx-agent-linux` (volume mount) |
+
+Генерация: `make jwt-secret`.
 
 ---
 
@@ -130,6 +145,6 @@ Repo root: pkg/reporoot (walk up to go.work)
 
 ---
 
-*См. также: [README](../README.md), [architecture §10](./architecture.md), [services/README](../services/README.md)*
+*См. также: [README](../README.md), [production-deploy.md](./production-deploy.md), [architecture §10](./architecture.md), [services/README](../services/README.md)*
 
-Последнее обновление: 2026-06-21 (HWID device link)
+Последнее обновление: 2026-06-25 (prod split domains api/mc.qx-dev.ru)

@@ -87,7 +87,7 @@ sequenceDiagram
 {
   "device_id": "uuid-from-hwid",
   "status": "pending_link",
-  "link_url": "https://qx.example.com/launcher/link?device=uuid-from-hwid",
+  "link_url": "https://mc.qx-dev.ru/launcher/link?device=uuid-from-hwid",
   "poll_interval_sec": 3,
   "expires_at": "2026-06-09T13:00:00Z"
 }

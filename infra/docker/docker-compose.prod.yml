@@ -59,7 +59,9 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN}
       SSH_MASTER_KEY: ${SSH_MASTER_KEY}
       QX_PUBLIC_API_URL: ${QX_PUBLIC_API_URL}
-      QX_AGENT_BINARY_PATH: ${QX_AGENT_BINARY_PATH:-}
+      QX_AGENT_BINARY_PATH: ${QX_AGENT_BINARY_PATH:-/opt/qx/bin/qx-agent-linux}
+    volumes:
+      - ${QX_AGENT_BINARY_HOST_PATH:-../../bin/qx-agent-linux}:/opt/qx/bin/qx-agent-linux:ro
     depends_on:
       mysql:
         condition: service_healthy
@@ -71,7 +73,8 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
       args:
-        VITE_API_BASE_URL: /api/v1
+        # Split domains: https://api.qx-dev.ru/api/v1 — single origin: /api/v1
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
     restart: unless-stopped
     networks:
       - qx
@@ -82,7 +85,7 @@ services:
     ports:
       - "${HTTP_PORT:-8080}:80"
     volumes:
-      - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/${NGINX_CONF:-prod.conf}:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - api
       - web

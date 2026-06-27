@@ -6,7 +6,7 @@
 | [qxlauncher](./qxlauncher/) | QXLauncher | Phase 1 ✅ |
 | [qxagent](./qxagent/) | QXAgent — BYOS | Phase 2 ✅ |
 
-**Prod deploy:** 🔲 — [mvp §7.1](../docs/mvp.md)
+**Prod deploy:** [production-deploy.md](../docs/production-deploy.md) — API `api.qx-dev.ru`, panel `mc.qx-dev.ru`.
 
 Каждый сервис — отдельный Go-модуль в [go.work](../go.work).
 
@@ -25,7 +25,7 @@ internal/
   database/    GORM Open, migrate, Ping
   launcher/    device link, instances, launch-requests
   models/      User, Server, Agent, …
-  servers/     CRUD, deploy, start/stop via agent hub (`agent_online` / `minecraft_running`)
+  servers/     CRUD, deploy, game servers, agent hub RPC (properties/files/mods)
   testutil/    SQLite helpers для тестов
 ```
 

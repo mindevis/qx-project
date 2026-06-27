@@ -10,6 +10,7 @@ jwt_secret = "dev-secret-change-in-production"
 access_token_ttl = "15m"
 refresh_token_ttl = "168h"
 cors_origin = "http://localhost:5173"
+# Prod .env.prod: CORS_ORIGIN=https://mc.qx-dev.ru, QX_PUBLIC_API_URL=https://api.qx-dev.ru
 # base64-encoded 32-byte key for SSH private key encryption (dev default in config)
 ssh_master_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
