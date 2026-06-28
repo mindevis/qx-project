@@ -97,7 +97,7 @@ func (s *Service) CreateGameServer(ctx context.Context, ownerID, vpsID string, i
 
 	now := time.Now().UTC()
 	gameServerID := uuid.NewString()
-	workDir := fmt.Sprintf("/opt/qx/server/instances/%s", gameServerID)
+	workDir := fmt.Sprintf("/opt/qxsystem/server/instances/%s", gameServerID)
 	var address *string
 	if addr := strings.TrimSpace(in.Address); addr != "" {
 		address = &addr

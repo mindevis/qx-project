@@ -1,7 +1,7 @@
 # QXSystem — Архитектура
 
 > Документ описывает целевую архитектуру платформы и **текущий статус реализации**.
-> **Версия:** v1.11 (2026-06-21) — HWID device link, auto browser · TOML config · **MVP alpha (dev) ✅** · **Prod 🔲** · [configuration.md](./configuration.md)
+> **Версия:** v1.12 (2026-06-25) — modloaders client, auth-only device link · TOML config · **MVP alpha (dev) ✅** · **Prod 🔲**
 > **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) ·
 > [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) ·
 > [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
@@ -10,13 +10,13 @@
 
 | Компонент | Фаза | Статус |
 | ----------- | ------ | -------- |
-| **QXApi** — auth, users | Phase 0 | ✅ `register`, `login`, `refresh`, `guest`, `logout`, `GET /users/me`, `PATCH /users/me/password`, `PATCH /users/me/email` |
+| **QXApi** — auth, users | Phase 0 | ✅ `register`, `login`, `refresh`, `logout`; `guest` — 🔲 v2+ |
 | **QXApi** — health | Phase 0 | ✅ `GET /api/v1/health`, `GET /api/v1/health/ready` |
 | **QXWeb** | Phase 0–2 | ✅ `/`, auth modal, `/profile`, `/launcher`, **`/servers`** (SSH, deploy agent, MC controls при `minecraft_running`) |
 | **QXApi** — launcher, servers | Phase 1–2 | ✅ devices, instances, launch-requests, servers CRUD/deploy, agent hub |
 | **Infra dev** | Phase 0–2 | ✅ Docker Compose (MySQL, Redis, MinIO); **dev VPS** `make dev-vps-up` (Flow C) |
 | **CI / тесты** | Phase 0–Alpha | ✅ GitHub Actions; Go и web — **100% unit coverage**; Playwright + manual matrix |
-| **QXLauncher** | Phase 1 | ✅ HWID device link, auto browser, tray loop, Vanilla launch |
+| **QXLauncher** | Phase 1 | ✅ HWID device link, auto browser, tray loop, **Vanilla + Forge/NeoForge/Fabric/Quilt** |
 | **QXAgent** | Phase 2 | ✅ WSS client, start/stop JAR |
 | **pkg/protocol** | Phase 2 | ✅ WSS envelope types |
 | Auth bridge (registered flow) | Phase 3 | ✅ JWT refresh в QXLauncher, device status в UI |
@@ -64,7 +64,7 @@
 
 Инстанс **создаётся на сайте** (метаданные, версия, modloader, модпак), но **физически разворачивается на ПК
 пользователя** через QXLauncher.
-Перед инстансами и игрой **обязательна привязка QXLauncher к Backend сайта** (guest и registered) —
+Перед инстансами и игрой **обязательна привязка QXLauncher к аккаунту на сайте** (JWT) —
 [device-linking.md](./device-linking.md).
 
 ---
@@ -118,9 +118,10 @@ sequenceDiagram
 
 ---
 
-#### Сценарий 2 — Игра без регистрации (guest + device link)
+#### Сценарий 2 — Игра без регистрации *(v2+, post-MVP)*
 
-**Актор:** гость. **Сначала обязательная привязка лаунчера к сайту** ([device-linking.md](./device-linking.md)).
+**Статус:** не реализовано в alpha — `POST /auth/guest` не в router, UI `/launcher/link` требует вход.  
+**Целевой актор:** гость без аккаунта. Привязка device через guest-сессию.
 
 ```mermaid
 sequenceDiagram
@@ -134,7 +135,7 @@ sequenceDiagram
     L->>API: POST /api/v1/launcher/devices/register (device_id = HWID)
     API-->>L: pending_link, link_url
     L->>U: Авто-открытие браузера → /launcher/link
-    U->>Web: «Продолжить как гость» или login + link
+    U->>Web: «Продолжить как гость» *(v2+)* или login + link
     Web->>API: POST /api/v1/launcher/devices/link
     API-->>L: linked + device_token
     U->>Web: Создание инстанса
@@ -1335,15 +1336,13 @@ flowchart TB
 
 Кратко:
 
-| В MVP v1 | Отложить на v2+ |
+| В MVP v1 (alpha) | Отложить на v2+ |
 | ---------- | ----------------- |
-| Auth QX (email/password) | Microsoft OAuth |
-| Guest flow + Local-аккаунт | QXAccount sync между устройствами |
-| Vanilla only в лаунчере | Forge / NeoForge / Fabric / Quilt |
-| Web: создание инстанса → sync → запуск | Modpacks |
-| Agent: SSH deploy, Stop/Restart, консоль (при MC) | RCON, файловый менеджер, mods/plugins, Start UI |
-| 1 сервер на пользователя (Free) | Premium, billing |
-| Windows launcher only | macOS / Linux |
+| Auth QX (email/password) + device link | Microsoft OAuth |
+| Client loaders: Vanilla, Forge, NeoForge, Fabric, Quilt | Modpacks (CF/MR auto-install) |
+| Web: инстанс → launch-bridge → JVM | Guest flow без регистрации |
+| Agent: SSH deploy, game servers, RCON, files | Premium, billing |
+| Windows QXLauncher | macOS / Linux |
 | Tier 0 infra (1 Self-Hosted VPS) | Multi-VPS, MinIO cluster |
 
 ### 11.5 Оценка сроков (реалистично)
@@ -1351,7 +1350,7 @@ flowchart TB
 | Фаза | Scope | Срок (Senior + Junior) | Milestone |
 | ------ | ------- | ------------------------ | ----------- |
 | **Phase 0** | API auth + profile, MySQL, Web auth modal + profile | **6–8 недель** | ✅ **Готово** (2026-06) — регистрация, вход, профиль |
-| **Phase 1** | Launcher Win, device link, Vanilla, guest + auth | **10–14 недель** | ✅ **Готово** — скачал → связал → играет (manual I04, I05) |
+| **Phase 1** | Launcher Win, device link, modloaders, auth | **10–14 недель** | ✅ **Готово** — linked user → играет |
 | **Phase 2** | Agent SSH deploy + panel Stop/Restart/console (при MC running) | **8–12 недель** | ✅ deploy agent; Start UI — post-MVP |
 | **Phase 3** | Auth bridge (registered user + device) | **2–4 недели** | ✅ JWT refresh, `/users/me/launcher-device` |
 | **Alpha** | Flows A/B/C manual, docs | **4–6 недель** | ✅ dev/manual ☑ · prod 🔲 |
@@ -1382,7 +1381,7 @@ gantt
 | Риск | Митигация |
 | ------ | ----------- |
 | Senior — single point of failure | Документировать API; junior ведёт docs; Prism/GML — **только референс** логики |
-| Scope creep (все loader'ы сразу) | Жёсткий MVP v1 (Vanilla only) |
+| Scope creep (все фичи сразу) | Alpha: client modloaders ☑; modpack pipeline — v2+ |
 | Junior blocked без помощи | Задачи только с mock API; daily 15-min sync |
 | Burnout senior | Не параллелить Agent + Launcher — **сначала launcher ИЛИ agent** |
 | Рекомендация порядка | **Launcher first** (видимый прогресс, user-facing) → Agent → связка |
@@ -1394,7 +1393,8 @@ gantt
 ### Phase 0 — Foundation *(6–8 нед, Senior + Junior UI)* ✅
 
 - [x] API scaffold + MySQL + Redis/MinIO dev *(Senior)*
-- [x] Auth: register, login, refresh, guest, logout; `/users/me`, change password/email *(Senior)*
+- [x] Auth: register, login, refresh, logout; `/users/me`, change password/email *(Senior)*  
+  `POST /auth/guest` — 🔲 v2+
 - [x] Web UI: auth modal, profile (модалки), `/launcher`, **`/servers`** (SSH, deploy agent) *(Junior)*
 - [x] Docker Compose dev env (`infra/docker/`) *(Senior)*
 - [x] CI: `go test`, web `test:coverage`, build *(Senior)*
@@ -1402,10 +1402,10 @@ gantt
 
 ### Phase 1 — Launcher MVP *(10–14 нед, mostly Senior)*
 
-- [x] Windows QXLauncher tray loop, device link, Vanilla only
-- [x] Guest flow + QX auth + Local-аккаунт
+- [x] Windows QXLauncher tray loop, device link (JWT), **Vanilla + Forge/NeoForge/Fabric/Quilt**
+- [x] QX auth + Local offline-профиль
 - [x] QXWeb `/launcher`: создание инстанса → launch-bridge → JVM
-- [ ] Forge / NeoForge / Fabric / Quilt — отложено на **v2**
+- [ ] Guest flow без регистрации — **v2+**
 
 ### Phase 2 — Agent + Panel *(8–12 нед, mostly Senior)* ✅
 
@@ -1488,7 +1488,7 @@ QXSystem = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и�
 
 | Паттерн | Источник | Применение в QX |
 | --------- | ---------- | ----------------- |
-| Offline-first запуск | TLauncher, KLauncher | Сценарий 2 (guest flow) |
+| Offline-first запуск | TLauncher, KLauncher | Сценарий 2 (guest flow) — **v2+** |
 | Modpack wizard | KLauncher, Aurora | Web: выбор сборки → tray install |
 | Instance manifest | Prism, Aurora | `internal/mc/manifest`, QXLauncher engine |
 | Auth-server | Aurora | QXAccount validation, [skin-server.md](./skin-server.md) |

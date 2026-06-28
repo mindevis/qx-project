@@ -59,7 +59,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN}
       SSH_MASTER_KEY: ${SSH_MASTER_KEY}
       QX_PUBLIC_API_URL: ${QX_PUBLIC_API_URL}
-      QX_AGENT_BINARY_PATH: ${QX_AGENT_BINARY_PATH:-/opt/qx/bin/qx-agent-linux}
+      QX_AGENT_BINARY_PATH: ${QX_AGENT_BINARY_PATH:-/opt/qxsystem/bin/qx-agent-linux}
     depends_on:
       mysql:
         condition: service_healthy

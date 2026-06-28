@@ -36,7 +36,7 @@ const sampleServer = {
   agent_deployed: false,
   agent_online: false,
   ssh: { host: '1.2.3.4', port: 22, username: 'root' },
-  config: { jar_path: '/opt/qx/server/server.jar' },
+  config: { jar_path: '/opt/qxsystem/server/server.jar' },
 };
 
 function renderServers(route: string) {

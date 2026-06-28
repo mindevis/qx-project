@@ -18,8 +18,8 @@ func chdirTo(t *testing.T, dir string) {
 }
 
 func TestResolveAgentBinaryPathFromConfig(t *testing.T) {
-	got := resolveAgentBinaryPath("/opt/qx/qx-agent")
-	if got != "/opt/qx/qx-agent" {
+	got := resolveAgentBinaryPath("/opt/qxsystem/agent/qx-agent")
+	if got != "/opt/qxsystem/agent/qx-agent" {
 		t.Fatalf("got %q", got)
 	}
 }

@@ -18,7 +18,7 @@
 cmd/           main, run (bootstrap Gin)
 internal/
   api/         handlers, router, middleware, JSON errors
-  auth/        JWT (user, guest, device, agent), bcrypt
+  auth/        JWT (user, device, agent), bcrypt — guest token types в коде, endpoint v2+
   agenthub/    in-memory WSS hub for agents
   config/      qxapi.toml at repo root
   crypto/      AES-GCM for SSH private keys
@@ -43,7 +43,7 @@ internal/
 
 ## QXLauncher (`services/qxlauncher/`)
 
-Device register/link (HWID ПК, auto-open browser), launch-bridge poll, Mojang Vanilla download + JVM launch.
+Device register/link (HWID ПК, auto-open browser), launch-bridge poll, Mojang assets + **Vanilla/Forge/NeoForge/Fabric/Quilt** client launch.
 
 См. [device-linking.md](../docs/device-linking.md) · [configuration.md](../docs/configuration.md) (`device_id`, `web_base_url`).
 
@@ -53,7 +53,7 @@ Device register/link (HWID ПК, auto-open browser), launch-bridge poll, Mojang 
 
 WSS client к QXApi; обрабатывает `cmd.server.start/stop`, шлёт heartbeat и `res.server.*`.
 
-**Prod:** `/etc/qx-agent/agent.toml` (записывается при SSH deploy).
+**Prod:** `/etc/qxsystem/agent/agent.toml` (записывается при SSH deploy).
 
 **Local dev:** [agent.toml.example](../agent.toml.example) → `agent.toml` в корне репо, или `-config /path/to/agent.toml`.
 

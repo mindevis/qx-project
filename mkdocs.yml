@@ -1,0 +1,102 @@
+site_name: QXSystem
+site_description: Документация экосистемы QX — QXWeb, QXApi, QXLauncher, QXAgent
+site_url: https://mindevis.github.io/qx-project/
+repo_url: https://github.com/mindevis/qx-project
+repo_name: mindevis/qx-project
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: ru
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Тёмная тема
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Светлая тема
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+plugins:
+  - search:
+      lang:
+        - ru
+        - en
+  - mermaid2
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Главная: index.md
+  - Начало:
+      - FAQ: faq.md
+      - MVP: mvp.md
+      - Конфигурация: configuration.md
+  - Архитектура: architecture.md
+  - API: api.md
+  - Компоненты:
+      - Device linking: device-linking.md
+      - Launch bridge: launch-bridge.md
+      - Agent protocol: agent-protocol.md
+      - SSH deploy: ssh-deploy.md
+      - Production deploy: production-deploy.md
+  - Гайды:
+      - Mojang Java: mojang-java.md
+      - Modpacks pipeline: modpacks-pipeline.md
+      - Server content: server-content-install.md
+      - Skin server: skin-server.md
+      - Auto-update: auto-update.md
+      - Observability: observability-ops.md
+      - Security & legal: security-legal.md
+  - QA:
+      - Test matrix: qa/test-matrix.md
+  - ADR:
+      - adr/README.md
+      - "0001 Tech stack": adr/0001-tech-stack.md
+      - "0002 Launcher hybrid UI": adr/0002-launcher-hybrid-ui.md
+      - "0003 Agent SSH deploy": adr/0003-agent-linux-ssh-deploy.md
+      - "0004 Self-hosted infra": adr/0004-self-hosted-infra.md
+      - "0005 Modpack sync": adr/0005-modpack-sync.md
+      - "0006 Launcher website UI": adr/0006-launcher-website-ui.md
+      - "0007 CurseForge priority": adr/0007-curseforge-priority.md
+      - "0008 Launch bridge": adr/0008-launch-bridge-hybrid.md
+      - "0009 Pure self-hosted": adr/0009-pure-self-hosted.md
+      - "0010 Own launcher": adr/0010-own-launcher-not-gml.md
+      - "0011 Client local content": adr/0011-client-local-content-install.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mindevis/qx-project

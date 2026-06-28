@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-rm dev-vps-rm-data dev-vps-info dev-vps-sh api agent launcher web test lint jwt-secret ssh-master-key prod-secrets jwt-secret-config gen-tray-icons prod-build prod-pack prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha test-forge-client test-neoforge-client test-fabric-client test-quilt-client build-launcher-win build-agent-linux swagger
+.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-rm dev-vps-rm-data dev-vps-info dev-vps-sh api agent launcher web test lint jwt-secret ssh-master-key prod-secrets jwt-secret-config gen-tray-icons prod-build prod-pack prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha test-forge-client test-neoforge-client test-fabric-client test-quilt-client build-launcher-win build-agent-linux swagger docs-serve docs-build
 
 PROD_ENV_FILE := infra/docker/.env.prod
 PROD_COMPOSE := docker compose -f infra/docker/docker-compose.prod.yml --env-file $(PROD_ENV_FILE)
@@ -186,3 +186,11 @@ test-fabric-client:
 test-quilt-client:
 	cd services/qxlauncher && QX_QUILT_E2E=1 go test ./internal/minecraft -run TestIntegrationQuiltClientLaunch -count=1 -timeout 30m -v
 endif
+
+docs-serve:
+	python -m pip install -r docs/requirements.txt
+	python -m mkdocs serve
+
+docs-build:
+	python -m pip install -r docs/requirements.txt
+	python -m mkdocs build --strict

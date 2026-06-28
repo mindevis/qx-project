@@ -1,6 +1,6 @@
 # QXApi Specification
 
-> Версия: **1.8** · Base URL: `https://mc.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`)
+> **Версия:** **1.9** · Base URL: `https://mc.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`)
 > Backend: **Go + Gin + GORM** · Код: `services/qxapi/`
 > **Конфиг (dev):** [configuration.md](./configuration.md) · **Prod:** [production-deploy.md](./production-deploy.md)
 
@@ -17,7 +17,7 @@
 | POST | `/auth/register` | ✅ |
 | POST | `/auth/login` | ✅ |
 | POST | `/auth/refresh` | ✅ |
-| POST | `/auth/guest` | ✅ |
+| POST | `/auth/guest` | 🔲 v2+ |
 | POST | `/auth/logout` | ✅ |
 | GET | `/users/me` | ✅ |
 | GET | `/users/me/launcher-device` | ✅ |
@@ -31,7 +31,7 @@
 | POST | `/launcher/devices/unlink` | ✅ device JWT |
 | GET | `/launcher/devices/me` | ✅ device JWT |
 | GET | `/launcher/devices/me/instances` | ✅ device JWT |
-| GET | `/instances` | ✅ Bearer / guest |
+| GET | `/instances` | ✅ Bearer |
 | POST | `/instances` | ✅ |
 | GET | `/instances/:id` | ✅ |
 | GET | `/instances/:id/manifest` | ✅ |
@@ -61,7 +61,7 @@
 }
 ```
 
-**Ответ guest:**
+**Ответ guest** *(v2+, endpoint не в router):*
 
 ```json
 {
@@ -102,7 +102,7 @@ CORS: `cors_origin` в `qxapi.toml` (default `http://localhost:5173`). Полн�
 | POST | `/auth/register` | — | `{ email, password, username? }` |
 | POST | `/auth/login` | — | `{ email, password }` → `{ access_token, refresh_token }` |
 | POST | `/auth/refresh` | refresh cookie/body | New access token |
-| POST | `/auth/guest` | — | `{ device_id }` → `{ guest_token }` |
+| POST | `/auth/guest` | — | 🔲 v2+ `{ device_id }` → `{ guest_token }` |
 | POST | `/auth/logout` | Bearer | Revoke refresh |
 
 **Headers:** `Authorization: Bearer <access_token>`
@@ -123,23 +123,23 @@ CORS: `cors_origin` в `qxapi.toml` (default `http://localhost:5173`). Полн�
 | GET | `/skins/{uuid}.png` | — | Public skin texture |
 | GET | `/capes/{uuid}.png` | — | Public cape texture |
 
-> Guest/offline Local accounts: skins **not** uploaded; use default.
+> Offline Local profiles: skins **not** uploaded; use default Steve/Alex.
 
 ---
 
 ## 3. Instances (client)
 
-RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered** — full loaders + attachments. См.
-[security-legal.md §8](./security-legal.md).
+Требуется **Bearer JWT** (зарегистрированный пользователь) + привязанный `device_token` для launch.  
+Modpacks и загрузка mods/shaders/RP из панели — v2+. См. [security-legal.md §8](./security-legal.md).
 
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |
-| GET | `/instances` | Bearer / Guest | List instances |
-| POST | `/instances` | Bearer / Guest | Create `{ name, mc_version, loader, modpack_id? }` — Guest: `loader=vanilla` only |
-| GET | `/instances/{id}` | Bearer / Guest | Detail |
-| PATCH | `/instances/{id}` | Bearer / Guest | Update — **post-MVP** (not implemented) |
-| DELETE | `/instances/{id}` | Bearer / Guest | Delete |
-| GET | `/instances/{id}/manifest` | Bearer / Guest | Launch manifest (QXLauncher) |
+| GET | `/instances` | Bearer | List instances |
+| POST | `/instances` | Bearer | Create `{ name, mc_version, loader, loader_version?, modpack_id? }` — `loader`: `vanilla` \| `forge` \| `neoforge` \| `fabric` \| `quilt` |
+| GET | `/instances/{id}` | Bearer | Detail |
+| PATCH | `/instances/{id}` | Bearer | Update — **post-MVP** (not implemented) |
+| DELETE | `/instances/{id}` | Bearer | Delete |
+| GET | `/instances/{id}/manifest` | Bearer | Launch manifest (QXLauncher) |
 
 ---
 
@@ -230,7 +230,7 @@ Deploy/onboarding: [production-deploy.md §7](./production-deploy.md) · [ssh-de
 | -------- | ------ | ------ | ------------- |
 | GET | `/modpacks/search` | — / Bearer | `?q=&source=curseforge` (default CF, `modrinth` fallback) |
 | GET | `/modpacks/{id}` | — | Metadata |
-| GET | `/modpacks/{id}/manifest` | Bearer / Guest | QxModpackManifest JSON |
+| GET | `/modpacks/{id}/manifest` | Bearer | QxModpackManifest JSON — 🔲 post-MVP |
 | POST | `/modpacks/import` | Bearer | Import from CF/MR external id |
 
 **Modpack sync:** same `modpack_id` on `instances` and `servers` → QXLauncher (ПК) + QXAgent (сервер).
@@ -273,7 +273,7 @@ Response item:
 | -------- | ------ | ------------- |
 | POST | `/launcher/devices/register` | QXLauncher first launch — `{ device_id, os, hostname, launcher_version }`; `device_id` = HWID ПК |
 | GET | `/launcher/devices/{id}/status` | Poll link status |
-| POST | `/launcher/devices/link` | Web confirms link — `{ device_id }` (guest cookie or user JWT) |
+| POST | `/launcher/devices/link` | Web confirms link — `{ device_id }` + **Bearer JWT** |
 | POST | `/launcher/devices/unlink` | Unlink device |
 | GET | `/launcher/devices/me/instances` | `Bearer <device_token>` | Tray sync — instances for linked owner |
 | GET | `/launcher/devices/me` | Current device (device_token) |
@@ -302,12 +302,12 @@ Site creates request → QXLauncher polls → spawns JVM. Full spec: [launch-bri
 
 | Method | Path | Auth | Description |
 | -------- | ------ | ------ | ------------- |
-| POST | `/launcher/launch-requests` | Bearer / Guest + `X-Device-Token` | Create `{ instance_id, offline_profile_id?, jvm_args_override? }` |
+| POST | `/launcher/launch-requests` | Bearer + `X-Device-Token` | Create `{ instance_id, offline_profile_id?, jvm_args_override? }` |
 | GET | `/launcher/launch-requests/pending` | `Bearer <device_token>` | Tray poll — returns oldest queued, marks `dispatched` |
 | PATCH | `/launcher/launch-requests/{id}` | `Bearer <device_token>` | Tray update `{ status, pid?, exit_code?, error? }` |
-| GET | `/launcher/launch-requests/{id}` | Bearer / Guest | UI status poll |
+| GET | `/launcher/launch-requests/{id}` | Bearer | UI status poll |
 
-**RBAC:** Guest — Vanilla instances only. Registered — all loaders + mods/shaders/resource packs.
+**Auth:** Bearer JWT пользователя + заголовок `X-Device-Token` при создании запроса. Guest — v2+.
 
 **Statuses:** `queued` → `dispatched` → `running` → `completed` | `failed` | `expired` (TTL 5 min)
 

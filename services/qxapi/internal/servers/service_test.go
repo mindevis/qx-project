@@ -52,7 +52,7 @@ func createTestServer(t *testing.T, svc *Service, ownerID string) *ServerView {
 			Username:   "root",
 			PrivateKey: testSSHKey,
 		},
-		Config: ServerConfig{JarPath: "/opt/qx/server/server.jar"},
+		Config: ServerConfig{JarPath: "/opt/qxsystem/server/server.jar"},
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -361,7 +361,7 @@ func TestAttachConsole(t *testing.T) {
 		ServerType: "forge",
 		MCVersion: "1.20.1",
 		Status:   models.GameServerStatusRunning,
-		WorkDir:  "/opt/qx/server/instances/gs-attach",
+		WorkDir:  "/opt/qxsystem/server/instances/gs-attach",
 	}).Error; err != nil {
 		t.Fatalf("create game server: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestAttachConsole(t *testing.T) {
 
 	select {
 	case payload := <-received:
-		if payload.WorkDir != "/opt/qx/server/instances/gs-attach" || payload.GameServerID != "gs-attach" {
+		if payload.WorkDir != "/opt/qxsystem/server/instances/gs-attach" || payload.GameServerID != "gs-attach" {
 			t.Fatalf("payload: %+v", payload)
 		}
 	case <-time.After(time.Second):

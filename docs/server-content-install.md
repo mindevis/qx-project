@@ -50,7 +50,7 @@ QXApi отклоняет `POST /servers/{id}/plugins` на `neoforge` и `POST .
 ## 3. Пути на диске (server root)
 
 ```text
-/opt/qx/server/                 # server_root in agent.toml (default)
+/opt/qxsystem/server/                 # server_root in agent.toml (default)
 ├── server.jar
 ├── plugins/                    # paper, spigot, purpur, hybrid
 ├── mods/                       # forge, neoforge, fabric, quilt, hybrid

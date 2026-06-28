@@ -6,24 +6,30 @@
 
 ## Лаунчер и игра
 
-### Как начать играть без регистрации?
+### Как начать играть?
 
-1. Скачайте и запустите **QXLauncher** (`make launcher` в dev).
-2. Браузер **откроется сам** на странице привязки (HWID вашего ПК в URL).
-3. Нажмите «Продолжить как гость».
-4. На `/launcher` создайте Vanilla-инстанс → **Играть** (ник Player по умолчанию; свой ник — в offline-профиле).
+1. **Зарегистрируйтесь или войдите** на сайте (email + пароль).
+2. Скачайте и запустите **QXLauncher** (`make launcher` в dev) — браузер откроет `/launcher/link?device=…`.
+3. Нажмите **«Связать устройство»** (нужна активная сессия на сайте).
+4. На `/launcher` создайте инстанс → offline-профиль (ник) → **Играть**.
 
-### Как привязать лаунчер к аккаунту?
+QXLauncher должен оставаться запущенным (иконка в трее). Без привязки устройства инстансы и запуск недоступны.
 
-Запустите QXLauncher → браузер откроет `/launcher/link?device=…` → войдите на сайте (если ещё не вошли) → «Связать устройство». Статус виден в профиле и на `/launcher`.
+### Можно ли без регистрации?
+
+**В текущей версии — нет.** Раньше планировался guest-flow («Продолжить как гость»), но в UI и API он отключён: `POST /auth/guest` не зарегистрирован в роутере, привязка требует JWT пользователя. Guest и merge guest→user — **v2+** ([device-linking.md](./device-linking.md) §5, [mvp.md](./mvp.md)).
 
 ### Почему кнопка «Играть» зависает на «Запрос в очереди…»?
 
-QXLauncher должен быть запущен и связан с тем же аккаунтом/guest-сессией. Проверьте иконку в системном трее и `api_base_url` в `launcher.toml`.
+QXLauncher должен быть запущен и привязан к **тому же аккаунту**, под которым вы нажали «Играть». Проверьте иконку в системном трее и `api_base_url` в `launcher.toml`.
 
 ### Какие версии Minecraft поддерживаются?
 
-MVP: **Vanilla only**, несколько версий через Mojang manifest (например 1.20.4, 1.21). Modloaders — v2+.
+**Клиент (QXLauncher):** Vanilla, **Forge**, **NeoForge**, **Fabric** и **Quilt**. Список версий Minecraft подтягивается из Mojang manifest (актуальные релизы, например 1.20.4, 1.21.x). Для modloader'ов дополнительно выбирается версия загрузчика — доступные пары MC + loader показываются при создании инстанса на `/launcher`.
+
+**Игровые серверы на VPS:** Vanilla; плагиновые (Paper, Spigot, Purpur); модовые (Forge, NeoForge, Fabric, Quilt); гибридные (Mohist, Magma, Arclight). Версии MC — из тех же источников, что и при создании сервера в панели.
+
+Пока **вне scope:** автоматические modpack'и (CurseForge/Modrinth), загрузка шейдеров и resource pack'ов из панели — v2+.
 
 ---
 
@@ -79,13 +85,21 @@ make jwt-secret-config
 make test           # unit
 make test-coverage  # 100% порог для qxapi и qxweb
 make e2e-alpha        # API + dry-run + Playwright (всё автоматизированное)
-make e2e-api-smoke  # API Flow A/B/C (router_test)
+make e2e-api-smoke  # API Flow A/C (router_test)
 make e2e-dry-run    # API smoke + QXLauncher launch-bridge dry-run
 make e2e-manual     # чеклист manual (все flows ☑ — см. test-matrix)
 ```
+
+### Документация (GitHub Pages)
+
+Сайт: **[mindevis.github.io/qx-project](https://mindevis.github.io/qx-project/)** — собирается MkDocs Material при push в `main` (workflow `.github/workflows/docs.yml`).
+
+Локально: `make docs-serve` (нужен Python 3.12+).
+
+Первый раз в репозитории: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
 ---
 
 *См. [configuration.md](./configuration.md), [mvp.md](./mvp.md), [qa/test-matrix.md](./qa/test-matrix.md)*
 
-Последнее обновление: 2026-06-25 (docs cleanup)
+Последнее обновление: 2026-06-25

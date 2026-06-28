@@ -93,7 +93,7 @@ public_api_url = "http://host.docker.internal:3000"
 
 ## 5. QXAgent — `agent.toml`
 
-**Prod VPS:** `/etc/qx-agent/agent.toml` (записывается при SSH deploy).  
+**Prod VPS:** `/etc/qxsystem/agent/agent.toml` (записывается при SSH deploy).  
 **Local dev:** `agent.toml` в корне репо. Override: `qx-agent -config /path/to/agent.toml`.
 
 | Key | Описание |
@@ -101,7 +101,7 @@ public_api_url = "http://host.docker.internal:3000"
 | `agent_token` | JWT от deploy (обязателен) |
 | `api_base_url` | REST base QXApi |
 | `server_id` | UUID сервера |
-| `server_root` | `/opt/qx/server` |
+| `server_root` | `/opt/qxsystem/server` |
 | `ws_url` | Override WSS URL |
 | `hostname` | Имя в heartbeat |
 | `dry_run` | Не запускать JAR, только лог |
@@ -132,7 +132,7 @@ public_api_url = "http://host.docker.internal:3000"
 QXApi:     repo/qxapi.toml
 QXWeb:     repo/web.toml → Vite env
 Launcher:  ~/.qxlauncher/launcher.toml → repo/launcher.toml (repo wins in dev)
-Agent:     -config flag → repo/agent.toml → /etc/qx-agent/agent.toml
+Agent:     -config flag → repo/agent.toml → /etc/qxsystem/agent/agent.toml
 Repo root: pkg/reporoot (walk up to go.work)
 ```
 

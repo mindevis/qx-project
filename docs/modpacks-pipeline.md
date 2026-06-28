@@ -65,7 +65,7 @@ flowchart LR
 | 4 | Verify SHA256 / MD5 from manifest |
 | 5 | Local cache: `%AppData%/QX/cache/` (or `~/.local/share/qx/cache`) — delta on re-install |
 
-Guest: **Vanilla only**, no mods/shaders/resource packs.
+Registered user: all client loaders. Guest без регистрации — v2+.
 
 ---
 

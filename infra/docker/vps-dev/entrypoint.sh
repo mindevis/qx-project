@@ -13,17 +13,17 @@ fi
 sed -i 's/^#*PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
 sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 
-mkdir -p /opt/qx/agent /opt/qx/server /etc/qx-agent
+mkdir -p /opt/qxsystem/agent /opt/qxsystem/server /etc/qxsystem/agent
 
-# Static unit in the image layer; config + binary live on persistent volumes (/opt/qx, /etc/qx-agent).
+# Static unit in the image layer; config + binary live on persistent volumes (/opt/qxsystem, /etc/qxsystem/agent).
 cat > /etc/systemd/system/qx-agent.service <<'UNIT'
 [Unit]
 Description=QX Agent
 After=network-online.target
 
 [Service]
-ExecStart=/opt/qx/agent/qx-agent
-WorkingDirectory=/opt/qx/server
+ExecStart=/opt/qxsystem/agent/qx-agent
+WorkingDirectory=/opt/qxsystem/server
 Restart=always
 RestartSec=5
 

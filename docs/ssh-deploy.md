@@ -64,9 +64,9 @@ Go SSH deployer (`internal/deploy/ssh_deployer.go`):
 
 No user-supplied shell. Deployer executes fixed script template:
 
-1. `mkdir -p /opt/qx/agent /opt/qx/server` (`plugins/`, `mods/` — по [server-content-install.md](./server-content-install.md))
-2. `install -m 755` agent binary to `/opt/qx/agent/qx-agent`
-3. Write `/etc/qx-agent/agent.toml` (0600 root)
+1. `mkdir -p /opt/qxsystem/agent /opt/qxsystem/server` (`plugins/`, `mods/` — по [server-content-install.md](./server-content-install.md))
+2. `install -m 755` agent binary to `/opt/qxsystem/agent/qx-agent`
+3. Write `/etc/qxsystem/agent/agent.toml` (0600 root)
 4. Write `/etc/systemd/system/qx-agent.service`
 5. `systemctl daemon-reload && systemctl enable qx-agent && systemctl restart qx-agent`
 
@@ -98,13 +98,13 @@ API validates key format, **never** returns private key in GET.
 On successful deploy:
 
 1. Generate `agent_jwt` scoped to `server_id`
-2. Write to `/etc/qx-agent/agent.toml`:
+2. Write to `/etc/qxsystem/agent/agent.toml`:
 
    ```toml
    api_base_url = "https://mc.qx-dev.ru/api/v1"
    server_id = "uuid"
    agent_token = "eyJ..."
-   server_root = "/opt/qx/server"
+   server_root = "/opt/qxsystem/server"
    ```
 
 3. Store `agent_token_hash` in `servers` table

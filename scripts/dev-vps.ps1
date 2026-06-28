@@ -97,7 +97,7 @@ try {
             docker volume rm docker_vps_dev_qx_data docker_vps_dev_agent_config 2>&1 | Out-Null
             Write-Host "dev-vps removed - container and data wiped" -ForegroundColor Green
         } else {
-            Write-Host "dev-vps removed - container/image gone; /opt/qx data kept in Docker volumes" -ForegroundColor Green
+            Write-Host "dev-vps removed - container/image gone; /opt/qxsystem data kept in Docker volumes" -ForegroundColor Green
             Write-Host "Wipe volumes: make dev-vps-rm-data" -ForegroundColor DarkGray
         }
         Write-Host "SSH keys kept at: $keysDir" -ForegroundColor DarkGray

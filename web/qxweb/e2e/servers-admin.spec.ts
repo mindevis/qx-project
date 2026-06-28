@@ -19,7 +19,7 @@ test.describe('servers admin flow (Flow C web)', () => {
     await page.getByLabel('SSH Host').fill('10.0.0.8');
     await page.getByLabel('SSH User').fill('ubuntu');
     await page.getByLabel('SSH Private Key').fill('-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----');
-    await page.getByLabel('Путь к server.jar на VPS').fill('/opt/qx/server/server.jar');
+    await page.getByLabel('Путь к server.jar на VPS').fill('/opt/qxsystem/server/server.jar');
     await page.getByRole('button', { name: 'OK' }).click();
 
     await expect(page).toHaveURL(/\/servers\/srv-1$/);

@@ -15,7 +15,7 @@ Implementation: **Redis sliding window** + Gin middleware.
 | ------------------- | ------- | -------- | ----- |
 | `POST /auth/login` | 10 failures | 15 min | IP + email |
 | `POST /auth/register` | 5 | 1 hour | IP |
-| `POST /auth/guest` | 20 | 1 hour | IP |
+| `POST /auth/guest` | 20 | 1 hour | IP | 🔲 v2+ (не в router) |
 | `POST /launcher/devices/register` | 10 | 1 hour | IP |
 | `POST /launcher/devices/link` | 20 | 1 hour | IP |
 | `POST /launcher/launch-requests` | 30 | 1 hour | user/device |
@@ -217,15 +217,16 @@ No Cloudflare — all security on VPS:
 
 ## 8. RBAC summary
 
-| Resource | Guest (linked) | Registered | Premium (future) |
-| ---------- | ---------------- | ------------ | ------------------ |
-| Vanilla instance | ✓ | ✓ | ✓ |
-| Mods/shaders/resource packs | ✗ | ✓ | ✓ |
-| Modpacks | ✗ | ✓ (post-MVP) | ✓ |
-| Skins upload | ✗ | ✓ (post-MVP) | ✓ |
-| BYOS servers | ✗ | ✓ | ✓+limits |
-| Server mods/plugins | ✗ | ✓ by `server_type` (post-MVP) | ✓ |
-| Public server list | read | read | read |
+| Resource | Registered (linked) | Premium (future) |
+| ---------- | --------------------- | ------------------ |
+| Client loaders (Vanilla, Forge, NeoForge, Fabric, Quilt) | ✓ | ✓ |
+| Modpacks (auto CF/MR) | ✗ (v2+) | ✓ |
+| Mods/shaders/resource packs (panel upload) | ✗ (v2+) | ✓ |
+| Skins upload | ✗ (post-MVP) | ✓ |
+| BYOS servers + game servers | ✓ | ✓+limits |
+| Public server list | read | read |
+
+> **Guest без регистрации** — v2+ (см. [device-linking.md](./device-linking.md)).
 
 ---
 

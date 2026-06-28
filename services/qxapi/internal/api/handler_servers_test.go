@@ -66,7 +66,7 @@ func TestServersHandlerCRUD(t *testing.T) {
 			"username":    "root",
 			"private_key": testSSHKey,
 		},
-		"config": map[string]any{"jar_path": "/opt/qx/server.jar"},
+		"config": map[string]any{"jar_path": "/opt/qxsystem/server.jar"},
 	}
 	b, _ := json.Marshal(createBody)
 

@@ -2,7 +2,7 @@
 
 > Версия: **1.0** · Transport: **WebSocket (WSS)** · Format: **JSON**
 > Shared types: `pkg/protocol` (Go)
-> **Конфиг:** [configuration.md](./configuration.md) (`agent.toml` / `/etc/qx-agent/agent.toml`)
+> **Конфиг:** [configuration.md](./configuration.md) (`agent.toml` / `/etc/qxsystem/agent/agent.toml`)
 > **Статус реализации:** ✅ Phase 2 — `pkg/protocol`, QXApi hub, QXAgent WSS client; idempotency cache (`request_id` replay); SSH deploy + systemd
 
 ---
@@ -48,9 +48,9 @@ sequenceDiagram
 
 | Path | Назначение |
 | ------ | ------------ |
-| `/opt/qx/agent/qx-agent` | Binary |
-| `/opt/qx/server/` | Server root (jar, mods, configs) |
-| `/etc/qx-agent/agent.toml` | `agent_token`, `api_base_url`, `server_id`, `server_root` |
+| `/opt/qxsystem/agent/qx-agent` | Binary |
+| `/opt/qxsystem/server/` | Server root (jar, mods, configs) |
+| `/etc/qxsystem/agent/agent.toml` | `agent_token`, `api_base_url`, `server_id`, `server_root` |
 | `/etc/systemd/system/qx-agent.service` | systemd unit |
 
 ### 2.3 systemd unit (шаблон)
@@ -62,8 +62,8 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/opt/qx/agent/qx-agent
-WorkingDirectory=/opt/qx/server
+ExecStart=/opt/qxsystem/agent/qx-agent
+WorkingDirectory=/opt/qxsystem/server
 Restart=always
 RestartSec=5
 
@@ -71,7 +71,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-QXAgent reads `/etc/qx-agent/agent.toml` on startup. Local dev: `agent.toml` в корне репо; override: `-config /path/to/agent.toml`.
+QXAgent reads `/etc/qxsystem/agent/agent.toml` on startup. Local dev: `agent.toml` в корне репо; override: `-config /path/to/agent.toml`.
 
 Example `agent.toml`:
 
@@ -79,14 +79,14 @@ Example `agent.toml`:
 api_base_url = "https://mc.qx-dev.ru/api/v1"
 server_id = "uuid"
 agent_token = "eyJ..."
-server_root = "/opt/qx/server"
+server_root = "/opt/qxsystem/server"
 ```
 
 ### 2.4 SSH требования
 
 - Backend хранит `private_key_enc` (AES-GCM, master key из `qxapi.toml` → `ssh_master_key`).
 - Supported: Ed25519, RSA keys.
-- Minimum: user with sudo for `/opt/qx`, systemd.
+- Minimum: user with sudo for `/opt/qxsystem`, systemd.
 - Firewall: исходящий HTTPS/WSS к QXApi (443).
 
 ---
@@ -169,7 +169,7 @@ interface Envelope {
   "ts": "2026-06-09T12:00:00Z",
   "payload": {
     "server_type": "paper",
-    "jar_path": "/opt/qx/server/server.jar",
+    "jar_path": "/opt/qxsystem/server/server.jar",
     "jvm_args": ["-Xms2G", "-Xmx4G"],
     "extra_args": ["--nogui"]
   }
@@ -412,7 +412,7 @@ flowchart TB
 | ------ | ---------------- |
 | Agent token rotation | On redeploy; old token revoked |
 | SSH keys encrypted at rest | AES-GCM in MySQL |
-| File sandbox | chroot-like prefix `/opt/qx/server` |
+| File sandbox | chroot-like prefix `/opt/qxsystem/server` |
 | Command RBAC | owner/admin: all; viewer: console read-only |
 | TLS | WSS only in production |
 

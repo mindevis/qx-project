@@ -13,7 +13,7 @@ func TestLoadFromFile(t *testing.T) {
 api_base_url = "https://api.example.com/api/v1"
 agent_token = "tok-file"
 server_id = "srv-1"
-server_root = "/opt/qx/server"
+server_root = "/opt/qxsystem/server"
 hostname = "vps-1"
 `
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
@@ -30,7 +30,7 @@ hostname = "vps-1"
 	if cfg.APIBaseURL != "https://api.example.com/api/v1" {
 		t.Fatalf("api base: %q", cfg.APIBaseURL)
 	}
-	if cfg.ServerRoot != "/opt/qx/server" || cfg.Hostname != "vps-1" {
+	if cfg.ServerRoot != "/opt/qxsystem/server" || cfg.Hostname != "vps-1" {
 		t.Fatalf("cfg: %+v", cfg)
 	}
 }

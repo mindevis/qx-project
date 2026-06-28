@@ -65,7 +65,7 @@ gin_mode = "release"
 log_level = "warning"
 log_format = "json"
 public_api_url = "https://api.example.com"
-agent_binary_path = "/opt/qx/qx-agent"
+agent_binary_path = "/opt/qxsystem/agent/qx-agent"
 `
 	if err := os.WriteFile(filepath.Join(root, "qxapi.toml"), []byte(toml), 0o600); err != nil {
 		t.Fatal(err)
@@ -87,7 +87,7 @@ agent_binary_path = "/opt/qx/qx-agent"
 	if cfg.LogLevel != "warning" || cfg.LogFormat != "json" {
 		t.Fatalf("log: %+v", cfg)
 	}
-	if cfg.PublicAPIURL != "https://api.example.com" || cfg.AgentBinaryPath != "/opt/qx/qx-agent" {
+	if cfg.PublicAPIURL != "https://api.example.com" || cfg.AgentBinaryPath != "/opt/qxsystem/agent/qx-agent" {
 		t.Fatalf("deploy: %+v", cfg)
 	}
 }

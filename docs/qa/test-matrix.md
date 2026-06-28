@@ -37,10 +37,10 @@
 | A02b | Change password | PATCH `/users/me/password` | 204, login with new password | ☑ | 🤖 ☑ |
 | A02c | Change email | PATCH `/users/me/email` | 200, updated profile | ☑ | 🤖 ☑ |
 | A03 | Login fail | wrong password | 401 | ☑ | 🤖 ☑ |
-| A04 | Guest token | POST /auth/guest | guest_token returned | ☑ | 🤖 ☑ |
+| A04 | Guest token | POST /auth/guest | guest_token returned | ⊘ v2+ | ⊘ |
 | A05 | Skin upload | auth user POST skin | visible GET /skins/{uuid} | ⊘ | ☐ |
 | A07 | Device register | QXLauncher POST register (HWID `device_id`) | pending_link + link_url | ☑ | 🤖 ☑ `router_test` |
-| A08 | Device link | web confirm + QXLauncher poll | linked + device_token | ☑ | 🤖 ☑ Flow A/B |
+| A08 | Device link | web login + confirm + QXLauncher poll | linked + device_token | ☑ | 🤖 ☑ Flow A |
 | A09 | Auto link page | Запуск QXLauncher | browser opens `/launcher/link?device=…` | ☑ | ☑ manual |
 
 ---
@@ -49,13 +49,13 @@
 
 | ID | Сценарий | Шаги | Ожидание | MVP | Статус |
 | ---- | ---------- | ------ | ---------- | ----- | -------- |
-| I01 | Create instance auth | login + linked device + panel: Vanilla 1.20.4 | instance in list | ☑ | 🤖 ☑ Flow A |
-| I02 | Create instance guest | guest session + web | instance linked to device | ☑ | 🤖 ☑ Flow B |
+| I01 | Create instance auth | login + linked device + panel: loader + MC version | instance in list | ☑ | 🤖 ☑ Flow A |
+| I02 | Create instance guest | guest session + web | instance linked to device | ⊘ v2+ | ⊘ |
 | I03 | Launcher sync | open QXLauncher | instance appears | ☑ | 🤖 ☑ QXLauncher `syncInstances` |
 | I04 | Launch Vanilla | Play button | MC client starts | ☑ | 🤖 ☑ · ☑ manual full MC |
 | I05 | Mojang Java | fresh install (нет Java в PATH) | Mojang JRE downloaded | ☑ | 🤖 ☑ · ☑ manual |
 | I06 | Modpack instance | select modpack | ⊘ post-MVP | ⊘ | ⊘ |
-| I07 | Forge/NeoForge launch | modded client | ⊘ post-MVP | ⊘ | ⊘ |
+| I07 | Modded client launch | Forge/NeoForge/Fabric/Quilt | classpath + JVM start | ☑ | 🤖 ☑ QXLauncher unit/e2e |
 
 ---
 

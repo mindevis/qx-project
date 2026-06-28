@@ -75,10 +75,10 @@ java/
 During SSH deploy optional step:
 
 ```bash
-/opt/qx/java/bin/java -version || qx-agent install-java --component java-runtime-delta
+/opt/qxsystem/java/bin/java -version || qx-agent install-java --component java-runtime-delta
 ```
 
-Agent uses `/opt/qx/java/bin/java` in systemd `ExecStart` wrapper for MC server.
+Agent uses `/opt/qxsystem/java/bin/java` in systemd `ExecStart` wrapper for MC server.
 
 ---
 

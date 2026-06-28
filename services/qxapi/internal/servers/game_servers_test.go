@@ -33,8 +33,8 @@ func TestCreateGameServerProvisionFlow(t *testing.T) {
 			switch env.Type {
 			case protocol.TypeCmdServerInstall:
 				resPayload, _ := json.Marshal(protocol.ServerInstallResult{
-					WorkDir: "/opt/qx/server/instances/gs-1",
-					Command: "/opt/qx/server/instances/gs-1/run.sh",
+					WorkDir: "/opt/qxsystem/server/instances/gs-1",
+					Command: "/opt/qxsystem/server/instances/gs-1/run.sh",
 					Args:    []string{"nogui"},
 				})
 				_ = conn.WriteJSON(protocol.Envelope{

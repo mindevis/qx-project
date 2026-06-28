@@ -1,7 +1,7 @@
 # Dev Linux VPS — Flow C manual testing (SSH deploy + QXAgent).
 # Usage: make dev-vps-up
 #
-# Persistent data: /opt/qx (agent, Java, game servers) and /etc/qx-agent (config) use named volumes.
+# Persistent data: /opt/qxsystem (agent, Java, game servers) and /etc/qxsystem/agent (config) use named volumes.
 # Minecraft: host ports 25565–25585 (game) and 35565–35585 (RCON) map 1:1 into the container.
 # Override with DEV_VPS_MC_PORT_START / DEV_VPS_MC_PORT_END in the environment if needed.
 services:
@@ -18,8 +18,8 @@ services:
       - "${DEV_VPS_MC_PORT_START:-25565}-${DEV_VPS_MC_PORT_END:-25585}:25565-25585/tcp"
       - "${DEV_VPS_RCON_PORT_START:-35565}-${DEV_VPS_RCON_PORT_END:-35585}:35565-35585/tcp"
     volumes:
-      - vps_dev_qx_data:/opt/qx
-      - vps_dev_agent_config:/etc/qx-agent
+      - vps_dev_qx_data:/opt/qxsystem
+      - vps_dev_agent_config:/etc/qxsystem/agent
       - ./vps-dev/keys/authorized_keys:/mnt/authorized_keys:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"

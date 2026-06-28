@@ -34,6 +34,6 @@ kv MINIO_PASSWORD "$PROD_MINIO_PASSWORD"
 kv MINIO_ROOT_PASSWORD "$PROD_MINIO_PASSWORD"
 kv LOG_LEVEL "${LOG_LEVEL:-info}"
 kv LOG_FORMAT "${LOG_FORMAT:-json}"
-kv QX_AGENT_BINARY_PATH "/opt/qx/bin/qx-agent-linux"
+kv QX_AGENT_BINARY_PATH "/opt/qxsystem/bin/qx-agent-linux"
 
 chmod 600 "$out"

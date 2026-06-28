@@ -50,7 +50,8 @@ sequenceDiagram
 
 ```text
 POST /api/v1/launcher/launch-requests
-Authorization: Bearer <user_jwt> | Cookie guest + X-Device-Token
+Authorization: Bearer <user_jwt>
+X-Device-Token: <device_token>
 ```
 
 ```json
@@ -61,12 +62,7 @@ Authorization: Bearer <user_jwt> | Cookie guest + X-Device-Token
 }
 ```
 
-**RBAC:**
-
-| Owner | Может launch |
-| ------- | -------------- |
-| Guest (linked) | Vanilla instances only |
-| Registered user | All loaders + mods/shaders/resource packs |
+**Auth:** зарегистрированный пользователь (JWT) + привязанный device. Все client loader'ы (`vanilla`, `forge`, `neoforge`, `fabric`, `quilt`). Modpacks и контент из панели — v2+.
 
 Response `201`:
 
@@ -168,10 +164,8 @@ Dry-run (без JVM): `launch_dry_run = true` в `launcher.toml` — см. [conf
 
 If API unreachable but instance cached locally:
 
-- **Guest:** block launch (must be online for first install).
-- **Registered:** optional offline launch cached instance (post-MVP, feature flag).
-
-MVP: **online required** for launch.
+- **MVP:** online required for launch (first install and manifest).
+- **Post-MVP:** optional offline launch of cached instance (feature flag).
 
 ---
 

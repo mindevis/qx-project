@@ -32,8 +32,8 @@ func TestUpdateGameServer(t *testing.T) {
 		Port:         25565,
 		RconPassword: &rcon,
 		Status:       models.GameServerStatusStopped,
-		WorkDir:      "/opt/qx/server/instances/gs-update-1",
-		StartCommand: "/opt/qx/server/instances/gs-update-1/run.sh",
+		WorkDir:      "/opt/qxsystem/server/instances/gs-update-1",
+		StartCommand: "/opt/qxsystem/server/instances/gs-update-1/run.sh",
 	}).Error; err != nil {
 		t.Fatalf("create game server row: %v", err)
 	}

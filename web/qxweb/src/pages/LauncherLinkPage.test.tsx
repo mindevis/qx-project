@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { renderWithProviders } from '@/test/test-utils';
@@ -52,9 +52,13 @@ describe('LauncherLinkPage', () => {
     clearTokens();
   });
 
-  afterEach(() => {
+afterEach(async () => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
     clearTokens();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
   });
 
   it('shows error without device param', async () => {
@@ -318,7 +322,7 @@ describe('LauncherLinkPage', () => {
   it('copies device id to clipboard', async () => {
     const user = userEvent.setup({ delay: null });
     const writeText = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as Clipboard);
     installFetchMock((url) => {
       if (url.includes('/launcher/devices/dev-copy/status')) {
         return new Response(JSON.stringify(mockDeviceStatus('dev-copy')), { status: 200 });
@@ -335,6 +339,6 @@ describe('LauncherLinkPage', () => {
 
     await waitFor(() => expect(screen.getByText('dev-copy')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Копировать ID/i }));
-    expect(writeText).toHaveBeenCalledWith('dev-copy');
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('dev-copy'));
   });
 });

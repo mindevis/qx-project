@@ -11,7 +11,7 @@ import (
 func TestInstallForgeDryRun(t *testing.T) {
 	spec, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
 		ServerType:    "forge",
-		WorkDir:       "/opt/qx/server/instances/x",
+		WorkDir:       "/opt/qxsystem/server/instances/x",
 		MCVersion:     "1.20.1",
 		LoaderVersion: "47.4.20",
 		Port:          25565,
@@ -20,7 +20,7 @@ func TestInstallForgeDryRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("install: %v", err)
 	}
-	if spec.WorkDir != "/opt/qx/server/instances/x" {
+	if spec.WorkDir != "/opt/qxsystem/server/instances/x" {
 		t.Fatalf("work dir: %q", spec.WorkDir)
 	}
 	if spec.JarPath == "" {
@@ -29,10 +29,10 @@ func TestInstallForgeDryRun(t *testing.T) {
 }
 
 func TestJavaRootFromServerRoot(t *testing.T) {
-	if got := JavaRootFromServerRoot("/opt/qx/server"); got != filepath.Join("/opt/qx", "java") {
+	if got := JavaRootFromServerRoot("/opt/qxsystem/server"); got != filepath.Join("/opt/qxsystem", "java") {
 		t.Fatalf("got %q", got)
 	}
-	if got := JavaRootFromServerRoot(""); got != "/opt/qx/java" {
+	if got := JavaRootFromServerRoot(""); got != "/opt/qxsystem/java" {
 		t.Fatalf("empty: got %q", got)
 	}
 }
@@ -63,11 +63,11 @@ func TestForgeStartSpecPrefersJava(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	spec, err := forgeStartSpec(dir, artifact, "/opt/qx/java/bin/java")
+	spec, err := forgeStartSpec(dir, artifact, "/opt/qxsystem/java/bin/java")
 	if err != nil {
 		t.Fatalf("forgeStartSpec: %v", err)
 	}
-	if spec.Command != "/opt/qx/java/bin/java" {
+	if spec.Command != "/opt/qxsystem/java/bin/java" {
 		t.Fatalf("command: %q", spec.Command)
 	}
 	if len(spec.Args) != 3 || spec.Args[0] != "@user_jvm_args.txt" {

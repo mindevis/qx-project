@@ -10,7 +10,7 @@ import (
 	"github.com/qxproject/qx/pkg/reporoot"
 )
 
-const DefaultConfigPath = "/etc/qx-agent/agent.toml"
+const DefaultConfigPath = "/etc/qxsystem/agent/agent.toml"
 
 var ErrMissingAgentToken = errors.New("agent_token is required")
 

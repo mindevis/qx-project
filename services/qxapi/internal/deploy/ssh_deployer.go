@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	agentInstallPath = "/opt/qx/agent/qx-agent"
-	agentConfigPath  = "/etc/qx-agent/agent.toml"
+	agentInstallPath = "/opt/qxsystem/agent/qx-agent"
+	agentConfigPath  = "/etc/qxsystem/agent/agent.toml"
+	serverRoot       = "/opt/qxsystem/server"
 	agentUnitPath    = "/etc/systemd/system/qx-agent.service"
 	uploadPath       = "/tmp/qx-agent-upload"
 )
@@ -159,7 +160,7 @@ func runRemoteProvision(clientAny any, apiURL, serverID, agentToken string, bina
 	script := fmt.Sprintf(`set -e
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
-$SUDO mkdir -p /opt/qx/agent /opt/qx/server /etc/qx-agent
+$SUDO mkdir -p /opt/qxsystem/agent /opt/qxsystem/server /etc/qxsystem/agent
 $SUDO install -m 755 %s %s
 $SUDO tee %s > /dev/null <<'QXCFG'
 %sQXCFG
@@ -221,22 +222,22 @@ func buildAgentConfig(apiURL, serverID, agentToken string) string {
 	return fmt.Sprintf(`api_base_url = %q
 agent_token = %q
 server_id = %q
-server_root = "/opt/qx/server"
-`, apiBase, agentToken, serverID)
+server_root = %q
+`, apiBase, agentToken, serverID, serverRoot)
 }
 
 func buildSystemdUnit() string {
-	return `[Unit]
+	return fmt.Sprintf(`[Unit]
 Description=QX Agent
 After=network-online.target
 
 [Service]
-ExecStart=/opt/qx/agent/qx-agent
-WorkingDirectory=/opt/qx/server
+ExecStart=%s
+WorkingDirectory=%s
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-`
+`, agentInstallPath, serverRoot)
 }

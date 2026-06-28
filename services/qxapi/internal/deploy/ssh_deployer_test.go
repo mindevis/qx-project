@@ -210,7 +210,7 @@ func TestBuildAgentConfigDefaultAPIBase(t *testing.T) {
 
 func TestBuildSystemdUnit(t *testing.T) {
 	unit := buildSystemdUnit()
-	if !strings.Contains(unit, "ExecStart=/opt/qx/agent/qx-agent") {
+	if !strings.Contains(unit, "ExecStart=/opt/qxsystem/agent/qx-agent") {
 		t.Fatal("missing ExecStart")
 	}
 	if strings.Contains(unit, "EnvironmentFile") {

@@ -1,9 +1,9 @@
 # Device Linking — Связь Launcher ↔ Сайт
 
-> **Статус реализации:** ✅ Phase 1+ — `POST /api/v1/launcher/devices/*`, web `/launcher/link`, tray poll; manual ☑ (A09, L03).
-> REST base: `/api/v1` — пути в §3 API относительные к base.
-> Решение **E6**: обязательная привязка лаунчера к сайту **до** создания инстансов и игры.
-> Работает **без регистрации** (guest) и **с аккаунтом** (после login — re-link или merge).
+> **Статус реализации:** ✅ Phase 1+ — привязка только для **зарегистрированных** пользователей (JWT).  
+> REST base: `/api/v1` — пути в §3 API относительные к base.  
+> Решение **E6**: обязательная привязка лаунчера к сайту **до** создания инстансов и игры.  
+> **Guest без регистрации** — 🔲 v2+ (см. §5).  
 > **Конфиг:** [configuration.md](./configuration.md) — `launcher.toml` (`api_base_url`, `device_token_path`).
 
 ---
@@ -13,11 +13,11 @@
 | Правило | Описание |
 | --------- | ---------- |
 | **Обязательно** | Нельзя создавать инстансы и играть, пока `launcher_devices.status ≠ linked` |
-| **Registered** | Login на сайте → confirm link → `device_token` привязан к `user_id` |
-| **Без регистрации** | Guest на сайте + linked device = полный guest-flow |
+| **Registered** | Login на сайте → confirm link на `/launcher/link` → `device_token` привязан к `user_id` |
+| **Без регистрации (guest)** | 🔲 v2+ — `POST /auth/guest` + кнопка на `/launcher/link` (сейчас не реализовано) |
 | **UI на сайте** | Управление инстансами — **`/launcher`** (React SPA), не в окне tray |
-| **Go daemon** | Tray: launch-bridge poll, JVM, Java, уведомления |
-| **Guest vs Registered** | Guest (linked): Vanilla, Local. Registered+auth: mods, shaders, resource packs, modpacks — [security-legal §8](./security-legal.md) |
+| **Go daemon** | Tray: launch-bridge poll, JVM, Mojang Java, уведомления |
+| **Loaders** | Vanilla, Forge, NeoForge, Fabric, Quilt — для linked user; modpack pipeline — v2+ |
 
 ---
 
@@ -36,8 +36,9 @@ sequenceDiagram
     API-->>L: pending_link, link_url
     L->>U: Авто-открытие браузера → /launcher/link?device=…
     L->>U: OS notification «Подтвердите привязку в браузере»
-    U->>Web: Подтвердить привязку (guest cookie или login)
-    Web->>API: POST /api/v1/launcher/devices/link
+    U->>Web: Войти / зарегистрироваться (если ещё не в сессии)
+    U->>Web: Подтвердить привязку («Связать устройство»)
+    Web->>API: POST /api/v1/launcher/devices/link (Bearer JWT)
     API-->>L: poll: status=linked, device_token
     L->>U: Notification «Лаунчер связан»
     U->>Web: Создать инстанс
@@ -49,10 +50,10 @@ sequenceDiagram
 
 1. Зайти на сайт → **Лаунчер** → скачать установщик.
 2. Запустить **qx-launcher** (иконка в трее).
-3. **Браузер откроется автоматически** на `/launcher/link?device=<HWID>` — подтвердите привязку.
+3. **Браузер откроется автоматически** на `/launcher/link?device=<HWID>` — **войдите в аккаунт** и подтвердите привязку.
 4. Если браузер не открылся: **ПКМ по иконке в трее** → **«Связать QXLauncher»**.
-5. На сайте нажать **«Продолжить как гость»** или **«Связать устройство»** (если вы в аккаунте).
-6. Создать инстанс на сайте → лаунчер sync → **Играть**.
+5. Нажать **«Связать устройство»** на странице привязки.
+6. Создать инстанс на `/launcher` → offline-профиль → **Играть**.
 
 **Идентификатор устройства (`device_id`):** стабильный UUID, производный от HWID ПК (Windows: `MachineGuid`, Linux: `/etc/machine-id`). Хранится в `~/.qxlauncher/device_id`. Коды подтверждения не используются — секрет в URL + TTL 15 мин + кнопка на сайте.
 
@@ -77,7 +78,7 @@ sequenceDiagram
 | -------- | ------ | ----- | ---------- |
 | POST | `/launcher/devices/register` | Go app | `{ device_id, os, hostname, launcher_version }` |
 | GET | `/launcher/devices/{id}/status` | Go app | Poll: `pending_link` or `linked` |
-| POST | `/launcher/devices/link` | Web SPA | `{ device_id }` + guest cookie или JWT |
+| POST | `/launcher/devices/link` | Web SPA | `{ device_id }` + **Bearer JWT** (user access token) |
 | POST | `/launcher/devices/unlink` | Web / Go | Отвязка |
 | GET | `/launcher/devices/pending` | Web SPA | Список ожидающих (same browser IP/session) — optional |
 
@@ -108,7 +109,7 @@ sequenceDiagram
 
 ---
 
-## 5. Guest → User migration (при регистрации)
+## 5. Guest → User migration *(v2+, post-MVP)*
 
 Когда пользователь **регистрируется** или **логинится** на сайте, уже имея linked guest device:
 

@@ -39,7 +39,7 @@ func logLine(opts Options, line string) {
 func JavaRootFromServerRoot(serverRoot string) string {
 	serverRoot = strings.TrimSpace(serverRoot)
 	if serverRoot == "" {
-		return "/opt/qx/java"
+		return "/opt/qxsystem/java"
 	}
 	return filepath.Join(filepath.Dir(serverRoot), "java")
 }
@@ -47,7 +47,7 @@ func JavaRootFromServerRoot(serverRoot string) string {
 func ensureJava(ctx context.Context, opts Options, mcVersion string) (string, error) {
 	javaRoot := strings.TrimSpace(opts.JavaRoot)
 	if javaRoot == "" {
-		javaRoot = "/opt/qx/java"
+		javaRoot = "/opt/qxsystem/java"
 	}
 	mgr := &mojangjava.Manager{
 		RootDir:      javaRoot,

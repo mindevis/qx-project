@@ -4,7 +4,9 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — ка�
 
 **Статус:** MVP alpha (dev) ✅ · Prod guide ☑ · Prod smoke 🔲
 
-Документация: [architecture](docs/architecture.md) · [mvp](docs/mvp.md) · [FAQ](docs/faq.md) · [test matrix](docs/qa/test-matrix.md)
+Документация: **[mindevis.github.io/qx-project](https://mindevis.github.io/qx-project/)** · [architecture](docs/architecture.md) · [mvp](docs/mvp.md) · [FAQ](docs/faq.md) · [test matrix](docs/qa/test-matrix.md)
+
+Локальный предпросмотр: `make docs-serve`
 
 | Документ | Содержание |
 | -------- | ------------ |
@@ -54,12 +56,13 @@ make launcher
 - Swagger UI: [localhost:3000/swagger/index.html](http://localhost:3000/swagger/index.html)
 - Health: [health](http://localhost:3000/api/v1/health) · Ready: [health/ready](http://localhost:3000/api/v1/health/ready)
 
-### Игра (Flow A / B)
+### Игра (Flow A)
 
 1. Запустите **QXLauncher** (`make launcher` или `make build-launcher`) — браузер автоматически откроет `/launcher/link?device=<HWID>`.
-2. **Guest:** на открывшейся странице нажмите «Продолжить как гость».
-3. **Registered:** войдите на сайте (или уже будете в аккаунте) → «Связать устройство» на той же странице.
-4. На `/launcher` создайте Vanilla-инстанс и offline-профиль → **Играть** (launch-bridge → QXLauncher → JVM).
+2. **Войдите или зарегистрируйтесь** на сайте → на странице привязки нажмите **«Связать устройство»**.
+3. На `/launcher` создайте инстанс (Vanilla, Forge, NeoForge, Fabric или Quilt) и offline-профиль → **Играть** (launch-bridge → QXLauncher → JVM).
+
+> **Guest без регистрации** — запланирован на v2+ (`POST /auth/guest` сейчас не в API). См. [faq.md](docs/faq.md).
 
 Конфигурация dev: TOML в корне репозитория (`qxapi.toml`, `web.toml`, `launcher.toml` — см. `*.toml.example`).
 
@@ -119,7 +122,7 @@ Flow C (серверы): **F5 → Dev VPS: up**, затем **QXApi**. В `qxapi
 | `web.toml` | QXWeb / Vite |
 | `launcher.toml` | QXLauncher (dev: корень; установленный: `~/.qxlauncher/`) |
 | `agent.toml` | QXAgent local dev |
-| `/etc/qx-agent/agent.toml` | QXAgent на VPS (deploy) |
+| `/etc/qxsystem/agent/agent.toml` | QXAgent на VPS (deploy) |
 | `infra/docker/.env.prod` | Prod docker-compose only |
 
 Если отладчик Go не стартует (`cannot launch dlv dap`): перезапустите Cursor, затем `Ctrl+Shift+P` → **Go: Install/Update Tools** → отметьте `dlv` и `dlv-dap`. В проекте включён legacy-адаптер Delve для Windows.

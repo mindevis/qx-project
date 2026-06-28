@@ -52,3 +52,6 @@ npm-debug.log*
 # Docker
 infra/docker/mysql_data/
 infra/docker/vps-dev/keys/
+
+# MkDocs build output
+/site/

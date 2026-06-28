@@ -13,7 +13,7 @@ import (
 	"github.com/qxproject/qx/services/qxagent/internal/config"
 )
 
-var configPath = flag.String("config", "", "path to agent.toml (default: repo agent.toml or /etc/qx-agent/agent.toml)")
+var configPath = flag.String("config", "", "path to agent.toml (default: repo agent.toml or /etc/qxsystem/agent/agent.toml)")
 
 // agentVersion is set at link time via -ldflags (see Makefile).
 var agentVersion = "0.1.0-dev"

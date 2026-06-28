@@ -17,6 +17,6 @@
 | [0008](./0008-launch-bridge-hybrid.md) | Hybrid launch: site POST + tray poll | Accepted · ✅ Phase 1 |
 | [0009](./0009-pure-self-hosted.md) | Pure self-hosted, no Cloudflare | Accepted · [production-deploy.md §6](../production-deploy.md) |
 | [0010](./0010-own-launcher-not-gml.md) | Own Go launcher, not GML fork | Accepted · ✅ Phase 1 |
-| [0011](./0011-client-local-content-install.md) | Client content on PC via QXLauncher, not MinIO | Accepted · ✅ Vanilla MVP |
+| [0011](./0011-client-local-content-install.md) | Client content on PC via QXLauncher, not MinIO | Accepted · ✅ client loaders |
 
-Последнее обновление: 2026-06-21
+Последнее обновление: 2026-06-25
