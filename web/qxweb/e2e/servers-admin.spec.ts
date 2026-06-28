@@ -23,11 +23,12 @@ test.describe('servers admin flow (Flow C web)', () => {
 
     await expect(page).toHaveURL(/\/servers\/srv-1$/);
     await expect(page.getByRole('heading', { name: 'FlowC VPS' })).toBeVisible();
-    await expect(page.getByText('Agent оффлайн')).toBeVisible();
+    await expect(page.getByText('Не развёрнут')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Deploy agent' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Deploy agent' }).click();
-    await expect(page.getByText('Deploy выполнен')).toBeVisible();
-    await expect(page.getByText('Agent подключён')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Deploy выполнен/)).toBeVisible();
+    await expect(page.getByText('Онлайн')).toBeVisible({ timeout: 10_000 });
 
     await expect(page.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
