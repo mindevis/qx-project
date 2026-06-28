@@ -12,8 +12,7 @@ Frontend отделён от Go-сервисов в `services/`.
 
 **Phase 0–3 + Alpha:** `/`, auth, `/profile`, `/launcher`, **`/servers`**, **`/servers/:id/game-servers/:id`**.
 
-**Prod:** панель `https://mc.qx-dev.ru`, API `https://api.qx-dev.ru/api/v1` — см. [production-deploy.md](../docs/production-deploy.md).  
-Сборка Docker: `VITE_API_BASE_URL=https://api.qx-dev.ru/api/v1` в `.env.prod` + `make prod-build`.
+**Prod:** панель `https://mc.qx-dev.ru` — [production-deploy.md](../docs/production-deploy.md).
 
 ```bash
 cp ../../web.toml.example ../../web.toml   # из корня репо

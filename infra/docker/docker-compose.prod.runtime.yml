@@ -1,5 +1,6 @@
-# QXSystem — production stack (build locally, deploy pre-built bundle to VPS)
-# Build: make prod-build  |  Pack: make prod-pack  |  Dev smoke: make prod-up
+# QXSystem — production runtime (pull images from GHCR, no build on VPS)
+# Deploy: GitHub Actions → /opt/qxsystem
+# Images: QX_API_IMAGE / QX_WEB_IMAGE in image-tag.env (written by CI)
 
 services:
   mysql:
@@ -12,7 +13,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ../../docs/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
@@ -43,10 +44,8 @@ services:
       - qx
 
   api:
-    image: qx-api:${QX_IMAGE_TAG:-prod}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.api
+    image: ${QX_API_IMAGE:?set QX_API_IMAGE}
+    pull_policy: always
     restart: unless-stopped
     environment:
       API_ADDR: :3000
@@ -68,12 +67,8 @@ services:
       - qx
 
   web:
-    image: qx-web:${QX_IMAGE_TAG:-prod}
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.web
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    image: ${QX_WEB_IMAGE:?set QX_WEB_IMAGE}
+    pull_policy: always
     restart: unless-stopped
     networks:
       - qx
@@ -82,7 +77,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "${HTTP_PORT:-8080}:80"
+      - "${HTTP_PORT:-80}:80"
     volumes:
       - ./nginx/prod-split.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:

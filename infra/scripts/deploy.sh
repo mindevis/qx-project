@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Deploy QXSystem prod stack on a VPS (Docker Compose Tier 0).
+# Local smoke from repo (images must exist — run make prod-build first).
+# For VPS: make prod-pack → copy dist/qx-prod/ → ./up.sh on server.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -12,14 +13,13 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 cd "$ROOT"
-if [[ ! -f bin/qx-agent-linux ]]; then
-  echo "Building qx-agent-linux for SSH deploy..."
-  make build-agent-linux
+if ! docker image inspect qx-api:prod >/dev/null 2>&1; then
+  echo "Images not found — run: make prod-build  (or make prod-pack for VPS bundle)" >&2
+  exit 1
 fi
 
 cd "$COMPOSE_DIR"
-docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" build
-docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d
+docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --pull never
 docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" ps
 
-echo "Stack up. Check health: curl -fsS \"\${QX_PUBLIC_API_URL:-http://localhost:\${HTTP_PORT:-8080}}/api/v1/health\""
+echo "Stack up. For VPS deploy use: make prod-pack"

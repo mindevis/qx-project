@@ -1,4 +1,7 @@
-.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-rm dev-vps-rm-data dev-vps-info dev-vps-sh api agent launcher web test lint jwt-secret jwt-secret-config gen-tray-icons prod-build prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha test-forge-client test-neoforge-client test-fabric-client test-quilt-client build-launcher-win build-agent-linux swagger
+.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-rm dev-vps-rm-data dev-vps-info dev-vps-sh api agent launcher web test lint jwt-secret ssh-master-key prod-secrets jwt-secret-config gen-tray-icons prod-build prod-pack prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha test-forge-client test-neoforge-client test-fabric-client test-quilt-client build-launcher-win build-agent-linux swagger
+
+PROD_ENV_FILE := infra/docker/.env.prod
+PROD_COMPOSE := docker compose -f infra/docker/docker-compose.prod.yml --env-file $(PROD_ENV_FILE)
 
 ifeq ($(OS),Windows_NT)
 EXE := .exe
@@ -35,14 +38,20 @@ dev-vps-sh:
 
 prod-build:
 	make build-agent-linux
-	docker compose -f infra/docker/docker-compose.prod.yml build
+	$(PROD_COMPOSE) build
+
+prod-pack:
+ifeq ($(OS),Windows_NT)
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prod-pack.ps1
+else
+	bash infra/scripts/prod-pack.sh
+endif
 
 prod-up:
-	make build-agent-linux
-	docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod up -d
+	$(PROD_COMPOSE) up -d --no-build --pull never
 
 prod-down:
-	docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env.prod down
+	$(PROD_COMPOSE) down
 
 api:
 	cd services/qxapi && go run ./cmd
@@ -115,6 +124,16 @@ build-web:
 
 jwt-secret:
 	cd scripts/gen-jwt-secret && go run .
+
+ssh-master-key:
+	cd scripts/gen-jwt-secret && go run . -ssh-master
+
+prod-secrets:
+	@echo PROD_JWT_SECRET:
+	@$(MAKE) jwt-secret
+	@echo.
+	@echo PROD_SSH_MASTER_KEY:
+	@$(MAKE) ssh-master-key
 
 jwt-secret-config:
 	cd scripts/gen-jwt-secret && go run . -toml ../../qxapi.toml

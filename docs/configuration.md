@@ -109,27 +109,20 @@ public_api_url = "http://host.docker.internal:3000"
 
 ---
 
-## 6. Prod — `infra/docker/.env.prod`
+## 6. Prod — `.env.prod` (GitHub Secrets)
 
-Только для `docker compose -f docker-compose.prod.yml --env-file .env.prod`.  
-Шаблон: `infra/docker/.env.prod.example` (split: `.env.prod.qx-dev.example`).  
-**Пошаговый гайд:** [production-deploy.md](./production-deploy.md).
+Автогенерация при deploy: `infra/scripts/prod-render-env.sh`.  
+Справочник ключей: `infra/docker/.env.prod.example`.  
+**Гайд:** [production-deploy.md](./production-deploy.md).
 
-QXApi в prod-контейнере читает переменные окружения (перекрывают `qxapi.toml`, если он есть). Dev monorepo — TOML.
-
-| Env | Описание |
-| ----- | ---------- |
-| `NGINX_CONF` | `prod-split.conf` (api + mc) или `prod.conf` (один origin) |
-| `CORS_ORIGIN` | Origin панели, напр. `https://mc.qx-dev.ru` |
-| `QX_PUBLIC_API_URL` | Публичный URL API, напр. `https://api.qx-dev.ru` |
-| `VITE_API_BASE_URL` | Build-arg QXWeb, напр. `https://api.qx-dev.ru/api/v1` |
-| `JWT_SECRET` | Подпись JWT |
-| `SSH_MASTER_KEY` | base64, 32 bytes — шифрование SSH keys |
-| `DATABASE_DSN` | MySQL DSN (`mysql:3306` внутри compose) |
-| `QX_AGENT_BINARY_PATH` | Путь внутри API-контейнера |
-| `QX_AGENT_BINARY_HOST_PATH` | Путь на хосте к `qx-agent-linux` (volume mount) |
-
-Генерация: `make jwt-secret`.
+| GitHub Secret (environment `production`) | Env в `.env.prod` |
+| --------------- | ----------------- |
+| `PROD_JWT_SECRET` | `JWT_SECRET` |
+| `PROD_SSH_MASTER_KEY` | `SSH_MASTER_KEY` |
+| `PROD_MYSQL_ROOT_PASSWORD` | `MYSQL_ROOT_PASSWORD` |
+| `PROD_MYSQL_PASSWORD` | `MYSQL_PASSWORD`, `DATABASE_DSN` |
+| `PROD_MINIO_PASSWORD` | `MINIO_ROOT_PASSWORD` |
+| Variables `CORS_ORIGIN`, `QX_PUBLIC_API_URL` | одноимённые |
 
 ---
 

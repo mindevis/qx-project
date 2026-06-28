@@ -36,7 +36,7 @@ Linux x86_64 (Ubuntu 22.04+, Debian 12+), SSH по ключу. Подробне�
 ### Deploy не подключает agent
 
 - Проверьте SSH-ключ и firewall (исходящий HTTPS/WSS к platform VPS).
-- Deploy выполняет SSH на game VPS. Нужен бинарник: `make build-agent-linux` (prod: монтируется в API-контейнер).
+- Deploy выполняет SSH на game VPS. Бинарник QXAgent встроен в API-образ при `make prod-pack`.
 - **Dev:** `agent_binary_path` в `qxapi.toml`; `public_api_url = "http://host.docker.internal:3000"`.
 - **Prod:** `QX_PUBLIC_API_URL=https://api.qx-dev.ru`, `CORS_ORIGIN=https://mc.qx-dev.ru` — [production-deploy.md](./production-deploy.md).
 - После **повторного Deploy** agent перезапускается через `systemctl restart`.
@@ -55,26 +55,8 @@ Linux x86_64 (Ubuntu 22.04+, Debian 12+), SSH по ключу. Подробне�
 
 ## Prod / Self-Hosted
 
-> **Гайд:** [production-deploy.md](./production-deploy.md) · Чеклист: [mvp §7.1](./mvp.md).
-
-### Мы готовы к prod?
-
-**Частично.** MVP alpha (Flow A/B/C в dev) пройден. Production требует выполнить чеклист §7.1: TLS, секреты, smoke на VPS, бэкапы.
-
-### Как поднять prod на одном VPS?
-
-См. **[production-deploy.md](./production-deploy.md)** — API `api.qx-dev.ru`, панель `mc.qx-dev.ru`, game VPS, QXLauncher.
-
-```bash
-cp infra/docker/.env.prod.qx-dev.example infra/docker/.env.prod
-make jwt-secret && make build-agent-linux
-make prod-build   # VITE_API_BASE_URL → api.qx-dev.ru
-make prod-up
-```
-
-### TLS и домены
-
-Prod: **два A-записи** (`api.qx-dev.ru`, `mc.qx-dev.ru`) → platform VPS. Compose отдаёт HTTP на `HTTP_PORT`; Certbot на оба имени — §6 в [production-deploy.md](./production-deploy.md).
+Push в `main` → полный автодеплoy (Docker, `/opt/qxsystem`, `.env.prod` из GitHub Secrets).  
+**[production-deploy.md](./production-deploy.md)** — таблица Secrets.
 
 ---
 
@@ -106,4 +88,4 @@ make e2e-manual     # чеклист manual (все flows ☑ — см. test-mat
 
 *См. [configuration.md](./configuration.md), [mvp.md](./mvp.md), [qa/test-matrix.md](./qa/test-matrix.md)*
 
-Последнее обновление: 2026-06-21 (HWID + auto browser)
+Последнее обновление: 2026-06-25 (docs cleanup)

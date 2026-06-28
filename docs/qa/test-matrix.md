@@ -137,17 +137,7 @@
 
 ## 8. Prod readiness *(не blocking MVP alpha dev)*
 
-Гайд: [production-deploy.md](../production-deploy.md).
-
-| ID | Сценарий | Ожидание | Статус |
-| ---- | ---------- | ---------- | -------- |
-| P.1 | Prod compose smoke | `make prod-up` на VPS | 🔲 |
-| P.2 | TLS + DNS | HTTPS valid (`api.qx-dev.ru`, `mc.qx-dev.ru`) | 🔲 N02 |
-| P.3 | Secrets | JWT, DB, SSH master key в `.env.prod` | 🔲 |
-| P.4 | Prod Flow A | register → launcher → play | 🔲 |
-| P.5 | Game server | deploy agent → create → console | 🔲 |
-| P.6 | MySQL backup | restore test | ⊘ v2 |
-| P.7 | Prod bug bash | no P0/P1 | 🔲 |
+Чеклист P.1–P.7: [mvp §7.1](../mvp.md#71-prod-readiness) · гайд: [production-deploy.md](../production-deploy.md).
 
 ---
 

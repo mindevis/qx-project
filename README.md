@@ -171,16 +171,5 @@ go.work           Go workspace
 
 ### Prod (Tier 0)
 
-Platform VPS: **`178.172.136.26`**. Домены: **API** `api.qx-dev.ru`, **панель** `mc.qx-dev.ru`.  
-Гайд: **[docs/production-deploy.md](docs/production-deploy.md)** (§ Prod: api + mc).
-
-```bash
-cp infra/docker/.env.prod.qx-dev.example infra/docker/.env.prod
-make jwt-secret   # JWT_SECRET + SSH_MASTER_KEY в .env.prod
-make build-agent-linux
-make prod-build   # пересборка web с VITE_API_BASE_URL
-make prod-up
-# smoke: curl https://api.qx-dev.ru/api/v1/health
-```
-
-Далее: TLS (Certbot для обоих доменов), game VPS + Deploy agent. Чеклист: [mvp §7.1](docs/mvp.md#71-prod-readiness).
+Push в `main` → GHCR → автодеплой на `/opt/qxsystem` (Secrets в GitHub, без ручных шагов на VPS).  
+**[docs/production-deploy.md](docs/production-deploy.md)**

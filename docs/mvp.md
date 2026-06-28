@@ -239,36 +239,13 @@ Agent         — id, server_id, hostname, connected_at
 
 **Dev (Phase 0, сейчас):** `make dev-up` — MySQL, Redis, MinIO. API и QXWeb — на хосте. Конфиг: [configuration.md](./configuration.md).
 
-**Prod MVP** — один VPS (4–8 GB RAM), Docker Compose:
-
-| Service | Назначение |
-| --------- | ------------ |
-| `nginx` | TLS, reverse proxy |
-| `api` | Backend + Agent Hub |
-| `web` | QXWeb static (React SPA) |
-| `mysql` | Данные, manifests |
-| `redis` | Sessions, pub/sub |
-| `minio` | Launcher builds, server backups, skins (не client/server modpack files) |
-
-**Домены (prod):**
-
-- `mc.qx-dev.ru` — QXWeb (панель, `/launcher`)
-- `api.qx-dev.ru/api/v1` — REST
-- `api.qx-dev.ru/agent/v1/connect` — Agent WSS
-
-Platform VPS: `178.172.136.26` (оба A-записи на один IP).
-
-Детали: [architecture.md §8.3 Tier 0](./architecture.md).
-
-**Бюджет:** $5–30/мес.
+**Prod MVP** — один VPS, Docker Compose. Домены и deploy: **[production-deploy.md](./production-deploy.md)**.
 
 ### 7.1 Prod readiness
 
-Пошаговый deploy: **[production-deploy.md](./production-deploy.md)**.
-
 | # | Задача | Статус |
 | --- | -------- | -------- |
-| P.1 | Platform VPS + `make prod-up` smoke | 🔲 |
+| P.1 | Platform VPS + `make prod-pack` → `./up.sh` smoke | 🔲 |
 | P.2 | TLS (Let's Encrypt) + DNS (`api.qx-dev.ru`, `mc.qx-dev.ru`) | 🔲 |
 | P.3 | Секреты: JWT, MySQL, `SSH_MASTER_KEY` в `.env.prod` | 🔲 |
 | P.4 | N02 — HTTPS valid ([test-matrix](./qa/test-matrix.md)) | 🔲 |

@@ -6,7 +6,7 @@
 | [qxlauncher](./qxlauncher/) | QXLauncher | Phase 1 ✅ |
 | [qxagent](./qxagent/) | QXAgent — BYOS | Phase 2 ✅ |
 
-**Prod deploy:** [production-deploy.md](../docs/production-deploy.md) — API `api.qx-dev.ru`, panel `mc.qx-dev.ru`.
+**Prod deploy:** [production-deploy.md](../docs/production-deploy.md)
 
 Каждый сервис — отдельный Go-модуль в [go.work](../go.work).
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,20 @@ func TestGenerateSecretLength(t *testing.T) {
 	}
 	if len(secret) < 32 {
 		t.Fatalf("secret too short: %d", len(secret))
+	}
+}
+
+func TestGenerateSSHMasterKeyStdBase64(t *testing.T) {
+	secret, err := generateSSHMasterKey(32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := base64.StdEncoding.DecodeString(secret)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(raw) != 32 {
+		t.Fatalf("want 32 bytes, got %d", len(raw))
 	}
 }
 

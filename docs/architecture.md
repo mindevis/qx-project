@@ -1112,19 +1112,15 @@ flowchart TB
 ```text
 infra/
 ├── docker/
-│   ├── docker-compose.yml          # Dev (MySQL, Redis, MinIO)
-│   ├── docker-compose.prod.yml     # Production Tier 0
-│   ├── docker-compose.vps-dev.yml  # Flow C dev VPS
-│   ├── .env.prod.example           # Prod secrets template
-│   ├── .env.prod.qx-dev.example    # Prod split domains (api + mc)
-│   ├── Dockerfile.api / Dockerfile.web
-│   └── nginx/
-│       ├── prod-split.conf         # Prod: api.* + mc.* (recommended)
-│       ├── prod.conf               # Prod: single origin (legacy / IP)
-│       └── web-spa.conf            # Static SPA in web container
+│   ├── docker-compose.prod.yml           # Local image build
+│   ├── docker-compose.prod.runtime.yml   # VPS: GHCR pull
+│   ├── .env.prod.example
+│   └── nginx/prod-split.conf
 ├── scripts/
-│   └── deploy.sh                   # build + compose up (prod)
-└── ansible/                        # Tier 1+ (TBD)
+│   ├── prod-remote-up.sh                 # VPS: pull + up
+│   └── prod-pack.sh                      # Offline bundle (optional)
+└── ...
+# CI: .github/workflows/prod-release.yml → GHCR → /opt/qxsystem
 ```
 
 **Пошаговый deploy:** [production-deploy.md](./production-deploy.md).
@@ -1133,8 +1129,8 @@ infra/
 
 | Service | Image | Ports (host) | Volume |
 | --------- | ------- | ------------------ | -------- |
-| `nginx` | nginx:alpine | `${HTTP_PORT:-8080}:80` | `${NGINX_CONF}` (`prod-split.conf` or `prod.conf`), optional TLS |
-| `api` | build `Dockerfile.api` | internal 3000 | `qx-agent-linux` ro mount |
+| `nginx` | nginx:alpine | `${HTTP_PORT:-8080}:80` | `prod-split.conf`, optional TLS |
+| `api` | `ghcr.io/.../qx-api` | internal 3000 | agent baked in image |
 | `web` | build `Dockerfile.web` | internal 80 | — |
 | `mysql` | mysql:8.4 | internal 3306 | `mysql_data` |
 | `redis` | redis:7-alpine | internal 6379 | `redis_data` |
@@ -1142,24 +1138,12 @@ infra/
 
 ### 9.2 Домены и маршрутизация (Nginx)
 
-**Prod (рекомендуется):** два поддомена на одном VPS — `prod-split.conf` + `NGINX_CONF=prod-split.conf`:
-
 | Host | Backend | Назначение |
 | ------ | --------- | ------------ |
-| `api.qx-dev.ru` | `api:3000` | REST `/api/v1`, Agent WSS `/agent/v1/connect`, console WS |
-| `mc.qx-dev.ru` | `web:80` | QXWeb SPA (panel, `/launcher`, `/servers`) |
+| `api.qx-dev.ru` | `api:3000` | REST, Agent WSS, console WS |
+| `mc.qx-dev.ru` | `web:80` | QXWeb SPA |
 
-Env: `CORS_ORIGIN=https://mc.qx-dev.ru`, `QX_PUBLIC_API_URL=https://api.qx-dev.ru`, `VITE_API_BASE_URL=https://api.qx-dev.ru/api/v1`.
-
-**Альтернатива — один origin** (`prod.conf`, path-based):
-
-| Path | Backend | Назначение |
-| ------ | --------- | ------------ |
-| `/` | `web` | QXWeb SPA |
-| `/api/` | `api:3000` | REST API |
-| `/agent/` | `api:3000` | Agent WSS |
-
-См. [production-deploy.md](./production-deploy.md) · ADR-0004.
+Deploy: [production-deploy.md](./production-deploy.md) · ADR-0004.
 
 ### 9.3 TLS и безопасность
 
@@ -1184,7 +1168,7 @@ Env: `CORS_ORIGIN=https://mc.qx-dev.ru`, `QX_PUBLIC_API_URL=https://api.qx-dev.r
 | Env | Dev | Prod (Self-Hosted) |
 | --- | ----- | --------------------- |
 | Конфиг | `*.toml` в корне репо | `infra/docker/.env.prod` |
-| Запуск | `make api`, `make dev-up` | `deploy.sh` на VPS |
+| Запуск | `make api`, `make dev-up` | push `main` → GHCR → `/opt/qxsystem` |
 | TLS | mkcert / HTTP | Let's Encrypt |
 | Домен | localhost | Реальный домен |
 | MinIO | Local | Production VPS SSD |
@@ -1222,7 +1206,7 @@ flowchart TB
 
 | Задача | Кто | Частота |
 | -------- | ----- | --------- |
-| `deploy.sh`, обновления | Senior | [production-deploy.md §11](./production-deploy.md) |
+| `prod-release` workflow | Senior | [production-deploy.md](./production-deploy.md) |
 | Проверка бэкапов | Senior | Weekly |
 | Certbot renew | Cron (auto) | — |
 | Disk space alert | Uptime Kuma | Daily check |
@@ -1537,4 +1521,4 @@ QXSystem = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и�
 
 ---
 
-Последнее обновление: 2026-06-25 (v1.13 — prod split domains api/mc.qx-dev.ru)
+Последнее обновление: 2026-06-25 (v1.14 — prod docs cleanup)

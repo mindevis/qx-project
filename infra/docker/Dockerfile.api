@@ -16,6 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/qx-api 
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tzdata
+RUN mkdir -p /opt/qx/bin
+COPY bin/qx-agent-linux /opt/qx/bin/qx-agent-linux
 COPY --from=build /out/qx-api /usr/local/bin/qx-api
 EXPOSE 3000
 ENTRYPOINT ["/usr/local/bin/qx-api"]

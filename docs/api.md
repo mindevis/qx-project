@@ -191,7 +191,7 @@ RBAC: **Guest** — Vanilla only, no mods/shaders/resource packs. **Registered**
 
 **Game server status:** `installing` | `starting` | `running` | `stopped` | `error`
 
-Deploy/onboarding: [production-deploy.md §9](./production-deploy.md) · [ssh-deploy.md](./ssh-deploy.md).
+Deploy/onboarding: [production-deploy.md §7](./production-deploy.md) · [ssh-deploy.md](./ssh-deploy.md).
 
 ### 4.3 Server content (mods / plugins) — post-MVP API
 
