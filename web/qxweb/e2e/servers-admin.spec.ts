@@ -14,7 +14,7 @@ test.describe('servers admin flow (Flow C web)', () => {
     await page.goto('/servers');
     await expect(page.getByRole('heading', { name: 'Серверы', exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Добавить VPS' }).click();
+    await page.locator('.servers-hero-actions').getByRole('button', { name: 'Добавить VPS' }).click();
     await page.getByLabel('Название').fill('FlowC VPS');
     await page.getByLabel('SSH Host').fill('10.0.0.8');
     await page.getByLabel('SSH User').fill('ubuntu');

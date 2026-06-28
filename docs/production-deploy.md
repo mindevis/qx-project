@@ -41,7 +41,7 @@ A-запись `mc.qx-dev.ru` → IP platform VPS (`178.172.136.26`).
 | ------ | -------- |
 | `PROD_SSH_HOST` | IP VPS, напр. `178.172.136.26` |
 | `PROD_SSH_USER` | SSH user (`root` или `ubuntu`) |
-| `PROD_SSH_KEY` | Private key (OpenSSH PEM), полный ключ |
+| `PROD_SSH_KEY` | Private key (OpenSSH PEM), полный ключ — **публичная часть** в `~/.ssh/authorized_keys` на VPS для `PROD_SSH_USER` |
 | `GHCR_DEPLOY_TOKEN` | PAT с **`read:packages`** |
 | `PROD_JWT_SECRET` | Подпись JWT — `make jwt-secret` (одна строка) |
 | `PROD_SSH_MASTER_KEY` | `make ssh-master-key` (standard base64, 32 bytes) |
@@ -148,6 +148,7 @@ web_base_url = "https://mc.qx-dev.ru"
 | Проблема | Решение |
 | -------- | ------- |
 | `Missing secret` | Заполните все Secrets из §1.3 |
+| `unable to authenticate` / `publickey` | Проверьте `PROD_SSH_HOST` / `PROD_SSH_USER`; на VPS в `~/.ssh/authorized_keys` должен быть **public** key, парный к `PROD_SSH_KEY`; ключ в Secret — целиком, с `-----BEGIN … KEY-----` |
 | Bootstrap: sudo | Deploy-user нужен `sudo` или используйте `root` |
 | `unauthorized` pull | `GHCR_DEPLOY_TOKEN` + read:packages |
 | CORS | Variable `CORS_ORIGIN=https://mc.qx-dev.ru` |

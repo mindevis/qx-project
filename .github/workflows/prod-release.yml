@@ -131,41 +131,48 @@ jobs:
             "QX_WEB_IMAGE=ghcr.io/${IMAGE_OWNER}/qx-web:${IMAGE_TAG}" \
             > .deploy/image-tag.env
 
+      - name: Setup SSH deploy key
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          umask 077
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/prod_deploy
+          ssh-keygen -y -f ~/.ssh/prod_deploy >/dev/null || {
+            echo "::error::PROD_SSH_KEY is invalid — paste the full OpenSSH private key (with BEGIN/END lines)"
+            exit 1
+          }
+
       - name: Bootstrap VPS (Docker + /opt/qxsystem)
-        uses: appleboy/ssh-action@v1.2.2
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script_path: infra/scripts/prod-bootstrap-vps.sh
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/prod_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+            "${PROD_SSH_USER}@${PROD_SSH_HOST}" 'bash -s' < infra/scripts/prod-bootstrap-vps.sh
 
       - name: Sync stack to VPS
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          source: .deploy/*
-          target: /opt/qxsystem
-          strip_components: 1
-          overwrite: true
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/prod_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new -r \
+            .deploy/* "${PROD_SSH_USER}@${PROD_SSH_HOST}:/opt/qxsystem/"
 
       - name: Pull images and restart stack
-        uses: appleboy/ssh-action@v1.2.2
         env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
           GHCR_TOKEN: ${{ secrets.GHCR_DEPLOY_TOKEN }}
           GHCR_USER: ${{ github.repository_owner }}
-        with:
-          host: ${{ secrets.PROD_SSH_HOST }}
-          username: ${{ secrets.PROD_SSH_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          envs: GHCR_TOKEN,GHCR_USER
-          script: |
-            set -euo pipefail
-            cd /opt/qxsystem
-            chmod 600 .env.prod
-            chmod +x up.sh
-            GHCR_TOKEN="$GHCR_TOKEN" GHCR_USER="$GHCR_USER" ./up.sh
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/prod_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+            "${PROD_SSH_USER}@${PROD_SSH_HOST}" \
+            "cd /opt/qxsystem && chmod 600 .env.prod && chmod +x up.sh && GHCR_TOKEN=\"${GHCR_TOKEN}\" GHCR_USER=\"${GHCR_USER}\" ./up.sh"
 
       - name: Summary
         run: |
