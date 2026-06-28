@@ -4,13 +4,14 @@ FROM golang:1.25-alpine AS build
 RUN apk add --no-cache git ca-certificates
 WORKDIR /src
 
-COPY go.work go.work.sum ./
 COPY pkg/log pkg/log
 COPY pkg/mcmanifest pkg/mcmanifest
 COPY pkg/protocol pkg/protocol
+COPY pkg/reporoot pkg/reporoot
 COPY services/qxapi services/qxapi
 
 WORKDIR /src/services/qxapi
+ENV GOWORK=off
 RUN go mod download
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/qx-api ./cmd
 

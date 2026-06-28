@@ -12,7 +12,9 @@ test.describe('launcher registered flow (Flow A web)', () => {
     await seedAuthSession(page);
 
     await page.goto('/launcher/link?device=flowa-dev');
-    await page.getByRole('button', { name: 'Связать устройство' }).click();
+    const linkButton = page.getByRole('button', { name: 'Связать устройство' });
+    await expect(linkButton).toBeEnabled();
+    await linkButton.click();
     await expect(page.getByText('Устройство связано')).toBeVisible();
     await expect(
       page.getByText('QXLauncher привязан к вашему аккаунту'),
@@ -23,7 +25,7 @@ test.describe('launcher registered flow (Flow A web)', () => {
     await expect(page.getByText('QXLauncher связан (flowa-dev)')).toBeVisible();
     await page.getByRole('button', { name: /Создать/ }).click();
     await page.getByLabel('Название').fill('FlowA Survival');
-    await page.getByRole('button', { name: 'Создать Vanilla' }).click();
+    await page.getByRole('button', { name: 'Создать инстанс' }).click();
 
     await expect(page.getByText('FlowA Survival')).toBeVisible();
     expect(state.instances).toHaveLength(1);

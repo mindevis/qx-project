@@ -165,6 +165,20 @@ export async function installLauncherApiMock(page: Page, state: MockApiState) {
       return json(route, 200, { linked: false });
     }
 
+    const deviceStatusMatch = path.match(/^\/launcher\/devices\/([^/]+)\/status$/);
+    if (deviceStatusMatch && method === 'GET') {
+      const deviceId = deviceStatusMatch[1];
+      const linked =
+        state.linkedDevice?.device_id === deviceId && state.linkedDevice.owner_type === 'user';
+      return json(route, 200, {
+        device_id: deviceId,
+        status: linked ? 'linked' : 'pending_link',
+        hostname: 'e2e-host',
+        os: 'windows',
+        launcher_version: '0.1.0-dev',
+      });
+    }
+
     if (path === '/launcher/mc-versions' && method === 'GET') {
       return json(route, 200, {
         latest: { release: '1.21' },

@@ -86,7 +86,7 @@ make prod-secrets
 
 ## 2. Деплой
 
-Workflow: [`.github/workflows/prod-release.yml`](../.github/workflows/prod-release.yml)
+Workflow: [`.github/workflows/prod-release.yml`](https://github.com/mindevis/qx-project/blob/main/.github/workflows/prod-release.yml)
 
 | Триггер | Действие |
 | ------- | -------- |

@@ -12,7 +12,7 @@ test.describe('servers admin flow (Flow C web)', () => {
     await seedAuthSession(page);
 
     await page.goto('/servers');
-    await expect(page.getByRole('heading', { name: 'Серверы' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Серверы', exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'Добавить VPS' }).click();
     await page.getByLabel('Название').fill('FlowC VPS');

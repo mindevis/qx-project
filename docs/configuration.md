@@ -138,6 +138,6 @@ Repo root: pkg/reporoot (walk up to go.work)
 
 ---
 
-*См. также: [README](../README.md), [production-deploy.md](./production-deploy.md), [architecture §10](./architecture.md), [services/README](../services/README.md)*
+*См. также: [README](https://github.com/mindevis/qx-project/blob/main/README.md), [production-deploy.md](./production-deploy.md), [architecture §10](./architecture.md), [services/README](https://github.com/mindevis/qx-project/blob/main/services/README.md)*
 
 Последнее обновление: 2026-06-25 (prod single origin mc.qx-dev.ru)

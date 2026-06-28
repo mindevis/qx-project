@@ -209,7 +209,7 @@ Paths relative to server root. Traversal blocked (`..`, absolute paths).
 
 ### 5.4 Modpack, mods & plugins
 
-**Modpack** — полная сборка; пути зависят от `server_type` ([server-content-install.md](../server-content-install.md)).
+**Modpack** — полная сборка; пути зависят от `server_type` ([server-content-install.md](server-content-install.md)).
 
 ```json
 {
