@@ -32,7 +32,7 @@ export type VpsGameServer = {
 export type CreateVpsGameServerInput = {
   name: string;
   server_type?: VpsGameServerType;
-  mc_version?: string;
+  mc_version: string;
   loader_version?: string;
   address?: string;
   port?: number;

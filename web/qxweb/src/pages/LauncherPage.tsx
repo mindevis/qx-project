@@ -11,6 +11,7 @@ import {
   Spin,
   Typography,
 } from 'antd';
+import type { DefaultOptionType } from 'antd/es/select';
 import {
   CheckCircleOutlined,
   DeleteOutlined,
@@ -910,7 +911,11 @@ export function LauncherPage() {
               showSearch
               optionFilterProp="label"
               loading={mcVersionsLoading || createMcOptionsLoading}
-              options={createLoader === 'vanilla' ? mcVersionOptions : createMcOptions}
+              options={
+                (createLoader === 'vanilla'
+                  ? mcVersionOptions
+                  : createMcOptions) as DefaultOptionType[]
+              }
               onChange={handleCreateMcVersionChange}
             />
           </Form.Item>

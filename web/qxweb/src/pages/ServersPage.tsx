@@ -317,7 +317,6 @@ function ServersList() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const message = useMessage();
-  const labels = useStatusLabels();
   const [servers, setServers] = useState<GameServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
