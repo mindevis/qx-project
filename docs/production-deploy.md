@@ -90,8 +90,8 @@ Workflow: [`.github/workflows/prod-release.yml`](https://github.com/mindevis/qx-
 
 | Триггер | Действие |
 | ------- | -------- |
-| Push в `main` | build → GHCR → deploy |
-| Actions → **Prod release** → Run | то же |
+| Push в `main` после **успешного CI** | build → GHCR → deploy (только если менялись `services/`, `web/`, `infra/docker/`, `pkg/` и т.п.) |
+| Actions → **Prod release** → Run | то же (ручной запуск, без ожидания CI) |
 
 На VPS после deploy:
 
