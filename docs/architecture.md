@@ -28,10 +28,10 @@
 
 | Контекст | Dev | Prod |
 | ---------- | ----- | ------ |
-| **REST (QXApi)** | `http://localhost:3000/api/v1` | `https://api.qx-dev.ru/api/v1` |
+| **REST (QXApi)** | `http://localhost:3000/api/v1` | `https://mc.qx-dev.ru/api/v1` |
 | **Health** | тот же префикс | `GET …/api/v1/health`, `GET …/api/v1/health/ready` |
 | **QXWeb** | `http://localhost:5173` | `https://mc.qx-dev.ru` |
-| **Agent Hub (WSS)** | `ws://localhost:3000` (dev) | `wss://api.qx-dev.ru/agent/v1/connect` — **вне** `/api/v1` |
+| **Agent Hub (WSS)** | `ws://localhost:3000` (dev) | `wss://mc.qx-dev.ru/agent/v1/connect` — **вне** `/api/v1` |
 
 В спецификации [api.md](./api.md) пути REST указаны **относительно** `/api/v1` (например `/auth/login` = `/api/v1/auth/login`).
 Исключение: WebSocket агента и внешние API (CurseForge, Modrinth) — свои base URL.
@@ -1115,7 +1115,7 @@ infra/
 │   ├── docker-compose.prod.yml           # Local image build
 │   ├── docker-compose.prod.runtime.yml   # VPS: GHCR pull
 │   ├── .env.prod.example
-│   └── nginx/prod-split.conf
+│   └── nginx/prod.conf
 ├── scripts/
 │   ├── prod-remote-up.sh                 # VPS: pull + up
 │   └── prod-pack.sh                      # Offline bundle (optional)
@@ -1129,7 +1129,7 @@ infra/
 
 | Service | Image | Ports (host) | Volume |
 | --------- | ------- | ------------------ | -------- |
-| `nginx` | nginx:alpine | `${HTTP_PORT:-8080}:80` | `prod-split.conf`, optional TLS |
+| `nginx` | nginx:alpine | `${HTTP_PORT:-8080}:80` | `prod.conf`, optional TLS |
 | `api` | `ghcr.io/.../qx-api` | internal 3000 | agent baked in image |
 | `web` | build `Dockerfile.web` | internal 80 | — |
 | `mysql` | mysql:8.4 | internal 3306 | `mysql_data` |
@@ -1138,10 +1138,11 @@ infra/
 
 ### 9.2 Домены и маршрутизация (Nginx)
 
-| Host | Backend | Назначение |
-| ------ | --------- | ------------ |
-| `api.qx-dev.ru` | `api:3000` | REST, Agent WSS, console WS |
-| `mc.qx-dev.ru` | `web:80` | QXWeb SPA |
+| Host / path | Backend | Назначение |
+| ------------- | --------- | ------------ |
+| `mc.qx-dev.ru/` | `web:80` | QXWeb SPA |
+| `mc.qx-dev.ru/api/*` | `api:3000` | REST, console WS |
+| `mc.qx-dev.ru/agent/*` | `api:3000` | Agent WSS |
 
 Deploy: [production-deploy.md](./production-deploy.md) · ADR-0004.
 

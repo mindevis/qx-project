@@ -10,7 +10,7 @@ out="${1:?output path}"
 : "${PROD_MINIO_PASSWORD:?PROD_MINIO_PASSWORD required}"
 
 cors="${CORS_ORIGIN:-https://mc.qx-dev.ru}"
-api_url="${QX_PUBLIC_API_URL:-https://api.qx-dev.ru}"
+api_url="${QX_PUBLIC_API_URL:-https://mc.qx-dev.ru}"
 mysql_db="${MYSQL_DATABASE:-qx}"
 mysql_user="${MYSQL_USER:-qx}"
 

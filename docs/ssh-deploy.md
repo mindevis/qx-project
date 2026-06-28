@@ -47,7 +47,7 @@ Panel shows **pre-flight checklist** before deploy.
 
 **Dev VPS:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 
-**Prod:** `QX_PUBLIC_API_URL=https://api.qx-dev.ru` в `.env.prod` — [production-deploy.md](./production-deploy.md).
+**Prod:** `QX_PUBLIC_API_URL=https://mc.qx-dev.ru` в `.env.prod` — [production-deploy.md](./production-deploy.md).
 
 ---
 
@@ -101,7 +101,7 @@ On successful deploy:
 2. Write to `/etc/qx-agent/agent.toml`:
 
    ```toml
-   api_base_url = "https://api.qx-dev.ru/api/v1"
+   api_base_url = "https://mc.qx-dev.ru/api/v1"
    server_id = "uuid"
    agent_token = "eyJ..."
    server_root = "/opt/qx/server"

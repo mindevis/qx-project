@@ -72,4 +72,25 @@ describe('ThemeProvider', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(window.localStorage.getItem('qxweb-theme')).toBe('dark');
   });
+
+  it('toggleTheme switches dark back to light', async () => {
+    window.localStorage.setItem('qxweb-theme', 'dark');
+    const user = userEvent.setup();
+
+    function ThemeToggler() {
+      const { toggleTheme } = useTheme();
+      return <button type="button" onClick={toggleTheme}>toggle</button>;
+    }
+
+    renderWithI18n(
+      <ThemeProvider>
+        <ThemeProbe />
+        <ThemeToggler />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByTestId('theme-mode')).toHaveTextContent('dark');
+    await user.click(screen.getByRole('button', { name: 'toggle' }));
+    expect(screen.getByTestId('theme-mode')).toHaveTextContent('light');
+  });
 });

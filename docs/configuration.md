@@ -140,4 +140,4 @@ Repo root: pkg/reporoot (walk up to go.work)
 
 *См. также: [README](../README.md), [production-deploy.md](./production-deploy.md), [architecture §10](./architecture.md), [services/README](../services/README.md)*
 
-Последнее обновление: 2026-06-25 (prod split domains api/mc.qx-dev.ru)
+Последнее обновление: 2026-06-25 (prod single origin mc.qx-dev.ru)

@@ -259,6 +259,23 @@ describe('api client', () => {
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer access');
   });
 
+  it('omits authorization header when access token is empty', async () => {
+    saveTokens({
+      access_token: '',
+      refresh_token: 'refresh',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ items: [] }), { status: 200 }),
+    );
+
+    await api.listServers();
+
+    const [, init] = vi.mocked(fetch).mock.calls[0]!;
+    expect(new Headers(init?.headers).get('Authorization')).toBeNull();
+  });
+
   it('calls launcher endpoints without auth when not signed in', async () => {
     clearTokens();
     const fetchMock = vi.mocked(fetch);
@@ -500,5 +517,54 @@ describe('api client', () => {
 
     await expect(checkBackendHealth()).resolves.toBe(false);
     expect(warn).toHaveBeenCalledWith('backend health check failed');
+  });
+
+  it('calls vps game server management endpoints', async () => {
+    saveTokens(tokens);
+    const fetchMock = vi.mocked(fetch);
+    const gameServer = {
+      id: 'gs-1',
+      name: 'Test',
+      server_type: 'forge',
+      mc_version: '1.20.1',
+      port: 25565,
+      status: 'running',
+      created_at: 'now',
+    };
+
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ properties: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ content: 'line' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }));
+
+    await api.updateVpsGameServer('srv-1', 'gs-1', { name: 'Renamed' });
+    await api.deleteVpsGameServer('srv-1', 'gs-1');
+    await api.reinstallVpsGameServer('srv-1', 'gs-1');
+    await api.startVpsGameServer('srv-1', 'gs-1');
+    await api.stopVpsGameServer('srv-1', 'gs-1');
+    await api.restartVpsGameServer('srv-1', 'gs-1');
+    await api.getVpsGameServer('srv-1', 'gs-1');
+    await api.getVpsGameServerProperties('srv-1', 'gs-1');
+    await api.patchVpsGameServerProperties('srv-1', 'gs-1', { 'max-players': '20' });
+    await api.listVpsGameServerMods('srv-1', 'gs-1');
+    await api.listVpsGameServerFiles('srv-1', 'gs-1', 'config');
+    await api.readVpsGameServerFile('srv-1', 'gs-1', 'server.properties');
+    await api.writeVpsGameServerFile('srv-1', 'gs-1', 'server.properties', 'motd=hi');
+
+    const urls = fetchMock.mock.calls.map(([input]) => String(input));
+    expect(urls.some((url) => url.includes('/game-servers/gs-1') && url.includes('properties'))).toBe(
+      true,
+    );
+    expect(urls.some((url) => url.includes('/files/content'))).toBe(true);
   });
 });

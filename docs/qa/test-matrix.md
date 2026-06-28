@@ -1,6 +1,6 @@
 # QXSystem — QA Test Matrix (Alpha)
 
-> REST base: `http://localhost:3000/api/v1` (prod: `https://api.qx-dev.ru/api/v1`).  
+> REST base: `http://localhost:3000/api/v1` (prod: `https://mc.qx-dev.ru/api/v1`).  
 > Пути в таблицах — относительные к base, если не указано иное.
 >
 > Для закрытой beta / MVP Definition of Done.
@@ -143,4 +143,4 @@
 
 Legend: ☑ = required for MVP alpha · ⊘ = tracked but not blocking MVP · 🤖 = automated unit test in CI
 
-Последнее обновление: 2026-06-25 (prod domains api/mc.qx-dev.ru)
+Последнее обновление: 2026-06-25 (prod single origin mc.qx-dev.ru)

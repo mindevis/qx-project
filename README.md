@@ -17,7 +17,7 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — ка�
 | [ssh-deploy.md](docs/ssh-deploy.md) | SSH deploy agent |
 | [faq.md](docs/faq.md) | FAQ alpha |
 | [configuration.md](docs/configuration.md) | TOML-конфиг (dev) · [prod .env](docs/configuration.md#6-prod--infradockerenvprod) |
-| [production-deploy.md](docs/production-deploy.md) | **Prod: deploy на VPS** (`api.qx-dev.ru` + `mc.qx-dev.ru`) |
+| [production-deploy.md](docs/production-deploy.md) | **Prod: deploy на VPS** (`mc.qx-dev.ru`) |
 | [adr/](docs/adr/) | Architecture Decision Records |
 
 ## Требования

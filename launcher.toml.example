@@ -4,7 +4,7 @@ api_base_url = "http://localhost:3000/api/v1"
 web_base_url = "http://localhost:5173"
 
 # Prod (пример):
-# api_base_url = "https://api.qx-dev.ru/api/v1"
+# api_base_url = "https://mc.qx-dev.ru/api/v1"
 # web_base_url = "https://mc.qx-dev.ru"
 
 # link_max_polls = 60

@@ -501,6 +501,41 @@ describe('pages', () => {
     infoSpy.mockRestore();
   });
 
+  it('falls back when mc versions fail to load', async () => {
+    const warnSpy = vi.spyOn(message, 'warning');
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/launcher/mc-versions')) {
+          return new Response('fail', { status: 500 });
+        }
+        if (url.includes('/instances') || url.includes('/launcher/profiles') || url.includes('/launcher/devices')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith('Не удалось загрузить список версий'),
+    );
+    warnSpy.mockRestore();
+  });
+
   it('launches with default player when no offline profile', async () => {
     const user = userEvent.setup({ delay: null });
     const infoSpy = vi.spyOn(message, 'info');
@@ -2096,5 +2131,56 @@ describe('pages', () => {
     renderWithProviders(<PlaceholderPage title="Лаунчер" phase="Phase 1" />);
     expect(screen.getByText('Лаунчер')).toBeInTheDocument();
     expect(screen.getByText(/Phase 1/)).toBeInTheDocument();
+  });
+
+  it('selects launcher profile chip', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    const instance = {
+      id: 'inst-1',
+      name: 'Survival',
+      mc_version: '1.21',
+      loader: 'vanilla',
+      created_at: 't',
+      updated_at: 't',
+    };
+    const profiles = [
+      { id: 'prof-1', username: 'Steve', offline_uuid: 'u1', created_at: 't' },
+      { id: 'prof-2', username: 'Alex', offline_uuid: 'u2', created_at: 't', model: 'alex' as const },
+    ];
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: profiles }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await expectLauncherProfileListed('Steve');
+    const alexChip = screen.getByText('Alex').closest('button');
+    expect(alexChip).toBeTruthy();
+    await user.click(alexChip!);
+    await waitFor(() => {
+      const selected = document.querySelector('.launcher-profile-chip--selected .launcher-profile-name');
+      expect(selected).toHaveTextContent('Alex');
+    });
   });
 });

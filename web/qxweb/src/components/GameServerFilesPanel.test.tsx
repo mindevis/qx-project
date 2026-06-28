@@ -1,0 +1,122 @@
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { message } from 'antd';
+import { api } from '@/api/client';
+import { renderWithTheme } from '@/test/test-utils';
+import { GameServerFilesPanel } from './GameServerFilesPanel';
+
+describe('GameServerFilesPanel', () => {
+  beforeEach(() => {
+    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
+    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('shows agent required when offline', () => {
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={false} />,
+    );
+    expect(screen.getByText(/Deploy/i)).toBeInTheDocument();
+  });
+
+  it('lists directories and opens files', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles').mockImplementation(async (vpsId, gameServerId, path) => {
+      if (path === 'config') {
+        return { items: [{ name: 'inside.txt', path: 'config/inside.txt', dir: false, size: 1 }] };
+      }
+      return {
+        items: [
+          { name: 'config', path: 'config', dir: true },
+          { name: 'server.properties', path: 'server.properties', dir: false, size: 512 },
+          { name: 'tiny.txt', path: 'tiny.txt', dir: false, size: 10 },
+          { name: 'big.txt', path: 'big.txt', dir: false, size: 2 * 1024 * 1024 },
+        ],
+      };
+    });
+    vi.spyOn(api, 'readVpsGameServerFile').mockResolvedValue({ content: 'motd=Hello', path: 'server.properties' });
+    vi.spyOn(api, 'writeVpsGameServerFile').mockResolvedValue({ status: 'ok' });
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+
+    await waitFor(() => expect(screen.getByText('server.properties')).toBeInTheDocument());
+    expect(screen.getByText('512 B')).toBeInTheDocument();
+
+    await user.click(screen.getByText('server.properties'));
+    await waitFor(() => expect(screen.getByDisplayValue('motd=Hello')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => expect(message.success).toHaveBeenCalled());
+
+    await user.click(screen.getByRole('button', { name: /К списку файлов/i }));
+    await waitFor(() => expect(screen.getByText('config')).toBeInTheDocument());
+    await user.click(screen.getByText('config'));
+    await waitFor(() => expect(screen.getByText('inside.txt')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: '/' }));
+    await waitFor(() => expect(screen.getByText('server.properties')).toBeInTheDocument());
+    expect(screen.getByText('10 B')).toBeInTheDocument();
+    expect(screen.getByText('2.0 MB')).toBeInTheDocument();
+
+    vi.spyOn(api, 'readVpsGameServerFile').mockResolvedValue({ content: 'tiny', path: 'tiny.txt' });
+    await user.click(screen.getByText('tiny.txt'));
+    await waitFor(() => expect(screen.getByDisplayValue('tiny')).toBeInTheDocument());
+    await user.type(screen.getByRole('textbox'), '-edit');
+    expect(screen.getByDisplayValue('tiny-edit')).toBeInTheDocument();
+  });
+
+  it('shows empty directory listing', async () => {
+    vi.spyOn(api, 'listVpsGameServerFiles').mockResolvedValue({ items: [] });
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(screen.getByText('Папка пуста')).toBeInTheDocument());
+  });
+
+  it('shows read errors', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles').mockResolvedValue({
+      items: [{ name: 'bad.txt', path: 'bad.txt', dir: false, size: 1 }],
+    });
+    vi.spyOn(api, 'readVpsGameServerFile').mockRejectedValue(new Error('open failed'));
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(screen.getByText('bad.txt')).toBeInTheDocument());
+    await user.click(screen.getByText('bad.txt'));
+    await waitFor(() => expect(message.error).toHaveBeenCalledWith('open failed'));
+  });
+
+  it('shows list load error', async () => {
+    vi.spyOn(api, 'listVpsGameServerFiles').mockRejectedValue(new Error('list failed'));
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(message.error).toHaveBeenCalledWith('list failed'));
+  });
+
+  it('shows save error', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles').mockResolvedValue({
+      items: [{ name: 'a.txt', path: 'a.txt', dir: false, size: 1 }],
+    });
+    vi.spyOn(api, 'readVpsGameServerFile').mockResolvedValue({ content: 'x', path: 'a.txt' });
+    vi.spyOn(api, 'writeVpsGameServerFile').mockRejectedValue(new Error('save failed'));
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(screen.getByText('a.txt')).toBeInTheDocument());
+    await user.click(screen.getByText('a.txt'));
+    await waitFor(() => expect(screen.getByDisplayValue('x')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => expect(message.error).toHaveBeenCalledWith('save failed'));
+  });
+});

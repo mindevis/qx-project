@@ -15,7 +15,7 @@ QXAgent устанавливает **WSS** к Agent Hub и обменивает�
 | Свойство | Значение |
 | ---------- | ---------- |
 | Platform | **Linux only** (amd64, arm64 TBD) |
-| Transport | WSS (`wss://api.qx-dev.ru/agent/v1/connect`) |
+| Transport | WSS (`wss://mc.qx-dev.ru/agent/v1/connect`) |
 | Auth | JWT agent token (issued at deploy) |
 | Idempotency | `request_id` UUID на каждую command |
 | Ordering | At-least-once delivery; agent dedupe by `request_id` |
@@ -76,7 +76,7 @@ QXAgent reads `/etc/qx-agent/agent.toml` on startup. Local dev: `agent.toml` в 
 Example `agent.toml`:
 
 ```toml
-api_base_url = "https://api.qx-dev.ru/api/v1"
+api_base_url = "https://mc.qx-dev.ru/api/v1"
 server_id = "uuid"
 agent_token = "eyJ..."
 server_root = "/opt/qx/server"

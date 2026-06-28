@@ -2,7 +2,7 @@
 
 Platform VPS: **Docker Compose** в `/opt/qxsystem`. Образы в **GHCR**, полностью автоматический деплой из **GitHub Actions**.
 
-> **Домены:** API `api.qx-dev.ru`, панель `mc.qx-dev.ru`  
+> **Домен:** `mc.qx-dev.ru` (панель + API `/api/v1`)  
 > **VPS:** `178.172.136.26` · **Чеклист:** [mvp §7.1](./mvp.md#71-prod-readiness)
 
 Push в `main` → сборка → GHCR → bootstrap VPS → `/opt/qxsystem` + `.env.prod` из Secrets → `docker compose up`.
@@ -15,7 +15,7 @@ Push в `main` → сборка → GHCR → bootstrap VPS → `/opt/qxsystem` +
 
 ### 1.1 DNS
 
-A-записи `api.qx-dev.ru` и `mc.qx-dev.ru` → IP platform VPS (`178.172.136.26`).
+A-запись `mc.qx-dev.ru` → IP platform VPS (`178.172.136.26`).
 
 ### 1.2 VPS
 
@@ -55,9 +55,9 @@ A-записи `api.qx-dev.ru` и `mc.qx-dev.ru` → IP platform VPS (`178.172.1
 
 | Variable | Default |
 | -------- | ------- |
-| `VITE_API_BASE_URL` | `https://api.qx-dev.ru/api/v1` |
+| `VITE_API_BASE_URL` | `https://mc.qx-dev.ru/api/v1` |
 | `CORS_ORIGIN` | `https://mc.qx-dev.ru` |
-| `QX_PUBLIC_API_URL` | `https://api.qx-dev.ru` |
+| `QX_PUBLIC_API_URL` | `https://mc.qx-dev.ru` |
 
 > Можно положить те же ключи в **Repository secrets** — workflow подхватит их, если в environment нет значения. Для одного prod-VPS удобнее держать всё в **environment `production`**.
 
@@ -98,7 +98,7 @@ Workflow: [`.github/workflows/prod-release.yml`](../.github/workflows/prod-relea
 ```
 /opt/qxsystem/
   docker-compose.yml
-  nginx/prod-split.conf
+  nginx/prod.conf
   schema.sql
   .env.prod           ← из GitHub Secrets (каждый deploy)
   image-tag.env       ← GHCR tags
@@ -107,6 +107,15 @@ Workflow: [`.github/workflows/prod-release.yml`](../.github/workflows/prod-relea
 
 Образы: `ghcr.io/<owner>/qx-api:prod-<sha>`, `ghcr.io/<owner>/qx-web:prod-<sha>` (+ тег `prod`).
 
+Nginx маршрутизация на `mc.qx-dev.ru`:
+
+| Path | Backend |
+| ---- | ------- |
+| `/api/*` | QXApi |
+| `/agent/*` | QXApi (WSS) |
+| `/swagger/*` | QXApi |
+| `/` | QXWeb SPA |
+
 ---
 
 ## 3. TLS
@@ -114,7 +123,7 @@ Workflow: [`.github/workflows/prod-release.yml`](../.github/workflows/prod-relea
 После первого HTTP-smoke — Certbot на VPS (пока вручную):
 
 ```bash
-sudo certbot certonly --standalone -d api.qx-dev.ru -d mc.qx-dev.ru
+sudo certbot certonly --standalone -d mc.qx-dev.ru
 ```
 
 TLS в nginx — отдельный шаг (конфиг синхронизируется из репо при deploy).
@@ -128,7 +137,7 @@ TLS в nginx — отдельный шаг (конфиг синхронизир�
 3. Лаунчер:
 
 ```toml
-api_base_url = "https://api.qx-dev.ru/api/v1"
+api_base_url = "https://mc.qx-dev.ru/api/v1"
 web_base_url = "https://mc.qx-dev.ru"
 ```
 

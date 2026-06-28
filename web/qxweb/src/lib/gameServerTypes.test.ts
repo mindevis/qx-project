@@ -5,6 +5,7 @@ import {
   gameServerSupportsMods,
   gameServerSupportsPlugins,
   gameServerTypeCapabilities,
+  gameServerTypeLabelText,
   isKnownGameServerType,
 } from './gameServerTypes';
 
@@ -33,5 +34,12 @@ describe('gameServerTypes', () => {
     expect(gameServerSupportsMods('forge')).toBe(true);
     expect(gameServerTypeCapabilities('mohist')).toEqual({ plugins: true, mods: true });
     expect(gameServerTypeCapabilities('vanilla')).toEqual({ plugins: false, mods: false });
+  });
+
+  it('formats labels for known and unknown types', () => {
+    const t = (key: string) => (key === 'servers.gameServerType.paper' ? 'Paper' : key);
+    expect(gameServerTypeLabelText(t, undefined)).toBe('—');
+    expect(gameServerTypeLabelText(t, 'paper')).toBe('Paper');
+    expect(gameServerTypeLabelText(t, 'custom-core')).toBe('custom-core');
   });
 });

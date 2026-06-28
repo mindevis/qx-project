@@ -1,6 +1,6 @@
 # QXWeb (Vite) — copy to web.toml in repo root (gitignored).
 
 api_base_url = "http://localhost:3000/api/v1"
-# Prod Docker build: VITE_API_BASE_URL=https://api.qx-dev.ru/api/v1 (see infra/docker/.env.prod.example)
+# Prod Docker build: VITE_API_BASE_URL=https://mc.qx-dev.ru/api/v1 (see infra/docker/.env.prod.example)
 log_level = "debug"
 # launcher_download_url = "https://releases.example/qx-launcher.exe"

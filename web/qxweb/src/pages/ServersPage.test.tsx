@@ -912,4 +912,232 @@ describe('ServersPage', () => {
     renderServers('/servers/extra/nested');
     await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
   });
+
+  it('updates deployed agent from detail page', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url, init) => {
+        if (url.includes('/servers/srv-1/deploy') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              ...sampleServer,
+              agent_deployed: true,
+              agent_online: true,
+              status: 'online',
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        if (url.includes('/servers/srv-1')) {
+          return new Response(
+            JSON.stringify({
+              ...sampleServer,
+              agent_deployed: true,
+              agent_online: true,
+              status: 'online',
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Обновить QXAgent/i }));
+    await waitFor(() => expect(message.success).toHaveBeenCalled());
+  });
+
+  const onlineVps = {
+    ...sampleServer,
+    agent_deployed: true,
+    agent_online: true,
+    status: 'online',
+    created_at: '2026-01-01T00:00:00Z',
+    last_seen_at: '2026-01-02T00:00:00Z',
+  };
+
+  const stoppedGame = {
+    id: 'gs-1',
+    name: 'Stopped MC',
+    server_type: 'paper',
+    mc_version: '1.21',
+    loader_version: '456',
+    address: '1.2.3.4',
+    port: 25565,
+    status: 'stopped',
+    created_at: '2026-01-01T00:00:00Z',
+  };
+
+  function mockOnlineDetail(
+    games: Record<string, unknown>[] = [stoppedGame],
+    handler?: (url: string, init?: RequestInit) => Response | null,
+  ) {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url, init) => {
+        const custom = handler?.(url, init);
+        if (custom) return custom;
+        if (url.includes('/launcher/mc-versions')) {
+          return new Response(
+            JSON.stringify({
+              latest: { release: '1.21' },
+              items: [{ id: '1.21', type: 'release' }],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/servers/srv-1/game-servers') && !url.includes('/gs-1')) {
+          return new Response(JSON.stringify({ items: games }), { status: 200 });
+        }
+        if (url.includes('/servers/srv-1')) {
+          return new Response(JSON.stringify(onlineVps), { status: 200 });
+        }
+        return null;
+      }),
+    );
+  }
+
+  it('shows empty and loading game server states', async () => {
+    mockOnlineDetail([]);
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Пока нет игровых серверов')).toBeInTheDocument());
+
+    let resolveGames: (value: Response) => void = () => undefined;
+    const gamesPromise = new Promise<Response>((resolve) => {
+      resolveGames = resolve;
+    });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url) => {
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return gamesPromise;
+        }
+        if (url.includes('/servers/srv-1')) {
+          return new Response(JSON.stringify(onlineVps), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    const view = renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    resolveGames(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    await waitFor(() => expect(screen.getByText('Пока нет игровых серверов')).toBeInTheDocument());
+    view.unmount();
+  });
+
+  it('creates vanilla game server without loader version', async () => {
+    let gameServers = { items: [] as Record<string, unknown>[] };
+    mockOnlineDetail([], (url, init) => {
+      if (url.includes('/servers/srv-1/game-servers') && init?.method === 'POST') {
+        const created = {
+          id: 'gs-vanilla',
+          name: 'Vanilla World',
+          server_type: 'vanilla',
+          mc_version: '1.21',
+          address: '1.2.3.4',
+          port: 25566,
+          status: 'installing',
+          created_at: '2026-01-01T00:00:00Z',
+        };
+        gameServers = { items: [created] };
+        return new Response(JSON.stringify(created), { status: 201 });
+      }
+      if (url.includes('/servers/srv-1/game-servers')) {
+        return new Response(JSON.stringify(gameServers), { status: 200 });
+      }
+      return null;
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Добавить игровой сервер/i }));
+    await user.type(screen.getByLabelText('Название'), 'Vanilla World');
+    const dialog = screen.getByRole('dialog');
+    const comboboxes = within(dialog).getAllByRole('combobox');
+    await user.click(comboboxes[0]!);
+    const vanillaOptions = await screen.findAllByText('Vanilla');
+    await user.click(vanillaOptions[vanillaOptions.length - 1]!);
+    await user.click(within(dialog).getByRole('button', { name: /Добавить игровой сервер/i }));
+    await waitFor(() => expect(screen.getByText('Vanilla World')).toBeInTheDocument());
+  });
+
+  it('refreshes servers list from workspace', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url) => {
+        if (url.includes('/servers') && !url.includes('/servers/')) {
+          return new Response(JSON.stringify({ items: [sampleServer] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers');
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await user.click(screen.getAllByRole('button', { name: /Обновить/i })[0]!);
+    await waitFor(() => expect(message.success).toHaveBeenCalled());
+  });
+
+  it('deploys agent from workflow panel', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 60,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url, init) => {
+        if (url.includes('/servers/srv-1/deploy') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({ ...sampleServer, agent_deployed: true, agent_online: true }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        if (url.includes('/servers/srv-1')) {
+          return new Response(JSON.stringify({ ...sampleServer, agent_deployed: false, agent_online: false }), {
+            status: 200,
+          });
+        }
+        return null;
+      }),
+    );
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Deploy agent/i }));
+    await waitFor(() => expect(message.success).toHaveBeenCalled());
+  });
 });

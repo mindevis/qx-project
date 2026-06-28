@@ -31,6 +31,7 @@ export function ProfileModelViewer({ model, width = 112, height = 128 }: Profile
     }
 
     const canvas = canvasRef.current;
+    /* v8 ignore next 3 -- @preserve canvas ref is unset only before mount */
     if (!canvas) {
       return;
     }

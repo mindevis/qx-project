@@ -207,7 +207,7 @@ No Cloudflare — all security on VPS:
 | TLS 1.2+ | Let's Encrypt, Nginx |
 | HSTS | `Strict-Transport-Security` max-age 31536000 |
 | CSP | Strict policy on `/launcher` |
-| CORS | `https://mc.qx-dev.ru` only (origin панели; API на `api.qx-dev.ru`) |
+| CORS | `https://mc.qx-dev.ru` only (same origin для панели и API) |
 | Cookies | `HttpOnly`, `Secure`, `SameSite=Lax` |
 | JWT | Short access 15m, refresh 7d rotation |
 

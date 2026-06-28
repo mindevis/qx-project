@@ -1,6 +1,6 @@
 # QXApi Specification
 
-> Версия: **1.8** · Base URL: `https://api.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`)
+> Версия: **1.8** · Base URL: `https://mc.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`)
 > Backend: **Go + Gin + GORM** · Код: `services/qxapi/`
 > **Конфиг (dev):** [configuration.md](./configuration.md) · **Prod:** [production-deploy.md](./production-deploy.md)
 
@@ -350,7 +350,7 @@ info:
   title: QXSystem API
   version: 1.0.0
 servers:
-  - url: https://api.qx-dev.ru/api/v1
+  - url: https://mc.qx-dev.ru/api/v1
 paths:
   /auth/login:
     post:

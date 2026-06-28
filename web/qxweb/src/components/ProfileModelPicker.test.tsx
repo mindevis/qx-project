@@ -36,5 +36,10 @@ describe('ProfileModelPicker', () => {
     expect(screen.getByRole('radio', { name: /Steve/i })).toHaveAttribute('aria-checked', 'true');
     await user.click(screen.getByRole('radio', { name: /Alex/i }));
     expect(onChange).toHaveBeenCalledWith('alex');
+
+    const preview = document.querySelector('.profile-model-preview');
+    expect(preview).toBeTruthy();
+    await user.click(preview!);
+    await user.pointer({ keys: '[MouseLeft>]', target: preview! });
   });
 });

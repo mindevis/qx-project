@@ -46,8 +46,8 @@ Structured JSON logs from Go (`slog`):
 
 | Check | Interval |
 | ------- | ---------- |
-| `https://api.qx-dev.ru/api/v1/health` | 60s (liveness) |
-| `https://api.qx-dev.ru/api/v1/health/ready` | 60s (readiness) |
+| `https://mc.qx-dev.ru/api/v1/health` | 60s (liveness) |
+| `https://mc.qx-dev.ru/api/v1/health/ready` | 60s (readiness) |
 | `https://mc.qx-dev.ru` | 60s |
 | MySQL TCP | 5m |
 | Disk > 85% | daily script |

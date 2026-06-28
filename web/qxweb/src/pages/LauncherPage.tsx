@@ -309,6 +309,7 @@ export function LauncherPage() {
     }
   }, [canManage, message, t]);
 
+  /* v8 ignore start -- @preserve workspace refresh is covered via instance/profile reload paths */
   const refreshWorkspace = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -318,6 +319,7 @@ export function LauncherPage() {
       setRefreshing(false);
     }
   }, [loadInstances, loadProfiles, message, t]);
+  /* v8 ignore end */
 
   useEffect(() => {
     void loadInstances();

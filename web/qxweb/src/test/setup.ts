@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
-import { cleanup, configure } from '@testing-library/react';
+import { act, cleanup, configure } from '@testing-library/react';
 import { message } from 'antd';
 
 configure({ asyncUtilTimeout: 5000 });
@@ -42,12 +42,14 @@ class ResizeObserverMock {
 
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   localStorage.clear();
   window.history.pushState({}, '', '/');
   mockMatchMedia();
   message.destroy();
-  // Re-apply after tests that call vi.unstubAllGlobals() (only unstubs fetch).
   vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
 });

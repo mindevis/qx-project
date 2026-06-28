@@ -38,7 +38,7 @@ Linux x86_64 (Ubuntu 22.04+, Debian 12+), SSH по ключу. Подробне�
 - Проверьте SSH-ключ и firewall (исходящий HTTPS/WSS к platform VPS).
 - Deploy выполняет SSH на game VPS. Бинарник QXAgent встроен в API-образ при `make prod-pack`.
 - **Dev:** `agent_binary_path` в `qxapi.toml`; `public_api_url = "http://host.docker.internal:3000"`.
-- **Prod:** `QX_PUBLIC_API_URL=https://api.qx-dev.ru`, `CORS_ORIGIN=https://mc.qx-dev.ru` — [production-deploy.md](./production-deploy.md).
+- **Prod:** `QX_PUBLIC_API_URL=https://mc.qx-dev.ru`, `CORS_ORIGIN=https://mc.qx-dev.ru` — [production-deploy.md](./production-deploy.md).
 - После **повторного Deploy** agent перезапускается через `systemctl restart`.
 
 ### Как управлять Minecraft-сервером?

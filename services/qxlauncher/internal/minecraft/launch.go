@@ -152,6 +152,10 @@ func containsArgPrefix(args []string, prefix string) bool {
 	return false
 }
 
+func launchPathSlash(path string) string {
+	return strings.ReplaceAll(path, "\\", "/")
+}
+
 func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, username, offlineUUID string) map[string]string {
 	versionName := ""
 	assetIndex := ""
@@ -169,8 +173,8 @@ func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, a
 	return map[string]string{
 		"${auth_player_name}":       username,
 		"${version_name}":           versionName,
-		"${game_directory}":         gameDir,
-		"${assets_root}":            assetsDir,
+		"${game_directory}":         launchPathSlash(gameDir),
+		"${assets_root}":            launchPathSlash(assetsDir),
 		"${assets_index_name}":      assetIndex,
 		"${auth_uuid}":              offlineUUID,
 		"${auth_access_token}":      "0",
@@ -178,9 +182,9 @@ func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, a
 		"${version_type}":           "release",
 		"${clientid}":               "",
 		"${auth_xuid}":              "",
-		"${library_directory}":      filepath.ToSlash(librariesDir),
+		"${library_directory}":      launchPathSlash(librariesDir),
 		"${classpath_separator}":    sep,
-		"${natives_directory}":      filepath.ToSlash(filepath.Join(gameDir, "natives")),
+		"${natives_directory}":      launchPathSlash(filepath.Join(gameDir, "natives")),
 		"${resolution_width}":       "854",
 		"${resolution_height}":      "480",
 		"${quickPlayPath}":          "",

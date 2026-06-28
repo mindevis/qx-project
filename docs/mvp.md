@@ -174,7 +174,7 @@ flowchart TB
 
 ### 5.2 QXApi (Senior)
 
-**REST base:** `https://api.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`).  
+**REST base:** `https://mc.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`).  
 Пути ниже — относительно base. Agent WSS: `/agent/v1/connect` (вне `/api/v1`).
 
 | Модуль | MVP endpoints | Phase 0 |
@@ -246,12 +246,12 @@ Agent         — id, server_id, hostname, connected_at
 | # | Задача | Статус |
 | --- | -------- | -------- |
 | P.1 | Platform VPS + `make prod-pack` → `./up.sh` smoke | 🔲 |
-| P.2 | TLS (Let's Encrypt) + DNS (`api.qx-dev.ru`, `mc.qx-dev.ru`) | 🔲 |
+| P.2 | TLS (Let's Encrypt) + DNS (`mc.qx-dev.ru`) | 🔲 |
 | P.3 | Секреты: JWT, MySQL, `SSH_MASTER_KEY` в `.env.prod` | 🔲 |
 | P.4 | N02 — HTTPS valid ([test-matrix](./qa/test-matrix.md)) | 🔲 |
 | P.5 | Бэкапы MySQL, мониторинг | 🔲 |
 | P.6 | Game VPS: deploy agent + game server + console | 🔲 |
-| P.7 | QXLauncher с prod URLs (`api.qx-dev.ru`, `mc.qx-dev.ru`) | 🔲 |
+| P.7 | QXLauncher с prod URLs (`mc.qx-dev.ru`) | 🔲 |
 
 ---
 
@@ -390,4 +390,4 @@ gantt
 
 ---
 
-Последнее обновление: 2026-06-25 (v1.22 — prod domains api/mc.qx-dev.ru)
+Последнее обновление: 2026-06-25 (prod single origin mc.qx-dev.ru)

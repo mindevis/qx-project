@@ -211,6 +211,45 @@ describe('LauncherLinkPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Войти' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+  });
+
+  it('shows expired and missing device errors', async () => {
+    installFetchMock((url) => {
+      if (url.includes('/launcher/devices/dev-expired/status')) {
+        return new Response(
+          JSON.stringify(mockDeviceStatus('dev-expired', { status: 'expired' })),
+          { status: 200 },
+        );
+      }
+      if (url.includes('/launcher/devices/dev-missing/status')) {
+        return new Response(JSON.stringify({ error: { message: 'not found' } }), { status: 404 });
+      }
+      return new Response('not found', { status: 404 });
+    });
+
+    const { unmount } = renderWithProviders(
+      <Routes>
+        <Route path="/launcher/link" element={<LauncherLinkPage />} />
+      </Routes>,
+      '/launcher/link?device=dev-expired',
+    );
+    await waitFor(() => expect(screen.getByText(/истёк/i)).toBeInTheDocument());
+    unmount();
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/launcher/link" element={<LauncherLinkPage />} />
+      </Routes>,
+      '/launcher/link?device=dev-missing',
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/не найдено|not found/i)).toBeInTheDocument(),
+    );
   });
 
   it('shows link error', async () => {
@@ -274,5 +313,28 @@ describe('LauncherLinkPage', () => {
 
     await waitFor(() => expect(screen.getByText('Устройство уже привязано')).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /Связать устройство/ })).not.toBeInTheDocument();
+  });
+
+  it('copies device id to clipboard', async () => {
+    const user = userEvent.setup({ delay: null });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    installFetchMock((url) => {
+      if (url.includes('/launcher/devices/dev-copy/status')) {
+        return new Response(JSON.stringify(mockDeviceStatus('dev-copy')), { status: 200 });
+      }
+      return new Response('not found', { status: 404 });
+    });
+
+    renderWithProviders(
+      <Routes>
+        <Route path="/launcher/link" element={<LauncherLinkPage />} />
+      </Routes>,
+      '/launcher/link?device=dev-copy',
+    );
+
+    await waitFor(() => expect(screen.getByText('dev-copy')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Копировать ID/i }));
+    expect(writeText).toHaveBeenCalledWith('dev-copy');
   });
 });
