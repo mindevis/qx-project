@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
@@ -50,15 +50,6 @@ describe('LauncherLinkPage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     clearTokens();
-  });
-
-afterEach(async () => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-    clearTokens();
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
   });
 
   it('shows error without device param', async () => {
@@ -222,7 +213,7 @@ afterEach(async () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 
-  it('shows expired and missing device errors', async () => {
+  it('shows expired device error', async () => {
     installFetchMock((url) => {
       if (url.includes('/launcher/devices/dev-expired/status')) {
         return new Response(
@@ -230,20 +221,25 @@ afterEach(async () => {
           { status: 200 },
         );
       }
-      if (url.includes('/launcher/devices/dev-missing/status')) {
-        return new Response(JSON.stringify({ error: { message: 'not found' } }), { status: 404 });
-      }
       return new Response('not found', { status: 404 });
     });
 
-    const { unmount } = renderWithProviders(
+    renderWithProviders(
       <Routes>
         <Route path="/launcher/link" element={<LauncherLinkPage />} />
       </Routes>,
       '/launcher/link?device=dev-expired',
     );
     await waitFor(() => expect(screen.getByText(/истёк/i)).toBeInTheDocument());
-    unmount();
+  });
+
+  it('shows missing device error', async () => {
+    installFetchMock((url) => {
+      if (url.includes('/launcher/devices/dev-missing/status')) {
+        return new Response(JSON.stringify({ error: { message: 'not found' } }), { status: 404 });
+      }
+      return new Response('not found', { status: 404 });
+    });
 
     renderWithProviders(
       <Routes>
@@ -322,7 +318,9 @@ afterEach(async () => {
   it('copies device id to clipboard', async () => {
     const user = userEvent.setup({ delay: null });
     const writeText = vi.fn().mockResolvedValue(undefined);
-    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as Clipboard);
+    const clipboardSpy = vi
+      .spyOn(navigator, 'clipboard', 'get')
+      .mockReturnValue({ writeText } as Clipboard);
     installFetchMock((url) => {
       if (url.includes('/launcher/devices/dev-copy/status')) {
         return new Response(JSON.stringify(mockDeviceStatus('dev-copy')), { status: 200 });
@@ -330,15 +328,22 @@ afterEach(async () => {
       return new Response('not found', { status: 404 });
     });
 
-    renderWithProviders(
-      <Routes>
-        <Route path="/launcher/link" element={<LauncherLinkPage />} />
-      </Routes>,
-      '/launcher/link?device=dev-copy',
-    );
+    try {
+      renderWithProviders(
+        <Routes>
+          <Route path="/launcher/link" element={<LauncherLinkPage />} />
+        </Routes>,
+        '/launcher/link?device=dev-copy',
+      );
 
-    await waitFor(() => expect(screen.getByText('dev-copy')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /Копировать ID/i }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith('dev-copy'));
+      await waitFor(() => expect(screen.getByText('dev-copy')).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: /Копировать ID/i }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('dev-copy'));
+    } finally {
+      clipboardSpy.mockRestore();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
   });
 });
