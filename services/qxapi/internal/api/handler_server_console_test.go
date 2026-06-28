@@ -42,6 +42,20 @@ func TestServerConsoleHandlerConnect(t *testing.T) {
 		t.Fatalf("tokens: %v", err)
 	}
 
+	agentServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+		_, _ = upgrader.Upgrade(w, r, nil)
+	}))
+	defer agentServer.Close()
+
+	agentWS, _, err := websocket.DefaultDialer.Dial(strings.Replace(agentServer.URL, "http://", "ws://", 1), nil)
+	if err != nil {
+		t.Fatalf("dial agent: %v", err)
+	}
+	defer agentWS.Close()
+	agentConn := hub.Register(view.ID, agentWS)
+	go hub.ReadLoop(agentConn)
+
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.GET("/servers/:id/console", h.Connect)

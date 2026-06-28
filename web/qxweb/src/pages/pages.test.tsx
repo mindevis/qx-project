@@ -76,6 +76,17 @@ async function openAuthModal(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 }
 
+async function expectLauncherProfileListed(username: string) {
+  await waitFor(() => {
+    const el = document.querySelector('.launcher-profile-name');
+    expect(el).toHaveTextContent(username);
+  });
+}
+
+function getProfileDeleteButton() {
+  return screen.getByRole('button', { name: 'Удалить профиль?' });
+}
+
 describe('pages', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -924,7 +935,7 @@ describe('pages', () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось запустить игру'));
+    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Backend unavailable'));
     errorSpy.mockRestore();
   });
 
@@ -953,7 +964,7 @@ describe('pages', () => {
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           return new Response(
             JSON.stringify({ error: { code: 'X', message: 'launcher offline' } }),
-            { status: 503 },
+            { status: 400 },
           );
         }
         return null;
@@ -1017,7 +1028,7 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
+    await expectLauncherProfileListed('Steve');
     await user.click(screen.getByRole('button', { name: /Добавить/ }));
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
@@ -1073,7 +1084,7 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
+    await expectLauncherProfileListed('Steve');
     await user.click(screen.getByRole('button', { name: /Создать/ }));
     await user.type(screen.getByLabelText('Название'), 'Survival');
     await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
@@ -1162,12 +1173,12 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: /Добавить/ }));
     await user.type(screen.getByLabelText('Никнейм'), 'Steve');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
-    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
+    await expectLauncherProfileListed('Steve');
 
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('JAVA_MISSING'));
 
-    const deleteButtons = screen.getAllByRole('button', { name: 'delete' });
+    const deleteButtons = screen.getAllByRole('button', { name: 'Удалить профиль?' });
     await user.click(deleteButtons[0]!);
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Профиль удалён'));
@@ -1250,7 +1261,7 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: /Добавить/ }));
     await user.type(screen.getByLabelText('Никнейм'), 'Steve');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
-    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
+    await expectLauncherProfileListed('Steve');
 
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'));
@@ -1559,7 +1570,7 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
+    await expectLauncherProfileListed('Steve');
     await user.click(screen.getByRole('button', { name: /Добавить/ }));
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
@@ -1605,8 +1616,8 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
-    await user.click(screen.getAllByRole('button', { name: 'delete' })[0]!);
+    await expectLauncherProfileListed('Steve');
+    await user.click(getProfileDeleteButton());
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось удалить профиль'));
     errorSpy.mockRestore();
@@ -1655,8 +1666,8 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'delete' }));
+    await expectLauncherProfileListed('Steve');
+    await user.click(getProfileDeleteButton());
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('delete denied'));
     errorSpy.mockRestore();
@@ -1701,8 +1712,8 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await waitFor(() => expect(screen.getByText('Steve')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'delete' }));
+    await expectLauncherProfileListed('Steve');
+    await user.click(getProfileDeleteButton());
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Профиль удалён'));
     successSpy.mockRestore();

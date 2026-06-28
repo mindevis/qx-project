@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { renderWithProviders } from '@/test/test-utils';
 import { LauncherLinkPage } from './LauncherLinkPage';
-import { saveTokens } from '@/api/client';
+import { saveTokens, clearTokens } from '@/api/client';
 
 function requestUrl(input: RequestInfo | URL): string {
   return typeof input === 'string'
@@ -49,10 +49,12 @@ function saveAuthTokens() {
 describe('LauncherLinkPage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    clearTokens();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    clearTokens();
   });
 
   it('shows error without device param', async () => {
@@ -83,11 +85,13 @@ describe('LauncherLinkPage', () => {
       '/launcher/link?device=dev-1',
     );
 
-    await waitFor(() => expect(screen.getByText('dev-1')).toBeInTheDocument());
-    expect(screen.getByText('DESKTOP-TEST')).toBeInTheDocument();
-    expect(screen.getByText('Windows')).toBeInTheDocument();
-    expect(screen.getByText('0.1.0')).toBeInTheDocument();
-    expect(screen.getByText('Ожидает привязки')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('dev-1')).toBeInTheDocument();
+      expect(screen.getByText('DESKTOP-TEST')).toBeInTheDocument();
+      expect(screen.getByText('Windows')).toBeInTheDocument();
+      expect(screen.getByText('0.1.0')).toBeInTheDocument();
+      expect(screen.getByText('Ожидает привязки')).toBeInTheDocument();
+    });
   });
 
   it('shows sign-in prompt when unauthenticated', async () => {

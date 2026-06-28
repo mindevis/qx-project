@@ -469,7 +469,8 @@ describe('api client', () => {
       readyState = MockWS.OPEN;
       close = vi.fn();
       constructor(public url: string) {
-        expect(url).toContain('access_token=');
+        expect(url).toContain('/servers/s1/console');
+        expect(url).not.toContain('access_token=');
         instances.push(this);
       }
       send() {}
