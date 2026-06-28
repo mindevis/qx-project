@@ -160,7 +160,7 @@ jobs:
         run: |
           set -euo pipefail
           scp -i ~/.ssh/prod_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new -r \
-            .deploy/* "${PROD_SSH_USER}@${PROD_SSH_HOST}:/opt/qxsystem/"
+            .deploy/. "${PROD_SSH_USER}@${PROD_SSH_HOST}:/opt/qxsystem/"
 
       - name: Pull images and restart stack
         env:
