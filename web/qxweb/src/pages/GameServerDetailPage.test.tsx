@@ -77,7 +77,7 @@ describe('GameServerDetailPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
     vi.spyOn(message, 'error').mockImplementation(() => undefined as never);

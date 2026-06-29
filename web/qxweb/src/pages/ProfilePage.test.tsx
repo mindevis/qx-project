@@ -20,7 +20,12 @@ vi.mock('skinview3d', () => ({
 
 function mockProfileFetch() {
   vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
-    const url = String(input);
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
     if (url.includes('/auth/refresh')) {
       return Promise.resolve(
         new Response(
@@ -45,6 +50,7 @@ function mockProfileFetch() {
           JSON.stringify({
             skin_model: 'steve',
             has_skin: false,
+            has_cape: false,
             updated_at: '2026-01-01T00:00:00Z',
           }),
           { status: 200 },
@@ -104,7 +110,9 @@ describe('ProfilePage', () => {
     await waitFor(() =>
       expect(screen.getByText('Аккаунт Minecraft (Microsoft)')).toBeInTheDocument(),
     );
-    expect(screen.getByText('Привязать Microsoft')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Привязать Microsoft/i })).toBeInTheDocument(),
+    );
   });
 
   it('shows success message after password change', async () => {

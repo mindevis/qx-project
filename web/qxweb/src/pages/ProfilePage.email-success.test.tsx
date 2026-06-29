@@ -22,7 +22,7 @@ describe('ProfilePage email success', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(() =>
       Promise.resolve(

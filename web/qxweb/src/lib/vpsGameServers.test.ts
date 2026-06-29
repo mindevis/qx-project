@@ -34,7 +34,7 @@ describe('vpsGameServers', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
   });
 

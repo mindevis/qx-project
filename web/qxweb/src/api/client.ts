@@ -284,6 +284,7 @@ export function saveTokens(tokens: TokenResponse) {
 
 export function clearTokens() {
   localStorage.removeItem(STORAGE_KEY);
+  refreshInFlight = null;
 }
 
 function accessTokenExpiresAt(accessToken: string): number | null {

@@ -150,7 +150,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockResolvedValue(
       new Response(
@@ -250,7 +250,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
@@ -280,7 +280,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -348,7 +348,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -427,7 +427,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation((input) => {
       const url = requestUrl(input);
@@ -468,7 +468,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -541,7 +541,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
@@ -577,7 +577,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -646,7 +646,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
@@ -685,7 +685,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url, init) => {
@@ -730,7 +730,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url, init) => {
@@ -779,7 +779,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
@@ -822,7 +822,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
@@ -857,7 +857,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
@@ -896,7 +896,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
@@ -930,7 +930,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation((input) => {
       const url = requestUrl(input);
@@ -969,7 +969,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1013,7 +1013,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1060,7 +1060,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const profile = {
       id: 'prof-1',
@@ -1115,7 +1115,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1167,7 +1167,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1260,7 +1260,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1342,7 +1342,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1406,7 +1406,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1489,7 +1489,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const user = userEvent.setup({ delay: null });
     const infoSpy = vi.spyOn(message, 'info');
@@ -1566,7 +1566,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
@@ -1600,7 +1600,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1654,7 +1654,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const profile = {
       id: 'prof-1',
@@ -1698,7 +1698,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const profile = {
       id: 'prof-1',
@@ -1747,7 +1747,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const profile = {
       id: 'prof-1',
@@ -1793,7 +1793,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1853,7 +1853,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',
@@ -1918,7 +1918,7 @@ describe('pages', () => {
             access_token: 'a',
             refresh_token: 'r',
             token_type: 'Bearer',
-            expires_in: 60,
+            expires_in: 3600,
           }),
           { status: 200 },
         ),
@@ -2016,7 +2016,7 @@ describe('pages', () => {
             access_token: 'a',
             refresh_token: 'r',
             token_type: 'Bearer',
-            expires_in: 60,
+            expires_in: 3600,
           }),
           { status: 201 },
         ),
@@ -2116,7 +2116,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       () =>
@@ -2171,7 +2171,7 @@ describe('pages', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const instance = {
       id: 'inst-1',

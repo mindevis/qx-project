@@ -122,7 +122,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -146,7 +146,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     let postedBody = '';
     vi.mocked(fetch).mockImplementation(
@@ -194,7 +194,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
 
     renderServers('/servers');
@@ -206,7 +206,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -235,7 +235,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -257,7 +257,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -317,7 +317,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     let server = { ...sampleServer, agent_deployed: true, agent_online: true };
     vi.mocked(fetch).mockImplementation(
@@ -362,7 +362,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     let gameServers = { items: [] as Record<string, unknown>[] };
     vi.mocked(fetch).mockImplementation(
@@ -438,7 +438,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -463,7 +463,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -500,7 +500,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -525,7 +525,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     const statuses = ['online', 'starting', 'deploying', 'stopping', 'error', 'pending', 'custom'];
     vi.mocked(fetch).mockImplementation(
@@ -561,7 +561,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -587,7 +587,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -622,7 +622,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -661,7 +661,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -702,7 +702,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -739,7 +739,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -778,7 +778,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -828,7 +828,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -881,7 +881,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     let detailCalls = 0;
     vi.mocked(fetch).mockImplementation(
@@ -911,7 +911,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -931,7 +931,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -1000,7 +1000,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {
@@ -1039,7 +1039,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -1102,7 +1102,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
@@ -1125,7 +1125,7 @@ describe('ServersPage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url, init) => {

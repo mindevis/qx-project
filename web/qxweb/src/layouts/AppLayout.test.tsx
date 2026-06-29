@@ -73,7 +73,7 @@ describe('AppLayout', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(
@@ -106,7 +106,7 @@ describe('AppLayout', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch)
       .mockResolvedValueOnce(

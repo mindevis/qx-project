@@ -10,7 +10,7 @@ const tokens = {
   access_token: 'access',
   refresh_token: 'refresh',
   token_type: 'Bearer',
-  expires_in: 60,
+  expires_in: 3600,
 };
 
 function renderModal(props: Partial<ComponentProps<typeof ChangeEmailModal>> = {}) {

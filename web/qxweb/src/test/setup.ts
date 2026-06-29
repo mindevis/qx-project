@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
 import { act, cleanup, configure } from '@testing-library/react';
 import { message } from 'antd';
+import { clearTokens } from '@/api/client';
 
 configure({ asyncUtilTimeout: 5000 });
 
@@ -44,6 +45,7 @@ vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 
 afterEach(async () => {
   cleanup();
+  clearTokens();
   localStorage.clear();
   window.history.pushState({}, '', '/');
   mockMatchMedia();
