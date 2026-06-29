@@ -10,6 +10,7 @@ require (
 	github.com/qxproject/qx/pkg/mcmanifest v0.0.0
 	github.com/qxproject/qx/pkg/mojangjava v0.0.0
 	github.com/qxproject/qx/pkg/reporoot v0.0.0
+	github.com/qxproject/qx/pkg/safepath v0.0.0
 	golang.org/x/sys v0.46.0
 )
 
@@ -22,3 +23,5 @@ replace github.com/qxproject/qx/pkg/log => ../../pkg/log
 replace github.com/qxproject/qx/pkg/mcmanifest => ../../pkg/mcmanifest
 
 replace github.com/qxproject/qx/pkg/mojangjava => ../../pkg/mojangjava
+
+replace github.com/qxproject/qx/pkg/safepath => ../../pkg/safepath

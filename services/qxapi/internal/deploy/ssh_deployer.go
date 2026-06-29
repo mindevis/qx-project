@@ -81,10 +81,14 @@ func (d *SSHDeployer) Deploy(ctx context.Context, serverID string, cred models.S
 		"server_id", serverID,
 		"host", addr,
 	)
+	hostKeyCallback, err := newHostKeyCallback()
+	if err != nil {
+		return fmt.Errorf("ssh host key: %w", err)
+	}
 	clientConfig := &ssh.ClientConfig{
 		User:            cred.Username,
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec // MVP BYOS; pin keys in v2
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         30 * time.Second,
 	}
 

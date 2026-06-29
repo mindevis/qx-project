@@ -118,7 +118,13 @@ describe('gameServerVersions', () => {
       'fetch',
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
-        if (url.includes('/upstream/neoforge') || url.includes('maven.neoforged.net')) {
+        let host = '';
+        try {
+          host = new URL(url, 'https://example.test').hostname;
+        } catch {
+          host = '';
+        }
+        if (url.includes('/upstream/neoforge') || host === 'maven.neoforged.net') {
           return Promise.resolve(
             new Response(
               JSON.stringify([

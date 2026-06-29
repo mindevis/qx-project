@@ -1,0 +1,11 @@
+extensions:
+  - addsTo:
+      pack: codeql/go-all
+      extensible: summaryModel
+    data:
+      - ["github.com/qxproject/qx/pkg/safepath", "ResolveRoot", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
+      - ["github.com/qxproject/qx/pkg/safepath", "Join", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
+      - ["github.com/qxproject/qx/pkg/safepath", "JoinRel", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
+      - ["github.com/qxproject/qx/pkg/safepath", "ResolveUnder", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
+      - ["github.com/qxproject/qx/pkg/safepath", "ZipEntryBase", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
+      - ["github.com/qxproject/qx/services/qxagent/internal/agent", "sanitizeStartPayload", False, "", "command-injection", "manual", "Argument[0]", "value", ""]

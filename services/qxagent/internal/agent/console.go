@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/protocol"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 func streamLines(stream string, r io.Reader, onOutput func(string, string)) {
@@ -35,13 +35,23 @@ func (r *ProcessRunner) AttachConsole(payload protocol.ConsoleAttachPayload) {
 	if workDir == "" {
 		return
 	}
+	resolved, err := safepath.ResolveRoot(workDir)
+	if err != nil {
+		r.emit("stderr", "invalid work dir: "+err.Error())
+		return
+	}
+	workDir = resolved
 	r.mu.Lock()
 	if id := strings.TrimSpace(payload.GameServerID); id != "" {
 		r.gameServerID = id
 	}
 	r.mu.Unlock()
 
-	logPath := filepath.Join(workDir, "logs", "latest.log")
+	logPath, err := safepath.Join(workDir, "logs", "latest.log")
+	if err != nil {
+		r.emit("stderr", "invalid log path: "+err.Error())
+		return
+	}
 	if lines, err := readRecentLogLines(logPath, 500); err == nil {
 		for _, line := range lines {
 			r.emit("log", line)

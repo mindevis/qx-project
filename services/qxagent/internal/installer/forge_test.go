@@ -9,9 +9,10 @@ import (
 )
 
 func TestInstallForgeDryRun(t *testing.T) {
+	workDir := t.TempDir()
 	spec, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
 		ServerType:    "forge",
-		WorkDir:       "/opt/qxsystem/server/instances/x",
+		WorkDir:       workDir,
 		MCVersion:     "1.20.1",
 		LoaderVersion: "47.4.20",
 		Port:          25565,
@@ -20,7 +21,7 @@ func TestInstallForgeDryRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("install: %v", err)
 	}
-	if spec.WorkDir != "/opt/qxsystem/server/instances/x" {
+	if spec.WorkDir != workDir {
 		t.Fatalf("work dir: %q", spec.WorkDir)
 	}
 	if spec.JarPath == "" {

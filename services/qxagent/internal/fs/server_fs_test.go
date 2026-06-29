@@ -40,7 +40,7 @@ func TestSafePathAndListDir(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "mods", "a.jar"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := safePath(dir, "../etc/passwd"); err == nil {
+	if _, err := ListDir(dir, "../etc/passwd"); err == nil {
 		t.Fatal("expected path escape error")
 	}
 	entries, err := ListDir(dir, "mods")

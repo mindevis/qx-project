@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -32,8 +33,13 @@ func TestWSURLFromAPI(t *testing.T) {
 }
 
 func TestProcessRunnerDryRun(t *testing.T) {
+	dir := t.TempDir()
+	jar := filepath.Join(dir, "server.jar")
+	if err := os.WriteFile(jar, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	r := &ProcessRunner{DryRun: true}
-	pid, err := r.Start(protocol.ServerStartPayload{JarPath: "/tmp/server.jar"})
+	pid, err := r.Start(protocol.ServerStartPayload{WorkDir: dir, JarPath: jar})
 	if err != nil || pid == 0 {
 		t.Fatalf("start: pid=%d err=%v", pid, err)
 	}
@@ -69,6 +75,11 @@ func TestClientRunMissingToken(t *testing.T) {
 
 func TestReadLoopReplaysCachedResult(t *testing.T) {
 	reqID := "550e8400-e29b-41d4-a716-446655440000"
+	dir := t.TempDir()
+	jar := filepath.Join(dir, "server.jar")
+	if err := os.WriteFile(jar, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	var mu sync.Mutex
 	var results []protocol.Envelope
 
@@ -80,7 +91,7 @@ func TestReadLoopReplaysCachedResult(t *testing.T) {
 		}
 		defer conn.Close()
 
-		payload, _ := json.Marshal(protocol.ServerStartPayload{JarPath: "/tmp/server.jar"})
+		payload, _ := json.Marshal(protocol.ServerStartPayload{WorkDir: dir, JarPath: jar})
 		env := protocol.Envelope{
 			V:         protocol.Version,
 			Type:      protocol.TypeCmdServerStart,

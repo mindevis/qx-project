@@ -144,7 +144,7 @@ describe('GameServerDetailPage', () => {
 
     renderDetail();
     await waitFor(() => expect(screen.getByText('Forge RPG')).toBeInTheDocument());
-    expect(screen.getByText(/play.example.com:25565/)).toBeInTheDocument();
+    expect(screen.getByText(/play\.example\.com:25565/)).toBeInTheDocument();
     expect(screen.getByText(/secret/)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /Запустить/i })[0]!);

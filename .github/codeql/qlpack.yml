@@ -1,0 +1,6 @@
+name: qxproject/safepath-models
+version: 0.0.1
+libraryPathDependencies:
+  - codeql/go-all
+dataExtensions:
+  - safepath.model.yml

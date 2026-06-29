@@ -553,6 +553,9 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 		return r.cmd.Process.Pid, nil
 	}
 	r.gameServerID = strings.TrimSpace(payload.GameServerID)
+	if err := sanitizeStartPayload(&payload); err != nil {
+		return 0, err
+	}
 	if r.DryRun {
 		if r.dryPID == 0 {
 			r.dryPID = os.Getpid()

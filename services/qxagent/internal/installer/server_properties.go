@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 type ServerPropertiesConfig struct {
@@ -48,8 +49,9 @@ func ConfigureServerProperties(workDir string, cfg ServerPropertiesConfig) error
 }
 
 func configureServerProperties(workDir string, cfg ServerPropertiesConfig) error {
-	if strings.TrimSpace(workDir) == "" {
-		return fmt.Errorf("missing work dir")
+	workDir, err := safepath.ResolveRoot(workDir)
+	if err != nil {
+		return fmt.Errorf("work dir: %w", err)
 	}
 	port := cfg.Port
 	if port <= 0 {
@@ -72,7 +74,10 @@ func configureServerProperties(workDir string, cfg ServerPropertiesConfig) error
 		updates["server-ip"] = bind
 	}
 
-	path := filepath.Join(workDir, "server.properties")
+	path, err := safepath.Join(workDir, "server.properties")
+	if err != nil {
+		return err
+	}
 	removeKeys := []string(nil)
 	if bind == "" {
 		removeKeys = []string{"server-ip"}

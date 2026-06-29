@@ -10,31 +10,43 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 const (
-	forgeMavenBase     = "https://maven.minecraftforge.net/net/minecraftforge/forge"
-	forgeDownloadTO    = 10 * time.Minute
-	forgeInstallTO     = 20 * time.Minute
+	forgeMavenBase  = "https://maven.minecraftforge.net/net/minecraftforge/forge"
+	forgeDownloadTO = 10 * time.Minute
+	forgeInstallTO  = 20 * time.Minute
 )
 
 func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSpec, error) {
-	workDir := cfg.WorkDir
+	workDir, err := safepath.ResolveRoot(cfg.WorkDir)
+	if err != nil {
+		return StartSpec{}, fmt.Errorf("work dir: %w", err)
+	}
 	mcVersion := strings.TrimSpace(cfg.MCVersion)
 	loaderVersion := strings.TrimSpace(cfg.LoaderVersion)
 	if mcVersion == "" || loaderVersion == "" {
 		return StartSpec{}, fmt.Errorf("forge install requires mc_version and loader_version")
 	}
 	artifact := fmt.Sprintf("%s-%s", mcVersion, loaderVersion)
+	if err := validateArtifact(artifact); err != nil {
+		return StartSpec{}, err
+	}
 	javaBin, err := ensureJava(ctx, opts, mcVersion)
 	if err != nil {
 		return StartSpec{}, err
 	}
 	if opts.DryRun {
 		logLine(opts, "[QX] Forge install dry-run for "+artifact)
+		jarPath, err := safepath.Join(workDir, "forge-"+artifact+".jar")
+		if err != nil {
+			return StartSpec{}, err
+		}
 		return StartSpec{
 			WorkDir: workDir,
-			JarPath: filepath.Join(workDir, "forge-"+artifact+".jar"),
+			JarPath: jarPath,
 			Args:    []string{"nogui"},
 			JavaBin: javaBin,
 		}, nil
@@ -46,7 +58,10 @@ func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSp
 	}
 
 	installerURL := forgeInstallerURL(artifact)
-	installerPath := filepath.Join(workDir, "forge-installer.jar")
+	installerPath, err := safepath.Join(workDir, "forge-installer.jar")
+	if err != nil {
+		return StartSpec{}, err
+	}
 	logLine(opts, "[QX] Downloading installer…")
 	downloadCtx, cancelDownload := context.WithTimeout(ctx, forgeDownloadTO)
 	err = downloadFile(downloadCtx, installerURL, installerPath)
@@ -98,6 +113,16 @@ func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSp
 	return spec, nil
 }
 
+func validateArtifact(artifact string) error {
+	if strings.TrimSpace(artifact) == "" {
+		return fmt.Errorf("invalid artifact")
+	}
+	if strings.Contains(artifact, "..") || strings.Contains(artifact, "/") || strings.Contains(artifact, "\\") {
+		return fmt.Errorf("invalid artifact")
+	}
+	return nil
+}
+
 func forgeInstallerURL(artifact string) string {
 	return fmt.Sprintf("%s/%s/forge-%s-installer.jar", forgeMavenBase, artifact, artifact)
 }
@@ -134,13 +159,19 @@ func downloadFile(ctx context.Context, url, dest string) error {
 }
 
 func acceptEULA(workDir string) error {
-	path := filepath.Join(workDir, "eula.txt")
+	path, err := safepath.Join(workDir, "eula.txt")
+	if err != nil {
+		return err
+	}
 	return os.WriteFile(path, []byte("eula=true\n"), 0o644)
 }
 
 func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
 	unixRel := filepath.ToSlash(filepath.Join("libraries", "net", "minecraftforge", "forge", artifact, "unix_args.txt"))
-	unixPath := filepath.Join(workDir, filepath.FromSlash(unixRel))
+	unixPath, err := safepath.JoinRel(workDir, unixRel)
+	if err != nil {
+		return StartSpec{}, err
+	}
 	if _, err := os.Stat(unixPath); err == nil {
 		if javaBin == "" {
 			javaBin = "java"
@@ -152,7 +183,10 @@ func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
 			JavaBin: javaBin,
 		}, nil
 	}
-	runSh := filepath.Join(workDir, "run.sh")
+	runSh, err := safepath.Join(workDir, "run.sh")
+	if err != nil {
+		return StartSpec{}, err
+	}
 	if _, err := os.Stat(runSh); err == nil {
 		if err := os.Chmod(runSh, 0o755); err != nil {
 			return StartSpec{}, err
@@ -164,7 +198,10 @@ func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
 			JavaBin: javaBin,
 		}, nil
 	}
-	jarPath := filepath.Join(workDir, "forge-"+artifact+".jar")
+	jarPath, err := safepath.Join(workDir, "forge-"+artifact+".jar")
+	if err != nil {
+		return StartSpec{}, err
+	}
 	if _, err := os.Stat(jarPath); err != nil {
 		return StartSpec{}, fmt.Errorf("forge server jar not found in %s", workDir)
 	}

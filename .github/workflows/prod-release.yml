@@ -18,6 +18,8 @@ env:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -117,6 +119,8 @@ jobs:
     needs: [gate, build-push]
     if: needs.gate.outputs.deploy == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     environment: production
     env:
       IMAGE_TAG: prod-${{ needs.gate.outputs.ref }}

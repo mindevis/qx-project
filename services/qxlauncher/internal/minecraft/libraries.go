@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 func MavenRelPath(name string) string {
@@ -123,7 +124,10 @@ func extractNativeBinaries(jarPath, destDir string) error {
 		if f.FileInfo().IsDir() {
 			continue
 		}
-		base := filepath.Base(f.Name)
+		base, err := safepath.ZipEntryBase(f.Name)
+		if err != nil {
+			continue
+		}
 		if !isNativeBinary(base) {
 			continue
 		}

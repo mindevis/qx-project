@@ -5,8 +5,9 @@ import (
 	"context"
 	"io"
 	"os"
-	"path/filepath"
 	"time"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 const serverLogPollInterval = 500 * time.Millisecond
@@ -26,7 +27,10 @@ func followServerLog(ctx context.Context, workDir string, onLine func(line strin
 	if onLine == nil || workDir == "" {
 		return
 	}
-	logPath := filepath.Join(workDir, "logs", "latest.log")
+	logPath, err := safepath.Join(workDir, "logs", "latest.log")
+	if err != nil {
+		return
+	}
 	var offset int64
 	for {
 		select {

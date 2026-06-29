@@ -1,6 +1,8 @@
 package agent
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -47,12 +49,17 @@ func TestStreamLines(t *testing.T) {
 }
 
 func TestDryRunStartEmitsOutput(t *testing.T) {
+	dir := t.TempDir()
+	jar := filepath.Join(dir, "server.jar")
+	if err := os.WriteFile(jar, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	r := &ProcessRunner{DryRun: true}
 	var lines []string
 	r.SetOutputHandler(func(stream, line string) {
 		lines = append(lines, line)
 	})
-	if _, err := r.Start(protocol.ServerStartPayload{JarPath: "/tmp/server.jar"}); err != nil {
+	if _, err := r.Start(protocol.ServerStartPayload{WorkDir: dir, JarPath: jar}); err != nil {
 		t.Fatalf("start: %v", err)
 	}
 	if len(lines) == 0 {

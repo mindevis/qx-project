@@ -8,10 +8,14 @@ import (
 	"strings"
 
 	"github.com/qxproject/qx/pkg/protocol"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 func ReadServerProperties(workDir string) ([]protocol.PropertyEntry, error) {
-	path := filepath.Join(workDir, "server.properties")
+	path, err := safepath.Join(workDir, "server.properties")
+	if err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -45,12 +49,15 @@ func PatchServerProperties(workDir string, updates map[string]string) error {
 	if len(updates) == 0 {
 		return nil
 	}
-	path := filepath.Join(workDir, "server.properties")
+	path, err := safepath.Join(workDir, "server.properties")
+	if err != nil {
+		return err
+	}
 	return writePropertyFile(path, updates, nil)
 }
 
 func ListDir(workDir, relPath string) ([]protocol.FileEntry, error) {
-	abs, err := safePath(workDir, relPath)
+	abs, err := safepath.JoinRel(workDir, relPath)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +96,7 @@ func ListDir(workDir, relPath string) ([]protocol.FileEntry, error) {
 }
 
 func ReadFile(workDir, relPath string) (string, int64, error) {
-	abs, err := safePath(workDir, relPath)
+	abs, err := safepath.JoinRel(workDir, relPath)
 	if err != nil {
 		return "", 0, err
 	}
@@ -111,7 +118,7 @@ func ReadFile(workDir, relPath string) (string, int64, error) {
 }
 
 func WriteFile(workDir, relPath, content string) error {
-	abs, err := safePath(workDir, relPath)
+	abs, err := safepath.JoinRel(workDir, relPath)
 	if err != nil {
 		return err
 	}
@@ -145,32 +152,6 @@ func modsFolderFor(serverType string) string {
 	default:
 		return ""
 	}
-}
-
-func safePath(workDir, relPath string) (string, error) {
-	workDir = strings.TrimSpace(workDir)
-	if workDir == "" {
-		return "", fmt.Errorf("missing work dir")
-	}
-	relPath = strings.TrimSpace(relPath)
-	relPath = strings.TrimPrefix(relPath, "/")
-	relPath = filepath.Clean(relPath)
-	if relPath == ".." || strings.HasPrefix(relPath, ".."+string(os.PathSeparator)) {
-		return "", fmt.Errorf("invalid path")
-	}
-	abs := filepath.Join(workDir, relPath)
-	abs, err := filepath.Abs(abs)
-	if err != nil {
-		return "", err
-	}
-	root, err := filepath.Abs(workDir)
-	if err != nil {
-		return "", err
-	}
-	if abs != root && !strings.HasPrefix(abs, root+string(os.PathSeparator)) {
-		return "", fmt.Errorf("path outside work dir")
-	}
-	return abs, nil
 }
 
 func isBooleanPropertyValue(value string) bool {
