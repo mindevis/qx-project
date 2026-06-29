@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Button,
+  Checkbox,
   Divider,
   Empty,
   Form,
@@ -31,6 +32,7 @@ import {
   ReloadOutlined,
   SyncOutlined,
   RocketOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { api, type GameServer } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -269,12 +271,27 @@ function CreateServerModal({
   onCreate: () => void;
 }) {
   const { t } = useI18n();
+  const message = useMessage();
+  const keyFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       form.setFieldsValue({ port: 22 });
     }
   }, [open, form]);
+
+  const onKeyFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      form.setFieldValue('private_key', text.trim());
+      message.success(t('servers.sshKeyLoaded'));
+    } catch {
+      message.error(t('common.error'));
+    }
+  };
 
   return (
     <Modal
@@ -305,8 +322,37 @@ function CreateServerModal({
         <Form.Item name="username" label={t('servers.sshUser')} rules={[{ required: true }]}>
           <Input placeholder="root" />
         </Form.Item>
-        <Form.Item name="private_key" label={t('servers.sshKey')} rules={[{ required: true }]}>
+        <Form.Item
+          name="private_key"
+          label={t('servers.sshKey')}
+          rules={[{ required: true, message: t('servers.sshKeyRequired') }]}
+          extra={
+            <Space orientation="vertical" size={4} className="servers-create-key-extra">
+              <span>{t('servers.sshKeyUploadHint')}</span>
+              <input
+                ref={keyFileInputRef}
+                type="file"
+                accept=".pem,.key,.pub,.txt,text/plain,application/x-pem-file,application/octet-stream"
+                className="servers-create-key-file-input"
+                onChange={(event) => void onKeyFileSelected(event)}
+              />
+              <Button
+                icon={<UploadOutlined />}
+                onClick={() => keyFileInputRef.current?.click()}
+              >
+                {t('servers.sshKeyUpload')}
+              </Button>
+            </Space>
+          }
+        >
           <TextArea rows={4} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" />
+        </Form.Item>
+        <Form.Item
+          name="private_key_passphrase"
+          label={t('servers.sshKeyPassphrase')}
+          extra={t('servers.sshKeyPassphraseHint')}
+        >
+          <Input.Password autoComplete="new-password" placeholder="••••••••" />
         </Form.Item>
       </Form>
     </Modal>
@@ -369,6 +415,7 @@ function ServersList() {
           port: values.port ?? 22,
           username: values.username,
           private_key: values.private_key,
+          private_key_passphrase: values.private_key_passphrase?.trim() || undefined,
         },
       });
       message.success(t('servers.added'));
@@ -646,6 +693,7 @@ function AddGameServerModal({
   const [mcOptionsLoading, setMcOptionsLoading] = useState(false);
   const [loaderOptionsLoading, setLoaderOptionsLoading] = useState(false);
   const serverType = Form.useWatch('server_type', form) as VpsGameServerType | undefined;
+  const showInMonitoring = Form.useWatch('show_in_monitoring', form) as boolean | undefined;
   const mcVersionsRef = useRef<McVersionItem[]>([]);
   const defaultMcVersionRef = useRef(DEFAULT_MC_VERSION);
   const versionsLoadSeqRef = useRef(0);
@@ -807,6 +855,10 @@ function AddGameServerModal({
         loader_version: '',
         address: defaultAddress,
         port: suggestDefaultGamePort(existingGames),
+        show_in_monitoring: false,
+        monitoring_description: '',
+        banner_url: '',
+        monitoring_tags: [],
       });
     }
     if (!open) {
@@ -827,6 +879,10 @@ function AddGameServerModal({
     loader_version?: string;
     address: string;
     port: number;
+    show_in_monitoring?: boolean;
+    monitoring_description?: string;
+    banner_url?: string;
+    monitoring_tags?: string[];
   }) => {
     setSubmitting(true);
     try {
@@ -839,6 +895,10 @@ function AddGameServerModal({
           : undefined,
         address: values.address,
         port: values.port,
+        show_in_monitoring: values.show_in_monitoring,
+        monitoring_description: values.monitoring_description?.trim(),
+        banner_url: values.banner_url?.trim(),
+        monitoring_tags: values.monitoring_tags,
       });
       message.success(t('servers.gameServerCreated'));
       form.resetFields();
@@ -953,6 +1013,39 @@ function AddGameServerModal({
           </div>
         </div>
 
+        <Divider className="servers-game-modal-divider" />
+
+        <div className="servers-game-modal-section">
+          <Text className="servers-game-modal-section-label">{t('monitoring.monitoringSection')}</Text>
+          <Form.Item name="show_in_monitoring" valuePropName="checked">
+            <Checkbox>{t('monitoring.showInMonitoring')}</Checkbox>
+          </Form.Item>
+          <Paragraph type="secondary" className="servers-game-modal-hint">
+            {t('monitoring.showInMonitoringHint')}
+          </Paragraph>
+          {showInMonitoring ? (
+            <>
+              <Form.Item name="monitoring_description" label={t('monitoring.monitoringDescription')}>
+                <Input.TextArea rows={3} maxLength={500} showCount />
+              </Form.Item>
+              <Form.Item
+                name="banner_url"
+                label={t('monitoring.monitoringBanner')}
+                extra={t('monitoring.monitoringBannerHint')}
+              >
+                <Input placeholder="https://example.com/banner.png" />
+              </Form.Item>
+              <Form.Item
+                name="monitoring_tags"
+                label={t('monitoring.monitoringTags')}
+                extra={t('monitoring.monitoringTagsHint')}
+              >
+                <Select mode="tags" tokenSeparators={[',']} placeholder={t('monitoring.monitoringTags')} />
+              </Form.Item>
+            </>
+          ) : null}
+        </div>
+
         {serverType && serverType !== 'vanilla' ? (
           <Alert
             type="info"
@@ -980,7 +1073,6 @@ function AddGameServerModal({
   );
 }
 
-/* v8 ignore start -- @preserve edit modal is not wired to UI yet */
 function EditGameServerModal({
   open,
   vpsId,
@@ -1000,6 +1092,7 @@ function EditGameServerModal({
   const message = useMessage();
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const showInMonitoring = Form.useWatch('show_in_monitoring', form) as boolean | undefined;
 
   useEffect(() => {
     if (open && game) {
@@ -1007,6 +1100,10 @@ function EditGameServerModal({
         name: game.name,
         address: game.address ?? '',
         port: game.port,
+        show_in_monitoring: game.show_in_monitoring ?? false,
+        monitoring_description: game.monitoring_description ?? '',
+        banner_url: game.banner_url ?? '',
+        monitoring_tags: game.monitoring_tags ?? [],
       });
     }
   }, [open, game, form]);
@@ -1016,7 +1113,15 @@ function EditGameServerModal({
     onClose();
   };
 
-  const onFinish = async (values: { name: string; address?: string; port: number }) => {
+  const onFinish = async (values: {
+    name: string;
+    address?: string;
+    port: number;
+    show_in_monitoring?: boolean;
+    monitoring_description?: string;
+    banner_url?: string;
+    monitoring_tags?: string[];
+  }) => {
     if (!game) return;
     const port = values.port;
     const portTaken = existingGames.some(
@@ -1032,6 +1137,10 @@ function EditGameServerModal({
         name: values.name.trim(),
         address: values.address?.trim() ?? '',
         port,
+        show_in_monitoring: values.show_in_monitoring,
+        monitoring_description: values.monitoring_description?.trim(),
+        banner_url: values.banner_url?.trim(),
+        monitoring_tags: values.monitoring_tags,
       });
       message.success(t('servers.gameServerUpdated'));
       onUpdated(updated);
@@ -1053,7 +1162,7 @@ function EditGameServerModal({
       destroyOnClose
       className="servers-game-modal"
     >
-      <Form form={form} layout="vertical" onFinish={onFinish}>
+      <Form form={form} layout="vertical" onFinish={(values) => void onFinish(values)}>
         <Form.Item
           name="name"
           label={t('servers.gameServerName')}
@@ -1072,10 +1181,39 @@ function EditGameServerModal({
         >
           <InputNumber min={1} max={65535} className="servers-game-port-input" />
         </Form.Item>
+
+        <Divider className="servers-game-modal-divider" />
+
+        <Text className="servers-game-modal-section-label">{t('monitoring.monitoringSection')}</Text>
+        <Form.Item name="show_in_monitoring" valuePropName="checked">
+          <Checkbox>{t('monitoring.showInMonitoring')}</Checkbox>
+        </Form.Item>
+        {showInMonitoring ? (
+          <>
+            <Form.Item name="monitoring_description" label={t('monitoring.monitoringDescription')}>
+              <Input.TextArea rows={3} maxLength={500} showCount />
+            </Form.Item>
+            <Form.Item
+              name="banner_url"
+              label={t('monitoring.monitoringBanner')}
+              extra={t('monitoring.monitoringBannerHint')}
+            >
+              <Input placeholder="https://example.com/banner.png" />
+            </Form.Item>
+            <Form.Item
+              name="monitoring_tags"
+              label={t('monitoring.monitoringTags')}
+              extra={t('monitoring.monitoringTagsHint')}
+            >
+              <Select mode="tags" tokenSeparators={[',']} placeholder={t('monitoring.monitoringTags')} />
+            </Form.Item>
+          </>
+        ) : null}
+
         <Alert
           type="info"
           showIcon
-          message={t('servers.gameServerEditHint')}
+          title={t('servers.gameServerEditHint')}
           className="servers-game-modal-note"
         />
         <div className="servers-game-modal-actions">
@@ -1088,7 +1226,6 @@ function EditGameServerModal({
     </Modal>
   );
 }
-/* v8 ignore end */
 
 function GameServersTable({
   vpsId,
@@ -1096,6 +1233,7 @@ function GameServersTable({
   agentOnline,
   powerActionId,
   onDelete,
+  onEdit,
   onStart,
   onStop,
   onRestart,
@@ -1107,6 +1245,7 @@ function GameServersTable({
   agentOnline: boolean;
   powerActionId: string | null;
   onDelete: (id: string) => void;
+  onEdit: (game: VpsGameServer) => void;
   onStart: (id: string) => void;
   onStop: (id: string) => void;
   onRestart: (id: string) => void;
@@ -1206,6 +1345,13 @@ function GameServersTable({
                   icon={<SyncOutlined />}
                   disabled={rowBusy || !agentOnline || !canRestart}
                   onClick={() => onRestart(game.id)}
+                />
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  disabled={rowBusy}
+                  onClick={() => onEdit(game)}
                 />
                 <Popconfirm
                   title={t('servers.deleteGameServerConfirm')}
@@ -1339,6 +1485,7 @@ function VpsGameServersSection({
           agentOnline={agentOnline}
           powerActionId={powerActionId}
           onDelete={handleDelete}
+          onEdit={setEditingGame}
           /* v8 ignore next -- @preserve power actions covered in GameServerDetailPage tests */
           onStart={(id) => void runPowerAction(id, 'start')}
           /* v8 ignore next -- @preserve */
@@ -1363,9 +1510,7 @@ function VpsGameServersSection({
         vpsId={vpsId}
         game={editingGame}
         existingGames={games}
-        /* v8 ignore next -- @preserve edit modal is not wired to UI yet */
         onClose={() => setEditingGame(null)}
-        /* v8 ignore next 3 -- @preserve edit modal is not wired to UI yet */
         onUpdated={(updated) => {
           setGames((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
         }}

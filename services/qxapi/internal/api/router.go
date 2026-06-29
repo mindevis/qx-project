@@ -53,6 +53,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	mcVersionsH := &McVersionsHandler{}
 	serversH := &ServersHandler{Service: serversSvc}
 	gameServersH := &GameServersHandler{Service: serversSvc}
+	monitoringH := &MonitoringHandler{Service: serversSvc}
 	consoleH := &ServerConsoleHandler{Servers: serversSvc, Tokens: tokens}
 	agentWS := &AgentWSHandler{Hub: hub, Tokens: tokens, Servers: serversSvc}
 	health := &HealthHandler{DB: db}
@@ -73,6 +74,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 		v1.POST("/launcher/devices/register", devicesH.Register)
 		v1.GET("/launcher/devices/:id/status", devicesH.Status)
 		v1.GET("/launcher/mc-versions", mcVersionsH.List)
+		v1.GET("/monitoring/servers", monitoringH.List)
 
 		link := v1.Group("")
 		link.Use(AuthMiddleware(tokens))
@@ -112,6 +114,9 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.POST("/servers/:id/game-servers/:gameServerId/stop", gameServersH.Stop)
 			authed.POST("/servers/:id/game-servers/:gameServerId/restart", gameServersH.Restart)
 			authed.DELETE("/servers/:id/game-servers/:gameServerId", gameServersH.Delete)
+
+			authed.POST("/monitoring/servers/:id/like", monitoringH.Like)
+			authed.POST("/monitoring/servers/:id/rate", monitoringH.Rate)
 		}
 
 		launcherOwner := v1.Group("")

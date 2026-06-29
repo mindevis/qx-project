@@ -1,0 +1,210 @@
+.monitoring-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.monitoring-hero {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.monitoring-hero-badge {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--ant-color-primary) 12%, transparent);
+  color: var(--ant-color-primary);
+}
+
+.monitoring-hero-title {
+  margin-bottom: 8px !important;
+}
+
+.monitoring-hero-subtitle {
+  max-width: 640px;
+  margin: 0 auto !important;
+  color: var(--ant-color-text-secondary);
+}
+
+.monitoring-filters {
+  margin-bottom: 28px;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border-secondary);
+}
+
+.monitoring-filter-control {
+  width: 100%;
+}
+
+.monitoring-list {
+  min-height: 240px;
+}
+
+.monitoring-loading,
+.monitoring-empty {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.monitoring-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.monitoring-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) 1fr;
+  gap: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-container);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ant-color-text) 6%, transparent);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.monitoring-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--ant-color-text) 10%, transparent);
+}
+
+.monitoring-card--premium {
+  border-color: #d4a017;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #d4a017 35%, transparent),
+    0 12px 36px color-mix(in srgb, #d4a017 18%, transparent);
+}
+
+.monitoring-card-banner {
+  position: relative;
+  min-height: 180px;
+  background:
+    linear-gradient(135deg, #1f3b2c 0%, #2d5a87 55%, #6b4b9a 100%);
+  background-size: cover;
+  background-position: center;
+}
+
+.monitoring-card-premium-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b2a00;
+  background: linear-gradient(135deg, #ffe08a, #d4a017);
+}
+
+.monitoring-card-status {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+
+.monitoring-card-status--online {
+  color: #0f5132;
+  background: color-mix(in srgb, #75d99f 75%, white);
+}
+
+.monitoring-card-status--offline {
+  color: #842029;
+  background: color-mix(in srgb, #f1aeb5 75%, white);
+}
+
+.monitoring-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+.monitoring-card-title {
+  margin: 0 !important;
+}
+
+.monitoring-card-meta {
+  margin-top: 4px;
+}
+
+.monitoring-card-description {
+  margin-bottom: 0 !important;
+  color: var(--ant-color-text-secondary);
+}
+
+.monitoring-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.monitoring-card-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--ant-color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ant-color-text);
+  cursor: pointer;
+}
+
+.monitoring-card-like:hover {
+  color: #cf1322;
+  border-color: #ffa39e;
+}
+
+.monitoring-card-rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.monitoring-card-rating-text {
+  font-size: 13px;
+}
+
+.monitoring-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+.monitoring-card-address {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .monitoring-card {
+    grid-template-columns: 1fr;
+  }
+
+  .monitoring-card-banner {
+    min-height: 140px;
+  }
+}

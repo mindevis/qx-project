@@ -34,13 +34,14 @@ func (Server) TableName() string {
 }
 
 type SSHCredential struct {
-	ServerID       string    `gorm:"type:char(36);primaryKey" json:"-"`
-	Host           string    `gorm:"type:varchar(255);not null" json:"host"`
-	Port           int       `gorm:"not null;default:22" json:"port"`
-	Username       string    `gorm:"type:varchar(64);not null" json:"username"`
-	PrivateKeyEnc  []byte    `gorm:"type:blob;not null" json:"-"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ServerID                string    `gorm:"type:char(36);primaryKey" json:"-"`
+	Host                    string    `gorm:"type:varchar(255);not null" json:"host"`
+	Port                    int       `gorm:"not null;default:22" json:"port"`
+	Username                string    `gorm:"type:varchar(64);not null" json:"username"`
+	PrivateKeyEnc           []byte    `gorm:"type:blob;not null" json:"-"`
+	PrivateKeyPassphraseEnc []byte    `gorm:"type:blob" json:"-"`
+	CreatedAt               time.Time `json:"created_at"`
+	UpdatedAt               time.Time `json:"updated_at"`
 }
 
 func (SSHCredential) TableName() string {

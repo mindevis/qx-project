@@ -64,6 +64,7 @@ var migrateUsers = func(db *gorm.DB) error {
 		&models.SSHCredential{},
 		&models.Agent{},
 		&models.GameServer{},
+		&models.GameServerMonitoringFeedback{},
 	)
 }
 

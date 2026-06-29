@@ -29,6 +29,7 @@ export function AppLayout() {
     location.pathname === '/' ||
     location.pathname === '/launcher' ||
     location.pathname === '/launcher/link' ||
+    location.pathname === '/monitoring' ||
     location.pathname === '/servers' ||
     location.pathname.startsWith('/servers/');
   const footerClassName =
@@ -36,9 +37,11 @@ export function AppLayout() {
       ? 'app-footer app-footer--landing app-footer--landing-home'
       : location.pathname === '/launcher' || location.pathname === '/launcher/link'
         ? 'app-footer app-footer--landing app-footer--landing-launcher'
-        : location.pathname === '/servers' || location.pathname.startsWith('/servers/')
-          ? 'app-footer app-footer--landing app-footer--landing-servers'
-          : 'app-footer';
+        : location.pathname === '/monitoring'
+          ? 'app-footer app-footer--landing app-footer--landing-monitoring'
+          : location.pathname === '/servers' || location.pathname.startsWith('/servers/')
+            ? 'app-footer app-footer--landing app-footer--landing-servers'
+            : 'app-footer';
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -63,6 +66,7 @@ export function AppLayout() {
   const menuItems = [
     { key: '/', label: <Link to="/">{t('layout.navHome')}</Link> },
     { key: '/launcher', label: <Link to="/launcher">{t('layout.navLauncher')}</Link> },
+    { key: '/monitoring', label: <Link to="/monitoring">{t('layout.navMonitoring')}</Link> },
     ...(isAuthenticated
       ? [{ key: '/servers', label: <Link to="/servers">{t('layout.navServers')}</Link> }]
       : []),

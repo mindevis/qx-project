@@ -990,6 +990,14 @@ html[data-theme='dark'] .servers-info-label {
   border: 1px solid rgba(22, 119, 255, 0.12);
 }
 
+.servers-create-key-extra {
+  margin-top: 8px;
+}
+
+.servers-create-key-file-input {
+  display: none;
+}
+
 /* ── Add game server modal ─────────────────────────────────────────────── */
 
 .servers-game-modal-title {

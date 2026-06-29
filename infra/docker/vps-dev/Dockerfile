@@ -1,5 +1,5 @@
 # Dev Linux VPS for Flow C (SSH deploy + systemd agent).
-# Debian 13 (trixie) — emulates BYOS VPS locally.
+# Debian 13 (trixie) — emulates Dedicated Server locally.
 FROM debian:trixie-slim
 
 ENV container=docker

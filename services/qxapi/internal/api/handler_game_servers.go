@@ -15,18 +15,26 @@ type GameServersHandler struct {
 }
 
 type createGameServerRequest struct {
-	Name          string `json:"name" binding:"required"`
-	ServerType    string `json:"server_type" binding:"required"`
-	MCVersion     string `json:"mc_version" binding:"required"`
-	LoaderVersion string `json:"loader_version"`
-	Address       string `json:"address"`
-	Port          int    `json:"port"`
+	Name                  string   `json:"name" binding:"required"`
+	ServerType            string   `json:"server_type" binding:"required"`
+	MCVersion             string   `json:"mc_version" binding:"required"`
+	LoaderVersion         string   `json:"loader_version"`
+	Address               string   `json:"address"`
+	Port                  int      `json:"port"`
+	ShowInMonitoring      bool     `json:"show_in_monitoring"`
+	MonitoringDescription string   `json:"monitoring_description"`
+	BannerURL             string   `json:"banner_url"`
+	MonitoringTags        []string `json:"monitoring_tags"`
 }
 
 type updateGameServerRequest struct {
-	Name    *string `json:"name"`
-	Address *string `json:"address"`
-	Port    *int    `json:"port"`
+	Name                  *string  `json:"name"`
+	Address               *string  `json:"address"`
+	Port                  *int     `json:"port"`
+	ShowInMonitoring      *bool    `json:"show_in_monitoring"`
+	MonitoringDescription *string  `json:"monitoring_description"`
+	BannerURL             *string  `json:"banner_url"`
+	MonitoringTags        []string `json:"monitoring_tags"`
 }
 
 func (h *GameServersHandler) List(c *gin.Context) {
@@ -55,12 +63,16 @@ func (h *GameServersHandler) Create(c *gin.Context) {
 		return
 	}
 	view, err := h.Service.CreateGameServer(c.Request.Context(), userID.(string), c.Param("id"), servers.CreateGameServerInput{
-		Name:          req.Name,
-		ServerType:    req.ServerType,
-		MCVersion:     req.MCVersion,
-		LoaderVersion: req.LoaderVersion,
-		Address:       req.Address,
-		Port:          req.Port,
+		Name:                  req.Name,
+		ServerType:            req.ServerType,
+		MCVersion:             req.MCVersion,
+		LoaderVersion:         req.LoaderVersion,
+		Address:               req.Address,
+		Port:                  req.Port,
+		ShowInMonitoring:      req.ShowInMonitoring,
+		MonitoringDescription: req.MonitoringDescription,
+		BannerURL:             req.BannerURL,
+		MonitoringTags:        req.MonitoringTags,
 	})
 	if err != nil {
 		gameServerError(c, err)
@@ -86,9 +98,13 @@ func (h *GameServersHandler) Update(c *gin.Context) {
 		c.Param("id"),
 		c.Param("gameServerId"),
 		servers.UpdateGameServerInput{
-			Name:    req.Name,
-			Address: req.Address,
-			Port:    req.Port,
+			Name:                  req.Name,
+			Address:               req.Address,
+			Port:                  req.Port,
+			ShowInMonitoring:      req.ShowInMonitoring,
+			MonitoringDescription: req.MonitoringDescription,
+			BannerURL:             req.BannerURL,
+			MonitoringTags:        req.MonitoringTags,
 		},
 	)
 	if err != nil {

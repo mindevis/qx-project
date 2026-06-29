@@ -770,7 +770,7 @@ const docTemplate = `{
                 "tags": [
                     "servers"
                 ],
-                "summary": "Create BYOS server",
+                "summary": "Create Dedicated server",
                 "responses": {
                     "201": {
                         "description": "Created",

@@ -364,7 +364,7 @@ func swaggerServersList() {}
 
 // swaggerServersCreate documents POST /servers.
 //
-// @Summary  Create BYOS server
+// @Summary  Create Dedicated server
 // @Tags     servers
 // @Security BearerAuth
 // @Accept   json

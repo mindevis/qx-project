@@ -6,6 +6,7 @@ import { LauncherLinkPage } from '@/pages/LauncherLinkPage';
 import { LauncherPage } from '@/pages/LauncherPage';
 import { AuthRedirect } from '@/pages/AuthRedirect';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { MonitoringPage } from '@/pages/MonitoringPage';
 import { ServersPage } from '@/pages/ServersPage';
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="launcher/link" element={<LauncherLinkPage />} />
             <Route path="launcher/*" element={<LauncherPage />} />
+            <Route path="monitoring" element={<MonitoringPage />} />
             <Route path="servers/*" element={<ServersPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

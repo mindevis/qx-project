@@ -156,7 +156,7 @@ CREATE INDEX idx_instances_guest ON launcher_instances (guest_session_id);
 CREATE INDEX idx_instances_modpack ON launcher_instances (modpack_id);
 
 -- ---------------------------------------------------------------------------
--- Servers (BYOS)
+-- Dedicated Servers
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE servers (
@@ -214,6 +214,7 @@ CREATE TABLE ssh_credentials (
     port            INT NOT NULL DEFAULT 22,
     username        VARCHAR(64) NOT NULL,
     private_key_enc BLOB NOT NULL,
+    private_key_passphrase_enc BLOB NULL,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_ssh_credentials_server FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE

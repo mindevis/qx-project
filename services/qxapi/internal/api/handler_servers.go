@@ -17,10 +17,11 @@ type ServersHandler struct {
 }
 
 type sshInputRequest struct {
-	Host       string `json:"host" binding:"required"`
-	Port       int    `json:"port"`
-	Username   string `json:"username" binding:"required"`
-	PrivateKey string `json:"private_key" binding:"required"`
+	Host                 string `json:"host" binding:"required"`
+	Port                 int    `json:"port"`
+	Username             string `json:"username" binding:"required"`
+	PrivateKey           string `json:"private_key" binding:"required"`
+	PrivateKeyPassphrase string `json:"private_key_passphrase"`
 }
 
 type serverConfigRequest struct {
@@ -67,10 +68,11 @@ func (h *ServersHandler) Create(c *gin.Context) {
 		ServerType: req.ServerType,
 		MCVersion:  req.MCVersion,
 		SSH: servers.SSHInput{
-			Host:       req.SSH.Host,
-			Port:       req.SSH.Port,
-			Username:   req.SSH.Username,
-			PrivateKey: req.SSH.PrivateKey,
+			Host:                 req.SSH.Host,
+			Port:                 req.SSH.Port,
+			Username:             req.SSH.Username,
+			PrivateKey:           req.SSH.PrivateKey,
+			PrivateKeyPassphrase: req.SSH.PrivateKeyPassphrase,
 		},
 		Config: servers.ServerConfig{
 			JarPath:   req.Config.JarPath,

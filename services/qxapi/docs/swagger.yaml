@@ -575,7 +575,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Create BYOS server
+      summary: Create Dedicated server
       tags:
       - servers
   /servers/{id}:

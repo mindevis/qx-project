@@ -22,32 +22,44 @@ type pendingProvision struct {
 }
 
 type GameServerView struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	ServerType    string    `json:"server_type"`
-	MCVersion     string    `json:"mc_version"`
-	LoaderVersion *string   `json:"loader_version,omitempty"`
-	Address       *string   `json:"address,omitempty"`
-	Port          int       `json:"port"`
-	RconPassword  *string   `json:"rcon_password,omitempty"`
-	RconPort      int       `json:"rcon_port"`
-	Status        string    `json:"status"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID                    string    `json:"id"`
+	Name                  string    `json:"name"`
+	ServerType            string    `json:"server_type"`
+	MCVersion             string    `json:"mc_version"`
+	LoaderVersion         *string   `json:"loader_version,omitempty"`
+	Address               *string   `json:"address,omitempty"`
+	Port                  int       `json:"port"`
+	RconPassword          *string   `json:"rcon_password,omitempty"`
+	RconPort              int       `json:"rcon_port"`
+	Status                string    `json:"status"`
+	ShowInMonitoring      bool      `json:"show_in_monitoring"`
+	MonitoringDescription string    `json:"monitoring_description,omitempty"`
+	BannerURL             string    `json:"banner_url,omitempty"`
+	MonitoringTags        []string  `json:"monitoring_tags"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 
 type CreateGameServerInput struct {
-	Name          string
-	ServerType    string
-	MCVersion     string
-	LoaderVersion string
-	Address       string
-	Port          int
+	Name                  string
+	ServerType            string
+	MCVersion             string
+	LoaderVersion         string
+	Address               string
+	Port                  int
+	ShowInMonitoring      bool
+	MonitoringDescription string
+	BannerURL             string
+	MonitoringTags        []string
 }
 
 type UpdateGameServerInput struct {
-	Name    *string
-	Address *string
-	Port    *int
+	Name                  *string
+	Address               *string
+	Port                  *int
+	ShowInMonitoring      *bool
+	MonitoringDescription *string
+	BannerURL             *string
+	MonitoringTags        []string
 }
 
 const gameServerProvisionTimeout = 25 * time.Minute
@@ -112,19 +124,23 @@ func (s *Service) CreateGameServer(ctx context.Context, ownerID, vpsID string, i
 	}
 
 	item := models.GameServer{
-		ID:            gameServerID,
-		ServerID:      vpsID,
-		Name:          name,
-		ServerType:    serverType,
-		MCVersion:     mcVersion,
-		LoaderVersion: loaderPtr,
-		Address:       address,
-		Port:          port,
-		RconPassword:  &rconPassword,
-		Status:        models.GameServerStatusInstalling,
-		WorkDir:       workDir,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                    gameServerID,
+		ServerID:              vpsID,
+		Name:                  name,
+		ServerType:            serverType,
+		MCVersion:             mcVersion,
+		LoaderVersion:         loaderPtr,
+		Address:               address,
+		Port:                  port,
+		RconPassword:          &rconPassword,
+		Status:                models.GameServerStatusInstalling,
+		WorkDir:               workDir,
+		ShowInMonitoring:      in.ShowInMonitoring,
+		MonitoringDescription: strings.TrimSpace(in.MonitoringDescription),
+		BannerURL:             strings.TrimSpace(in.BannerURL),
+		MonitoringTagsJSON:    encodeStringListJSON(in.MonitoringTags),
+		CreatedAt:             now,
+		UpdatedAt:             now,
 	}
 	if err := s.db.WithContext(ctx).Create(&item).Error; err != nil {
 		return nil, err
@@ -388,7 +404,7 @@ func (s *Service) UpdateGameServer(ctx context.Context, ownerID, vpsID, gameServ
 	if item.Status == models.GameServerStatusInstalling || item.Status == models.GameServerStatusStarting {
 		return nil, ErrGameServerBusy
 	}
-	if in.Name == nil && in.Address == nil && in.Port == nil {
+	if in.Name == nil && in.Address == nil && in.Port == nil && !in.hasMonitoringUpdate() {
 		return nil, ErrValidation
 	}
 
@@ -420,12 +436,34 @@ func (s *Service) UpdateGameServer(ctx context.Context, ownerID, vpsID, gameServ
 		updates["port"] = port
 		item.Port = port
 	}
+	if in.ShowInMonitoring != nil {
+		updates["show_in_monitoring"] = *in.ShowInMonitoring
+		item.ShowInMonitoring = *in.ShowInMonitoring
+	}
+	if in.MonitoringDescription != nil {
+		desc := strings.TrimSpace(*in.MonitoringDescription)
+		updates["monitoring_description"] = desc
+		item.MonitoringDescription = desc
+	}
+	if in.BannerURL != nil {
+		banner := strings.TrimSpace(*in.BannerURL)
+		updates["banner_url"] = banner
+		item.BannerURL = banner
+	}
+	if in.MonitoringTags != nil {
+		tagsJSON := encodeStringListJSON(in.MonitoringTags)
+		updates["monitoring_tags_json"] = tagsJSON
+		item.MonitoringTagsJSON = tagsJSON
+	}
 
 	if err := s.db.WithContext(ctx).Model(&item).Updates(updates).Error; err != nil {
 		return nil, err
 	}
 
 	s.syncGameServerProperties(ctx, vpsID, &item)
+	if item.ShowInMonitoring {
+		s.refreshMonitoringSnapshots(ctx, ownerID, vpsID, &item)
+	}
 
 	view := gameServerViewFromModel(&item)
 	return &view, nil
@@ -649,18 +687,29 @@ func (s *Service) expireStaleGameServerProvisions(ctx context.Context, vpsID str
 
 func gameServerViewFromModel(item *models.GameServer) GameServerView {
 	return GameServerView{
-		ID:            item.ID,
-		Name:          item.Name,
-		ServerType:    item.ServerType,
-		MCVersion:     item.MCVersion,
-		LoaderVersion: item.LoaderVersion,
-		Address:       item.Address,
-		Port:          item.Port,
-		RconPassword:  item.RconPassword,
-		RconPort:      rconPortFor(item.Port),
-		Status:        item.Status,
-		CreatedAt:     item.CreatedAt,
+		ID:                    item.ID,
+		Name:                  item.Name,
+		ServerType:            item.ServerType,
+		MCVersion:             item.MCVersion,
+		LoaderVersion:         item.LoaderVersion,
+		Address:               item.Address,
+		Port:                  item.Port,
+		RconPassword:          item.RconPassword,
+		RconPort:              rconPortFor(item.Port),
+		Status:                item.Status,
+		ShowInMonitoring:      item.ShowInMonitoring,
+		MonitoringDescription: strings.TrimSpace(item.MonitoringDescription),
+		BannerURL:             strings.TrimSpace(item.BannerURL),
+		MonitoringTags:        decodeStringListJSON(item.MonitoringTagsJSON),
+		CreatedAt:             item.CreatedAt,
 	}
+}
+
+func (in UpdateGameServerInput) hasMonitoringUpdate() bool {
+	return in.ShowInMonitoring != nil ||
+		in.MonitoringDescription != nil ||
+		in.BannerURL != nil ||
+		in.MonitoringTags != nil
 }
 
 func gameServerIsInstalled(item *models.GameServer) bool {

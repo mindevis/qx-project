@@ -5,7 +5,7 @@
 
 ## Context
 
-BYOS серверы — преимущественно Linux VPS. Ручной pairing усложняет UX.
+Выделенные серверы — преимущественно Linux. Ручной pairing усложняет UX.
 
 ## Decision
 

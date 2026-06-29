@@ -95,10 +95,11 @@ func (s *Service) OnAgentEvent(serverID string, env protocol.Envelope) {
 }
 
 type SSHInput struct {
-	Host       string
-	Port       int
-	Username   string
-	PrivateKey string
+	Host                  string
+	Port                  int
+	Username              string
+	PrivateKey            string
+	PrivateKeyPassphrase  string
 }
 
 type ServerConfig struct {
@@ -187,6 +188,13 @@ func (s *Service) Create(ctx context.Context, ownerID string, in CreateServerInp
 	if err != nil {
 		return nil, err
 	}
+	var passphraseEnc []byte
+	if pass := strings.TrimSpace(in.SSH.PrivateKeyPassphrase); pass != "" {
+		passphraseEnc, err = s.enc.Encrypt([]byte(pass))
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	now := time.Now().UTC()
 	slug := uniqueSlug(ctx, s.db, ownerID, slugify(name))
@@ -205,13 +213,14 @@ func (s *Service) Create(ctx context.Context, ownerID string, in CreateServerInp
 		server.MCVersion = &v
 	}
 	cred := models.SSHCredential{
-		ServerID:      server.ID,
-		Host:          strings.TrimSpace(in.SSH.Host),
-		Port:          port,
-		Username:      strings.TrimSpace(in.SSH.Username),
-		PrivateKeyEnc: encKey,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ServerID:                server.ID,
+		Host:                    strings.TrimSpace(in.SSH.Host),
+		Port:                    port,
+		Username:                strings.TrimSpace(in.SSH.Username),
+		PrivateKeyEnc:           encKey,
+		PrivateKeyPassphraseEnc: passphraseEnc,
+		CreatedAt:               now,
+		UpdatedAt:               now,
 	}
 
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

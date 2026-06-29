@@ -122,7 +122,32 @@ export type VpsGameServerInstance = {
   rcon_password?: string;
   rcon_port?: number;
   status: string;
+  show_in_monitoring?: boolean;
+  monitoring_description?: string;
+  banner_url?: string;
+  monitoring_tags?: string[];
   created_at: string;
+};
+
+export type MonitoringServer = {
+  id: string;
+  name: string;
+  server_type: string;
+  mc_version: string;
+  loader_version?: string;
+  address: string;
+  port: number;
+  status: string;
+  is_online: boolean;
+  is_premium: boolean;
+  description?: string;
+  banner_url?: string;
+  tags: string[];
+  mods: string[];
+  plugins: string[];
+  likes_count: number;
+  rating_avg: number;
+  rating_count: number;
 };
 
 export type GameServerProperty = {
@@ -353,7 +378,13 @@ export const api = {
     name: string;
     server_type?: string;
     mc_version?: string;
-    ssh: { host: string; port?: number; username: string; private_key: string };
+    ssh: {
+      host: string;
+      port?: number;
+      username: string;
+      private_key: string;
+      private_key_passphrase?: string;
+    };
     config?: { jar_path?: string; jvm_args?: string[]; extra_args?: string[] };
   }) => request<GameServer>('/servers', { method: 'POST', body: JSON.stringify(body) }),
 
@@ -385,6 +416,10 @@ export const api = {
       loader_version?: string;
       address?: string;
       port?: number;
+      show_in_monitoring?: boolean;
+      monitoring_description?: string;
+      banner_url?: string;
+      monitoring_tags?: string[];
     },
   ) =>
     request<VpsGameServerInstance>(`/servers/${encodeURIComponent(vpsId)}/game-servers`, {
@@ -399,6 +434,10 @@ export const api = {
       name?: string;
       address?: string;
       port?: number;
+      show_in_monitoring?: boolean;
+      monitoring_description?: string;
+      banner_url?: string;
+      monitoring_tags?: string[];
     },
   ) =>
     request<VpsGameServerInstance>(
@@ -481,6 +520,38 @@ export const api = {
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files/content?path=${encodeURIComponent(path)}`,
       { method: 'PUT', body: JSON.stringify({ content }) },
     ),
+
+  listMonitoringServers: (params?: {
+    mc_version?: string;
+    loader?: string;
+    mod?: string;
+    plugin?: string;
+    q?: string;
+  }) => {
+    const search = new URLSearchParams();
+    if (params?.mc_version) search.set('mc_version', params.mc_version);
+    if (params?.loader) search.set('loader', params.loader);
+    if (params?.mod) search.set('mod', params.mod);
+    if (params?.plugin) search.set('plugin', params.plugin);
+    if (params?.q) search.set('q', params.q);
+    const qs = search.toString();
+    return request<{ items: MonitoringServer[] }>(
+      `/monitoring/servers${qs ? `?${qs}` : ''}`,
+      {},
+      false,
+    );
+  },
+
+  likeMonitoringServer: (gameServerId: string) =>
+    request<MonitoringServer>(`/monitoring/servers/${encodeURIComponent(gameServerId)}/like`, {
+      method: 'POST',
+    }),
+
+  rateMonitoringServer: (gameServerId: string, rating: number) =>
+    request<MonitoringServer>(`/monitoring/servers/${encodeURIComponent(gameServerId)}/rate`, {
+      method: 'POST',
+      body: JSON.stringify({ rating }),
+    }),
 };
 
 export type ConsoleMessage = {

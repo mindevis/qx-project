@@ -25,6 +25,17 @@ type GameServer struct {
 	StartCommand  string    `gorm:"type:varchar(255)" json:"-"`
 	StartArgsJSON string    `gorm:"type:text" json:"-"`
 	JarPath       string    `gorm:"type:varchar(512)" json:"jar_path,omitempty"`
+
+	ShowInMonitoring      bool    `gorm:"not null;default:false;index" json:"show_in_monitoring"`
+	MonitoringDescription string  `gorm:"type:text" json:"monitoring_description,omitempty"`
+	BannerURL             string  `gorm:"type:varchar(512)" json:"banner_url,omitempty"`
+	MonitoringTagsJSON    string  `gorm:"type:text" json:"-"`
+	MonitoringModsJSON    string  `gorm:"type:text" json:"-"`
+	MonitoringPluginsJSON string  `gorm:"type:text" json:"-"`
+	LikesCount            int     `gorm:"not null;default:0" json:"likes_count"`
+	RatingSum             int     `gorm:"not null;default:0" json:"-"`
+	RatingCount           int     `gorm:"not null;default:0" json:"rating_count"`
+
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }

@@ -69,9 +69,17 @@ func (d *SSHDeployer) Deploy(ctx context.Context, serverID string, cred models.S
 	if err != nil {
 		return fmt.Errorf("decrypt ssh key: %w", err)
 	}
-	signer, err := ssh.ParsePrivateKey(pem)
+	passphrase := ""
+	if len(cred.PrivateKeyPassphraseEnc) > 0 {
+		raw, err := d.cfg.Encryptor.Decrypt(cred.PrivateKeyPassphraseEnc)
+		if err != nil {
+			return fmt.Errorf("decrypt ssh key passphrase: %w", err)
+		}
+		passphrase = string(raw)
+	}
+	signer, err := parseSSHSigner(pem, passphrase)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidSSHKey, err)
+		return err
 	}
 
 	addr := fmt.Sprintf("%s:%d", cred.Host, cred.Port)

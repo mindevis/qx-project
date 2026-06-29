@@ -14,9 +14,9 @@ Mods, modpacks, shaders и resource packs — контент **игрового 
 - **QXApi / MySQL** хранит **метаданные и manifest** (список файлов, URL, hashes) — **не бинарники**.
 - QXLauncher скачивает напрямую с **CurseForge / Modrinth / Mojang** (authorized download URLs из API).
 - **Локальный кэш** — на ПК (`QXLauncher` cache dir), не на MinIO.
-- **MinIO** — только платформенные объекты: сборки QXLauncher, бэкапы BYOS-серверов, skins (малые PNG), audit archive.
+- **MinIO** — только платформенные объекты: сборки QXLauncher, бэкапы выделенные серверов, skins (малые PNG), audit archive.
 
-## BYOS server
+## Dedicated server
 
 QXAgent устанавливает контент **на диск ноды** (прямые URL), без MinIO:
 

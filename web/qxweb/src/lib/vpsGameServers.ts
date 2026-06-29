@@ -26,6 +26,10 @@ export type VpsGameServer = {
   rcon_password?: string;
   rcon_port?: number;
   status: VpsGameServerStatus;
+  show_in_monitoring?: boolean;
+  monitoring_description?: string;
+  banner_url?: string;
+  monitoring_tags?: string[];
   created_at: string;
 };
 
@@ -36,12 +40,20 @@ export type CreateVpsGameServerInput = {
   loader_version?: string;
   address?: string;
   port?: number;
+  show_in_monitoring?: boolean;
+  monitoring_description?: string;
+  banner_url?: string;
+  monitoring_tags?: string[];
 };
 
 export type UpdateVpsGameServerInput = {
   name?: string;
   address?: string;
   port?: number;
+  show_in_monitoring?: boolean;
+  monitoring_description?: string;
+  banner_url?: string;
+  monitoring_tags?: string[];
 };
 
 function mapGameServer(item: {
@@ -55,6 +67,10 @@ function mapGameServer(item: {
   rcon_password?: string;
   rcon_port?: number;
   status: string;
+  show_in_monitoring?: boolean;
+  monitoring_description?: string;
+  banner_url?: string;
+  monitoring_tags?: string[];
   created_at: string;
 }): VpsGameServer {
   return {
@@ -68,6 +84,10 @@ function mapGameServer(item: {
     rcon_password: item.rcon_password,
     rcon_port: item.rcon_port,
     status: item.status as VpsGameServerStatus,
+    show_in_monitoring: item.show_in_monitoring,
+    monitoring_description: item.monitoring_description,
+    banner_url: item.banner_url,
+    monitoring_tags: item.monitoring_tags,
     created_at: item.created_at,
   };
 }
@@ -97,6 +117,10 @@ export async function addVpsGameServer(
     loader_version: input.loader_version,
     address: input.address,
     port: input.port,
+    show_in_monitoring: input.show_in_monitoring,
+    monitoring_description: input.monitoring_description,
+    banner_url: input.banner_url,
+    monitoring_tags: input.monitoring_tags,
   });
   return mapGameServer(created);
 }

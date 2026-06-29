@@ -5,7 +5,7 @@
 
 ## Context
 
-Игрок и админ должны играть на одной сборке: client instance + BYOS server.
+Игрок и админ должны играть на одной сборке: client instance + dedicated server.
 
 ## Decision
 
