@@ -9,7 +9,7 @@
 
 **Flow A/B:** manual pass ☑ — A09, L03, I04, I05 (QXLauncher: auto browser link, tray fallback, full JVM, Mojang JRE с нуля).
 
-**Flow C (dev VPS):** manual pass ☑ — S01, S02, S11. Prereq: `make dev-vps-up`, SSH `:2222`, `public_api_url` в `qxapi.toml` — см. [configuration.md](../configuration.md).
+**Flow C (dev dedicated server):** manual pass ☑ — S01, S02, S11. Prereq: `make dev-vps-up`, SSH `:2222`, `public_api_url` в `qxapi.toml` — см. [configuration.md](../configuration.md).
 
 ---
 
@@ -77,7 +77,7 @@
 | ID | Сценарий | Шаги | Ожидание | MVP | Статус |
 | ---- | ---------- | ------ | ---------- | ----- | -------- |
 | S01 | Create server | panel + SSH creds | server pending | ☑ | 🤖 ☑ · ☑ manual dev |
-| S02 | SSH deploy | Deploy agent | `agent_online`, systemd running | ☑ | 🤖 ☑ · ☑ manual dev VPS |
+| S02 | SSH deploy | Deploy agent | `agent_online`, systemd running | ☑ | 🤖 ☑ · ☑ manual dev dedicated server |
 | S03 | Start server | API start или post-MVP UI | `minecraft_running`, status online | ☑ | 🤖 ☑ API · ⊘ UI Start |
 | S04 | Stop server | Stop (при MC running) | process killed | ☑ | 🤖 ☑ API · ⊘ UI manual MC |
 | S05 | Live console | WS console при MC running | stdout visible | ☑ | 🤖 ☑ · ⊘ UI manual MC |
@@ -115,7 +115,7 @@
 | N02 | TLS / prod reachability | HTTP 200, API health OK | ☑ | ☑ prod 2026-06-29 (`/api/v1/health`); HTTPS — после certbot |
 | N03 | MySQL backup restore | data intact | ⊘ | ⊘ |
 | N04 | Agent non-Linux | deploy to Windows SSH — fail gracefully | ☑ | 🤖 ☑ `ErrNonLinuxHost` |
-| N05 | Dev VPS Flow C | `make dev-vps-up`, deploy agent | agent WSS to API | ☑ | ☑ manual |
+| N05 | dev dedicated server Flow C | `make dev-vps-up`, deploy agent | agent WSS to API | ☑ | ☑ manual |
 
 ---
 
@@ -124,7 +124,7 @@
 **MVP alpha (dev)** — flows пройдены. **Prod platform** — ✅ smoke 2026-06-29.
 
 - [x] Flow A/B — manual QXLauncher + full JVM (A09, L03, I04, I05)
-- [x] Flow C deploy agent — manual dev VPS
+- [x] Flow C deploy agent — manual dev dedicated server
 - [x] **Prod readiness** — P.1–P.4, P.7 ([production-deploy.md](../production-deploy.md), [mvp §7.1](../mvp.md))
 - [ ] P.5 бэкапы MySQL · P.2b HTTPS (certbot)
 - [ ] All ☑ MVP rows passed (manual + E2E)

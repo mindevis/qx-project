@@ -553,45 +553,46 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 		return r.cmd.Process.Pid, nil
 	}
 	r.gameServerID = strings.TrimSpace(payload.GameServerID)
-	if err := sanitizeStartPayload(&payload); err != nil {
+	start, err := ValidateStartPayload(payload)
+	if err != nil {
 		return 0, err
 	}
 	if r.DryRun {
 		if r.dryPID == 0 {
 			r.dryPID = os.Getpid()
 		}
-		target := payload.JarPath
+		target := start.JarPath
 		if target == "" {
-			target = payload.Command
+			target = start.Command
 		}
-		slog.Info("dry-run start server", "target", target, "work_dir", payload.WorkDir, "pid", r.dryPID)
+		slog.Info("dry-run start server", "target", target, "work_dir", start.WorkDir, "pid", r.dryPID)
 		r.emitLocked("stdout", "[QX Agent dry-run] Starting "+target)
 		r.emitLocked("stdout", "Done ("+fmt.Sprintf("%d", r.dryPID)+"ms)")
 		r.emitLocked("stdout", "For help, type \"help\"")
 		return r.dryPID, nil
 	}
-	if payload.Command != "" {
-		return r.startCommandLocked(payload)
+	if start.Command != "" {
+		return r.startCommandLocked(start)
 	}
-	if payload.JarPath == "" {
+	if start.JarPath == "" {
 		return 0, errors.New("jar_path required")
 	}
-	args := append([]string{}, payload.JVMArgs...)
-	args = append(args, "-jar", payload.JarPath)
-	args = append(args, payload.ExtraArgs...)
+	args := append([]string{}, start.JVMArgs...)
+	args = append(args, "-jar", start.JarPath)
+	args = append(args, start.ExtraArgs...)
 
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 
-	cmd := exec.Command(javaBin(payload), args...)
+	cmd := exec.Command(javaBin(start), args...)
 	cmd.Stdin = stdinR
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
-	if payload.WorkDir != "" {
-		cmd.Dir = payload.WorkDir
+	if start.WorkDir != "" {
+		cmd.Dir = start.WorkDir
 	}
-	applyJavaEnv(cmd, payload.JavaBin)
+	applyJavaEnv(cmd, start.JavaBin)
 	if err := cmd.Start(); err != nil {
 		_ = stdinR.Close()
 		_ = stdinW.Close()
@@ -606,22 +607,22 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
 	go streamLines("stdout", stdoutR, r.emit)
 	go streamLines("stderr", stderrR, r.emit)
-	r.startLogFollowLocked(payload.WorkDir)
+	r.startLogFollowLocked(start.WorkDir)
 	return cmd.Process.Pid, nil
 }
 
-func (r *ProcessRunner) startCommandLocked(payload protocol.ServerStartPayload) (int, error) {
-	args := append([]string{}, payload.Args...)
-	args = append(args, payload.ExtraArgs...)
+func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
+	args := append([]string{}, start.Args...)
+	args = append(args, start.ExtraArgs...)
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 
-	cmd := exec.Command(payload.Command, args...)
-	if payload.WorkDir != "" {
-		cmd.Dir = payload.WorkDir
+	cmd := exec.Command(start.Command, args...)
+	if start.WorkDir != "" {
+		cmd.Dir = start.WorkDir
 	}
-	applyJavaEnv(cmd, payload.JavaBin)
+	applyJavaEnv(cmd, start.JavaBin)
 	cmd.Stdin = stdinR
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
@@ -639,7 +640,7 @@ func (r *ProcessRunner) startCommandLocked(payload protocol.ServerStartPayload) 
 	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
 	go streamLines("stdout", stdoutR, r.emit)
 	go streamLines("stderr", stderrR, r.emit)
-	r.startLogFollowLocked(payload.WorkDir)
+	r.startLogFollowLocked(start.WorkDir)
 	return cmd.Process.Pid, nil
 }
 
@@ -689,8 +690,8 @@ func (r *ProcessRunner) Stop(graceful bool, timeout time.Duration) (int, error) 
 	return cmd.ProcessState.ExitCode(), nil
 }
 
-func javaBin(payload protocol.ServerStartPayload) string {
-	if bin := strings.TrimSpace(payload.JavaBin); bin != "" {
+func javaBin(start ValidatedStart) string {
+	if bin := strings.TrimSpace(start.JavaBin); bin != "" {
 		return bin
 	}
 	return "java"

@@ -255,7 +255,7 @@ export function GameServerDetailPage() {
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
             <Link to={`/servers/${vpsId}`} className="servers-detail-back">
-              <ArrowLeftOutlined /> {t('gameServerDetail.backToVps')}
+              <ArrowLeftOutlined /> {t('gameServerDetail.backToDedicated')}
             </Link>
             <span className="servers-badge">{t('gameServerDetail.badge')}</span>
             <Title level={1} className="servers-title">

@@ -12,6 +12,8 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
+	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
+	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 )
 
@@ -35,10 +37,20 @@ type Service struct {
 	tokens     *auth.TokenService
 	webBaseURL string
 	manifest   ManifestProvider
+	mojang     *mojang.Service
+	cosmetics  *cosmetics.Service
 }
 
 func NewService(db *gorm.DB, tokens *auth.TokenService, webBaseURL string) *Service {
 	return &Service{db: db, tokens: tokens, webBaseURL: strings.TrimRight(webBaseURL, "/")}
+}
+
+func (s *Service) SetMojang(m *mojang.Service) {
+	s.mojang = m
+}
+
+func (s *Service) SetCosmetics(c *cosmetics.Service) {
+	s.cosmetics = c
 }
 
 type RegisterDeviceInput struct {

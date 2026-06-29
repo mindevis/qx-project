@@ -10,7 +10,7 @@
 
 ### Как устроен deploy?
 
-Push в `main` → CI → автоматический **Prod release** → образы в GHCR → VPS `/opt/qxsystem`. Подробно: [production-deploy.md](./production-deploy.md).
+Push в `main` → CI → автоматический **Prod release** → образы в GHCR → хост платформы `/opt/qxsystem`. Подробно: [production-deploy.md](./production-deploy.md).
 
 ---
 
@@ -37,7 +37,7 @@ QXLauncher должен быть запущен и привязан к **том�
 
 **Клиент (QXLauncher):** Vanilla, **Forge**, **NeoForge**, **Fabric** и **Quilt**. Список версий Minecraft подтягивается из Mojang manifest (актуальные релизы, например 1.20.4, 1.21.x). Для modloader'ов дополнительно выбирается версия загрузчика — доступные пары MC + loader показываются при создании инстанса на `/launcher`.
 
-**Игровые серверы на VPS:** Vanilla; плагиновые (Paper, Spigot, Purpur); модовые (Forge, NeoForge, Fabric, Quilt); гибридные (Mohist, Magma, Arclight). Версии MC — из тех же источников, что и при создании сервера в панели.
+**Игровые серверы на выделенном сервере:** Vanilla; плагиновые (Paper, Spigot, Purpur); модовые (Forge, NeoForge, Fabric, Quilt); гибридные (Mohist, Magma, Arclight). Версии MC — из тех же источников, что и при создании сервера в панели.
 
 Пока **вне scope:** автоматические modpack'и (CurseForge/Modrinth), загрузка шейдеров и resource pack'ов из панели — v2+.
 
@@ -45,21 +45,21 @@ QXLauncher должен быть запущен и привязан к **том�
 
 ## Серверы
 
-### Какие VPS подходят?
+### Какие выделенные серверы подходят?
 
 Linux x86_64 (Ubuntu 22.04+, Debian 12+), SSH по ключу. Подробнее: [ssh-deploy.md](./ssh-deploy.md).
 
 ### Deploy не подключает agent
 
-- Проверьте SSH-ключ и firewall (исходящий HTTPS/WSS к platform VPS).
-- Deploy выполняет SSH на game VPS. Бинарник QXAgent встроен в API-образ при `make prod-pack`.
+- Проверьте SSH-ключ и firewall (исходящий HTTPS/WSS к Platform host).
+- Deploy выполняет SSH на выделенный сервер. Бинарник QXAgent встроен в API-образ при `make prod-pack`.
 - **Dev:** `agent_binary_path` в `qxapi.toml`; `public_api_url = "http://host.docker.internal:3000"`.
 - **Prod:** `QX_PUBLIC_API_URL=https://mc.qx-dev.ru`, `CORS_ORIGIN=https://mc.qx-dev.ru` — [production-deploy.md](./production-deploy.md).
 - После **повторного Deploy** agent перезапускается через `systemctl restart`.
 
 ### Как управлять Minecraft-сервером?
 
-1. **Servers** → VPS → **Add game server** (Vanilla/Paper/Forge/…).
+1. **Servers** → выделенный сервер → **Add game server** (Vanilla/Paper/Forge/…).
 2. Дождитесь статуса **running** или нажмите **Start**.
 3. Откройте строку в таблице → страница сервера: RCON-консоль, настройки, моды, файлы.
 

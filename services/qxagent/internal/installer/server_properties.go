@@ -91,7 +91,7 @@ func writePropertyFile(path string, updates map[string]string, removeKeys []stri
 		remove[key] = struct{}{}
 	}
 	lines := make([]string, 0, 32)
-	if data, err := os.ReadFile(path); err == nil {
+	if data, err := safepath.ReadFileBytes(path); err == nil {
 		lines = strings.Split(string(data), "\n")
 	} else if !os.IsNotExist(err) {
 		return err
@@ -131,5 +131,5 @@ func writePropertyFile(path string, updates map[string]string, removeKeys []stri
 	if !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}
-	return os.WriteFile(path, []byte(content), 0o644)
+	return safepath.WriteFileBytes(path, []byte(content), 0o644)
 }

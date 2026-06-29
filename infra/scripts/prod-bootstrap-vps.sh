@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# First deploy on a fresh VPS: Docker + /opt/qxsystem (run via GitHub Actions SSH).
+# First deploy on a fresh dedicated server: Docker + /opt/qxsystem (run via GitHub Actions SSH).
 set -euo pipefail
 
 if ! command -v docker >/dev/null 2>&1; then

@@ -148,7 +148,7 @@ func (h *ServersHandler) Deploy(c *gin.Context) {
 		case errors.Is(err, servers.ErrForbidden):
 			JSONError(c, http.StatusForbidden, "FORBIDDEN", "forbidden")
 		case errors.Is(err, deploy.ErrNonLinuxHost):
-			JSONError(c, http.StatusUnprocessableEntity, "HOST_NOT_LINUX", "QX agent requires a Linux VPS")
+			JSONError(c, http.StatusUnprocessableEntity, "HOST_NOT_LINUX", "QX agent requires a Linux dedicated server")
 		case errors.Is(err, deploy.ErrInvalidSSHKey):
 			JSONValidation(c, "invalid ssh private key")
 		case errors.Is(err, deploy.ErrBinaryNotConfigured):

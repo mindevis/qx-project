@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local smoke from repo (images must exist — run make prod-build first).
-# For VPS: make prod-pack → copy dist/qx-prod/ → ./up.sh on server.
+# For dedicated server: make prod-pack → copy dist/qx-prod/ → ./up.sh on server.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -14,7 +14,7 @@ fi
 
 cd "$ROOT"
 if ! docker image inspect qx-api:prod >/dev/null 2>&1; then
-  echo "Images not found — run: make prod-build  (or make prod-pack for VPS bundle)" >&2
+  echo "Images not found — run: make prod-build  (or make prod-pack for dedicated server bundle)" >&2
   exit 1
 fi
 
@@ -22,4 +22,4 @@ cd "$COMPOSE_DIR"
 docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" up -d --no-build --pull never
 docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE" ps
 
-echo "Stack up. For VPS deploy use: make prod-pack"
+echo "Stack up. For dedicated server deploy use: make prod-pack"

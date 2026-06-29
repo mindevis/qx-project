@@ -532,6 +532,24 @@ html[data-theme='dark'] .launcher-download-band {
   opacity: 0.85;
 }
 
+.launcher-qxmods-promo {
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(114, 46, 209, 0.2);
+  background: linear-gradient(135deg, rgba(114, 46, 209, 0.06), rgba(22, 119, 255, 0.04));
+}
+
+html[data-theme='dark'] .launcher-qxmods-promo {
+  border-color: rgba(179, 127, 235, 0.25);
+  background: linear-gradient(135deg, rgba(114, 46, 209, 0.14), rgba(22, 119, 255, 0.08));
+}
+
+.launcher-qxmods-promo-title {
+  margin: 0 0 4px !important;
+  color: #722ed1 !important;
+}
+
 /* Workspace grid */
 
 .launcher-workspace-grid {
@@ -574,6 +592,38 @@ html[data-theme='dark'] .launcher-panel--instances {
   display: block;
   font-size: 12px;
   line-height: 1.2;
+}
+
+.launcher-launch-bar-mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.launcher-launch-bar-mode--panel {
+  margin-bottom: 16px;
+}
+
+.launcher-licensed-account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(22, 119, 255, 0.16);
+  background: rgba(22, 119, 255, 0.05);
+}
+
+html[data-theme='dark'] .launcher-licensed-account-card {
+  border-color: rgba(105, 177, 255, 0.2);
+  background: rgba(22, 119, 255, 0.08);
+}
+
+.launcher-licensed-account-uuid {
+  font-size: 12px;
+  word-break: break-all;
 }
 
 .launcher-launch-bar {

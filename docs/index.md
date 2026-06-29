@@ -24,7 +24,7 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent**.
 | [Device linking](device-linking.md) | Связь QXLauncher ↔ сайт |
 | [Launch bridge](launch-bridge.md) | Сайт → QXLauncher → JVM |
 | [Agent protocol](agent-protocol.md) | QXAgent WSS, deploy |
-| [SSH deploy](ssh-deploy.md) | Установка агента на BYOS VPS |
+| [SSH deploy](ssh-deploy.md) | Установка агента на dedicated server |
 
 ## Репозиторий
 

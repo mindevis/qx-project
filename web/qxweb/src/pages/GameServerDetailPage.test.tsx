@@ -9,7 +9,7 @@ import { GameServerDetailPage } from './GameServerDetailPage';
 
 const vpsServer = {
   id: 'srv-1',
-  name: 'VPS',
+  name: 'Dedicated',
   status: 'online',
   server_type: 'vanilla',
   mc_version: '1.21',
@@ -45,7 +45,7 @@ function renderDetail(route = '/servers/srv-1/game-servers/gs-1') {
   return renderWithProviders(
     <Routes>
       <Route path="/servers/:id/game-servers/:gameServerId" element={<GameServerDetailPage />} />
-      <Route path="/servers/:id" element={<div>VPS detail</div>} />
+      <Route path="/servers/:id" element={<div>Dedicated detail</div>} />
       <Route path="/servers" element={<div>Servers list</div>} />
     </Routes>,
     route,
@@ -155,7 +155,7 @@ describe('GameServerDetailPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Удалить/ }));
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
-    await waitFor(() => expect(screen.getByText('VPS detail')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Dedicated detail')).toBeInTheDocument());
   });
 
   it('redirects when game server is missing', async () => {
@@ -179,7 +179,7 @@ describe('GameServerDetailPage', () => {
     });
 
     renderDetail();
-    await waitFor(() => expect(screen.getByText('VPS detail')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Dedicated detail')).toBeInTheDocument());
     expect(message.error).toHaveBeenCalled();
   });
 
@@ -201,7 +201,7 @@ describe('GameServerDetailPage', () => {
     });
 
     renderDetail();
-    await waitFor(() => expect(screen.getByText('VPS detail')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Dedicated detail')).toBeInTheDocument());
     expect(message.error).toHaveBeenCalled();
   });
 

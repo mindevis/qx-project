@@ -6,6 +6,68 @@ import { renderWithProviders } from '@/test/test-utils';
 import { ProfilePage } from './ProfilePage';
 import { saveTokens } from '@/api/client';
 
+vi.mock('skinview3d', () => ({
+  SkinViewer: vi.fn().mockImplementation(() => ({
+    disposed: false,
+    background: null,
+    autoRotate: false,
+    controls: { enableZoom: false, enablePan: false, enableRotate: true },
+    loadSkin: vi.fn().mockResolvedValue(undefined),
+    resetCameraPose: vi.fn(),
+    dispose: vi.fn(),
+  })),
+}));
+
+function mockProfileFetch() {
+  vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('/auth/refresh')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            access_token: 'a',
+            refresh_token: 'r',
+            token_type: 'Bearer',
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        ),
+      );
+    }
+    if (url.includes('/users/me/mojang')) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ linked: false }), { status: 200 }),
+      );
+    }
+    if (url.includes('/users/me/cosmetics')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            skin_model: 'steve',
+            has_skin: false,
+            updated_at: '2026-01-01T00:00:00Z',
+          }),
+          { status: 200 },
+        ),
+      );
+    }
+    if (url.includes('/users/me')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            id: '1',
+            email: 'user@test.com',
+            tier: 'free',
+            created_at: 'now',
+          }),
+          { status: 200 },
+        ),
+      );
+    }
+    return Promise.resolve(new Response('{}', { status: 200 }));
+  });
+}
+
 describe('ProfilePage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -13,19 +75,10 @@ describe('ProfilePage', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
+      saved_at: Date.now(),
     });
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          id: '1',
-          email: 'user@test.com',
-          tier: 'free',
-          created_at: 'now',
-        }),
-        { status: 200 },
-      ),
-    );
+    mockProfileFetch();
   });
 
   afterEach(() => {
@@ -46,6 +99,14 @@ describe('ProfilePage', () => {
     await waitFor(() => expect(screen.getByText('Смена пароля')).toBeInTheDocument());
   });
 
+  it('shows mojang link section when not linked', async () => {
+    renderWithProviders(<ProfilePage />, '/profile');
+    await waitFor(() =>
+      expect(screen.getByText('Аккаунт Minecraft (Microsoft)')).toBeInTheDocument(),
+    );
+    expect(screen.getByText('Привязать Microsoft')).toBeInTheDocument();
+  });
+
   it('shows success message after password change', async () => {
     const user = userEvent.setup({ delay: null });
     const successSpy = vi.spyOn(message, 'success');
@@ -60,6 +121,9 @@ describe('ProfilePage', () => {
           }),
           { status: 200 },
         ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ linked: false }), { status: 200 }),
       )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 

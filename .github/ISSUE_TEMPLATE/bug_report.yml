@@ -30,7 +30,7 @@ body:
       options:
         - Local dev (`make dev-up`)
         - Production (mc.qx-dev.ru)
-        - Game VPS / agent
+        - game dedicated server / agent
         - CI only
     validations:
       required: true

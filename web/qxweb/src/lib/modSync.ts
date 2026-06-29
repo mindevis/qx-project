@@ -1,0 +1,28 @@
+import type { GameServerFileEntry } from '@/api/client';
+import type { ModCatalogItem, ModVersion } from '@/api/client';
+
+export type ModSyncSide = 'client' | 'server' | 'both' | 'unknown';
+
+export function modSyncSide(item: Pick<ModCatalogItem, 'client_side' | 'server_side'>): ModSyncSide {
+  const client = item.client_side ?? 'unknown';
+  const server = item.server_side ?? 'unknown';
+  const clientOk = client === 'required' || client === 'optional';
+  const serverOk = server === 'required' || server === 'optional';
+  if (clientOk && serverOk) return 'both';
+  if (serverOk) return 'server';
+  if (clientOk) return 'client';
+  return 'unknown';
+}
+
+export function modSupportsServerSync(item: Pick<ModCatalogItem, 'client_side' | 'server_side'>): boolean {
+  const side = modSyncSide(item);
+  return side === 'server' || side === 'both' || side === 'unknown';
+}
+
+export function isModOnServer(
+  serverMods: GameServerFileEntry[],
+  version: Pick<ModVersion, 'files'>,
+): boolean {
+  const filenames = version.files.map((f) => f.filename.toLowerCase());
+  return serverMods.some((entry) => !entry.dir && filenames.includes(entry.name.toLowerCase()));
+}

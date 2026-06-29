@@ -3,9 +3,7 @@ package installer
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -53,7 +51,7 @@ func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSp
 	}
 
 	logLine(opts, "[QX] Preparing Forge "+artifact+" in "+workDir)
-	if err := os.MkdirAll(workDir, 0o755); err != nil {
+	if err := safepath.EnsureDir(workDir); err != nil {
 		return StartSpec{}, fmt.Errorf("mkdir work dir: %w", err)
 	}
 
@@ -141,21 +139,7 @@ func downloadFile(ctx context.Context, url, dest string) error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("download %s: http %d", url, res.StatusCode)
 	}
-	tmp := dest + ".part"
-	file, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(file, res.Body); err != nil {
-		_ = file.Close()
-		_ = os.Remove(tmp)
-		return err
-	}
-	if err := file.Close(); err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	return os.Rename(tmp, dest)
+	return safepath.WriteStreamAtomic(dest, res.Body)
 }
 
 func acceptEULA(workDir string) error {
@@ -163,7 +147,7 @@ func acceptEULA(workDir string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte("eula=true\n"), 0o644)
+	return safepath.WriteFileBytes(path, []byte("eula=true\n"), 0o644)
 }
 
 func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
@@ -172,7 +156,7 @@ func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
 	if err != nil {
 		return StartSpec{}, err
 	}
-	if _, err := os.Stat(unixPath); err == nil {
+	if _, err := safepath.Stat(unixPath); err == nil {
 		if javaBin == "" {
 			javaBin = "java"
 		}
@@ -187,8 +171,8 @@ func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
 	if err != nil {
 		return StartSpec{}, err
 	}
-	if _, err := os.Stat(runSh); err == nil {
-		if err := os.Chmod(runSh, 0o755); err != nil {
+	if _, err := safepath.Stat(runSh); err == nil {
+		if err := safepath.Chmod(runSh, 0o755); err != nil {
 			return StartSpec{}, err
 		}
 		return StartSpec{
@@ -202,7 +186,7 @@ func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
 	if err != nil {
 		return StartSpec{}, err
 	}
-	if _, err := os.Stat(jarPath); err != nil {
+	if _, err := safepath.Stat(jarPath); err != nil {
 		return StartSpec{}, fmt.Errorf("forge server jar not found in %s", workDir)
 	}
 	return StartSpec{

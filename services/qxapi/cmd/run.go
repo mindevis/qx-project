@@ -25,6 +25,19 @@ func bootstrap(cfg config.Config) (*gin.Engine, error) {
 	return api.NewRouter(db, authSvc, cfg.CORSOrigin, cfg.SSHMasterKey, api.DeploySettings{
 		PublicAPIURL:    cfg.PublicAPIURL,
 		AgentBinaryPath: cfg.AgentBinaryPath,
+	}, api.MojangSettings{
+		ClientID:     cfg.MojangClientID,
+		ClientSecret: cfg.MojangClientSecret,
+		RedirectURI:  cfg.ResolvedMojangRedirectURI(),
+		WebBaseURL:   cfg.CORSOrigin,
+		JWTSecret:    cfg.JWTSecret,
+	}, api.ModsSettings{
+		CurseForgeAPIKey:  cfg.CurseForgeAPIKey,
+		ModrinthUserAgent: cfg.ModrinthUserAgent,
+	}, api.CosmeticsSettings{
+		DataDir:             cfg.CosmeticsDataDir,
+		PublicAPIURL:        cfg.PublicAPIURL,
+		SkinServerPublicURL: cfg.ResolvedSkinServerPublicURL(),
 	}), nil
 }
 

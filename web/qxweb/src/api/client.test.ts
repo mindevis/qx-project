@@ -19,7 +19,7 @@ const tokens: TokenResponse = {
   access_token: 'access',
   refresh_token: 'refresh',
   token_type: 'Bearer',
-  expires_in: 60,
+  expires_in: 3600,
 };
 
 describe('token storage', () => {
@@ -34,7 +34,9 @@ describe('token storage', () => {
 
   it('saves and clears tokens', () => {
     saveTokens(tokens);
-    expect(loadTokens()).toEqual(tokens);
+    const loaded = loadTokens();
+    expect(loaded?.access_token).toBe('access');
+    expect(loaded?.saved_at).toBeTypeOf('number');
     clearTokens();
     expect(loadTokens()).toBeNull();
   });
@@ -100,6 +102,82 @@ describe('api client', () => {
     const [, init] = fetchMock.mock.calls[0];
     const headers = new Headers(init?.headers);
     expect(headers.get('Authorization')).toBe('Bearer access');
+  });
+
+  it('refreshes access token before authenticated requests when close to expiry', async () => {
+    localStorage.setItem(
+      'qx.auth',
+      JSON.stringify({
+        ...tokens,
+        expires_in: 60,
+        saved_at: Date.now() - 59_000,
+      }),
+    );
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'access-new',
+            refresh_token: 'refresh-new',
+            token_type: 'Bearer',
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: '1',
+            email: 'a@b.com',
+            tier: 'free',
+            created_at: 'now',
+          }),
+          { status: 200 },
+        ),
+      );
+
+    await api.me();
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/auth/refresh');
+    const [, init] = fetchMock.mock.calls[1];
+    const headers = new Headers(init?.headers);
+    expect(headers.get('Authorization')).toBe('Bearer access-new');
+  });
+
+  it('retries authenticated requests once after refreshing on 401', async () => {
+    saveTokens(tokens);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response('unauthorized', { status: 401, statusText: 'Unauthorized' }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: 'access-new',
+            refresh_token: 'refresh-new',
+            token_type: 'Bearer',
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: '1',
+            email: 'a@b.com',
+            tier: 'free',
+            created_at: 'now',
+          }),
+          { status: 200 },
+        ),
+      );
+
+    await api.me();
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/auth/refresh');
   });
 
   it('returns undefined for 204 responses', async () => {
@@ -519,7 +597,7 @@ describe('api client', () => {
     expect(warn).toHaveBeenCalledWith('backend health check failed');
   });
 
-  it('calls vps game server management endpoints', async () => {
+  it('calls dedicated server game server management endpoints', async () => {
     saveTokens(tokens);
     const fetchMock = vi.mocked(fetch);
     const gameServer = {

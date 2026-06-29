@@ -37,6 +37,55 @@ export const ru = {
     navServers: 'Серверы',
     footer: 'QXSystem — экосистема Minecraft',
   },
+  seo: {
+    siteName: 'QXSystem',
+    defaultDescription:
+      'QXSystem — единая экосистема для Minecraft: QXLauncher, QXMods и QXAgent на одном аккаунте.',
+    pages: {
+      home: {
+        title: 'QXSystem — экосистема Minecraft',
+        description:
+          'Десктопный лаунчер, каталог модов и агент для вашего сервера — один аккаунт и общие настройки.',
+      },
+      launcher: {
+        title: 'Лаунчер',
+        description:
+          'Управляйте инстансами Minecraft, профилями и модами через QXLauncher в браузере и на ПК.',
+      },
+      launcherLink: {
+        title: 'Связать QXLauncher',
+        description: 'Подтвердите привязку QXLauncher к аккаунту QXSystem в браузере.',
+      },
+      monitoring: {
+        title: 'Мониторинг серверов',
+        description:
+          'Найдите сервер Minecraft по версии, загрузчику, модам и плагинам — premium-серверы первыми.',
+      },
+      servers: {
+        title: 'Серверы',
+        description:
+          'Подключите dedicated-сервер, установите QXAgent и управляйте игровыми инстансами Minecraft.',
+      },
+      profile: {
+        title: 'Профиль',
+        description: 'Настройки аккаунта QXSystem, email, пароль и привязка Minecraft (Microsoft).',
+      },
+      auth: {
+        title: 'Вход',
+        description: 'Вход и регистрация в QXSystem.',
+      },
+    },
+    jsonLd: {
+      launcherDescription:
+        'Десктопный лаунчер Minecraft для Windows, macOS и Linux с каталогом модов QXMods.',
+    },
+    profileAvatarAlt: {
+      steve: 'Модель персонажа Steve',
+      alex: 'Модель персонажа Alex',
+    },
+    noscriptSummary:
+      'QXSystem объединяет QXLauncher, QXMods и QXAgent: регистрация, запуск игры и управление dedicated-серверами Minecraft.',
+  },
   backend: {
     title: 'Сервер недоступен',
     description:
@@ -48,7 +97,7 @@ export const ru = {
     subtitle:
       'Десктопный лаунчер и агент на вашем сервере — один аккаунт и общие настройки.',
     intro:
-      'QXSystem объединяет QXLauncher и QXAgent: от регистрации до запуска игры и управления VPS — без разрозненных инструментов.',
+      'QXSystem объединяет QXLauncher и QXAgent: от регистрации до запуска игры и управления выделенными серверами — без разрозненных инструментов.',
     ctaLauncher: 'Открыть лаунчер',
     ctaServers: 'Управление серверами',
     heroTagLauncher: 'Лаунчер',
@@ -59,13 +108,16 @@ export const ru = {
     qxlauncherTitle: 'QXLauncher',
     qxlauncherBody:
       'Настольное приложение в системном трее: автозапуск, офлайн-кэш и нативная интеграция с Windows, macOS и Linux.',
+    qxmodsTitle: 'QXMods',
+    qxmodsBody:
+      'Каталог модов, модпаков, ресурспаков и шейдеров из официальных API CurseForge и Modrinth — прямо в лаунчере.',
     qxagentTitle: 'QXAgent',
     qxagentBody:
-      'Агент на вашем выделенномсервере: установка контента, мониторинг и удалённое управление инстансом Minecraft.',
+      'Агент на вашем выделенном сервере: установка контента, мониторинг и удалённое управление инстансом Minecraft.',
     benefitAccount: 'Один аккаунт',
     benefitAccountDesc: 'Профиль, инстансы и серверы синхронизируются между вебом и лаунчером.',
-    benefitByos: 'Выделенный',
-    benefitByosDesc: 'Подключайте свой Выделенный Linux сервер по SSH — данные остаются у вас.',
+    benefitDedicated: 'Выделенный сервер',
+    benefitDedicatedDesc: 'Подключайте свой Linux выделенный сервер по SSH — данные остаются у вас.',
     benefitVanilla: 'Vanilla и modpacks',
     benefitVanillaDesc: 'Старт с Vanilla в MVP, единый пайплайн для модпаков дальше.',
     stepsTitle: 'Как начать',
@@ -115,6 +167,44 @@ export const ru = {
     newPasswordRequired: 'Введите новый пароль',
     confirmNewPasswordRequired: 'Повторите новый пароль',
     changePasswordError: 'Не удалось сменить пароль',
+    mojangTitle: 'Аккаунт Minecraft (Microsoft)',
+    mojangLinked: 'Привязан',
+    mojangNotLinked: 'Не привязан',
+    mojangUsername: 'Ник в Minecraft',
+    mojangUuid: 'UUID Minecraft',
+    mojangLinkedAt: 'Привязан',
+    mojangLink: 'Привязать Microsoft',
+    mojangUnlink: 'Отвязать',
+    mojangUnlinkConfirm: 'Отвязать аккаунт Microsoft? Лицензионный запуск станет недоступен.',
+    mojangLinkSuccess: 'Аккаунт Microsoft привязан',
+    mojangLinkFailed: 'Не удалось начать привязку Microsoft',
+    mojangUnlinkSuccess: 'Аккаунт Microsoft отвязан',
+    mojangUnlinkFailed: 'Не удалось отвязать аккаунт Microsoft',
+    mojangHint:
+      'Привяжите аккаунт Microsoft, чтобы запускать лицензионную версию Minecraft со своим ником и UUID.',
+  },
+  cosmetics: {
+    title: 'QX Skin Server',
+    hint: 'Загрузите скин и плащ. QXLauncher применяет их как Ely.by — моды Fabric/Forge не нужны.',
+    skinModel: 'Модель скина',
+    uploadSkin: 'Загрузить скин (PNG)',
+    resetSkin: 'Сбросить скин',
+    cape: 'Плащ',
+    capeNone: 'Нет',
+    capeQX: 'Плащ QX',
+    capeCustom: 'Свой',
+    uploadCape: 'Загрузить плащ (PNG)',
+    resetCape: 'Сбросить плащ',
+    capeUploaded: 'Плащ загружен',
+    saved: 'Настройки скина сохранены',
+    saveFailed: 'Не удалось сохранить настройки скина',
+    loadFailed: 'Не удалось загрузить настройки скина',
+    skinUploaded: 'Скин загружен',
+    uploadFailed: 'Ошибка загрузки',
+    skinServerNote:
+      'Офлайн-профили: файл скина + QX session host. Аккаунт Mojang: скин/плащ из QX заменяют экипировку, если вы загрузили или выбрали их здесь. Другие игроки на ванильных серверах по-прежнему видят скины Mojang, если сервер не использует QX session lookup.',
+    offlineNote:
+      'Для офлайн-профилей используется загруженный скин из папки инстанса. Для аккаунта Mojang официальный скин сохраняется, пока вы не загрузите свой.',
   },
   launcherLink: {
     badge: 'Привязка устройства',
@@ -272,6 +362,13 @@ export const ru = {
     workspaceRefresh: 'Обновить',
     workspaceRefreshed: 'Данные обновлены',
     playingAs: 'Играть как',
+    accountMode: 'Режим аккаунта',
+    accountModeOffline: 'Оффлайн',
+    accountModeLicensed: 'Лицензия (Microsoft)',
+    licensedNotLinked: 'Привяжите Microsoft в профиле, чтобы играть с лицензией.',
+    licensedAccount: 'Лицензионный аккаунт',
+    goToProfile: 'Перейти в профиль',
+    licensedLaunchFailed: 'Нужен привязанный аккаунт Microsoft',
     playerDefault: 'Player',
     statInstances: '{{count}} инстансов',
     statProfiles: '{{count}} профилей',
@@ -283,9 +380,9 @@ export const ru = {
   },
   servers: {
     title: 'Серверы',
-    badge: 'Выделенный · Сервер',
+    badge: 'Выделенный сервер',
     intro:
-      'Подключите свой Linux VPS по SSH — QXAgent развернётся автоматически, а Minecraft можно запускать и управлять из браузера.',
+      'Подключите свой Linux выделенный сервер по SSH — QXAgent развернётся автоматически, а Minecraft можно запускать и управлять из браузера.',
     workspaceEyebrow: 'Панель управления',
     workspaceTitle: 'Ваши серверы',
     refresh: 'Обновить',
@@ -293,11 +390,10 @@ export const ru = {
     statTotal: 'Всего',
     statOnline: 'Агентов online',
     emptyTitle: 'Пока нет серверов',
-    addVps: 'Добавить VPS',
-    empty: 'Добавьте Linux VPS с SSH-доступом — мы установим QXAgent и подготовим сервер к запуску.',
-    addByos: 'Добавить выделенныйсервер',
+    addDedicated: 'Добавить выделенный сервер',
+    empty: 'Добавьте Linux выделенный сервер с SSH-доступом — мы установим QXAgent и подготовим сервер к запуску.',
     createHint:
-      'Укажите SSH-доступ к VPS. Приватный ключ хранится зашифрованным и используется только для deploy QXAgent.',
+      'Укажите SSH-доступ к выделенному серверу. Приватный ключ хранится зашифрованным и используется только для deploy QXAgent.',
     nameRequired: 'Укажите название',
     sshHost: 'SSH Host',
     sshPort: 'SSH Port',
@@ -315,12 +411,12 @@ export const ru = {
     deployDone: 'Deploy выполнен — ожидаем подключение агента',
     deleted: 'Сервер удалён',
     backToList: 'К списку',
-    detailBadge: 'BYOS · VPS',
+    detailBadge: 'Выделенный сервер',
     detailEyebrow: 'Управление',
     detailRefreshed: 'Данные обновлены',
     statusOverview: 'Состояние сервера',
     statStatus: 'Статус',
-    statVps: 'VPS',
+    statDedicated: 'Хост',
     statAgent: 'QXAgent',
     statAgentDeploy: 'Развёртывание',
     statAgentConnection: 'Подключение',
@@ -330,14 +426,14 @@ export const ru = {
     sshCopied: 'SSH скопирован',
     copyFailed: 'Не удалось скопировать',
     workflowTitle: 'Что дальше',
-    workflowStep1: 'Нажмите Deploy agent — QXAgent установится на VPS по SSH.',
+    workflowStep1: 'Нажмите Deploy agent — QXAgent установится на выделенный сервер по SSH.',
     workflowStep2: 'Дождитесь статуса «Агент онлайн» (обычно несколько секунд).',
     workflowStep3: 'Добавьте игровой сервер и настройте его в таблице ниже.',
     actionDeploy: 'Развёртывание',
     dangerZone: 'Опасная зона',
     createdAt: 'Добавлен',
     lastSeen: 'Последняя активность',
-    errorBanner: 'Ошибка VPS — проверьте SSH или настройки хоста.',
+    errorBanner: 'Ошибка хоста — проверьте SSH или настройки сервера.',
     deployErrorBanner: 'Ошибка deploy агента — проверьте SSH или выполните Deploy заново.',
     infoTitle: 'Конфигурация',
     sshLabel: 'SSH',
@@ -354,7 +450,7 @@ export const ru = {
     gameServerUpdateFailed: 'Не удалось обновить игровой сервер',
     gameServerEditHint: 'Изменения IP и порта записываются в server.properties, если агент онлайн. Для применения нового порта перезапустите сервер.',
     gameServerEditPortHint: 'RCON-порт пересчитывается автоматически от игрового порта.',
-    gameServerPortInUse: 'Этот порт уже занят другим игровым сервером на этом VPS.',
+    gameServerPortInUse: 'Этот порт уже занят другим игровым сервером на этом выделенном сервере.',
     gameServerName: 'Название',
     gameServerNameRequired: 'Укажите название',
     gameServerTypeLabel: 'Тип сервера',
@@ -395,7 +491,7 @@ export const ru = {
     gameServerContentMods: 'моды',
     gameServerContentNote: 'После запуска можно будет установить: {{content}}.',
     gameServerModalHint:
-      'Укажите параметры Minecraft-сервера на этом VPS. Адрес и порт можно изменить — свободный порт подставляется автоматически.',
+      'Укажите параметры Minecraft-сервера на этом выделенном сервере. Адрес и порт можно изменить — свободный порт подставляется автоматически.',
     gameServerSectionBasics: 'Основное',
     gameServerSectionNetwork: 'Сеть',
     gameServerNamePlaceholder: 'Survival, SkyBlock…',
@@ -436,7 +532,7 @@ export const ru = {
     updateAgent: 'Обновить QXAgent',
     updateAgentDone: 'QXAgent обновлён — ожидаем подключение',
     updateAgentHint:
-      'Повторно устанавливает бинарник QXAgent на VPS по SSH. Работает даже если агент оффлайн.',
+      'Повторно устанавливает бинарник QXAgent на выделенный сервер по SSH. Работает даже если агент оффлайн.',
     actionAgent: 'QXAgent',
     stop: 'Stop',
     restart: 'Restart',
@@ -444,19 +540,19 @@ export const ru = {
     deployHint:
       'После Deploy агент подключится по WSS автоматически — обычно в течение нескольких секунд.',
     deploySshUnreachable:
-      'SSH недоступен — проверьте, что VPS запущен и порт открыт. Для dev: make dev-vps-up (localhost:2222).',
+      'SSH недоступен — проверьте, что выделенный сервер запущен и порт открыт. Для dev: make dev-vps-up (localhost:2222).',
     console: 'Консоль',
     authRequired: 'Управление серверами доступно после входа.',
     authRequiredTitle: 'Нужен аккаунт',
-    authRequiredDesc: 'Войдите, чтобы добавлять VPS и управлять Minecraft-серверами через QXAgent.',
+    authRequiredDesc: 'Войдите, чтобы добавлять выделенные серверы и управлять Minecraft-серверами через QXAgent.',
     status: {
       pending: 'Ожидает deploy',
       deploying: 'Deploy…',
-      offline: 'VPS недоступен',
-      online: 'VPS онлайн',
-      error: 'Ошибка VPS',
+      offline: 'Хост недоступен',
+      online: 'Хост онлайн',
+      error: 'Ошибка хоста',
     },
-    vpsStatus: {
+    dedicatedHostStatus: {
       pending: 'Новый',
       active: 'Активен',
       error: 'Ошибка',
@@ -481,7 +577,7 @@ export const ru = {
   },
   gameServerDetail: {
     badge: 'Игровой сервер',
-    backToVps: 'Назад к VPS',
+    backToDedicated: 'Назад к выделенному серверу',
     notFound: 'Игровой сервер не найден',
     loadFailed: 'Не удалось загрузить игровой сервер',
     actions: 'Действия',
@@ -544,6 +640,48 @@ export const ru = {
     monitoringTags: 'Теги',
     monitoringTagsHint: 'Например: выживание, PvP, экономика',
     monitoringSection: 'Мониторинг',
+  },
+  qxmods: {
+    brand: 'QXMods',
+    sectionTitle: 'Ресурсы',
+    promoTitle: 'QXMods — каталог модов в лаунчере',
+    promoBody:
+      'Ищите моды, модпаки, ресурспаки и шейдеры напрямую из CurseForge и Modrinth. Синхронизируйте серверные моды на ваш game server одним кликом.',
+    tabs: {
+      mod: 'Моды',
+      modpack: 'Модпаки',
+      resourcepack: 'Ресурспаки',
+      shader: 'Шейдеры',
+    },
+    search: 'Найти',
+    searchPlaceholder: 'Поиск по названию…',
+    searchPrompt: 'Введите запрос и нажмите «Найти»',
+    searchFailed: 'Не удалось выполнить поиск',
+    versionsFailed: 'Не удалось загрузить версии',
+    empty: 'Ничего не найдено',
+    attribution:
+      'Каталог QXMods загружает метаданные из официальных API CurseForge и Modrinth. Файлы скачиваются с сайтов авторов.',
+    curseforgeDisabled: 'CurseForge отключён — укажите curseforge_api_key в qxapi.toml.',
+    detailTitle: 'Детали',
+    detailAttribution: 'Источник и лицензия указаны на странице проекта у поставщика каталога.',
+    viewOnSource: 'Открыть у источника',
+    selectVersion: 'Версия',
+    noVersions: 'Нет подходящих версий',
+    source: {
+      curseforge: 'CurseForge',
+      modrinth: 'Modrinth',
+    },
+    sync: {
+      title: 'Синхронизация с сервером',
+      action: 'Синхронизировать',
+      hint: 'Выберите game server, на который установить мод.',
+      noServers: 'Нет доступных серверов с агентом и поддержкой модов',
+      loadFailed: 'Не удалось загрузить серверы',
+      alreadyOnServer: 'Уже на сервере',
+      queued: 'Синхронизация поставлена в очередь',
+      failed: 'Не удалось синхронизировать',
+      noFile: 'У выбранной версии нет файла для установки',
+    },
   },
 } as const;
 

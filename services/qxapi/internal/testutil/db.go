@@ -60,11 +60,14 @@ var autoMigrateUsers = func(db *gorm.DB) error {
 		&models.LauncherDevice{},
 		&models.LauncherInstance{},
 		&models.OfflineProfile{},
+		&models.MojangLink{},
 		&models.LaunchRequest{},
+		&models.UserCosmetics{},
 		&models.Server{},
 		&models.SSHCredential{},
 		&models.Agent{},
 		&models.GameServer{},
+		&models.GameServerMonitoringFeedback{},
 	)
 }
 

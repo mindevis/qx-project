@@ -43,7 +43,7 @@
       "internalConsoleOptions": "neverOpen"
     },
     {
-      "name": "Dev VPS: up",
+      "name": "Dev dedicated: up",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "powershell",
@@ -59,7 +59,7 @@
       "internalConsoleOptions": "neverOpen"
     },
     {
-      "name": "Dev VPS: down",
+      "name": "Dev dedicated: down",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "powershell",
@@ -76,7 +76,7 @@
       "internalConsoleOptions": "neverOpen"
     },
     {
-      "name": "Dev VPS: info",
+      "name": "Dev dedicated: info",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "powershell",

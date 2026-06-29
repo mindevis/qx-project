@@ -40,6 +40,7 @@ func TestBuildLaunchPlanNeoForgeModulePath(t *testing.T) {
 		"NeoForgeTest",
 		"uuid-1",
 		"",
+		nil,
 	)
 	joined := strings.Join(plan.Args, " ")
 	if strings.Contains(joined, "-cp") {

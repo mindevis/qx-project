@@ -2,7 +2,7 @@
 # Download and install Mojang Java 17 (java-runtime-gamma) to /opt/qxsystem/java.
 # Same source as QXLauncher / pkg/mojangjava — official Mojang runtime catalog.
 #
-# Usage (on Linux VPS):
+# Usage (on Linux dedicated server):
 #   curl -fsSL .../install-mojang-java17.sh | sudo bash
 #   sudo bash infra/scripts/install-mojang-java17.sh
 #   sudo DEST=/opt/qxsystem/java bash infra/scripts/install-mojang-java17.sh

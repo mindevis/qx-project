@@ -40,7 +40,10 @@ export type TokenResponse = {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+  saved_at?: number;
 };
+
+const TOKEN_REFRESH_LEEWAY_MS = 2 * 60 * 1000;
 
 export type UserProfile = {
   id: string;
@@ -69,6 +72,23 @@ export type OfflineProfile = {
   offline_uuid: string;
   model: ProfileModel;
   created_at: string;
+};
+
+export type MojangLinkStatus = {
+  linked: boolean;
+  username?: string;
+  minecraft_uuid?: string;
+  linked_at?: string;
+};
+
+export type UserCosmetics = {
+  skin_model: ProfileModel;
+  has_skin: boolean;
+  skin_url?: string;
+  has_cape: boolean;
+  cape_type?: 'none' | 'qx' | 'custom';
+  cape_url?: string;
+  updated_at: string;
 };
 
 export type LaunchRequest = {
@@ -169,6 +189,48 @@ export type GameServerFileContent = {
   size: number;
 };
 
+export type ModSource = 'curseforge' | 'modrinth';
+
+export type ModProjectType = 'mod' | 'modpack' | 'resourcepack' | 'shader';
+
+export type ModCatalogItem = {
+  id: string;
+  source: ModSource;
+  slug: string;
+  name: string;
+  summary?: string;
+  icon_url?: string;
+  downloads?: number;
+  author?: string;
+  project_type: ModProjectType;
+  loaders?: string[];
+  game_versions?: string[];
+  client_side?: string;
+  server_side?: string;
+  external_url: string;
+};
+
+export type ModVersionFile = {
+  filename: string;
+  url: string;
+  sha1?: string;
+  size?: number;
+};
+
+export type ModVersion = {
+  id: string;
+  version_number: string;
+  game_versions?: string[];
+  loaders?: string[];
+  files: ModVersionFile[];
+  published_at?: string;
+};
+
+export type ModSyncResult = {
+  status: 'queued' | 'already_installed';
+  message?: string;
+};
+
 export type LinkDeviceResult = {
   status: string;
   owner_type: string;
@@ -216,11 +278,83 @@ export function loadTokens(): TokenResponse | null {
 }
 
 export function saveTokens(tokens: TokenResponse) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
+  const stored: TokenResponse = { ...tokens, saved_at: Date.now() };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
 }
 
 export function clearTokens() {
   localStorage.removeItem(STORAGE_KEY);
+}
+
+function accessTokenExpiresAt(accessToken: string): number | null {
+  try {
+    const segment = accessToken.split('.')[1];
+    if (!segment) return null;
+    const payload = JSON.parse(atob(segment.replace(/-/g, '+').replace(/_/g, '/'))) as {
+      exp?: number;
+    };
+    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function tokenExpiresAt(tokens: TokenResponse): number | null {
+  if (tokens.saved_at && tokens.expires_in > 0) {
+    return tokens.saved_at + tokens.expires_in * 1000;
+  }
+  return accessTokenExpiresAt(tokens.access_token);
+}
+
+function tokenNeedsRefresh(tokens: TokenResponse | null): boolean {
+  if (!tokens?.refresh_token) return false;
+  const expiresAt = tokenExpiresAt(tokens);
+  if (!expiresAt) return false;
+  return Date.now() + TOKEN_REFRESH_LEEWAY_MS >= expiresAt;
+}
+
+let refreshInFlight: Promise<TokenResponse | null> | null = null;
+
+async function refreshTokens(): Promise<TokenResponse | null> {
+  const current = loadTokens();
+  if (!current?.refresh_token) return null;
+
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: current.refresh_token }),
+  }).catch(() => null);
+
+  if (!res?.ok) return null;
+
+  let tokens: TokenResponse;
+  try {
+    tokens = (await res.json()) as TokenResponse;
+  } catch {
+    return null;
+  }
+  if (!tokens.access_token) return null;
+  saveTokens(tokens);
+  return tokens;
+}
+
+async function ensureFreshTokens(): Promise<void> {
+  const tokens = loadTokens();
+  if (!tokens || !tokenNeedsRefresh(tokens)) return;
+
+  if (!refreshInFlight) {
+    refreshInFlight = refreshTokens().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  await refreshInFlight;
+}
+
+/** Refreshes access token when close to expiry; returns false when logged out. */
+export async function maintainSession(): Promise<boolean> {
+  if (!loadTokens()) return false;
+  await ensureFreshTokens();
+  return !!loadTokens()?.access_token;
 }
 
 export function saveLinkedDevice(deviceId: string) {
@@ -261,9 +395,14 @@ async function request<T>(
   path: string,
   init: RequestInit = {},
   auth: boolean | 'launcher' = true,
+  retried = false,
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
+
+  if (auth === true || auth === 'launcher') {
+    await ensureFreshTokens();
+  }
 
   if (auth === true) {
     const tokens = loadTokens();
@@ -282,6 +421,13 @@ async function request<T>(
   });
 
   if (!res.ok) {
+    if (res.status === 401 && auth === true && !retried && loadTokens()?.refresh_token) {
+      const refreshed = await refreshTokens();
+      if (refreshed) {
+        return request<T>(path, init, auth, true);
+      }
+    }
+
     let message = res.statusText;
     try {
       const body = (await res.json()) as ApiError;
@@ -326,6 +472,69 @@ export const api = {
   changeEmail: (body: { current_password: string; email: string }) =>
     request<UserProfile>('/users/me/email', { method: 'PATCH', body: JSON.stringify(body) }),
 
+  mojangStatus: () => request<MojangLinkStatus>('/users/me/mojang'),
+
+  startMojangOAuth: () =>
+    request<{ authorization_url: string }>('/users/me/mojang/oauth/start', { method: 'POST' }),
+
+  unlinkMojang: () => request<void>('/users/me/mojang', { method: 'DELETE' }),
+
+  getCosmetics: () => request<UserCosmetics>('/users/me/cosmetics'),
+
+  updateCosmetics: (body: { skin_model?: ProfileModel; cape_type?: 'none' | 'qx' | 'custom' }) =>
+    request<UserCosmetics>('/users/me/cosmetics', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  uploadCosmeticsSkin: async (file: File) => {
+    await ensureFreshTokens();
+    const form = new FormData();
+    form.append('skin', file);
+    const headers = new Headers();
+    const tokens = loadTokens();
+    if (tokens?.access_token) {
+      headers.set('Authorization', `Bearer ${tokens.access_token}`);
+    }
+    const res = await fetch(`${API_BASE}/users/me/cosmetics/skin`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => null)) as ApiError | null;
+      throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+    }
+    return (await res.json()) as UserCosmetics;
+  },
+
+  deleteCosmeticsSkin: () =>
+    request<UserCosmetics>('/users/me/cosmetics/skin', { method: 'DELETE' }),
+
+  uploadCosmeticsCape: async (file: File) => {
+    await ensureFreshTokens();
+    const form = new FormData();
+    form.append('cape', file);
+    const headers = new Headers();
+    const tokens = loadTokens();
+    if (tokens?.access_token) {
+      headers.set('Authorization', `Bearer ${tokens.access_token}`);
+    }
+    const res = await fetch(`${API_BASE}/users/me/cosmetics/cape`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => null)) as ApiError | null;
+      throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+    }
+    return (await res.json()) as UserCosmetics;
+  },
+
+  deleteCosmeticsCape: () =>
+    request<UserCosmetics>('/users/me/cosmetics/cape', { method: 'DELETE' }),
+
   linkDevice: (body: { device_id: string }) =>
     request<LinkDeviceResult>('/launcher/devices/link', {
       method: 'POST',
@@ -363,7 +572,11 @@ export const api = {
   deleteProfile: (id: string) =>
     request<void>(`/launcher/profiles/${id}`, { method: 'DELETE' }, 'launcher'),
 
-  createLaunchRequest: (body: { instance_id: string; offline_profile_id?: string }) =>
+  createLaunchRequest: (body: {
+    instance_id: string;
+    offline_profile_id?: string;
+    use_mojang_account?: boolean;
+  }) =>
     request<LaunchRequest>('/launcher/launch-requests', {
       method: 'POST',
       body: JSON.stringify(body),
@@ -552,6 +765,61 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ rating }),
     }),
+
+  searchMods: (params: {
+    q: string;
+    type?: ModProjectType;
+    loader?: string;
+    mc_version?: string;
+    limit?: number;
+  }) => {
+    const search = new URLSearchParams();
+    search.set('q', params.q);
+    if (params.type) search.set('type', params.type);
+    if (params.loader) search.set('loader', params.loader);
+    if (params.mc_version) search.set('mc_version', params.mc_version);
+    if (params.limit != null) search.set('limit', String(params.limit));
+    return request<{ items: ModCatalogItem[]; curseforge_enabled: boolean }>(
+      `/mods/search?${search.toString()}`,
+    );
+  },
+
+  getModProject: (source: ModSource, projectId: string) =>
+    request<ModCatalogItem & { description?: string }>(
+      `/mods/${encodeURIComponent(source)}/${encodeURIComponent(projectId)}`,
+    ),
+
+  listModVersions: (
+    source: ModSource,
+    projectId: string,
+    params?: { loader?: string; mc_version?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.loader) search.set('loader', params.loader);
+    if (params?.mc_version) search.set('mc_version', params.mc_version);
+    const qs = search.toString();
+    return request<{ items: ModVersion[] }>(
+      `/mods/${encodeURIComponent(source)}/${encodeURIComponent(projectId)}/versions${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  syncModToGameServer: (
+    vpsId: string,
+    gameServerId: string,
+    body: {
+      source: ModSource;
+      project_id: string;
+      version_id: string;
+      filename: string;
+      download_url: string;
+      project_name?: string;
+      version_number?: string;
+    },
+  ) =>
+    request<ModSyncResult>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods/sync`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
 };
 
 export type ConsoleMessage = {

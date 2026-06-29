@@ -9,8 +9,11 @@ import (
 	"github.com/qxproject/qx/services/qxapi/internal/agenthub"
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
 	"github.com/qxproject/qx/services/qxapi/internal/crypto"
+	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
 	"github.com/qxproject/qx/services/qxapi/internal/deploy"
 	"github.com/qxproject/qx/services/qxapi/internal/launcher"
+	"github.com/qxproject/qx/services/qxapi/internal/mojang"
+	"github.com/qxproject/qx/services/qxapi/internal/mods"
 	"github.com/qxproject/qx/services/qxapi/internal/servers"
 )
 
@@ -20,18 +23,50 @@ type DeploySettings struct {
 	DeployExecutor  servers.DeployExecutor // optional; tests inject a capturer
 }
 
-func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey string, deployCfg DeploySettings) *gin.Engine {
+type MojangSettings struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURI  string
+	WebBaseURL   string
+	JWTSecret    string
+}
+
+type ModsSettings struct {
+	CurseForgeAPIKey  string
+	ModrinthUserAgent string
+}
+
+type CosmeticsSettings struct {
+	DataDir             string
+	PublicAPIURL        string
+	SkinServerPublicURL string
+}
+
+func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey string, deployCfg DeploySettings, mojangCfg MojangSettings, modsCfg ModsSettings, cosmeticsCfg CosmeticsSettings) *gin.Engine {
 	r := gin.New()
 	r.Use(RecoveryLogger(), RequestLogger(), CORSMiddleware(corsOrigin))
 
 	tokens := authSvc.Tokens()
-	launcherSvc := launcher.NewService(db, tokens, corsOrigin)
-
 	enc, err := crypto.NewEncryptor(sshMasterKey)
 	if err != nil {
 		slog.Error("ssh encryptor init failed", "error", err)
 		enc, _ = crypto.NewEncryptor(devSSHMasterKey())
 	}
+	launcherSvc := launcher.NewService(db, tokens, corsOrigin)
+	mojangSvc := mojang.NewService(db, enc, mojang.Config{
+		ClientID:     mojangCfg.ClientID,
+		ClientSecret: mojangCfg.ClientSecret,
+		RedirectURI:  mojangCfg.RedirectURI,
+		WebBaseURL:   mojangCfg.WebBaseURL,
+	}, mojangCfg.JWTSecret)
+	launcherSvc.SetMojang(mojangSvc)
+	cosmeticsSvc := cosmetics.NewService(db, cosmetics.Config{
+		DataDir:             cosmeticsCfg.DataDir,
+		PublicAPIURL:        cosmeticsCfg.PublicAPIURL,
+		SkinServerPublicURL: cosmeticsCfg.SkinServerPublicURL,
+	})
+	launcherSvc.SetCosmetics(cosmeticsSvc)
+
 	hub := agenthub.New(nil)
 	deployer := deployCfg.DeployExecutor
 	if deployer == nil {
@@ -55,6 +90,19 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	gameServersH := &GameServersHandler{Service: serversSvc}
 	monitoringH := &MonitoringHandler{Service: serversSvc}
 	consoleH := &ServerConsoleHandler{Servers: serversSvc, Tokens: tokens}
+	mojangH := &MojangHandler{Service: mojangSvc}
+	cosmeticsH := &CosmeticsHandler{Service: cosmeticsSvc}
+	sessionH := &SessionHandler{Service: cosmeticsSvc}
+
+	// QX Skin Server — Yggdrasil-compatible session/profile (Ely.by-style, no client mods).
+	r.GET("/", sessionH.Meta)
+	r.GET("/sessionserver/session/minecraft/profile/:uuid", sessionH.Profile)
+
+	modsSvc := mods.NewService(mods.Config{
+		CurseForgeAPIKey:  modsCfg.CurseForgeAPIKey,
+		ModrinthUserAgent: modsCfg.ModrinthUserAgent,
+	})
+	modsH := &ModsHandler{Service: modsSvc}
 	agentWS := &AgentWSHandler{Hub: hub, Tokens: tokens, Servers: serversSvc}
 	health := &HealthHandler{DB: db}
 
@@ -62,10 +110,13 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	{
 		v1.GET("/health", health.Liveness)
 		v1.GET("/health/ready", health.Readiness)
+		v1.GET("/cosmetics/skins/:userId", cosmeticsH.ServeSkin)
+		v1.GET("/cosmetics/capes/:userId", cosmeticsH.ServeCape)
 
 		v1.POST("/auth/register", authH.Register)
 		v1.POST("/auth/login", authH.Login)
 		v1.POST("/auth/refresh", authH.Refresh)
+		v1.GET("/mojang/oauth/callback", mojangH.OAuthCallback)
 		v1.POST("/auth/logout", AuthMiddleware(tokens), authH.Logout)
 
 		// WebSocket clients pass access_token as a query param (no Authorization header).
@@ -89,6 +140,16 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.GET("/users/me/launcher-device", devicesH.UserLinkedDevice)
 			authed.PATCH("/users/me/password", usersH.ChangePassword)
 			authed.PATCH("/users/me/email", usersH.ChangeEmail)
+			authed.GET("/users/me/mojang", mojangH.Status)
+			authed.POST("/users/me/mojang/oauth/start", mojangH.StartOAuth)
+			authed.DELETE("/users/me/mojang", mojangH.Unlink)
+
+			authed.GET("/users/me/cosmetics", cosmeticsH.GetMine)
+			authed.PUT("/users/me/cosmetics", cosmeticsH.Equip)
+			authed.POST("/users/me/cosmetics/skin", cosmeticsH.UploadSkin)
+			authed.DELETE("/users/me/cosmetics/skin", cosmeticsH.DeleteSkin)
+			authed.POST("/users/me/cosmetics/cape", cosmeticsH.UploadCape)
+			authed.DELETE("/users/me/cosmetics/cape", cosmeticsH.DeleteCape)
 
 			authed.GET("/servers", serversH.List)
 			authed.POST("/servers", serversH.Create)
@@ -106,6 +167,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.GET("/servers/:id/game-servers/:gameServerId/properties", gameServersH.GetProperties)
 			authed.PATCH("/servers/:id/game-servers/:gameServerId/properties", gameServersH.PatchProperties)
 			authed.GET("/servers/:id/game-servers/:gameServerId/mods", gameServersH.ListMods)
+			authed.POST("/servers/:id/game-servers/:gameServerId/mods/sync", gameServersH.SyncMod)
 			authed.GET("/servers/:id/game-servers/:gameServerId/files", gameServersH.ListFiles)
 			authed.GET("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.ReadFile)
 			authed.PUT("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.WriteFile)
@@ -117,6 +179,10 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 
 			authed.POST("/monitoring/servers/:id/like", monitoringH.Like)
 			authed.POST("/monitoring/servers/:id/rate", monitoringH.Rate)
+
+			authed.GET("/mods/search", modsH.Search)
+			authed.GET("/mods/:source/:projectId", modsH.GetProject)
+			authed.GET("/mods/:source/:projectId/versions", modsH.ListVersions)
 		}
 
 		launcherOwner := v1.Group("")

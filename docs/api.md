@@ -23,6 +23,10 @@
 | GET | `/users/me/launcher-device` | ✅ |
 | PATCH | `/users/me/password` | ✅ |
 | PATCH | `/users/me/email` | ✅ |
+| GET | `/users/me/mojang` | ✅ Microsoft/Minecraft link status |
+| POST | `/users/me/mojang/oauth/start` | ✅ Start OAuth (returns `authorization_url`) |
+| GET | `/mojang/oauth/callback` | ✅ OAuth callback (redirect to web profile) |
+| DELETE | `/users/me/mojang` | ✅ Unlink Microsoft account |
 | GET | `/health` | ✅ |
 | GET | `/health/ready` | ✅ |
 | POST | `/launcher/devices/register` | ✅ |
@@ -57,7 +61,7 @@
   "access_token": "…",
   "refresh_token": "…",
   "token_type": "Bearer",
-  "expires_in": 900
+  "expires_in": 3600
 }
 ```
 
@@ -143,7 +147,7 @@ Modpacks и загрузка mods/shaders/RP из панели — v2+. См. [s
 
 ---
 
-## 4. Servers (BYOS)
+## 4. Servers (Dedicated)
 
 ### 4.1 Lifecycle
 
@@ -167,11 +171,11 @@ Modpacks и загрузка mods/shaders/RP из панели — v2+. См. [s
 | `agent_online` | bool | QXAgent WSS connected |
 | `minecraft_running` | bool | JAR process running (`mc_pid` set) |
 | `status` | string | MC lifecycle: `offline`, `starting`, `online`, `error` |
-| `config.mc_pid` | int? | PID on VPS (when running) |
+| `config.mc_pid` | int? | PID on dedicated server (when running) |
 
-### 4.2 Game servers (per VPS)
+### 4.2 Game servers (per dedicated server)
 
-Игровые инстансы Minecraft на VPS с QXAgent. UI: таблица на странице VPS → `/servers/:vpsId/game-servers/:id`.
+Игровые инстансы Minecraft на выделенном сервере с QXAgent. UI: таблица на странице выделенного сервера → `/servers/:serverId/game-servers/:id`.
 
 | Method | Path | Description |
 | -------- | ------ | ------------- |

@@ -1,6 +1,6 @@
 # SSH Deploy — Agent Provisioning
 
-> **F7:** Backend SSH → Linux VPS → systemd agent.
+> **F7:** Backend SSH → Linux dedicated server → systemd agent.
 > Security: [security-legal.md §3](./security-legal.md)
 > **Конфиг (dev):** [configuration.md](./configuration.md) — `public_api_url`, `agent_binary_path` в `qxapi.toml`
 > **Статус:** ✅ Phase 2. REST: base `/api/v1` (пути ниже относительные).
@@ -14,16 +14,16 @@ sequenceDiagram
     participant U as Admin (Panel)
     participant API as Backend
     participant D as SSH Deployer
-    participant VPS as Linux VPS
+    participant DS as Linux dedicated server
     participant A as QXAgent
 
     U->>API: POST /api/v1/servers + ssh_credentials
     U->>API: POST /api/v1/servers/{id}/deploy
     API->>D: Run deploy (sync in request)
-    D->>VPS: SSH connect (key from DB decrypted)
-    D->>VPS: Upload agent binary
-    D->>VPS: Write agent.toml + systemd unit
-    D->>VPS: systemctl enable + restart qx-agent
+    D->>DS: SSH connect (key from DB decrypted)
+    D->>DS: Upload agent binary
+    D->>DS: Write agent.toml + systemd unit
+    D->>DS: systemctl enable + restart qx-agent
     A->>API: WSS connect
     D->>API: deploy success
     API-->>U: agent_online true (MC still offline)
@@ -33,7 +33,7 @@ sequenceDiagram
 
 ---
 
-## 2. Prerequisites (user VPS)
+## 2. Prerequisites (user dedicated server)
 
 | Requirement | Detail |
 | ------------- | -------- |
@@ -45,7 +45,7 @@ sequenceDiagram
 
 Panel shows **pre-flight checklist** before deploy.
 
-**Dev VPS:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
+**dev dedicated server:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 
 **Prod:** `QX_PUBLIC_API_URL=https://mc.qx-dev.ru` в `.env.prod` — [production-deploy.md](./production-deploy.md).
 
@@ -70,7 +70,7 @@ No user-supplied shell. Deployer executes fixed script template:
 4. Write `/etc/systemd/system/qx-agent.service`
 5. `systemctl daemon-reload && systemctl enable qx-agent && systemctl restart qx-agent`
 
-**Re-deploy:** `restart` (не только `enable --now`) — новый `agent_token` подхватывается без ручного restart на VPS.
+**Re-deploy:** `restart` (не только `enable --now`) — новый `agent_token` подхватывается без ручного restart на dedicated server.
 
 ---
 

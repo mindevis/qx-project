@@ -29,12 +29,28 @@ func New(baseURL, deviceToken string) *Client {
 	}
 }
 
+type MojangSession struct {
+	Username    string `json:"username"`
+	UUID        string `json:"uuid"`
+	AccessToken string `json:"access_token"`
+}
+
+type LaunchCosmetics struct {
+	SkinModel      string `json:"skin_model"`
+	SkinURL        string `json:"skin_url,omitempty"`
+	UseSkinServer  bool   `json:"use_skin_server,omitempty"`
+	SkinServerHost string `json:"skin_server_host,omitempty"`
+	GameUUID       string `json:"game_uuid,omitempty"`
+}
+
 type LaunchRequestItem struct {
 	ID         string                           `json:"id"`
 	Status     string                           `json:"status"`
 	InstanceID string                           `json:"instance_id"`
 	Manifest   *mcmanifest.InstanceLaunchManifest `json:"manifest"`
 	Profile    *OfflineProfile                  `json:"profile"`
+	Mojang     *MojangSession                   `json:"mojang_session"`
+	Cosmetics  *LaunchCosmetics                 `json:"cosmetics"`
 }
 
 type OfflineProfile struct {

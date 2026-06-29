@@ -7,14 +7,32 @@ log_format = "text"
 database_dsn = "qx:qx@tcp(localhost:3306)/qx?charset=utf8mb4&parseTime=True&loc=Local"
 # make jwt-secret (print) | make jwt-secret-config (write qxapi.toml)
 jwt_secret = "dev-secret-change-in-production"
-access_token_ttl = "15m"
+access_token_ttl = "1h"
 refresh_token_ttl = "168h"
 cors_origin = "http://localhost:5173"
 # Prod .env.prod: CORS_ORIGIN=https://mc.qx-dev.ru, QX_PUBLIC_API_URL=https://mc.qx-dev.ru
 # base64-encoded 32-byte key for SSH private key encryption (dev default in config)
 ssh_master_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
-# SSH deploy (Flow C) — dev VPS: make dev-vps-up
+# SSH deploy (Flow C) — dev dedicated server: make dev-vps-up
 public_api_url = "http://host.docker.internal:3000"
 # Optional; default resolves ../../bin/qx-agent-linux when API runs via make api
 # agent_binary_path = "../../bin/qx-agent-linux"
+
+# Microsoft / Minecraft account linking (OAuth PKCE). Redirect URI defaults to
+# {public_api_url}/api/v1/mojang/oauth/callback — register it in Azure if using a custom app.
+# mojang_client_id = "00000000402b5328"
+# mojang_client_secret = ""
+# mojang_oauth_redirect_uri = "http://localhost:3000/api/v1/mojang/oauth/callback"
+
+# Uploaded skin/cape PNG storage (see docs/cosmetics.md)
+# cosmetics_data_dir = "data/cosmetics"
+
+# Public base URL for QX Skin Server session/profile endpoints (defaults to public_api_url).
+# Must be reachable by the Minecraft client when using licensed + QX cosmetics.
+# skin_server_public_url = "https://mc.example.com"
+# env: SKIN_SERVER_PUBLIC_URL
+
+# QXMods — CurseForge & Modrinth catalog proxy (launcher Resources panel)
+# curseforge_api_key = ""          # env: CURSEFORGE_API_KEY — required for CurseForge search
+# modrinth_user_agent = "QXSystem/1.0 (contact@example.com)"  # env: MODRINTH_USER_AGENT

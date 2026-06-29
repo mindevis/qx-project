@@ -41,7 +41,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Addr != ":3000" {
 		t.Fatalf("addr: %s", cfg.Addr)
 	}
-	if cfg.AccessTokenTTL != 15*time.Minute {
+	if cfg.AccessTokenTTL != time.Hour {
 		t.Fatalf("access ttl: %v", cfg.AccessTokenTTL)
 	}
 	if cfg.RefreshTokenTTL != 7*24*time.Hour {
@@ -115,7 +115,7 @@ func TestLoadInvalidDurationFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := config.Load()
-	if cfg.AccessTokenTTL != 15*time.Minute {
+	if cfg.AccessTokenTTL != time.Hour {
 		t.Fatalf("expected fallback, got %v", cfg.AccessTokenTTL)
 	}
 }

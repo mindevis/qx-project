@@ -12,6 +12,7 @@ import {
   clearLinkedDevice,
   clearTokens,
   loadTokens,
+  maintainSession,
   saveTokens,
   type TokenResponse,
   type UserProfile,
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (loadTokens()) {
           logger.debug('restoring session');
+          await maintainSession();
           await refreshProfile();
         }
       } catch {
@@ -60,6 +62,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, [refreshProfile]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const onFocus = () => {
+      void maintainSession().catch(() => {
+        clearTokens();
+        setUser(null);
+      });
+    };
+    const intervalId = window.setInterval(onFocus, 4 * 60 * 1000);
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [user]);
 
   const applyTokens = useCallback(
     async (tokens: TokenResponse) => {

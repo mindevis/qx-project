@@ -164,7 +164,7 @@ See also [modpacks-pipeline.md](./modpacks-pipeline.md), [ADR-0011](./adr/0011-c
 
 - Fetch metadata and **authorized download URLs** via API.
 - **QXLauncher** downloads directly to user PC instance — **no re-hosting** mod/modpack binaries on MinIO.
-- **QXAgent** downloads to BYOS server disk from same manifest URLs.
+- **QXAgent** downloads to dedicated server server disk from same manifest URLs.
 
 ### 5.2 Restrictions
 
@@ -200,7 +200,7 @@ Storage: `users.totp_secret_enc` encrypted with master key.
 
 ## 7. Transport & headers (pure self-hosted)
 
-No Cloudflare — all security on VPS:
+No Cloudflare — all security on dedicated server:
 
 | Control | Implementation |
 | --------- | ---------------- |
@@ -209,7 +209,7 @@ No Cloudflare — all security on VPS:
 | CSP | Strict policy on `/launcher` |
 | CORS | `https://mc.qx-dev.ru` only (same origin для панели и API) |
 | Cookies | `HttpOnly`, `Secure`, `SameSite=Lax` |
-| JWT | Short access 15m, refresh 7d rotation |
+| JWT | Access 1h with silent refresh, refresh 7d rotation |
 
 **DDoS:** Nginx `limit_req`, fail2ban on SSH/API abuse. Accept higher risk vs Cloudflare — monitor bandwidth.
 
@@ -223,7 +223,7 @@ No Cloudflare — all security on VPS:
 | Modpacks (auto CF/MR) | ✗ (v2+) | ✓ |
 | Mods/shaders/resource packs (panel upload) | ✗ (v2+) | ✓ |
 | Skins upload | ✗ (post-MVP) | ✓ |
-| BYOS servers + game servers | ✓ | ✓+limits |
+| dedicated server servers + game servers | ✓ | ✓+limits |
 | Public server list | read | read |
 
 > **Guest без регистрации** — v2+ (см. [device-linking.md](./device-linking.md)).

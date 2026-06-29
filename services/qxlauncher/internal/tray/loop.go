@@ -99,14 +99,34 @@ func RunLoop(ctx context.Context, cfg Config) {
 func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, cfg Config, item *apiclient.LaunchRequestItem) {
 	username := "Player"
 	offlineUUID := "00000000-0000-0000-0000-000000000000"
-	if item.Profile != nil {
+	skinModel := minecraft.ModelSteve
+	var licensed *minecraft.LaunchAuth
+	if item.Mojang != nil {
+		licensed = &minecraft.LaunchAuth{
+			Username:    item.Mojang.Username,
+			UUID:        item.Mojang.UUID,
+			AccessToken: item.Mojang.AccessToken,
+		}
+		username = item.Mojang.Username
+		offlineUUID = item.Mojang.UUID
+	} else if item.Profile != nil {
 		username = item.Profile.Username
 		offlineUUID = item.Profile.OfflineUUID
+		skinModel = item.Profile.Model
 	}
 
-	skinModel := minecraft.ModelSteve
-	if item.Profile != nil {
-		skinModel = item.Profile.Model
+	var launchCosmetics *minecraft.LaunchCosmetics
+	if item.Cosmetics != nil {
+		launchCosmetics = &minecraft.LaunchCosmetics{
+			SkinModel:      item.Cosmetics.SkinModel,
+			SkinURL:        item.Cosmetics.SkinURL,
+			UseSkinServer:  item.Cosmetics.UseSkinServer,
+			SkinServerHost: item.Cosmetics.SkinServerHost,
+			GameUUID:       item.Cosmetics.GameUUID,
+		}
+		if launchCosmetics.SkinModel == "" {
+			launchCosmetics.SkinModel = skinModel
+		}
 	}
 
 	dl.OnProgress = func(phase, message string) {
@@ -121,6 +141,8 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		Username:    username,
 		OfflineUUID: offlineUUID,
 		SkinModel:   skinModel,
+		Licensed:    licensed,
+		Cosmetics:   launchCosmetics,
 	})
 	dl.OnProgress = nil
 	if err != nil {

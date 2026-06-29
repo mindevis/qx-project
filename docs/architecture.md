@@ -14,7 +14,7 @@
 | **QXApi** — health | Phase 0 | ✅ `GET /api/v1/health`, `GET /api/v1/health/ready` |
 | **QXWeb** | Phase 0–2 | ✅ `/`, auth modal, `/profile`, `/launcher`, **`/servers`** (SSH, deploy agent, MC controls при `minecraft_running`) |
 | **QXApi** — launcher, servers | Phase 1–2 | ✅ devices, instances, launch-requests, servers CRUD/deploy, agent hub |
-| **Infra dev** | Phase 0–2 | ✅ Docker Compose (MySQL, Redis, MinIO); **dev VPS** `make dev-vps-up` (Flow C) |
+| **Infra dev** | Phase 0–2 | ✅ Docker Compose (MySQL, Redis, MinIO); **dev dedicated server** `make dev-vps-up` (Flow C) |
 | **CI / тесты** | Phase 0–Alpha | ✅ GitHub Actions; Go и web — **100% unit coverage**; Playwright + manual matrix |
 | **QXLauncher** | Phase 1 | ✅ HWID device link, auto browser, tray loop, **Vanilla + Forge/NeoForge/Fabric/Quilt** |
 | **QXAgent** | Phase 2 | ✅ WSS client, start/stop JAR |
@@ -58,7 +58,7 @@
 | **QXWeb** | Личный кабинет и панель управления серверами (React SPA): auth, профиль, инстансы, серверы, UI `/launcher` |
 | **QXApi** | Backend: REST + WebSocket, Agent Hub, auth, modpacks, deploy |
 | **QXLauncher** | Desktop tray (Go): device link, sync, Mojang Java, JVM; **без встроенного UI** |
-| **QXAgent** | Linux daemon на BYOS-сервере пользователя: lifecycle JAR, консоль, файлы, modpack |
+| **QXAgent** | Linux daemon на dedicated server-сервере пользователя: lifecycle JAR, консоль, файлы, modpack |
 
 ### Ключевые сценарии использования
 
@@ -155,7 +155,7 @@ sequenceDiagram
 
 #### Сценарий 3 — Управление игровым сервером (админ)
 
-**Актор:** владелец сервера (BYOS).
+**Актор:** владелец сервера (dedicated server).
 
 ```mermaid
 sequenceDiagram
@@ -189,7 +189,7 @@ sequenceDiagram
 | ----- | ---------- | ----- |
 | 1 | Регистрация + авторизация | Web |
 | 2 | Добавление сервера (SSH, `server_type`) | Web |
-| 3 | SSH deploy QXAgent | Backend → Linux VPS |
+| 3 | SSH deploy QXAgent | Backend → Linux dedicated server |
 | 4 | Настройка сервера | Web-панель |
 | 5 | Запуск игрового сервера | API/UI → Agent → JAR (UI Start — post-MVP) |
 
@@ -266,7 +266,7 @@ flowchart TB
         end
     end
 
-    subgraph byos [BYOS — инфраструктура пользователя]
+    subgraph dedicated server [dedicated server — инфраструктура пользователя]
         direction TB
         Agent[QXAgent]
         MCServer[Minecraft Server JAR]
@@ -302,14 +302,14 @@ flowchart TB
     classDef api fill:#0f2744,stroke:#38bdf8,color:#f0f9ff,stroke-width:2px
     classDef mgmt fill:#134e4a,stroke:#2dd4bf,color:#ecfdf5
     classDef service fill:#312e81,stroke:#a78bfa,color:#f5f3ff
-    classDef byos fill:#422006,stroke:#fbbf24,color:#fffbeb
+    classDef dedicated server fill:#422006,stroke:#fbbf24,color:#fffbeb
     classDef store fill:#1e293b,stroke:#94a3b8,color:#f1f5f9
 
     class Web,Launcher client
     class API api
     class AccountMgmt,ServerMgmt,BillingMgmt,LauncherMgmt mgmt
     class ModpackSvc,AgentHub,FileSvc,Notify service
-    class Agent,MCServer,NodeFS byos
+    class Agent,MCServer,NodeFS dedicated server
     class MySQL,Redis,MinIO store
 ```
 
@@ -325,7 +325,7 @@ flowchart TB
 | **QXWeb** | `web/qxweb/` | Личный кабинет, панель серверов, UI `/launcher` |
 | **QXApi** | `services/qxapi/` | Backend REST + WebSocket |
 | **QXLauncher** | `services/qxlauncher/` | Desktop tray (Go), без встроенного UI |
-| **QXAgent** | `services/qxagent/` | Linux daemon на BYOS-сервере пользователя |
+| **QXAgent** | `services/qxagent/` | Linux daemon на dedicated server-сервере пользователя |
 
 ### 3.1 QXWeb — личный кабинет и панель управления
 
@@ -378,7 +378,7 @@ services/qxapi/internal/
 | Домен | Модули | Ответственность |
 | ------- | -------- | ----------------- |
 | **Account Management** | `auth/`, `users/`, `profiles/`, `skinserver/` | QX-аккаунты, guest, JWT, QXAccount / Local / Microsoft, skins & capes |
-| **Server Management** | `servers/`, `agents/`, `deploy/` | BYOS-серверы, SSH deploy, QXAgent, консоль, файлы на ноде |
+| **Server Management** | `servers/`, `agents/`, `deploy/` | dedicated server-серверы, SSH deploy, QXAgent, консоль, файлы на ноде |
 | **Billing Management** | `billing/` | Premium tier, лимиты, подписки, платёжные webhooks (post-MVP) |
 | **Launcher Management** | `launcher/`, `instances/`, `devices/` | Device link, инстансы, launch-requests, manifests, auto-update |
 | **Shared (Services)** | `modpacks/`, `files/`, `integrations/`, Agent Hub, Notify | Catalog + manifest (MySQL); MinIO — только platform blobs |
@@ -399,7 +399,7 @@ services/qxapi/internal/
 
 **Стек:** Go · **Платформа: Linux only** · systemd service.
 
-**Установка:** QXApi подключается к VPS по **SSH** (ключ пользователя, хранится encrypted) и разворачивает QXAgent
+**Установка:** QXApi подключается к dedicated server по **SSH** (ключ пользователя, хранится encrypted) и разворачивает QXAgent
 binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
 
 | Категория | Функции |
@@ -516,7 +516,7 @@ webhooks провайдера оплаты. Поле `users.tier` — на бу�
 
 ### 3.7 Server JAR types & content
 
-Тип сервера задаёт, **что можно ставить на BYOS-ноду** через QXAgent:
+Тип сервера задаёт, **что можно ставить на dedicated server-ноду** через QXAgent:
 
 | Категория | `server_type` | Контент на диске |
 | ----------- | --------------- | ------------------ |
@@ -676,7 +676,7 @@ erDiagram
 | Сессии, pub/sub Agent Hub, кэш metadata | Redis |
 | **Платформенные файлы** (launcher builds, server backups, skins) | **MinIO** |
 | Mods / modpacks / shaders / RP инстанса | **Диск ПК** (QXLauncher) |
-| Mods / plugins / modpack на BYOS-сервере | **Диск ноды** (QXAgent), см. [server-content-install.md](./server-content-install.md) |
+| Mods / plugins / modpack на dedicated server-сервере | **Диск ноды** (QXAgent), см. [server-content-install.md](./server-content-install.md) |
 | Логи (опционально) | Loki / Elasticsearch — TBD |
 
 ---
@@ -982,26 +982,26 @@ packages/
 | Источник нагрузки | Характер | Пик |
 | ------------------- | ---------- | ----- |
 | **Launcher sync** | REST: список инстансов, манифесты | При каждом запуске лаунчера |
-| **Modpack / game assets download** | Трафик **ПК ↔ CF/MR/Mojang** (не через QX VPS) | Первый install modpack |
+| **Modpack / game assets download** | Трафик **ПК ↔ CF/MR/Mojang** (не через QX platform) | Первый install modpack |
 | **Launcher auto-update** | Исходящий с MinIO/Nginx | Релизы QXLauncher |
 | **Agent Hub (WSS)** | Долгоживущие соединения | 1 conn на сервер; консоль = steady stream |
 | **Web-панель** | REST + WS консоль | Админы (меньше DAU, но тяжёлые WS) |
 | **Auth** | Login, refresh, guest tokens | Волны при релизах / маркетинге |
 | **MySQL** | CRUD users, instances, servers | Линейно с MAU |
 
-**Вывод:** bottleneck VPS — **Agent Hub** (WSS) и **platform** downloads (launcher builds, backups), не modpack-трафик
+**Вывод:** bottleneck platform host — **Agent Hub** (WSS) и **platform** downloads (launcher builds, backups), не modpack-трафик
 (он идёт напрямую на ПК пользователя).
 
 ### 8.3 Инфраструктурные tier'ы (Self-Hosted)
 
-> Все tier'ы — **свои серверы** (VPS или dedicated). Managed DB/S3 не используем.
+> Все tier'ы — **свои серверы** (dedicated server или dedicated). Managed DB/S3 не используем.
 > **Pure self-hosted** — без Cloudflare ([ADR-0009](./adr/0009-pure-self-hosted.md)); TLS через Nginx + Let's Encrypt.
 
 #### Tier 0 — MVP (десятки–сотни пользователей)
 
 ```mermaid
 flowchart TB
-    subgraph vps [1× Self-Hosted VPS]
+    subgraph dedicated server [1× Self-Hosted dedicated server]
         Nginx[Nginx + Let's Encrypt]
         API[API + Agent Hub]
         MySQL[(MySQL)]
@@ -1022,47 +1022,47 @@ flowchart TB
 
 | Комponent | Self-Hosted стек |
 | ----------- | ------------------ |
-| **VPS** | 1× 4–8 GB RAM, 2 vCPU, 80+ GB SSD (Hetzner, Timeweb, Selectel, домашний dedicated) |
+| **dedicated server** | 1× 4–8 GB RAM, 2 vCPU, 80+ GB SSD (Hetzner, Timeweb, Selectel, домашний dedicated) |
 | **Orchestration** | **Docker Compose** — один `docker-compose.prod.yml` |
 | **Reverse proxy** | Nginx + Certbot (Let's Encrypt) |
 | **MySQL** | Official Docker image, volume на SSD, **mysqldump cron** → локальный бэкап |
 | **Redis** | Official Docker image, AOF persistence |
 | **Object storage** | **MinIO** — launcher builds, server backups, skins (не client mods/modpacks) |
 | **Web** | React SPA static + Nginx |
-| **Мониторинг** | Uptime Kuma + (опц.) Netdata на том же VPS |
-| **Стоимость** | **$5–30/мес** (VPS) + electricity если домашний сервер |
+| **Мониторинг** | Uptime Kuma + (опц.) Netdata на том же dedicated server |
+| **Стоимость** | **$5–30/мес** (dedicated server) + electricity если домашний сервер |
 
 #### Tier 1 — Launch (сотни–тысячи MAU)
 
 | Компонент | Self-Hosted изменение |
 | ----------- | ------------------------- |
-| **Topology** | 2× VPS: **app** (API, Nginx, Redis) + **data** (MySQL, MinIO) |
-| **Load balancing** | Nginx upstream на 2 app-ноды **или** второй app-VPS |
-| **MySQL** | Отдельный VPS; pool на app-ноде (GORM / ProxySQL); daily mysqldump + offsite copy |
-| **MinIO** | Dedicated disk / второй VPS; Nginx для launcher releases |
-| **Backups** | Restic → второй VPS / NAS / внешний HDD |
-| **Стоимость** | **$30–80/мес** (2–3 VPS) |
+| **Topology** | 2× dedicated server: **app** (API, Nginx, Redis) + **data** (MySQL, MinIO) |
+| **Load balancing** | Nginx upstream на 2 app-ноды **или** второй app host |
+| **MySQL** | Отдельный dedicated server; pool на app-ноде (GORM / ProxySQL); daily mysqldump + offsite copy |
+| **MinIO** | Dedicated disk / второй dedicated server; Nginx для launcher releases |
+| **Backups** | Restic → второй dedicated server / NAS / внешний HDD |
+| **Стоимость** | **$30–80/мес** (2–3 dedicated server) |
 
 #### Tier 2 — Growth (тысячи–десятки тысяч MAU)
 
 | Компонент | Self-Hosted изменение |
 | ----------- | ------------------------- |
-| **App tier** | 2–3 VPS с API; Redis pub/sub для Agent Hub |
-| **MySQL** | Primary + **replica** на втором VPS (read-only) |
-| **MinIO** | Distributed mode (4 drives) **или** отдельный storage VPS с большим диском |
+| **App tier** | 2–3 dedicated server с API; Redis pub/sub для Agent Hub |
+| **MySQL** | Primary + **replica** на втором dedicated server (read-only) |
+| **MinIO** | Distributed mode (4 drives) **или** отдельный storage dedicated server с большим диском |
 | **Modpack mirror** | Не нужен — файлы на ПК клиента ([ADR-0011](./adr/0011-client-local-content-install.md)) |
 | **Observability** | Prometheus + Grafana (self-hosted stack) |
-| **Стоимость** | **$80–200/мес** (4–6 VPS / dedicated) |
+| **Стоимость** | **$80–200/мес** (4–6 dedicated server / dedicated) |
 
 #### Tier 3 — Scale (100k+ MAU)
 
 | Компонент | Self-Hosted изменение |
 | ----------- | ------------------------- |
-| **Geo** | 2 self-hosted PoP (RU + EU VPS), DNS geo-routing |
+| **Geo** | 2 self-hosted PoP (RU + EU dedicated server), DNS geo-routing |
 | **Storage** | MinIO cluster или dedicated storage server (NVMe) |
 | **Agent Hub** | Sharding по `server_id`, отдельные WSS-ноды |
 | **CDN** | Self-hosted Nginx cache / второй MinIO node для downloads |
-| **Ops** | Ansible/Terraform для provisioning VPS, runbooks |
+| **Ops** | Ansible/Terraform для provisioning dedicated server, runbooks |
 
 ### 8.4 Self-Hosted: что не используем
 
@@ -1071,7 +1071,7 @@ flowchart TB
 | AWS S3 / Yandex Object Storage | **MinIO** |
 | Managed cloud DB | **MySQL** в Docker (self-hosted) |
 | ElastiCache | **Redis** в Docker |
-| Kubernetes (EKS/GKE) | **Docker Compose** → позже **k3s** на своих VPS |
+| Kubernetes (EKS/GKE) | **Docker Compose** → позже **k3s** на своих dedicated server |
 | Vercel / Netlify | Nginx + React static |
 | Managed LB | Nginx upstream / HAProxy |
 
@@ -1093,7 +1093,7 @@ flowchart TB
 | Метрика | Порог «пора масштабироваться» |
 | --------- | ------------------------------- |
 | API p95 latency | > 500 ms стабильно |
-| CPU VPS / pod | > 70% sustained |
+| CPU dedicated server / pod | > 70% sustained |
 | MySQL connections | > 80% pool |
 | Concurrent Agent WSS | > 500 на одном инстансе |
 | CDN egress | > лимита тарифа или > $X/мес |
@@ -1114,11 +1114,11 @@ flowchart TB
 infra/
 ├── docker/
 │   ├── docker-compose.prod.yml           # Local image build
-│   ├── docker-compose.prod.runtime.yml   # VPS: GHCR pull
+│   ├── docker-compose.prod.runtime.yml   # dedicated server: GHCR pull
 │   ├── .env.prod.example
 │   └── nginx/prod.conf
 ├── scripts/
-│   ├── prod-remote-up.sh                 # VPS: pull + up
+│   ├── prod-remote-up.sh                 # dedicated server: pull + up
 │   └── prod-pack.sh                      # Offline bundle (optional)
 └── ...
 # CI: .github/workflows/prod-release.yml → GHCR → /opt/qxsystem
@@ -1160,7 +1160,7 @@ Deploy: [production-deploy.md](./production-deploy.md) · ADR-0004.
 
 | Что | Как часто | Куда |
 | ----- | ----------- | ------ |
-| MySQL | Daily | Restic → второй VPS / NAS |
+| MySQL | Daily | Restic → второй dedicated server / NAS |
 | MinIO buckets | Daily incremental | Restic |
 | `qxapi.toml`, nginx configs | On change | Git (private) + encrypted backup |
 | Launcher builds | On release | MinIO versioning |
@@ -1173,7 +1173,7 @@ Deploy: [production-deploy.md](./production-deploy.md) · ADR-0004.
 | Запуск | `make api`, `make dev-up` | push `main` → GHCR → `/opt/qxsystem` |
 | TLS | mkcert / HTTP | Let's Encrypt |
 | Домен | localhost | Реальный домен |
-| MinIO | Local | Production VPS SSD |
+| MinIO | Local | Production dedicated server SSD |
 
 ### 9.6 Схема prod (Tier 0)
 
@@ -1183,7 +1183,7 @@ flowchart TB
         Users[Users / Agents / Launchers]
     end
 
-    subgraph vps [Self-Hosted VPS]
+    subgraph dedicated server [Self-Hosted dedicated server]
         Nginx[Nginx :443]
         API[qx-api]
         Web[qx-web]
@@ -1201,8 +1201,8 @@ flowchart TB
     Users --> Nginx
 ```
 
-**MVP:** один VPS + Docker Compose — см. §8.3 Tier 0, §9.6.
-**Масштабирование:** добавление VPS, без перехода на public cloud — см. Tier 1–3.
+**MVP:** один dedicated server + Docker Compose — см. §8.3 Tier 0, §9.6.
+**Масштабирование:** добавление dedicated server, без перехода на public cloud — см. Tier 1–3.
 
 ### 9.7 Ops-нагрузка на команду (Self-Hosted)
 
@@ -1343,7 +1343,7 @@ flowchart TB
 | Web: инстанс → launch-bridge → JVM | Guest flow без регистрации |
 | Agent: SSH deploy, game servers, RCON, files | Premium, billing |
 | Windows QXLauncher | macOS / Linux |
-| Tier 0 infra (1 Self-Hosted VPS) | Multi-VPS, MinIO cluster |
+| Tier 0 infra (1 Self-Hosted dedicated server) | Multi-dedicated server, MinIO cluster |
 
 ### 11.5 Оценка сроков (реалистично)
 
@@ -1425,7 +1425,7 @@ gantt
 
 - [x] Сценарии 1–3 end-to-end (dev manual ☑ — [test-matrix](./qa/test-matrix.md))
 - [x] Test matrix, FAQ, README
-- [x] Prod VPS + smoke ([mvp §7.1](./mvp.md)) — 2026-06-29
+- [x] Prod host + smoke ([mvp §7.1](./mvp.md)) — 2026-06-29
 - [ ] TLS HTTPS (Let's Encrypt) — [production-deploy §3](./production-deploy.md#3-tls)
 
 ### Phase 4 — Modloaders & Modpacks *(+4–6 мес)*
@@ -1450,7 +1450,7 @@ gantt
 
 | # | Вопрос | Статус |
 | --- | -------- | -------- |
-| I8 | VPS-провайдер / регион | **TBD** |
+| I8 | dedicated server-провайдер / регион | **TBD** |
 
 **Закрыто:** B3 launch bridge · I9 pure self-hosted · E6 linking · W1 no WebView · X3/X4 CF · L3 own launcher · B2
 guest/auth tiers — см. [adr/](./adr/).
@@ -1483,7 +1483,7 @@ quadrantChart
 ```
 
 QXSystem = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (инстансы с сайта, `/launcher` UI) +
-**уникально:** панель управления сервером через QXAgent (BYOS). **Свой QXLauncher**, не GML.
+**уникально:** панель управления сервером через QXAgent (dedicated server). **Свой QXLauncher**, не GML.
 
 **Ключевые паттерны из референсов:**
 

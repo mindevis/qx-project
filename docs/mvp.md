@@ -15,7 +15,7 @@
 | QXWeb | `/launcher`, **`/servers`** — SSH-форма, Deploy agent, теги Agent/Minecraft |
 | QXLauncher | Device register/link (HWID, auto browser), **иконка в трее**, launch-bridge poll, **Vanilla + Forge/NeoForge/Fabric/Quilt** |
 | QXAgent | WSS client, start/stop JAR (`dry_run` в `agent.toml` для dev) |
-| Infra | `make dev-up` — MySQL, Redis, MinIO; конфиг — `*.toml`; `make dev-vps-up` — dev VPS для Flow C |
+| Infra | `make dev-up` — MySQL, Redis, MinIO; конфиг — `*.toml`; `make dev-vps-up` — dev dedicated server для Flow C |
 | Тесты | Go + React — unit coverage, CI, Playwright Flow A+B+C |
 **Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → QXLauncher → JVM  
 **RBAC:** [security-legal.md §8](./security-legal.md) — зарегистрированный пользователь: все client loader'ы; modpacks/shaders/RP из панели — v2+  
@@ -31,7 +31,7 @@
 
 1. **Игра с регистрацией** — register → login → download QXLauncher → **link device** → инстанс (Vanilla или modloader) → launch-bridge → JVM.
 2. ~~**Игра без регистрации**~~ — guest-flow **v2+** (см. [device-linking.md](./device-linking.md)).
-3. **Управление сервером** — BYOS Linux VPS → **SSH deploy** agent → **игровые серверы** (provision, start/stop) → RCON-консоль, `server.properties`, моды, файлы.
+3. **Управление сервером** — dedicated server Linux dedicated server → **SSH deploy** agent → **игровые серверы** (provision, start/stop) → RCON-консоль, `server.properties`, моды, файлы.
 
 **Не цель MVP (v1):** modpacks, billing, Microsoft OAuth, macOS/Linux launcher, public server list.
 
@@ -45,7 +45,7 @@ MVP считается готовым, когда:
   `/launcher`, играет. *(Flow A — manual QXLauncher + JVM ☑)*
 - [ ] Пользователь играет **без регистрации** (guest device link). *(Flow B — v2+)*
 - [x] На сайте создаётся инстанс → `POST /api/v1/launcher/launch-requests` → QXLauncher poll → JVM. *(API + `make e2e-dry-run`; modded loaders — unit/e2e в QXLauncher ☑)*
-- [x] Админ добавляет Linux VPS (SSH), backend **deploy agent** из panel. *(manual dev VPS ☑ — `make dev-vps-up`)*
+- [x] Админ добавляет Linux dedicated server (SSH), backend **deploy agent** из panel. *(manual dev dedicated server ☑ — `make dev-vps-up`)*
 - [x] API: start/stop/restart JAR через agent hub. *(unit + router Flow C ☑)*
 - [x] Live-консоль сервера в web (WebSocket), когда `minecraft_running === true`. *(API ☑; UI показывает консоль только при запущенном MC)*
 - [x] Launcher UI на сайте **`/launcher`** (React, не WebView) показывает инстансы и кнопку «Играть».
@@ -68,7 +68,7 @@ MVP считается готовым, когда:
 | **Mods/shaders/RP/modpacks** | Автоматические modpack'и и загрузка контента из панели — **v2+** |
 | **API** | Go + Gin + GORM |
 | **Agent** | Go, **Linux only**, SSH deploy, systemd, game server install, files/properties RPC |
-| **Game servers UI** | Таблица на VPS, страница сервера: RCON, settings, mods, files |
+| **Game servers UI** | Таблица на dedicated server, страница сервера: RCON, settings, mods, files |
 | **QXLauncher** (`services/qxlauncher/`) | Windows — HWID device link, auto browser, launch-bridge poll, JVM, Mojang Java |
 | **Интеграции** | **Mojang** manifest + assets; **Forge / NeoForge / Fabric / Quilt** installers (client + agent) |
 | **Infra** | Docker Compose: API, Web, MySQL, Redis, MinIO, Nginx |
@@ -112,12 +112,12 @@ Download QXLauncher → Guest session on /launcher/link → Link device
 ### Flow C — Server admin
 
 ```text
-Add Linux VPS (SSH creds) → Deploy agent → agent_online (WSS)
-→ (MC JAR на VPS вручную или post-MVP install pipeline)
+Add Linux dedicated server (SSH creds) → Deploy agent → agent_online (WSS)
+→ (MC JAR на dedicated server вручную или post-MVP install pipeline)
 → POST start (API) или agent cmd → minecraft_running → Stop/Restart + Console WS
 ```
 
-**Dev VPS:** `make dev-vps-up` → SSH `localhost:2222`, `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
+**dev dedicated server:** `make dev-vps-up` → SSH `localhost:2222`, `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 После Deploy в panel: тег **Agent** (синий), статус MC — **offline** до запуска JAR.
 
 ---
@@ -242,20 +242,20 @@ Agent         — id, server_id, hostname, connected_at
 
 **Dev (Phase 0, сейчас):** `make dev-up` — MySQL, Redis, MinIO. API и QXWeb — на хосте. Конфиг: [configuration.md](./configuration.md).
 
-**Prod MVP** — один VPS, Docker Compose. Домены и deploy: **[production-deploy.md](./production-deploy.md)**.
+**Prod MVP** — один dedicated server, Docker Compose. Домены и deploy: **[production-deploy.md](./production-deploy.md)**.
 
 ### 7.1 Prod readiness
 
 | # | Задача | Статус |
 | --- | -------- | -------- |
-| P.1 | Platform VPS + GH Actions deploy → `/opt/qxsystem` smoke | ✅ 2026-06-29 |
+| P.1 | Platform host + GH Actions deploy → `/opt/qxsystem` smoke | ✅ 2026-06-29 |
 | P.2 | DNS (`mc.qx-dev.ru`) + HTTP | ✅ A → `178.172.136.26`, панель и API отвечают |
 | P.2b | TLS (Let's Encrypt, HTTPS) | ☑ опционально — [production-deploy §3](./production-deploy.md#3-tls) |
 | P.3 | Секреты: JWT, MySQL, `SSH_MASTER_KEY` в `.env.prod` | ✅ GitHub Environment `production` |
 | P.4 | N02 — API health prod | ✅ `GET /api/v1/health` → 200 |
 | P.5 | Бэкапы MySQL, мониторинг | 🔲 ops (post-launch) |
-| P.6 | Game VPS: deploy agent + game server + console | ☑ BYOS отдельно — [ssh-deploy.md](./ssh-deploy.md) |
-| P.7 | QXLauncher с prod URLs (`mc.qx-dev.ru`) | ✅ `api_base_url` / `web_base_url` в [production-deploy §4](./production-deploy.md#4-game-vps-и-qxlauncher) |
+| P.6 | game dedicated server: deploy agent + game server + console | ☑ dedicated server отдельно — [ssh-deploy.md](./ssh-deploy.md) |
+| P.7 | QXLauncher с prod URLs (`mc.qx-dev.ru`) | ✅ `api_base_url` / `web_base_url` в [production-deploy §4](./production-deploy.md#4-game-dedicated server-и-qxlauncher) |
 
 ---
 
@@ -325,7 +325,7 @@ Agent         — id, server_id, hostname, connected_at
 | --- | -------- | --------------- | -------- |
 | A.1 | E2E: Flow A, B, C | Senior | ✅ `TestRouterFlowA_*`, `TestRouterFlowB_*`, `TestRouterFlowC_*` + Playwright |
 | A.2 | Test matrix + bug bash (dev) | Junior | ✅ Flow A manual ☑ (A09, L03, I04, I05); Flow C deploy ☑ (S01, S02, S11); Flow B — v2+ |
-| A.3 | Prod deploy на VPS | Senior | ✅ [production-deploy.md](./production-deploy.md); smoke 2026-06-29 |
+| A.3 | Prod deploy на dedicated server | Senior | ✅ [production-deploy.md](./production-deploy.md); smoke 2026-06-29 |
 | A.4 | User docs (README, FAQ) | Junior | ✅ [faq.md](./faq.md), README |
 | A.5 | Fix P0/P1 bugs (dev) | Senior | ✅ Agent vs MC status, console WS auth, redeploy restart |
 

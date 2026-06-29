@@ -81,11 +81,11 @@ func (s *Service) ListGameServers(ctx context.Context, ownerID, vpsID string) ([
 }
 
 func (s *Service) CreateGameServer(ctx context.Context, ownerID, vpsID string, in CreateGameServerInput) (*GameServerView, error) {
-	vps, err := s.getOwned(ctx, ownerID, vpsID)
+	server, err := s.getOwned(ctx, ownerID, vpsID)
 	if err != nil {
 		return nil, err
 	}
-	if vps.AgentTokenHash == nil {
+	if server.AgentTokenHash == nil {
 		return nil, ErrNotDeployed
 	}
 	if s.hub == nil || !s.hub.IsOnline(vpsID) {
@@ -159,11 +159,11 @@ func (s *Service) CreateGameServer(ctx context.Context, ownerID, vpsID string, i
 }
 
 func (s *Service) ReinstallGameServer(ctx context.Context, ownerID, vpsID, gameServerID string) (*GameServerView, error) {
-	vps, err := s.getOwned(ctx, ownerID, vpsID)
+	server, err := s.getOwned(ctx, ownerID, vpsID)
 	if err != nil {
 		return nil, err
 	}
-	if vps.AgentTokenHash == nil {
+	if server.AgentTokenHash == nil {
 		return nil, ErrNotDeployed
 	}
 	if s.hub == nil || !s.hub.IsOnline(vpsID) {
@@ -312,9 +312,9 @@ func (s *Service) startGameServerProcess(ctx context.Context, vpsID string, item
 		_ = json.Unmarshal([]byte(item.StartArgsJSON), &args)
 	}
 	javaBin := ""
-	vps, err := s.getByID(ctx, vpsID)
+	server, err := s.getByID(ctx, vpsID)
 	if err == nil {
-		if cfg, err := parseConfig(vps.ConfigJSON); err == nil {
+		if cfg, err := parseConfig(server.ConfigJSON); err == nil {
 			javaBin = cfg.JavaBin
 			if len(args) == 0 {
 				args = cfg.Args
@@ -754,7 +754,7 @@ func (s *Service) syncGameServerProperties(ctx context.Context, vpsID string, it
 	})
 }
 
-// Ensure game server rows are removed when VPS is deleted.
+// Ensure game server rows are removed when dedicated server is deleted.
 func (s *Service) deleteGameServersForVPS(ctx context.Context, vpsID string) error {
 	return s.db.WithContext(ctx).Where("server_id = ?", vpsID).Delete(&models.GameServer{}).Error
 }

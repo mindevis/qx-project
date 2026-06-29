@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Merge .env.prod + image-tag.env → .env for plain `docker compose` on VPS.
+# Merge .env.prod + image-tag.env → .env for plain `docker compose` on dedicated server.
 set -euo pipefail
 
 ROOT="${1:-/opt/qxsystem}"

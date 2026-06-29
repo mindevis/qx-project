@@ -4,7 +4,7 @@
 | ------- | ----------- | -------- |
 | [qxapi](./qxapi/) | QXApi — backend | Phase 0–3 ✅ |
 | [qxlauncher](./qxlauncher/) | QXLauncher | Phase 1 ✅ |
-| [qxagent](./qxagent/) | QXAgent — BYOS | Phase 2 ✅ |
+| [qxagent](./qxagent/) | QXAgent — dedicated server | Phase 2 ✅ |
 
 **Prod deploy:** [production-deploy.md](../docs/production-deploy.md) · **Live:** [mc.qx-dev.ru](https://mc.qx-dev.ru) (2026-06-29)
 

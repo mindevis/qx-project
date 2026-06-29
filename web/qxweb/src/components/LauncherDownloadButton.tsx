@@ -2,6 +2,7 @@ import { Button } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useMessage } from '@/hooks/useMessage';
 import { useI18n } from '@/i18n/I18nContext';
+import { openLauncherDownload, resolveLauncherDownloadUrl } from '@/lib/launcherDownload';
 
 type LauncherDownloadButtonProps = {
   type?: 'primary' | 'default';
@@ -21,9 +22,9 @@ export function LauncherDownloadButton({
       type={type}
       size={size}
       onClick={() => {
-        const url = import.meta.env.VITE_LAUNCHER_DOWNLOAD_URL?.trim();
+        const url = resolveLauncherDownloadUrl();
         if (url) {
-          window.open(url, '_blank', 'noopener,noreferrer');
+          openLauncherDownload(url);
           return;
         }
         message.info(t('home.downloadHint'), 6);

@@ -197,7 +197,7 @@ func TestAgentConnectDisconnect(t *testing.T) {
 		t.Fatalf("create agent row: %v", err)
 	}
 
-	if err := svc.AgentConnected(ctx, view.ID, "vps-1", "0.1.0"); err != nil {
+	if err := svc.AgentConnected(ctx, view.ID, "dedicated server-1", "0.1.0"); err != nil {
 		t.Fatalf("connected: %v", err)
 	}
 	got, err := svc.Get(ctx, "owner-1", view.ID)
@@ -212,7 +212,7 @@ func TestAgentConnectDisconnect(t *testing.T) {
 	}
 
 	_ = svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Update("status", models.ServerStatusOnline).Error
-	if err := svc.AgentConnected(ctx, view.ID, "vps-1", "0.1.0"); err != nil {
+	if err := svc.AgentConnected(ctx, view.ID, "dedicated server-1", "0.1.0"); err != nil {
 		t.Fatalf("reconnect: %v", err)
 	}
 	got, err = svc.Get(ctx, "owner-1", view.ID)

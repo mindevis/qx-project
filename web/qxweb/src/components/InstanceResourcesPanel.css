@@ -1,0 +1,113 @@
+.instance-resources-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme='dark'] .instance-resources-panel {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.instance-resources-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.instance-resources-title {
+  margin: 0 !important;
+}
+
+.instance-resources-brand {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #722ed1 !important;
+}
+
+.qxmods-search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.qxmods-search-bar .ant-input-affix-wrapper {
+  flex: 1;
+}
+
+.qxmods-attribution,
+.qxmods-detail-attribution {
+  font-size: 12px;
+  margin-bottom: 12px !important;
+}
+
+.qxmods-loading,
+.qxmods-sync-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.qxmods-result-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.qxmods-result-icon--placeholder {
+  display: inline-block;
+  background: rgba(114, 46, 209, 0.12);
+}
+
+.qxmods-result-item {
+  cursor: default;
+}
+
+.qxmods-version-list {
+  margin: 8px 0 16px;
+}
+
+.qxmods-version-item--selected {
+  background: rgba(114, 46, 209, 0.08);
+  border-radius: 6px;
+}
+
+.qxmods-version-meta {
+  font-size: 12px;
+}
+
+.qxmods-sync-btn {
+  margin-top: 8px;
+}
+
+.qxmods-sync-hint {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.qxmods-sync-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.qxmods-sync-option {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 0;
+}
+
+.qxmods-sync-option-name {
+  display: block;
+  font-weight: 500;
+}
+
+.qxmods-sync-option-meta {
+  display: block;
+  font-size: 12px;
+}

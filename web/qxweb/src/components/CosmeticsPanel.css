@@ -1,0 +1,35 @@
+.cosmetics-panel .cosmetics-hint,
+.cosmetics-panel .cosmetics-note {
+  margin: 0;
+  color: var(--qx-text-muted, rgba(0, 0, 0, 0.55));
+  font-size: 0.9rem;
+}
+
+.cosmetics-preview-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.cosmetics-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cosmetics-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cosmetics-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.cosmetics-preview-canvas {
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(120, 170, 255, 0.15), rgba(0, 0, 0, 0.04));
+}

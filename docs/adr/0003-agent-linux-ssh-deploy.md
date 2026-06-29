@@ -23,5 +23,5 @@
 
 - `internal/deploy/` в API с queue jobs.
 - Agent pairing через JWT at deploy, не manual token paste.
-- На VPS: `/etc/qxsystem/agent/agent.toml` — см. [configuration.md](../configuration.md).
+- На dedicated server: `/etc/qxsystem/agent/agent.toml` — см. [configuration.md](../configuration.md).
 - Документация firewall: outbound 443 to QXApi.

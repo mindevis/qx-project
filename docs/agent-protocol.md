@@ -32,19 +32,19 @@ Backend выполняет deploy job — agent **не** ставится вру
 sequenceDiagram
     participant U as Admin (Panel)
     participant API as Backend
-    participant VPS as Linux VPS
+    participant DS as Linux dedicated server
     participant A as QXAgent
 
     U->>API: POST /api/v1/servers {ssh, server_type, modpack_id?}
     U->>API: POST /api/v1/servers/{id}/deploy
-    API->>VPS: SSH: upload qx-agent binary
-    API->>VPS: SSH: write agent.toml + systemd unit
-    API->>VPS: SSH: systemctl enable + restart qx-agent
+    API->>DS: SSH: upload qx-agent binary
+    API->>DS: SSH: write agent.toml + systemd unit
+    API->>DS: SSH: systemctl enable + restart qx-agent
     A->>API: WSS connect + auth
     API-->>U: agent_online (minecraft_running false)
 ```
 
-### 2.2 Файлы на VPS
+### 2.2 Файлы на dedicated server
 
 | Path | Назначение |
 | ------ | ------------ |

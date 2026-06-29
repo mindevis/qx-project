@@ -33,7 +33,7 @@ describe('AuthContext', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(profile), { status: 200 }));
 
@@ -49,7 +49,7 @@ describe('AuthContext', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch).mockResolvedValue(new Response('fail', { status: 401 }));
 
@@ -68,7 +68,7 @@ describe('AuthContext', () => {
             access_token: 'a',
             refresh_token: 'r',
             token_type: 'Bearer',
-            expires_in: 60,
+            expires_in: 3600,
           }),
           { status: 200 },
         ),
@@ -92,7 +92,7 @@ describe('AuthContext', () => {
             access_token: 'a',
             refresh_token: 'r',
             token_type: 'Bearer',
-            expires_in: 60,
+            expires_in: 3600,
           }),
           { status: 201 },
         ),
@@ -126,7 +126,7 @@ describe('AuthContext', () => {
             access_token: 'a',
             refresh_token: 'r',
             token_type: 'Bearer',
-            expires_in: 60,
+            expires_in: 3600,
           }),
           { status: 200 },
         ),
@@ -148,7 +148,7 @@ describe('AuthContext', () => {
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
-      expires_in: 60,
+      expires_in: 3600,
     });
     vi.mocked(fetch)
       .mockResolvedValueOnce(new Response(JSON.stringify(profile), { status: 200 }))

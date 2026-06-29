@@ -100,10 +100,10 @@ func TestCreateGameServerProvisionFlow(t *testing.T) {
 
 	got, err := svc.Get(ctx, "owner-1", view.ID)
 	if err != nil {
-		t.Fatalf("get vps: %v", err)
+		t.Fatalf("get dedicated server: %v", err)
 	}
 	if got.ServerType != "forge" || got.Status != models.ServerStatusOnline {
-		t.Fatalf("vps after provision: type=%s status=%s", got.ServerType, got.Status)
+		t.Fatalf("dedicated server after provision: type=%s status=%s", got.ServerType, got.Status)
 	}
 	if got.Config.Command == "" || got.Config.WorkDir == "" {
 		t.Fatalf("expected start config: %+v", got.Config)

@@ -7,37 +7,38 @@ import (
 	"github.com/qxproject/qx/pkg/protocol"
 )
 
-func TestSanitizeStartPayloadJarOnly(t *testing.T) {
+func TestValidateStartPayloadJarOnly(t *testing.T) {
 	dir := t.TempDir()
 	jar := filepath.Join(dir, "server.jar")
 	payload := protocol.ServerStartPayload{WorkDir: dir, JarPath: jar}
-	if err := sanitizeStartPayload(&payload); err != nil {
+	start, err := ValidateStartPayload(payload)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if payload.JarPath != jar {
-		t.Fatalf("jar: %q", payload.JarPath)
+	if start.JarPath != jar {
+		t.Fatalf("jar: %q", start.JarPath)
 	}
 }
 
-func TestSanitizeStartPayloadRejectsShellMetacharCommand(t *testing.T) {
+func TestValidateStartPayloadRejectsShellMetacharCommand(t *testing.T) {
 	dir := t.TempDir()
 	payload := protocol.ServerStartPayload{
 		WorkDir: dir,
 		Command: "rm",
 	}
-	if err := sanitizeStartPayload(&payload); err == nil {
+	if _, err := ValidateStartPayload(payload); err == nil {
 		t.Fatal("expected disallowed command")
 	}
 }
 
-func TestSanitizeStartPayloadAllowsJava(t *testing.T) {
+func TestValidateStartPayloadAllowsJava(t *testing.T) {
 	dir := t.TempDir()
 	payload := protocol.ServerStartPayload{
 		WorkDir: dir,
 		Command: "java",
 		Args:    []string{"-version"},
 	}
-	if err := sanitizeStartPayload(&payload); err != nil {
+	if _, err := ValidateStartPayload(payload); err != nil {
 		t.Fatal(err)
 	}
 }

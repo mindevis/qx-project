@@ -5,7 +5,7 @@
 
 ## Decision
 
-Production: **Docker Compose** on own VPS — Nginx, QXApi, QXWeb (React SPA), MySQL, Redis, MinIO (platform blobs only, [ADR-0011](./0011-client-local-content-install.md)).
+Production: **Docker Compose** on own dedicated server — Nginx, QXApi, QXWeb (React SPA), MySQL, Redis, MinIO (platform blobs only, [ADR-0011](./0011-client-local-content-install.md)).
 
 ## Rationale
 

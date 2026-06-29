@@ -16,6 +16,7 @@ type LaunchRequest struct {
 	DeviceID         string     `gorm:"type:char(36);not null;index" json:"device_id"`
 	InstanceID       string     `gorm:"type:char(36);not null;index" json:"instance_id"`
 	OfflineProfileID *string    `gorm:"type:char(36);index" json:"offline_profile_id,omitempty"`
+	UseMojangAccount bool       `gorm:"not null;default:false" json:"use_mojang_account"`
 	Status           string     `gorm:"type:varchar(32);not null;default:queued;index" json:"status"`
 	PID              *int       `gorm:"column:pid" json:"pid,omitempty"`
 	ExitCode         *int       `gorm:"column:exit_code" json:"exit_code,omitempty"`

@@ -1,4 +1,4 @@
-# QXSystem — production stack (build locally, deploy pre-built bundle to VPS)
+# QXSystem — production stack (build locally, deploy pre-built bundle to platform host)
 # Build: make prod-build  |  Pack: make prod-pack  |  Dev smoke: make prod-up
 
 services:
@@ -55,7 +55,7 @@ services:
       LOG_FORMAT: ${LOG_FORMAT:-json}
       DATABASE_DSN: ${DATABASE_DSN}
       JWT_SECRET: ${JWT_SECRET}
-      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-1h}
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-168h}
       CORS_ORIGIN: ${CORS_ORIGIN}
       SSH_MASTER_KEY: ${SSH_MASTER_KEY}
@@ -74,6 +74,7 @@ services:
       dockerfile: infra/docker/Dockerfile.web
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        VITE_LAUNCHER_DOWNLOAD_URL: ${VITE_LAUNCHER_DOWNLOAD_URL:-/downloads/qx-launcher.exe}
     restart: unless-stopped
     networks:
       - qx

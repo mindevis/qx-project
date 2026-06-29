@@ -29,7 +29,7 @@ Tray downloads and verifies Mojang runtime per MC version family.
 | 1.20.5+ | **Java 21** | java-runtime-delta | Current |
 | 1.21.x | **Java 21** | java-runtime-delta | Verify manifest |
 
-**Server-side (agent):** same matrix; agent installs `headless` JRE on Linux VPS if missing during deploy.
+**Server-side (agent):** same matrix; agent installs `headless` JRE on Linux dedicated server if missing during deploy.
 
 ---
 
@@ -72,7 +72,7 @@ java/
 
 ## 5. Server agent (Linux)
 
-During SSH deploy or manually on game VPS:
+During SSH deploy or manually on game dedicated server:
 
 ```bash
 sudo bash infra/scripts/install-mojang-java17.sh

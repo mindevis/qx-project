@@ -84,7 +84,7 @@ QXLauncher materializes files at sync / pre-launch; QXApi не хранит `.ja
 
 ---
 
-## 5. Client ↔ Server sync (BYOS)
+## 5. Client ↔ Server sync (dedicated server)
 
 Shared `modpack_id` + `manifest_sha256`:
 

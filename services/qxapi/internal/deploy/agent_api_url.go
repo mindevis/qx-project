@@ -10,7 +10,7 @@ import (
 
 const dockerHostGateway = "host.docker.internal"
 
-// agentAPIURL returns the API base URL written into agent.toml on the VPS.
+// agentAPIURL returns the API base URL written into agent.toml on the dedicated server.
 // Dev Flow C: SSH to localhost + API on host → agent inside Docker must use host.docker.internal.
 func agentAPIURL(apiURL string, cred models.SSHCredential) string {
 	apiURL = strings.TrimSpace(apiURL)

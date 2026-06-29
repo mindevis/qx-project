@@ -39,6 +39,55 @@ export const en: Messages = {
     navServers: 'Servers',
     footer: 'QXSystem — Minecraft ecosystem',
   },
+  seo: {
+    siteName: 'QXSystem',
+    defaultDescription:
+      'QXSystem — unified Minecraft ecosystem: QXLauncher, QXMods, and QXAgent under one account.',
+    pages: {
+      home: {
+        title: 'QXSystem — Minecraft ecosystem',
+        description:
+          'Desktop launcher, mod catalog, and server agent — one account and shared settings.',
+      },
+      launcher: {
+        title: 'Launcher',
+        description:
+          'Manage Minecraft instances, profiles, and mods via QXLauncher in the browser and on desktop.',
+      },
+      launcherLink: {
+        title: 'Link QXLauncher',
+        description: 'Confirm QXLauncher device linking to your QXSystem account in the browser.',
+      },
+      monitoring: {
+        title: 'Server monitoring',
+        description:
+          'Find a Minecraft server by version, loader, mods, and plugins — premium servers listed first.',
+      },
+      servers: {
+        title: 'Servers',
+        description:
+          'Connect a dedicated server, install QXAgent, and manage Minecraft game instances remotely.',
+      },
+      profile: {
+        title: 'Profile',
+        description: 'QXSystem account settings, email, password, and Minecraft (Microsoft) linking.',
+      },
+      auth: {
+        title: 'Sign in',
+        description: 'Sign in or register for QXSystem.',
+      },
+    },
+    jsonLd: {
+      launcherDescription:
+        'Desktop Minecraft launcher for Windows, macOS, and Linux with the QXMods catalog.',
+    },
+    profileAvatarAlt: {
+      steve: 'Steve character model',
+      alex: 'Alex character model',
+    },
+    noscriptSummary:
+      'QXSystem brings together QXLauncher, QXMods, and QXAgent: sign-up, in-game launch, and dedicated Minecraft server management.',
+  },
   backend: {
     title: 'Server unavailable',
     description:
@@ -50,7 +99,7 @@ export const en: Messages = {
     subtitle:
       'Desktop launcher and agent on your server — one account and shared settings.',
     intro:
-      'QXSystem brings together QXLauncher and QXAgent: from sign-up to in-game launch and VPS management — without scattered tools.',
+      'QXSystem brings together QXLauncher and QXAgent: from sign-up to in-game launch and dedicated server management — without scattered tools.',
     ctaLauncher: 'Open launcher',
     ctaServers: 'Manage servers',
     heroTagLauncher: 'Launcher',
@@ -61,13 +110,16 @@ export const en: Messages = {
     qxlauncherTitle: 'QXLauncher',
     qxlauncherBody:
       'Desktop app in the system tray: autostart, offline cache, and native integration with Windows, macOS, and Linux.',
+    qxmodsTitle: 'QXMods',
+    qxmodsBody:
+      'Browse mods, modpacks, resource packs, and shaders from official CurseForge and Modrinth catalogs — built into the launcher.',
     qxagentTitle: 'QXAgent',
     qxagentBody:
       'Agent on your dedicatedserver: content install, monitoring, and remote Minecraft instance management.',
     benefitAccount: 'One account',
     benefitAccountDesc: 'Profile, instances, and servers sync between web and launcher.',
-    benefitByos: 'Dedicated',
-    benefitByosDesc: 'Connect your Linux Dedicated Server over SSH — your data stays with you.',
+    benefitDedicated: 'Dedicated server',
+    benefitDedicatedDesc: 'Connect your Linux dedicated server over SSH — your data stays with you.',
     benefitVanilla: 'Vanilla & modpacks',
     benefitVanillaDesc: 'Start with Vanilla in MVP, unified pipeline for modpacks ahead.',
     stepsTitle: 'How to get started',
@@ -117,6 +169,44 @@ export const en: Messages = {
     newPasswordRequired: 'Enter new password',
     confirmNewPasswordRequired: 'Confirm new password',
     changePasswordError: 'Failed to change password',
+    mojangTitle: 'Minecraft account (Microsoft)',
+    mojangLinked: 'Linked',
+    mojangNotLinked: 'Not linked',
+    mojangUsername: 'Minecraft username',
+    mojangUuid: 'Minecraft UUID',
+    mojangLinkedAt: 'Linked at',
+    mojangLink: 'Link Microsoft account',
+    mojangUnlink: 'Unlink',
+    mojangUnlinkConfirm: 'Unlink Microsoft account? Licensed launches will stop working.',
+    mojangLinkSuccess: 'Microsoft account linked',
+    mojangLinkFailed: 'Failed to start Microsoft linking',
+    mojangUnlinkSuccess: 'Microsoft account unlinked',
+    mojangUnlinkFailed: 'Failed to unlink Microsoft account',
+    mojangHint:
+      'Link your Microsoft account to launch the licensed game with your real username and UUID.',
+  },
+  cosmetics: {
+    title: 'QX Skin Server',
+    hint: 'Upload a custom skin and cape. QXLauncher applies them like Ely.by — no Fabric/Forge mods required.',
+    skinModel: 'Skin model',
+    uploadSkin: 'Upload skin (PNG)',
+    resetSkin: 'Reset skin',
+    cape: 'Cape',
+    capeNone: 'None',
+    capeQX: 'QX cape',
+    capeCustom: 'Custom',
+    uploadCape: 'Upload cape (PNG)',
+    resetCape: 'Reset cape',
+    capeUploaded: 'Cape uploaded',
+    saved: 'Skin settings saved',
+    saveFailed: 'Failed to save skin settings',
+    loadFailed: 'Failed to load skin settings',
+    skinUploaded: 'Skin uploaded',
+    uploadFailed: 'Upload failed',
+    skinServerNote:
+      'Offline profiles: skin file + QX session host. Mojang-linked: QX textures override your equipped skin/cape when you upload or select them here. Other players on vanilla servers still see Mojang skins unless the server uses QX session lookup.',
+    offlineNote:
+      'Offline profiles use your uploaded skin from the instance folder. Mojang-linked accounts keep the official Mojang skin until you upload a custom skin here.',
   },
   launcherLink: {
     badge: 'Device linking',
@@ -275,6 +365,13 @@ export const en: Messages = {
     workspaceRefresh: 'Refresh',
     workspaceRefreshed: 'Data refreshed',
     playingAs: 'Playing as',
+    accountMode: 'Account mode',
+    accountModeOffline: 'Offline',
+    accountModeLicensed: 'Licensed (Microsoft)',
+    licensedNotLinked: 'Link Microsoft in your profile to play with a license.',
+    licensedAccount: 'Licensed account',
+    goToProfile: 'Go to profile',
+    licensedLaunchFailed: 'A linked Microsoft account is required',
     playerDefault: 'Player',
     statInstances: '{{count}} instances',
     statProfiles: '{{count}} profiles',
@@ -286,9 +383,9 @@ export const en: Messages = {
   },
   servers: {
     title: 'Servers',
-    badge: 'Dedicated · Server',
+    badge: 'Dedicated server',
     intro:
-      'Connect your Linux VPS over SSH — QXAgent deploys automatically, and you can start and manage Minecraft from the browser.',
+      'Connect your Linux dedicated server over SSH — QXAgent deploys automatically, and you can start and manage Minecraft from the browser.',
     workspaceEyebrow: 'Control panel',
     workspaceTitle: 'Your servers',
     refresh: 'Refresh',
@@ -296,11 +393,10 @@ export const en: Messages = {
     statTotal: 'Total',
     statOnline: 'Agents online',
     emptyTitle: 'No servers yet',
-    addVps: 'Add VPS',
-    empty: 'Add a Linux VPS with SSH access — we will install QXAgent and prepare the server for launch.',
-    addByos: 'Add dedicated server',
+    addDedicated: 'Add dedicated server',
+    empty: 'Add a Linux dedicated server with SSH access — we will install QXAgent and prepare the server for launch.',
     createHint:
-      'Provide SSH access to your VPS. The private key is stored encrypted and used only to deploy QXAgent.',
+      'Provide SSH access to your dedicated server. The private key is stored encrypted and used only to deploy QXAgent.',
     nameRequired: 'Enter name',
     sshHost: 'SSH Host',
     sshPort: 'SSH Port',
@@ -318,12 +414,12 @@ export const en: Messages = {
     deployDone: 'Deploy complete — waiting for agent connection',
     deleted: 'Server deleted',
     backToList: 'Back to list',
-    detailBadge: 'BYOS · VPS',
+    detailBadge: 'Dedicated server',
     detailEyebrow: 'Management',
     detailRefreshed: 'Data updated',
     statusOverview: 'Server status',
     statStatus: 'Status',
-    statVps: 'VPS',
+    statDedicated: 'Host',
     statAgent: 'QXAgent',
     statAgentDeploy: 'Deployment',
     statAgentConnection: 'Connection',
@@ -333,14 +429,14 @@ export const en: Messages = {
     sshCopied: 'SSH copied',
     copyFailed: 'Could not copy',
     workflowTitle: 'Next steps',
-    workflowStep1: 'Click Deploy agent — QXAgent will install on your VPS over SSH.',
+    workflowStep1: 'Click Deploy agent — QXAgent will install on your dedicated server over SSH.',
     workflowStep2: 'Wait for Agent online status (usually a few seconds).',
     workflowStep3: 'Add a game server and configure it in the table below.',
     actionDeploy: 'Deployment',
     dangerZone: 'Danger zone',
     createdAt: 'Added',
     lastSeen: 'Last activity',
-    errorBanner: 'VPS error — check SSH or host settings.',
+    errorBanner: 'Host error — check SSH or server settings.',
     deployErrorBanner: 'Agent deploy failed — check SSH or run Deploy again.',
     infoTitle: 'Configuration',
     sshLabel: 'SSH',
@@ -357,7 +453,7 @@ export const en: Messages = {
     gameServerUpdateFailed: 'Failed to update game server',
     gameServerEditHint: 'Changes to port or address apply to server.properties when the agent is online. Restart the server for port changes to take effect.',
     gameServerEditPortHint: 'RCON port is recalculated automatically from the game port.',
-    gameServerPortInUse: 'This port is already used by another game server on this VPS.',
+    gameServerPortInUse: 'This port is already used by another game server on this dedicated server.',
     gameServerName: 'Name',
     gameServerNameRequired: 'Enter a name',
     gameServerTypeLabel: 'Server type',
@@ -398,7 +494,7 @@ export const en: Messages = {
     gameServerContentMods: 'mods',
     gameServerContentNote: 'After start you can install: {{content}}.',
     gameServerModalHint:
-      'Configure a Minecraft server on this VPS. Address and port are editable; the next free port is suggested automatically.',
+      'Configure a Minecraft server on this dedicated server. Address and port are editable; the next free port is suggested automatically.',
     gameServerSectionBasics: 'Basics',
     gameServerSectionNetwork: 'Network',
     gameServerNamePlaceholder: 'Survival, SkyBlock…',
@@ -439,7 +535,7 @@ export const en: Messages = {
     updateAgent: 'Update QXAgent',
     updateAgentDone: 'QXAgent updated — waiting for connection',
     updateAgentHint:
-      'Reinstalls the QXAgent binary on the VPS over SSH. Works even when the agent is offline.',
+      'Reinstalls the QXAgent binary on the dedicated server over SSH. Works even when the agent is offline.',
     actionAgent: 'QXAgent',
     stop: 'Stop',
     restart: 'Restart',
@@ -447,19 +543,19 @@ export const en: Messages = {
     deployHint:
       'After Deploy the agent connects via WSS automatically — usually within seconds.',
     deploySshUnreachable:
-      'SSH unreachable — ensure the VPS is running and the port is open. For dev: make dev-vps-up (localhost:2222).',
+      'SSH unreachable — ensure the dedicated server is running and the port is open. For dev: make dev-vps-up (localhost:2222).',
     console: 'Console',
     authRequired: 'Server management requires sign-in.',
     authRequiredTitle: 'Account required',
-    authRequiredDesc: 'Sign in to add VPS instances and manage Minecraft servers via QXAgent.',
+    authRequiredDesc: 'Sign in to add dedicated servers and manage Minecraft servers via QXAgent.',
     status: {
       pending: 'Awaiting deploy',
       deploying: 'Deploying…',
-      offline: 'VPS unreachable',
-      online: 'VPS online',
-      error: 'VPS error',
+      offline: 'Host unreachable',
+      online: 'Host online',
+      error: 'Host error',
     },
-    vpsStatus: {
+    dedicatedHostStatus: {
       pending: 'New',
       active: 'Active',
       error: 'Error',
@@ -484,7 +580,7 @@ export const en: Messages = {
   },
   gameServerDetail: {
     badge: 'Game server',
-    backToVps: 'Back to VPS',
+    backToDedicated: 'Back to dedicated server',
     notFound: 'Game server not found',
     loadFailed: 'Failed to load game server',
     actions: 'Actions',
@@ -547,5 +643,47 @@ export const en: Messages = {
     monitoringTags: 'Tags',
     monitoringTagsHint: 'e.g. survival, PvP, economy',
     monitoringSection: 'Monitoring',
+  },
+  qxmods: {
+    brand: 'QXMods',
+    sectionTitle: 'Resources',
+    promoTitle: 'QXMods — mod catalog in the launcher',
+    promoBody:
+      'Search mods, modpacks, resource packs, and shaders from CurseForge and Modrinth. Sync server-side mods to your game server in one click.',
+    tabs: {
+      mod: 'Mods',
+      modpack: 'Modpacks',
+      resourcepack: 'Resource packs',
+      shader: 'Shaders',
+    },
+    search: 'Search',
+    searchPlaceholder: 'Search by name…',
+    searchPrompt: 'Enter a query and press Search',
+    searchFailed: 'Search failed',
+    versionsFailed: 'Failed to load versions',
+    empty: 'No results',
+    attribution:
+      'QXMods loads metadata from official CurseForge and Modrinth APIs. Files are downloaded from the catalog providers.',
+    curseforgeDisabled: 'CurseForge is disabled — set curseforge_api_key in qxapi.toml.',
+    detailTitle: 'Details',
+    detailAttribution: 'Source and license are shown on the provider project page.',
+    viewOnSource: 'View on source',
+    selectVersion: 'Version',
+    noVersions: 'No matching versions',
+    source: {
+      curseforge: 'CurseForge',
+      modrinth: 'Modrinth',
+    },
+    sync: {
+      title: 'Sync to server',
+      action: 'Synchronize',
+      hint: 'Pick a game server to install this mod on.',
+      noServers: 'No servers with an online agent that support mods',
+      loadFailed: 'Failed to load servers',
+      alreadyOnServer: 'Already on server',
+      queued: 'Sync queued',
+      failed: 'Sync failed',
+      noFile: 'Selected version has no installable file',
+    },
   },
 };

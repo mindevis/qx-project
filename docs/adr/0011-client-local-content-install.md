@@ -30,7 +30,7 @@ QXAgent устанавливает контент **на диск ноды** (п
 
 - Соответствует паттерну **Web-defined, Launcher-materialized**.
 - Меньше legal-рисков redistribution через свой S3 ([security-legal.md §5](../security-legal.md)).
-- Не нагружает VPS гигабайтами modpack-трафика.
+- Не нагружает dedicated server гигабайтами modpack-трафика.
 - Как Prism / official launcher: файлы живут у пользователя.
 
 ## Consequences

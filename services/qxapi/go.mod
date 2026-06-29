@@ -13,6 +13,7 @@ require (
 	github.com/qxproject/qx/pkg/mcmanifest v0.0.0
 	github.com/qxproject/qx/pkg/protocol v0.0.0
 	github.com/qxproject/qx/pkg/reporoot v0.0.0
+	github.com/qxproject/qx/pkg/safepath v0.0.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
@@ -82,3 +83,7 @@ replace github.com/qxproject/qx/pkg/log => ../../pkg/log
 replace github.com/qxproject/qx/pkg/mcmanifest => ../../pkg/mcmanifest
 
 replace github.com/qxproject/qx/pkg/protocol => ../../pkg/protocol
+
+replace github.com/qxproject/qx/pkg/msauth => ../../pkg/msauth
+
+replace github.com/qxproject/qx/pkg/safepath => ../../pkg/safepath

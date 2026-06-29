@@ -38,6 +38,7 @@ dev-vps-sh:
 
 prod-build:
 	make build-agent-linux
+	make build-launcher-win
 	$(PROD_COMPOSE) build
 
 prod-pack:

@@ -20,6 +20,9 @@ Set-Location $Root
 Write-Host "Building qx-agent-linux..."
 & make build-agent-linux
 
+Write-Host "Building qx-launcher.exe..."
+& make build-launcher-win
+
 Write-Host "Building Docker images..."
 docker compose -f (Join-Path $ComposeDir "docker-compose.prod.yml") --env-file $EnvFile build
 
@@ -38,6 +41,6 @@ Copy-Item (Join-Path $Root "infra/scripts/prod-up.sh") (Join-Path $Bundle "up.sh
 
 Write-Host ""
 Write-Host "Bundle ready: $Bundle"
-Write-Host "  1. Copy dist/qx-prod/ to VPS (e.g. scp -r dist/qx-prod user@host:/opt/qx-prod)"
-Write-Host "  2. On VPS: cp .env.prod.example .env.prod && edit secrets"
-Write-Host "  3. On VPS: ./up.sh"
+Write-Host "  1. Copy dist/qx-prod/ to dedicated server (e.g. scp -r dist/qx-prod user@host:/opt/qx-prod)"
+Write-Host "  2. On dedicated server: cp .env.prod.example .env.prod && edit secrets"
+Write-Host "  3. On dedicated server: ./up.sh"

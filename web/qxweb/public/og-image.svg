@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="55%" stop-color="#102a5c"/>
+      <stop offset="100%" stop-color="#1677ff"/>
+    </linearGradient>
+    <linearGradient id="core" x1="860" y1="170" x2="1040" y2="460" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1677ff"/>
+      <stop offset="100%" stop-color="#0958d9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="980" cy="315" r="220" fill="#1677ff" fill-opacity="0.12"/>
+  <circle cx="980" cy="315" r="150" fill="#722ed1" fill-opacity="0.1"/>
+  <rect x="860" y="195" width="240" height="240" rx="56" fill="url(#core)"/>
+  <rect x="860" y="195" width="240" height="132" rx="56" fill="#ffffff" fill-opacity="0.18"/>
+  <text x="980" y="340" text-anchor="middle" font-family="Segoe UI, system-ui, sans-serif" font-size="96" font-weight="800" fill="#ffffff">QX</text>
+  <text x="96" y="250" font-family="Segoe UI, system-ui, sans-serif" font-size="72" font-weight="700" fill="#ffffff">QXSystem</text>
+  <text x="96" y="330" font-family="Segoe UI, system-ui, sans-serif" font-size="34" fill="#dbeafe">48=0O M:>A8AB5<0 4;O Minecraft</text>
+  <text x="96" y="390" font-family="Segoe UI, system-ui, sans-serif" font-size="28" fill="#bfdbfe">QXLauncher · QXMods · QXAgent</text>
+</svg>

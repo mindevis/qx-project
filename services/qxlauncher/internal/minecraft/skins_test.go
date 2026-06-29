@@ -22,13 +22,8 @@ func TestEnsureOfflineSkin(t *testing.T) {
 	if err := EnsureOfflineSkin(dir, uuid, ModelAlex); err != nil {
 		t.Fatalf("alex: %v", err)
 	}
-	metaPath := filepath.Join(dir, "qx", strings.ReplaceAll(uuid, "-", "")+".json")
-	b, err := os.ReadFile(metaPath)
-	if err != nil {
-		t.Fatalf("meta: %v", err)
-	}
-	if !strings.Contains(string(b), ModelAlex) {
-		t.Fatalf("expected alex model in meta: %s", b)
+	if _, err := os.Stat(skinPath); err != nil {
+		t.Fatalf("alex skin file: %v", err)
 	}
 }
 

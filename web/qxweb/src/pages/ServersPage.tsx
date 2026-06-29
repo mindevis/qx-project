@@ -38,7 +38,7 @@ import { api, type GameServer } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { modalMotionProps } from '@/lib/modal';
 import { useAuthModal } from '@/auth/AuthModalContext';
-import { getVpsHostStatusKey, getAgentDeployStatusKey, getAgentConnectionStatusKey } from '@/i18n';
+import { getDedicatedHostStatusKey, getAgentDeployStatusKey, getAgentConnectionStatusKey } from '@/i18n';
 import {
   getAgentConnectionStatus,
   getAgentDeployStatus,
@@ -102,7 +102,7 @@ function useStatusLabels() {
     return msg === key ? fallback : msg;
   };
   return {
-    vps: (status: VpsHostStatus) => label(getVpsHostStatusKey(status), status),
+    host: (status: VpsHostStatus) => label(getDedicatedHostStatusKey(status), status),
     agentDeploy: (status: AgentDeployStatus) => label(getAgentDeployStatusKey(status), status),
     agentConnection: (status: AgentConnectionStatus) =>
       label(getAgentConnectionStatusKey(status), status),
@@ -239,7 +239,7 @@ function ServerCard({ server }: { server: GameServer }) {
             {server.name}
           </Title>
           <div className="servers-card-tags">
-            <Tag color={vpsHostStatusColor(vpsStatus)}>{labels.vps(vpsStatus)}</Tag>
+            <Tag color={vpsHostStatusColor(vpsStatus)}>{labels.host(vpsStatus)}</Tag>
             <Tag color={agentTag.color}>{agentTag.text}</Tag>
           </div>
         </div>
@@ -295,7 +295,7 @@ function CreateServerModal({
 
   return (
     <Modal
-      title={t('servers.addByos')}
+      title={t('servers.addDedicated')}
       open={open}
       onCancel={onCancel}
       onOk={() => void onCreate()}
@@ -311,7 +311,7 @@ function CreateServerModal({
           label={t('common.name')}
           rules={[{ required: true, message: t('servers.nameRequired') }]}
         >
-          <Input placeholder="Survival VPS" />
+          <Input placeholder="Survival" />
         </Form.Item>
         <Form.Item name="host" label={t('servers.sshHost')} rules={[{ required: true }]}>
           <Input placeholder="203.0.113.10" />
@@ -450,7 +450,7 @@ function ServersList() {
             <Paragraph className="servers-intro">{t('servers.intro')}</Paragraph>
             <div className="servers-hero-actions">
               <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openCreate}>
-                {t('servers.addVps')}
+                {t('servers.addDedicated')}
               </Button>
             </div>
           </div>
@@ -480,7 +480,7 @@ function ServersList() {
               {t('servers.refresh')}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              {t('servers.addVps')}
+              {t('servers.addDedicated')}
             </Button>
           </div>
         </div>
@@ -512,7 +512,7 @@ function ServersList() {
                 </Title>
                 <Paragraph className="servers-empty-desc">{t('servers.empty')}</Paragraph>
                 <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openCreate}>
-                  {t('servers.addVps')}
+                  {t('servers.addDedicated')}
                 </Button>
               </div>
             ) : (
@@ -1663,7 +1663,7 @@ function ServerDetail() {
               />
             </Paragraph>
             <div className="servers-card-tags">
-              <Tag color={vpsHostStatusColor(vpsStatus)}>{labels.vps(vpsStatus)}</Tag>
+              <Tag color={vpsHostStatusColor(vpsStatus)}>{labels.host(vpsStatus)}</Tag>
               <Tag color={agentTag.color}>{agentTag.text}</Tag>
             </div>
           </div>
@@ -1698,8 +1698,8 @@ function ServerDetail() {
         <div className="servers-detail-stats">
           <ServerDetailStat
             icon={<CloudServerOutlined />}
-            label={t('servers.statVps')}
-            value={labels.vps(vpsStatus)}
+            label={t('servers.statDedicated')}
+            value={labels.host(vpsStatus)}
             tone={vpsTone}
           />
           <AgentDetailStat

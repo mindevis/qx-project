@@ -30,13 +30,13 @@
 
 ## Out of scope
 
-- Уязвимости сторонних Minecraft-серверов (Paper, Forge и т.д.) на game VPS
-- Социальная инженерия, физический доступ к VPS
+- Уязвимости сторонних Minecraft-серверов (Paper, Forge и т.д.) на game dedicated server
+- Социальная инженерия, физический доступ к dedicated server
 - DoS без демонстрации разумного impact на QX stack
 
 ## Secure development
 
-- Секреты только в GitHub Environment / VPS `.env.prod`, не в репозитории.
+- Секреты только в GitHub Environment / dedicated server `.env.prod`, не в репозитории.
 - Dependabot и CodeQL включены — см. [Security](https://github.com/mindevis/qx-project/security).
 - Подробнее: [docs/security-legal.md](docs/security-legal.md).
 

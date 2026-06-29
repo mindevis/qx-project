@@ -2,7 +2,7 @@
 
 > **Статус реализации:** 🔲 post-MVP / v2+ (см. [mvp.md](./mvp.md)). REST paths — относительно `/api/v1`.  
 > API routes для content — заготовка в [api.md](./api.md); UI и agent install — не реализованы.
-> **BYOS:** QXAgent ставит контент **на диск сервера** (прямые URL из manifest), не в MinIO.  
+> **dedicated server:** QXAgent ставит контент **на диск сервера** (прямые URL из manifest), не в MinIO.  
 > Параллель клиенту: [ADR-0011](./adr/0011-client-local-content-install.md), [modpacks-pipeline.md](./modpacks-pipeline.md).
 
 ---
@@ -13,7 +13,7 @@
 | ------ | ------ |
 | **QXWeb** | Выбор `server_type`, modpack, отдельных mods/plugins |
 | **QXApi** | Manifest + **валидация** «тип сервера ↔ тип контента» |
-| **QXAgent** | Скачивание в `plugins/`, `mods/` на VPS |
+| **QXAgent** | Скачивание в `plugins/`, `mods/` на dedicated server |
 
 Файлы живут в `{server_root}/` на машине пользователя — как инстанс на ПК у QXLauncher.
 
@@ -73,12 +73,12 @@ sequenceDiagram
     participant Web as QXWeb
     participant API as QXApi
     participant A as QXAgent
-    participant VPS as Server disk
+    participant DS as Server disk
 
     Web->>API: POST /api/v1/servers/{id}/plugins {plugin_id}
     API->>API: Validate server_type allows plugins
     API->>A: cmd.plugins.install { manifest, target: plugins/ }
-    A->>VPS: Download from CF/MR URL → plugins/
+    A->>DS: Download from CF/MR URL → plugins/
     A->>API: evt.content.installed
 ```
 

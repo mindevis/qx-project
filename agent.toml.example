@@ -1,5 +1,5 @@
 # QXAgent — copy to agent.toml in repo root for local dev.
-# Prod VPS: /etc/qxsystem/agent/agent.toml (written by SSH deploy).
+# Prod dedicated server: /etc/qxsystem/agent/agent.toml (written by SSH deploy).
 
 api_base_url = "http://localhost:3000/api/v1"
 # Prod (deploy writes this): api_base_url = "https://mc.qx-dev.ru/api/v1"

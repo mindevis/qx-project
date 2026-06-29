@@ -1,4 +1,4 @@
-# Dev Linux VPS for Flow C (SSH deploy + systemd agent).
+# Dev Linux dedicated server for Flow C (SSH deploy + systemd agent).
 # Debian 13 (trixie) — emulates Dedicated Server locally.
 FROM debian:trixie-slim
 

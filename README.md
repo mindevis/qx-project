@@ -21,7 +21,7 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — ка�
 | [ssh-deploy.md](docs/ssh-deploy.md) | SSH deploy agent |
 | [faq.md](docs/faq.md) | FAQ alpha |
 | [configuration.md](docs/configuration.md) | TOML-конфиг (dev) · [prod .env](docs/configuration.md#6-prod--infradockerenvprod) |
-| [production-deploy.md](docs/production-deploy.md) | **Prod: deploy на VPS** (`mc.qx-dev.ru`) |
+| [production-deploy.md](docs/production-deploy.md) | **Prod: deploy на хост платформы** (`mc.qx-dev.ru`) |
 | [adr/](docs/adr/) | Architecture Decision Records |
 
 ## Требования
@@ -70,11 +70,11 @@ make launcher
 
 ### Сервер (Flow C)
 
-**Dev VPS (Debian 13 + SSH + systemd):**
+**dev dedicated server (Debian 13 + SSH + systemd):**
 
 ```bash
 make dev-vps-up      # контейнер qx-vps-dev, SSH :2222, ключ в infra/docker/vps-dev/keys/
-make dev-vps-rm      # удалить контейнер, тома и образ (чистый VPS при следующем up)
+make dev-vps-rm      # удалить контейнер, тома и образ (чистый dedicated server при следующем up)
 make dev-vps-info    # host/port/user/key + подсказки для qxapi.toml
 ```
 
@@ -87,11 +87,11 @@ public_api_url = "http://host.docker.internal:3000"
 Agent binary (`bin/qx-agent-linux`) собирается через `make dev-vps-up` и подхватывается API автоматически.
 
 1. **Servers** → Add server: SSH credentials
-2. **Deploy agent** → QXAgent на VPS через SSH + systemd
+2. **Deploy agent** → QXAgent на dedicated server через SSH + systemd
 3. **Add game server** → выбор типа/версии, автоматическая установка
 4. Страница сервера: RCON-консоль, `server.properties`, моды, файлы
 
-**Dev VPS:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
+**dev dedicated server:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 
 **Prod:** см. [production-deploy.md](docs/production-deploy.md) §9.
 
@@ -105,16 +105,16 @@ Agent binary (`bin/qx-agent-linux`) собирается через `make dev-vp
 | **QXApi** | API с breakpoints |
 | **QXLauncher** | Лаунчер с breakpoints |
 | **QXWeb** | Vite dev-server в терминале |
-| **Dev VPS: up** | Flow C: Debian SSH на `:2222`, сборка `qx-agent-linux` |
-| **Dev VPS: down** | Остановить контейнер `qx-vps-dev` |
-| **Dev VPS: info** | SSH host/port и подсказки для `qxapi.toml` |
+| **dev dedicated server: up** | Flow C: Debian SSH на `:2222`, сборка `qx-agent-linux` |
+| **dev dedicated server: down** | Остановить контейнер `qx-vps-dev` |
+| **dev dedicated server: info** | SSH host/port и подсказки для `qxapi.toml` |
 | **QX Dev Stack** | QXApi + QXWeb + QXLauncher (compound) |
 | **Go: текущий тест** | Отладка теста в открытом `*_test.go` |
 | **Vitest: текущий файл** | Отладка открытого `*.test.ts(x)` |
 
 Docker (MySQL, Redis, MinIO): **Terminal → Run Task → Docker: dev-up** (перед **QXApi**).
 
-Flow C (серверы): **F5 → Dev VPS: up**, затем **QXApi**. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
+Flow C (серверы): **F5 → dev dedicated server: up**, затем **QXApi**. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 
 Конфигурация — TOML-файлы, **не** shell и не `.env`. Подробно: [docs/configuration.md](docs/configuration.md).
 
@@ -124,7 +124,7 @@ Flow C (серверы): **F5 → Dev VPS: up**, затем **QXApi**. В `qxapi
 | `web.toml` | QXWeb / Vite |
 | `launcher.toml` | QXLauncher (dev: корень; установленный: `~/.qxlauncher/`) |
 | `agent.toml` | QXAgent local dev |
-| `/etc/qxsystem/agent/agent.toml` | QXAgent на VPS (deploy) |
+| `/etc/qxsystem/agent/agent.toml` | QXAgent на dedicated server (deploy) |
 | `infra/docker/.env.prod` | Prod docker-compose only |
 
 Если отладчик Go не стартует (`cannot launch dlv dap`): перезапустите Cursor, затем `Ctrl+Shift+P` → **Go: Install/Update Tools** → отметьте `dlv` и `dlv-dap`. В проекте включён legacy-адаптер Delve для Windows.
@@ -146,7 +146,7 @@ CI (`.github/workflows/ci.yml`): unit tests, Playwright, `e2e-dry-run`, арте
 ```text
 services/
   qxapi/          QXApi — REST + WebSocket (Go)
-  qxagent/        QXAgent — BYOS daemon (Go)
+  qxagent/        QXAgent — dedicated server daemon (Go)
   qxlauncher/     QXLauncher — Windows (Go)
 web/
   qxweb/          QXWeb — React SPA (panel + /launcher + /servers)
@@ -172,9 +172,9 @@ go.work           Go workspace
 - [x] **Phase 2** — servers CRUD, SSH deploy, agent WSS; Stop/Restart/консоль при `minecraft_running`
 - [x] **Phase 3** — registered user device status, JWT refresh в QXLauncher
 - [x] **Phase Alpha (flows)** — manual Flow A/B/C ☑ ([test matrix](docs/qa/test-matrix.md), [FAQ](docs/faq.md))
-- [ ] **Prod** — TLS, smoke на VPS ([production-deploy.md](docs/production-deploy.md), [mvp §7.1](docs/mvp.md))
+- [ ] **Prod** — TLS, smoke на хосте платформы ([production-deploy.md](docs/production-deploy.md), [mvp §7.1](docs/mvp.md))
 
 ### Prod (Tier 0)
 
-Push в `main` → GHCR → автодеплой на `/opt/qxsystem` (Secrets в GitHub, без ручных шагов на VPS).  
+Push в `main` → GHCR → автодеплой на `/opt/qxsystem` (Secrets в GitHub, без ручных шагов на хосте платформы).  
 **[docs/production-deploy.md](docs/production-deploy.md)**

@@ -3,6 +3,7 @@ package safepath
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -32,6 +33,36 @@ func TestZipEntryBase(t *testing.T) {
 	base, err := ZipEntryBase("META-INF/native/linux/libfoo.so")
 	if err != nil || base != "libfoo.so" {
 		t.Fatalf("base=%q err=%v", base, err)
+	}
+}
+
+func TestPartPath(t *testing.T) {
+	dir := t.TempDir()
+	path, err := Join(dir, "file.jar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	part, err := PartPath(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if part != path+".part" {
+		t.Fatalf("part=%q", part)
+	}
+}
+
+func TestWriteStreamAtomic(t *testing.T) {
+	dir := t.TempDir()
+	dest, err := Join(dir, "download.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteStreamAtomic(dest, strings.NewReader("hello")); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(dest)
+	if err != nil || string(data) != "hello" {
+		t.Fatalf("data=%q err=%v", data, err)
 	}
 }
 

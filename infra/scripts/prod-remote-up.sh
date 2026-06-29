@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# On VPS: TLS (optional Cloudflare DNS) → pull GHCR → restart stack (/opt/qxsystem).
+# On dedicated server: TLS (optional Cloudflare DNS) → pull GHCR → restart stack (/opt/qxsystem).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"

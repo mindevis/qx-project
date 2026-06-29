@@ -1,6 +1,6 @@
 # Observability & Operations
 
-> **I9:** Pure **self-hosted**, no Cloudflare. **I8:** VPS TBD.  
+> **I9:** Pure **self-hosted**, no Cloudflare. **I8:** host TBD.  
 > **Dev:** `infra/docker/docker-compose.yml` — MySQL, Redis, MinIO; API/web локально. **Flow C:** `make dev-vps-up`.  
 > **Конфиг (dev):** [configuration.md](./configuration.md) — `log_level`, `log_format` в `qxapi.toml`, `launcher.toml`, `agent.toml`.  
 > **Prod:** [production-deploy.md](./production-deploy.md) · Чеклист: [mvp §7.1](./mvp.md).
@@ -13,7 +13,7 @@
 | ------ | ------ |
 | **Nginx** | TLS termination, static, rate limit |
 | **Uptime Kuma** | HTTP/TCP checks, status page |
-| **Netdata** (optional) | VPS metrics |
+| **Netdata** (optional) | host metrics |
 | **MySQL** | App + audit logs |
 | **MinIO** | Launcher releases, server backups, skins |
 
@@ -98,7 +98,7 @@ GET /api/v1/health/ready  → DB ping (Phase 0); + Redis + MinIO — prod
 
 | What | Schedule | Where |
 | ------ | ---------- | ------- |
-| MySQL | Daily 03:00 | Restic → second VPS / NAS |
+| MySQL | Daily 03:00 | Restic → second host / NAS |
 | MinIO | Daily incremental | same |
 | `qxapi.toml`, nginx | on change | private git |
 
@@ -106,8 +106,8 @@ GET /api/v1/health/ready  → DB ping (Phase 0); + Redis + MinIO — prod
 
 ## 7. Pure self-hosted networking
 
-- Single or dual VPS (I8 TBD provider/region)
-- DNS A record → VPS IP (registrar DNS, no CF proxy)
+- Single or dual host (I8 TBD provider/region)
+- DNS A record → host IP (registrar DNS, no CF proxy)
 - DDoS mitigation: Nginx limits + fail2ban only
 
 ---

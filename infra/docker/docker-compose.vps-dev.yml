@@ -1,4 +1,4 @@
-# Dev Linux VPS — Flow C manual testing (SSH deploy + QXAgent).
+# Dev Linux dedicated server — Flow C manual testing (SSH deploy + QXAgent).
 # Usage: make dev-vps-up
 #
 # Persistent data: /opt/qxsystem (agent, Java, game servers) and /etc/qxsystem/agent (config) use named volumes.

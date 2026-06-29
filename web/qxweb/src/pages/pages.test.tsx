@@ -10,6 +10,7 @@ import { LauncherPage } from './LauncherPage';
 import { ProfilePage } from './ProfilePage';
 import { PlaceholderPage } from './PlaceholderPage';
 import { clearTokens, saveTokens, api } from '@/api/client';
+import * as launcherDownload from '@/lib/launcherDownload';
 
 function requestUrl(input: RequestInfo | URL): string {
   return typeof input === 'string'
@@ -30,6 +31,17 @@ function meResponse() {
       email: 'u@test.com',
       tier: 'free',
       created_at: 'now',
+    }),
+    { status: 200 },
+  );
+}
+
+function cosmeticsResponse() {
+  return new Response(
+    JSON.stringify({
+      skin_model: 'steve',
+      has_skin: false,
+      updated_at: '2026-01-01T00:00:00Z',
     }),
     { status: 200 },
   );
@@ -64,8 +76,30 @@ function mockLauncherFetch(
         ),
       );
     }
+    if (url.includes('/auth/refresh')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            access_token: 'a',
+            refresh_token: 'r',
+            token_type: 'Bearer',
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        ),
+      );
+    }
     if (url.includes('/users/me/launcher-device')) {
       return Promise.resolve(new Response(JSON.stringify({ linked: false }), { status: 200 }));
+    }
+    if (url.includes('/users/me/cosmetics')) {
+      return Promise.resolve(cosmeticsResponse());
+    }
+    if (url.includes('/users/me/mojang')) {
+      return Promise.resolve(new Response(JSON.stringify({ linked: false }), { status: 200 }));
+    }
+    if (url.includes('/users/me')) {
+      return Promise.resolve(meResponse());
     }
     return Promise.resolve(meResponse());
   };
@@ -854,8 +888,10 @@ describe('pages', () => {
   });
 
   it('opens launcher download URL when configured', async () => {
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    vi.stubEnv('VITE_LAUNCHER_DOWNLOAD_URL', 'https://releases.example/qx-launcher.exe');
+    const openSpy = vi.spyOn(launcherDownload, 'openLauncherDownload').mockImplementation(() => {});
+    vi.spyOn(launcherDownload, 'resolveLauncherDownloadUrl').mockReturnValue(
+      'https://releases.example/qx-launcher.exe',
+    );
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -883,13 +919,9 @@ describe('pages', () => {
     const user = userEvent.setup({ delay: null });
     await waitFor(() => expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Скачать QXLauncher/ }));
-    expect(openSpy).toHaveBeenCalledWith(
-      'https://releases.example/qx-launcher.exe',
-      '_blank',
-      'noopener,noreferrer',
-    );
+    expect(openSpy).toHaveBeenCalledWith('https://releases.example/qx-launcher.exe');
     openSpy.mockRestore();
-    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it('shows error when profiles fail to load', async () => {

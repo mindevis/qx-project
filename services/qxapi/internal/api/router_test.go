@@ -46,7 +46,11 @@ func setupRouterWithDeploy(t *testing.T, deploy DeploySettings) *gin.Engine {
 	db := testutil.OpenSQLiteDB(t)
 	tokens := auth.NewTokenService("test-secret", time.Minute, time.Hour)
 	svc := auth.NewService(db, tokens)
-	return NewRouter(db, svc, "http://localhost:5173", devSSHMasterKey(), deploy)
+	return NewRouter(db, svc, "http://localhost:5173", devSSHMasterKey(), deploy, MojangSettings{
+		RedirectURI: "http://localhost:3000/api/v1/mojang/oauth/callback",
+		WebBaseURL:  "http://localhost:5173",
+		JWTSecret:   "test-secret",
+	}, ModsSettings{}, CosmeticsSettings{DataDir: t.TempDir(), PublicAPIURL: "http://localhost:3000"})
 }
 
 func TestDevSSHMasterKey(t *testing.T) {
@@ -435,7 +439,7 @@ func TestRouterServersFlow(t *testing.T) {
 	}
 
 	createBody, _ := json.Marshal(map[string]any{
-		"name": "Router VPS",
+		"name": "Router Dedicated",
 		"ssh": map[string]any{
 			"host":        "10.0.0.5",
 			"username":    "ubuntu",
@@ -512,7 +516,7 @@ func TestRouterFlowC_AgentConnect(t *testing.T) {
 	}
 
 	createBody, _ := json.Marshal(map[string]any{
-		"name": "Flow C VPS",
+		"name": "Flow C Dedicated",
 		"ssh": map[string]any{
 			"host":        "10.0.0.8",
 			"username":    "ubuntu",

@@ -21,6 +21,7 @@ type LaunchRequestsHandler struct {
 type createLaunchRequestBody struct {
 	InstanceID       string `json:"instance_id" binding:"required"`
 	OfflineProfileID string `json:"offline_profile_id"`
+	UseMojangAccount bool   `json:"use_mojang_account"`
 }
 
 type launchRequestResponse struct {
@@ -77,6 +78,7 @@ func (h *LaunchRequestsHandler) Create(c *gin.Context) {
 		InstanceID:       req.InstanceID,
 		OfflineProfileID: req.OfflineProfileID,
 		DeviceID:         deviceID,
+		UseMojangAccount: req.UseMojangAccount,
 	})
 	if err != nil {
 		switch {

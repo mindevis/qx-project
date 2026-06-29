@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"io"
-	"os"
 	"time"
 
 	"github.com/qxproject/qx/pkg/safepath"
@@ -52,7 +51,7 @@ func followServerLog(ctx context.Context, workDir string, onLine func(line strin
 }
 
 func readLogTail(path string, offset int64) ([]string, int64, error) {
-	f, err := os.Open(path)
+	f, err := safepath.OpenRead(path)
 	if err != nil {
 		return nil, offset, err
 	}

@@ -72,7 +72,7 @@ type LaunchPlan struct {
 	WorkingDir string
 }
 
-func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar string, libPaths []string, nativesDir, assetsDir, gameDir, librariesDir, username, offlineUUID, javaBin string) LaunchPlan {
+func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar string, libPaths []string, nativesDir, assetsDir, gameDir, librariesDir, username, offlineUUID, javaBin string, licensed *LaunchAuth) LaunchPlan {
 	if gameDir == "" {
 		gameDir = filepath.Dir(clientJar)
 	}
@@ -82,7 +82,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 	if librariesDir == "" {
 		librariesDir = filepath.Join(filepath.Dir(clientJar), "libraries")
 	}
-	subs := launchSubstitutions(manifest, gameDir, assetsDir, librariesDir, username, offlineUUID)
+	subs := launchSubstitutions(manifest, gameDir, assetsDir, librariesDir, username, offlineUUID, licensed)
 
 	var args []string
 	if len(manifest.JVMArguments) > 0 {
@@ -105,15 +105,23 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 	if len(manifest.GameArguments) > 0 {
 		args = append(args, sanitizeLaunchArgs(substituteLaunchArgs(manifest.GameArguments, subs))...)
 	} else {
+		gameUUID := offlineUUID
+		accessToken := "0"
+		userType := "legacy"
+		if licensed != nil {
+			gameUUID = strings.ReplaceAll(licensed.UUID, "-", "")
+			accessToken = licensed.AccessToken
+			userType = "msa"
+		}
 		args = append(args,
 			"--username", username,
 			"--version", manifest.MCVersion,
 			"--gameDir", gameDir,
 			"--assetsDir", assetsDir,
 			"--assetIndex", manifest.AssetIndex.ID,
-			"--uuid", offlineUUID,
-			"--accessToken", "0",
-			"--userType", "legacy",
+			"--uuid", gameUUID,
+			"--accessToken", accessToken,
+			"--userType", userType,
 		)
 	}
 	if javaBin == "" {
@@ -156,7 +164,7 @@ func launchPathSlash(path string) string {
 	return strings.ReplaceAll(path, "\\", "/")
 }
 
-func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, username, offlineUUID string) map[string]string {
+func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, username, offlineUUID string, licensed *LaunchAuth) map[string]string {
 	versionName := ""
 	assetIndex := ""
 	if manifest != nil {
@@ -170,15 +178,26 @@ func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, a
 	if runtime.GOOS == "windows" {
 		sep = ";"
 	}
+	authUUID := offlineUUID
+	authToken := "0"
+	userType := "legacy"
+	if licensed != nil {
+		authUUID = strings.ReplaceAll(licensed.UUID, "-", "")
+		authToken = licensed.AccessToken
+		userType = "msa"
+		if username == "" {
+			username = licensed.Username
+		}
+	}
 	return map[string]string{
 		"${auth_player_name}":       username,
 		"${version_name}":           versionName,
 		"${game_directory}":         launchPathSlash(gameDir),
 		"${assets_root}":            launchPathSlash(assetsDir),
 		"${assets_index_name}":      assetIndex,
-		"${auth_uuid}":              offlineUUID,
-		"${auth_access_token}":      "0",
-		"${user_type}":              "legacy",
+		"${auth_uuid}":              authUUID,
+		"${auth_access_token}":      authToken,
+		"${user_type}":              userType,
 		"${version_type}":           "release",
 		"${clientid}":               "",
 		"${auth_xuid}":              "",

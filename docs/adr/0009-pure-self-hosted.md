@@ -8,7 +8,7 @@
 - **No Cloudflare** proxy/CDN.
 - TLS via Let's Encrypt on Nginx.
 - DDoS: Nginx rate limits + fail2ban.
-- **I8 VPS provider:** TBD at deploy time.
+- **I8 dedicated server provider:** TBD at deploy time.
 
 ## Consequences
 

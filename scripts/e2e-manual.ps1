@@ -63,14 +63,14 @@ Write-Host "  2. «Продолжить как гость» on /launcher/link"
 Write-Host "  3. Create instance - Play (default nick Player)"
 
 Write-Host "--- Flow C (server admin) ---" -ForegroundColor Green
-Write-Host "  Dev VPS (Debian 13 + SSH): make dev-vps-up"
+Write-Host "  dev dedicated server (Debian 13 + SSH): make dev-vps-up"
 Write-Host "  SSH: localhost:2222, user root, key infra/docker/vps-dev/keys/dev_id_ed25519"
 Write-Host "  qxapi.toml: public_api_url = \"http://host.docker.internal:3000\""
 Write-Host "        (make dev-vps-up builds agent binary automatically)"
-Write-Host "  1. Servers - add VPS (SSH creds from make dev-vps-info) - Deploy agent"
+Write-Host "  1. Servers - add dedicated server (SSH creds from make dev-vps-info) - Deploy agent"
 Write-Host "  2. Agent auto-starts in container via systemd after deploy (tag Agent)"
 Write-Host "  3. MC offline until JAR started - Stop/Restart + console only when minecraft_running"
-Write-Host "  Alt: POST /servers/{id}/start via API; dry_run in agent.toml on VPS"
+Write-Host "  Alt: POST /servers/{id}/start via API; dry_run in agent.toml on dedicated server"
 
 Write-Host "--- QXLauncher manual (test matrix A09, L03) ---" -ForegroundColor Green
 Write-Host "  Icon in system tray - Link QXLauncher - browser opens /launcher/link"

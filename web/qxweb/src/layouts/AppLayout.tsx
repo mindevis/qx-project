@@ -9,6 +9,7 @@ import { useTheme } from '@/theme/ThemeContext';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { BackendUnavailableNotification } from '@/components/BackendUnavailableNotification';
+import { RouteSeo } from '@/components/RouteSeo';
 import { UserMenu } from '@/components/UserMenu';
 import './AppLayout.css';
 
@@ -74,6 +75,7 @@ export function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      <RouteSeo />
       <BackendUnavailableNotification />
       <Header
         className={headerClassName}
@@ -84,9 +86,11 @@ export function AppLayout() {
           } as CSSProperties
         }
       >
-        <Typography.Title level={4} style={{ color: token.colorText, margin: 0 }}>
-          QXSystem
-        </Typography.Title>
+        <Link to="/" className="app-header-brand" aria-label={t('layout.navHome')}>
+          <Typography.Title level={4} style={{ color: token.colorText, margin: 0 }}>
+            QXSystem
+          </Typography.Title>
+        </Link>
         <Menu
           theme={isDark ? 'dark' : 'light'}
           mode="horizontal"
@@ -124,10 +128,12 @@ export function AppLayout() {
         </Space>
       </Header>
       <Content
-        className={isLandingPage ? 'app-content--landing' : undefined}
+        className={isLandingPage ? 'app-content--landing' : 'app-content--main'}
         style={{ padding: isLandingPage ? '0' : '24px 48px' }}
       >
-        <Outlet />
+        <main>
+          <Outlet />
+        </main>
       </Content>
       <Footer className={footerClassName}>
         {t('layout.footer')}

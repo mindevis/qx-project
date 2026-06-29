@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build prod images locally and pack a deploy bundle for VPS (no build tools on server).
+# Build prod images locally and pack a deploy bundle for dedicated server (no build tools on server).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -13,7 +13,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
     ENV_FILE="$COMPOSE_DIR/.env.prod"
   elif [[ -f "$COMPOSE_DIR/.env.prod.build" ]]; then
     ENV_FILE="$COMPOSE_DIR/.env.prod.build"
-    echo "Using build env: $ENV_FILE (runtime secrets go in .env.prod on VPS)"
+    echo "Using build env: $ENV_FILE (runtime secrets go in .env.prod on dedicated server)"
   else
     echo "Missing env file — copy .env.prod.example to .env.prod or use .env.prod.build" >&2
     exit 1
@@ -23,6 +23,9 @@ fi
 cd "$ROOT"
 echo "Building qx-agent-linux (embedded in API image)..."
 make build-agent-linux
+
+echo "Building qx-launcher.exe (served from web image)..."
+make build-launcher-win
 
 echo "Building Docker images..."
 docker compose -f "$COMPOSE_DIR/docker-compose.prod.yml" --env-file "$ENV_FILE" build
@@ -43,6 +46,6 @@ chmod +x "$BUNDLE/up.sh"
 
 echo ""
 echo "Bundle ready: $BUNDLE/"
-echo "  1. Copy dist/qx-prod/ to VPS (e.g. /opt/qx-prod)"
+echo "  1. Copy dist/qx-prod/ to dedicated server (e.g. /opt/qx-prod)"
 echo "  2. cp .env.prod.example .env.prod && edit secrets"
 echo "  3. ./up.sh"

@@ -16,7 +16,7 @@ func ReadServerProperties(workDir string) ([]protocol.PropertyEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(path)
+	data, err := safepath.ReadFileBytes(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -61,7 +61,7 @@ func ListDir(workDir, relPath string) ([]protocol.FileEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	entries, err := os.ReadDir(abs)
+	entries, err := safepath.ReadDir(abs)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func ReadFile(workDir, relPath string) (string, int64, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	info, err := os.Stat(abs)
+	info, err := safepath.Stat(abs)
 	if err != nil {
 		return "", 0, err
 	}
@@ -122,17 +122,16 @@ func WriteFile(workDir, relPath, content string) error {
 	if err != nil {
 		return err
 	}
-	if info, err := os.Stat(abs); err == nil && info.IsDir() {
+	if info, err := safepath.Stat(abs); err == nil && info.IsDir() {
 		return fmt.Errorf("path is a directory")
 	}
 	if len(content) > 2*1024*1024 {
 		return fmt.Errorf("content too large")
 	}
-	dir := filepath.Dir(abs)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := safepath.EnsureParent(abs); err != nil {
 		return err
 	}
-	return os.WriteFile(abs, []byte(content), 0o644)
+	return safepath.WriteFileBytes(abs, []byte(content), 0o644)
 }
 
 func ListMods(workDir, serverType string) ([]protocol.FileEntry, error) {
@@ -169,7 +168,7 @@ func writePropertyFile(path string, updates map[string]string, removeKeys []stri
 		remove[key] = struct{}{}
 	}
 	lines := make([]string, 0, 32)
-	if data, err := os.ReadFile(path); err == nil {
+	if data, err := safepath.ReadFileBytes(path); err == nil {
 		lines = strings.Split(string(data), "\n")
 	} else if !os.IsNotExist(err) {
 		return err
@@ -209,5 +208,5 @@ func writePropertyFile(path string, updates map[string]string, removeKeys []stri
 	if !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}
-	return os.WriteFile(path, []byte(content), 0o644)
+	return safepath.WriteFileBytes(path, []byte(content), 0o644)
 }

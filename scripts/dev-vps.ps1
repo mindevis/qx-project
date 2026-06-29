@@ -1,4 +1,4 @@
-# Dev Linux VPS for Flow C (Debian 13 + SSH + systemd).
+# Dev Linux dedicated server for Flow C (Debian 13 + SSH + systemd).
 # Usage: .\scripts\dev-vps.ps1          - start
 #        .\scripts\dev-vps.ps1 -Down    - stop
 #        .\scripts\dev-vps.ps1 -Rm      - remove container, volumes, local image
@@ -42,7 +42,7 @@ function Show-Info {
     $rconEnd = if ($env:DEV_VPS_RCON_PORT_END) { $env:DEV_VPS_RCON_PORT_END } else { "35585" }
 
     Write-Host ""
-    Write-Host "=== QX dev VPS (Flow C) ===" -ForegroundColor Cyan
+    Write-Host "=== QX dev dedicated server (Flow C) ===" -ForegroundColor Cyan
     Write-Host "Host:     localhost"
     Write-Host "Port:     2222"
     Write-Host "User:     root"
@@ -93,7 +93,7 @@ try {
             $ErrorActionPreference = $prevEap
         }
         if ($WipeData) {
-            Write-Host "Removing dev VPS data volumes..." -ForegroundColor Yellow
+            Write-Host "Removing dev dedicated server data volumes..." -ForegroundColor Yellow
             docker volume rm docker_vps_dev_qx_data docker_vps_dev_agent_config 2>&1 | Out-Null
             Write-Host "dev-vps removed - container and data wiped" -ForegroundColor Green
         } else {
@@ -101,7 +101,7 @@ try {
             Write-Host "Wipe volumes: make dev-vps-rm-data" -ForegroundColor DarkGray
         }
         Write-Host "SSH keys kept at: $keysDir" -ForegroundColor DarkGray
-        Write-Host "Run make dev-vps-up for a fresh VPS container" -ForegroundColor DarkGray
+        Write-Host "Run make dev-vps-up for a fresh dedicated server container" -ForegroundColor DarkGray
         exit 0
     }
 

@@ -1,4 +1,4 @@
-# QXSystem — production runtime (pull images from GHCR, no build on VPS)
+# QXSystem — production runtime (pull images from GHCR, no build on platform host)
 # Deploy: GitHub Actions → /opt/qxsystem
 # Images: QX_API_IMAGE / QX_WEB_IMAGE in image-tag.env (written by CI)
 
@@ -54,7 +54,7 @@ services:
       LOG_FORMAT: ${LOG_FORMAT:-json}
       DATABASE_DSN: ${DATABASE_DSN}
       JWT_SECRET: ${JWT_SECRET}
-      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-1h}
       REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-168h}
       CORS_ORIGIN: ${CORS_ORIGIN}
       SSH_MASTER_KEY: ${SSH_MASTER_KEY}

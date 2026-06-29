@@ -11,11 +11,27 @@ import (
 	"github.com/qxproject/qx/pkg/mcmanifest"
 )
 
+type LaunchAuth struct {
+	Username    string
+	UUID        string
+	AccessToken string
+}
+
+type LaunchCosmetics struct {
+	SkinModel      string
+	SkinURL        string
+	UseSkinServer  bool
+	SkinServerHost string
+	GameUUID       string
+}
+
 type ClientLaunchInput struct {
 	Manifest    *mcmanifest.InstanceLaunchManifest
 	Username    string
 	OfflineUUID string
 	SkinModel   string
+	Licensed    *LaunchAuth
+	Cosmetics   *LaunchCosmetics
 }
 
 type ClientLaunchReady struct {
@@ -38,6 +54,13 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		offlineUUID = "00000000-0000-0000-0000-000000000000"
 	}
 	skinModel := NormalizeSkinModel(in.SkinModel)
+	if in.Licensed != nil {
+		username = strings.TrimSpace(in.Licensed.Username)
+		offlineUUID = strings.TrimSpace(in.Licensed.UUID)
+		if in.Cosmetics == nil || strings.TrimSpace(in.Cosmetics.SkinModel) == "" {
+			skinModel = ModelSteve
+		}
+	}
 
 	d.progress("prepare", "java runtime")
 	javaBin, err := d.EnsureJava(ctx, in.Manifest)
@@ -72,8 +95,29 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 	if err := EnsureGameLanguage(gameDir, DefaultGameLanguage); err != nil {
 		return nil, fmt.Errorf("game language: %w", err)
 	}
-	if err := EnsureOfflineSkin(gameDir, offlineUUID, skinModel); err != nil {
-		return nil, fmt.Errorf("offline skin: %w", err)
+
+	gameUUID := offlineUUID
+	if in.Cosmetics != nil && strings.TrimSpace(in.Cosmetics.GameUUID) != "" {
+		gameUUID = strings.TrimSpace(in.Cosmetics.GameUUID)
+	}
+
+	skinCfg := PlayerSkinConfig{
+		UUID:  gameUUID,
+		Model: skinModel,
+	}
+	if in.Cosmetics != nil {
+		skinCfg.Model = NormalizeSkinModel(in.Cosmetics.SkinModel)
+		if skinCfg.Model == ModelSteve && skinModel != "" {
+			skinCfg.Model = skinModel
+		}
+		if in.Cosmetics.SkinURL != "" {
+			if skinPNG, err := DownloadPNG(ctx, d.HTTPClient, in.Cosmetics.SkinURL); err == nil {
+				skinCfg.SkinPNG = skinPNG
+			}
+		}
+	}
+	if err := EnsurePlayerSkin(gameDir, skinCfg); err != nil {
+		return nil, fmt.Errorf("player skin: %w", err)
 	}
 
 	plan := BuildLaunchPlan(
@@ -87,7 +131,16 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		username,
 		offlineUUID,
 		javaBin,
+		in.Licensed,
 	)
+
+	if in.Cosmetics != nil && in.Cosmetics.UseSkinServer {
+		plan.Args = PrependSkinServerJVMArgs(plan.Args, SkinServerConfig{
+			Enabled:  true,
+			HostBase: in.Cosmetics.SkinServerHost,
+		})
+	}
+
 	logPath := filepath.Join(gameDir, "launch.log")
 	if err := writeLaunchDebug(gameDir, plan); err != nil {
 		return nil, err

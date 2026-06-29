@@ -55,6 +55,19 @@ function mockAuthedFetch(handler: (url: string, init?: RequestInit) => Response 
     if (custom) {
       return Promise.resolve(custom);
     }
+    if (url.includes('/auth/refresh')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            access_token: 'a',
+            refresh_token: 'r',
+            token_type: 'Bearer',
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        ),
+      );
+    }
     if (url.includes('/users/me')) {
       return Promise.resolve(meResponse());
     }
@@ -73,11 +86,11 @@ class MockWebSocket {
   send() {}
 }
 
-async function clickAddVps(user: ReturnType<typeof userEvent.setup>) {
+async function clickAddDedicated(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => {
-    expect(screen.getAllByRole('button', { name: /Добавить VPS/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /Добавить выделенный сервер/i }).length).toBeGreaterThan(0);
   });
-  const buttons = screen.getAllByRole('button', { name: /Добавить VPS/i });
+  const buttons = screen.getAllByRole('button', { name: /Добавить выделенный сервер/i });
   await user.click(buttons[0]!);
 }
 
@@ -123,7 +136,7 @@ describe('ServersPage', () => {
     renderServers('/servers');
     await waitFor(() =>
       expect(
-        screen.getByText('Добавьте Linux VPS с SSH-доступом — мы установим QXAgent и подготовим сервер к запуску.'),
+        screen.getByText('Добавьте Linux выделенный сервер с SSH-доступом — мы установим QXAgent и подготовим сервер к запуску.'),
       ).toBeInTheDocument(),
     );
   });
@@ -141,13 +154,13 @@ describe('ServersPage', () => {
         if (url.includes('/servers') && init?.method === 'POST') {
           postedBody = init.body as string;
           return new Response(
-            JSON.stringify({ ...sampleServer, id: 'srv-new', name: 'New VPS' }),
+            JSON.stringify({ ...sampleServer, id: 'srv-new', name: 'New dedicated server' }),
             { status: 201 },
           );
         }
         if (url.includes('/servers/srv-new')) {
           return new Response(
-            JSON.stringify({ ...sampleServer, id: 'srv-new', name: 'New VPS' }),
+            JSON.stringify({ ...sampleServer, id: 'srv-new', name: 'New dedicated server' }),
             { status: 200 },
           );
         }
@@ -161,8 +174,8 @@ describe('ServersPage', () => {
     const user = userEvent.setup({ delay: null });
     renderServers('/servers');
     await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
-    await clickAddVps(user);
-    await user.type(screen.getByLabelText('Название'), 'New VPS');
+    await clickAddDedicated(user);
+    await user.type(screen.getByLabelText('Название'), 'New dedicated server');
     await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
     await user.type(screen.getByLabelText('SSH User'), 'ubuntu');
     await user.clear(screen.getByLabelText('SSH Port'));
@@ -211,7 +224,7 @@ describe('ServersPage', () => {
     expect(screen.getAllByText('Не развёрнут').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Новый').length).toBeGreaterThan(0);
 
-    await clickAddVps(user);
+    await clickAddDedicated(user);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close' }));
     await waitForNoDialog();
@@ -253,7 +266,7 @@ describe('ServersPage', () => {
             JSON.stringify({
               ...sampleServer,
               id: 'srv-new',
-              name: 'New VPS',
+              name: 'New dedicated server',
               agent_deployed: true,
               agent_online: true,
               status: 'online',
@@ -266,7 +279,7 @@ describe('ServersPage', () => {
             JSON.stringify({
               ...sampleServer,
               id: 'srv-new',
-              name: 'New VPS',
+              name: 'New dedicated server',
               agent_deployed: true,
               agent_online: true,
               status: 'online',
@@ -285,8 +298,8 @@ describe('ServersPage', () => {
     renderServers('/servers');
 
     await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
-    await clickAddVps(user);
-    await user.type(screen.getByLabelText('Название'), 'New VPS');
+    await clickAddDedicated(user);
+    await user.type(screen.getByLabelText('Название'), 'New dedicated server');
     await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
     await user.type(screen.getByLabelText('SSH User'), 'ubuntu');
     await user.type(
@@ -295,7 +308,7 @@ describe('ServersPage', () => {
     );
     await user.click(screen.getByRole('button', { name: 'OK' }));
 
-    await waitFor(() => expect(screen.getByText('New VPS')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('New dedicated server')).toBeInTheDocument());
     expect(screen.getAllByText('Онлайн').length).toBeGreaterThan(0);
   });
 
@@ -459,7 +472,7 @@ describe('ServersPage', () => {
             JSON.stringify({
               error: {
                 code: 'HOST_NOT_LINUX',
-                message: 'QX agent requires a Linux VPS',
+                message: 'QX agent requires a Linux dedicated server',
               },
             }),
             { status: 422 },
@@ -478,7 +491,7 @@ describe('ServersPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Deploy agent/i }));
     await waitFor(() =>
-      expect(message.error).toHaveBeenCalledWith('QX agent requires a Linux VPS'),
+      expect(message.error).toHaveBeenCalledWith('QX agent requires a Linux dedicated server'),
     );
   });
 
@@ -543,7 +556,7 @@ describe('ServersPage', () => {
     expect(screen.getByText('Развёртывается…')).toBeInTheDocument();
   });
 
-  it('shows VPS offline on detail for unknown backend status without agent', async () => {
+  it('shows dedicated host offline on detail for unknown backend status without agent', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -630,8 +643,8 @@ describe('ServersPage', () => {
     renderServers('/servers');
     await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
 
-    await clickAddVps(user);
-    await user.type(screen.getByLabelText('Название'), 'Bad VPS');
+    await clickAddDedicated(user);
+    await user.type(screen.getByLabelText('Название'), 'Bad dedicated server');
     await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
     await user.type(screen.getByLabelText('SSH User'), 'ubuntu');
     await user.type(
@@ -747,7 +760,7 @@ describe('ServersPage', () => {
     renderServers('/servers');
     await waitFor(() => expect(screen.getByText('Ваши серверы')).toBeInTheDocument());
 
-    await clickAddVps(user);
+    await clickAddDedicated(user);
     await user.type(screen.getByLabelText('Название'), 'Silent fail');
     await user.type(screen.getByLabelText('SSH Host'), '10.0.0.1');
     await user.type(screen.getByLabelText('SSH User'), 'ubuntu');

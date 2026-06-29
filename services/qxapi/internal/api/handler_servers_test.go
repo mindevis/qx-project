@@ -59,7 +59,7 @@ func TestServersHandlerCRUD(t *testing.T) {
 	userID, _ := registerUserToken(t, authSvc)
 
 	createBody := map[string]any{
-		"name": "My VPS",
+		"name": "My dedicated server",
 		"ssh": map[string]any{
 			"host":        "10.0.0.2",
 			"port":        22,
@@ -156,7 +156,7 @@ func TestServersHandlerDeployNonLinux(t *testing.T) {
 	userID, _ := registerUserToken(t, authSvc)
 
 	createBody, _ := json.Marshal(map[string]any{
-		"name": "Win VPS",
+		"name": "Win dedicated server",
 		"ssh": map[string]any{
 			"host": "1.2.3.4", "username": "admin", "private_key": testSSHKey,
 		},
@@ -195,7 +195,7 @@ func TestServersHandlerDeployInvalidSSHKey(t *testing.T) {
 	userID, _ := registerUserToken(t, authSvc)
 
 	createBody, _ := json.Marshal(map[string]any{
-		"name": "VPS",
+		"name": "dedicated server",
 		"ssh": map[string]any{
 			"host": "1.2.3.4", "username": "root", "private_key": testSSHKey,
 		},
@@ -227,7 +227,7 @@ func TestServersHandlerDeployAndLifecycle(t *testing.T) {
 	userID, _ := registerUserToken(t, authSvc)
 
 	createBody, _ := json.Marshal(map[string]any{
-		"name": "VPS",
+		"name": "dedicated server",
 		"ssh": map[string]any{
 			"host": "1.2.3.4", "username": "root", "private_key": testSSHKey,
 		},

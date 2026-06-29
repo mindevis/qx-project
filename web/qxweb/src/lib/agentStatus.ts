@@ -11,7 +11,7 @@ export function isAgentDeployed(server: Pick<GameServer, 'agent_deployed' | 'sta
   if (server.status === 'pending') {
     return false;
   }
-  // Deploy moves the VPS out of pending; supports older API responses without agent_deployed.
+  // Deploy moves the dedicated host out of pending; supports older API responses without agent_deployed.
   return (
     server.status === 'deploying' ||
     server.status === 'offline' ||

@@ -75,7 +75,7 @@ func TestBuildLaunchPlanForgeLegacyClasspath(t *testing.T) {
 		GameArguments: []string{"--launchTarget", "forgeclient"},
 	}
 	libs := []string{`C:\libs\cpw\mods\modlauncher\10.0.9\modlauncher-10.0.9.jar`}
-	plan := BuildLaunchPlan(manifest, "", libs, "", "/assets", "/game", "/libs", "Steve", "uuid-1", "")
+	plan := BuildLaunchPlan(manifest, "", libs, "", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil)
 	joined := strings.Join(plan.Args, " ")
 	if !strings.Contains(joined, "-DlegacyClassPath=") {
 		t.Fatalf("missing legacy classpath: %s", joined)
@@ -97,7 +97,7 @@ func TestBuildLaunchPlanModded(t *testing.T) {
 		JVMArguments: []string{"-Xmx4G"},
 	}
 	jar := filepath.Join(t.TempDir(), "1.20.1.jar")
-	plan := BuildLaunchPlan(manifest, jar, []string{"/lib/a.jar"}, "/natives", "/assets", "/game", "/libs", "Steve", "uuid-1", "")
+	plan := BuildLaunchPlan(manifest, jar, []string{"/lib/a.jar"}, "/natives", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil)
 	if plan.Args[0] != "-Xmx4G" {
 		t.Fatalf("jvm args: %+v", plan.Args)
 	}
@@ -114,7 +114,7 @@ func TestBuildLaunchPlan(t *testing.T) {
 		AssetIndex: mcmanifest.AssetIndexRef{ID: "1.21"},
 	}
 	jar := filepath.Join(t.TempDir(), "1.21.jar")
-	plan := BuildLaunchPlan(manifest, jar, []string{"/lib/a.jar"}, "/natives", "/assets", "/game", "/libs", "Steve", "uuid-1", "")
+	plan := BuildLaunchPlan(manifest, jar, []string{"/lib/a.jar"}, "/natives", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil)
 	if plan.MainClass == "" || len(plan.Args) == 0 {
 		t.Fatalf("plan: %+v", plan)
 	}

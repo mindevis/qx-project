@@ -44,6 +44,13 @@ export function HomePage() {
       href: '/launcher',
     },
     {
+      key: 'qxmods',
+      icon: <AppstoreOutlined />,
+      title: t('home.qxmodsTitle'),
+      body: t('home.qxmodsBody'),
+      href: '/launcher',
+    },
+    {
       key: 'qxagent',
       icon: <CloudServerOutlined />,
       title: t('home.qxagentTitle'),
@@ -65,10 +72,10 @@ export function HomePage() {
       desc: t('home.benefitAccountDesc'),
     },
     {
-      key: 'byos',
+      key: 'dedicated',
       icon: <SafetyCertificateOutlined />,
-      title: t('home.benefitByos'),
-      desc: t('home.benefitByosDesc'),
+      title: t('home.benefitDedicated'),
+      desc: t('home.benefitDedicatedDesc'),
     },
     {
       key: 'vanilla',
@@ -86,7 +93,10 @@ export function HomePage() {
 
   return (
     <div className="home-page">
-      <section className="home-hero">
+      <noscript>
+        <p className="home-noscript">{t('seo.noscriptSummary')}</p>
+      </noscript>
+      <section className="home-hero" aria-labelledby="home-hero-title">
         <div className="home-hero-ambient" aria-hidden>
           <span className="home-hero-blob home-hero-blob--1" />
           <span className="home-hero-blob home-hero-blob--2" />
@@ -97,7 +107,7 @@ export function HomePage() {
         <div className="home-hero-grid">
           <div className="home-hero-content">
             <span className="home-badge">{t('home.badge')}</span>
-            <Title level={1} className="home-title">
+            <Title level={1} id="home-hero-title" className="home-title">
               {highlightMinecraft(t('home.title'))}
             </Title>
             <Paragraph className="home-subtitle">{t('home.subtitle')}</Paragraph>

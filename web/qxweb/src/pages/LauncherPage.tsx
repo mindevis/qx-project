@@ -6,6 +6,7 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Segmented,
   Select,
   Space,
   Spin,
@@ -25,6 +26,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { LauncherDownloadButton } from '@/components/LauncherDownloadButton';
+import { InstanceResourcesPanel } from '@/components/InstanceResourcesPanel';
 import { ProfileModelPicker, ProfileModelAvatar } from '@/components/ProfileModelPicker';
 import { useMessage } from '@/hooks/useMessage';
 import {
@@ -53,6 +55,7 @@ import {
   clearLinkedDevice,
   saveLinkedDevice,
   type LauncherInstance,
+  type MojangLinkStatus,
   type OfflineProfile,
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -67,6 +70,8 @@ const { Title, Paragraph, Text } = Typography;
 
 const LAUNCH_POLL_MS = 1500;
 const LAUNCH_TERMINAL = new Set(['completed', 'failed', 'expired']);
+
+type LaunchAccountMode = 'offline' | 'licensed';
 
 export function LauncherPage() {
   const { t } = useI18n();
@@ -101,12 +106,26 @@ export function LauncherPage() {
     null,
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [accountMode, setAccountMode] = useState<LaunchAccountMode>('offline');
+  const [mojangStatus, setMojangStatus] = useState<MojangLinkStatus | null>(null);
+  const [mojangLoading, setMojangLoading] = useState(false);
   const [, setAccessKey] = useState(0);
   const refreshAccess = useCallback(() => setAccessKey((k) => k + 1), []);
   const canManage = !authLoading && isAuthenticated;
   const instancesTitle = t('launcher.myInstances');
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
-  const activePlayerLabel = selectedProfile?.username ?? t('launcher.playerDefault');
+  const licensedReady = accountMode === 'licensed' && mojangStatus?.linked === true;
+  const activePlayerLabel =
+    accountMode === 'licensed'
+      ? mojangStatus?.linked
+        ? (mojangStatus.username ?? t('launcher.licensedAccount'))
+        : t('launcher.licensedNotLinked')
+      : (selectedProfile?.username ?? t('launcher.playerDefault'));
+
+  const accountModeOptions = [
+    { label: t('launcher.accountModeOffline'), value: 'offline' as const },
+    { label: t('launcher.accountModeLicensed'), value: 'licensed' as const },
+  ];
 
   const formatDeviceId = (deviceId: string) =>
     deviceId.length > 16 ? `${deviceId.slice(0, 8)}…${deviceId.slice(-4)}` : deviceId;
@@ -309,22 +328,40 @@ export function LauncherPage() {
     }
   }, [canManage, message, t]);
 
+  const loadMojangStatus = useCallback(async () => {
+    if (!canManage) {
+      setMojangStatus(null);
+      return;
+    }
+    setMojangLoading(true);
+    try {
+      const status = await api.mojangStatus();
+      setMojangStatus(status);
+    } catch (e) {
+      logger.warn('failed to load mojang status', { error: String(e) });
+      setMojangStatus(null);
+    } finally {
+      setMojangLoading(false);
+    }
+  }, [canManage]);
+
   /* v8 ignore start -- @preserve workspace refresh is covered via instance/profile reload paths */
   const refreshWorkspace = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadInstances(), loadProfiles()]);
+      await Promise.all([loadInstances(), loadProfiles(), loadMojangStatus()]);
       message.success(t('launcher.workspaceRefreshed'));
     } finally {
       setRefreshing(false);
     }
-  }, [loadInstances, loadProfiles, message, t]);
+  }, [loadInstances, loadMojangStatus, loadProfiles, message, t]);
   /* v8 ignore end */
 
   useEffect(() => {
     void loadInstances();
     void loadProfiles();
-  }, [loadInstances, loadProfiles]);
+    void loadMojangStatus();
+  }, [loadInstances, loadMojangStatus, loadProfiles]);
 
   useEffect(() => {
     if (canManage) {
@@ -489,14 +526,19 @@ export function LauncherPage() {
   };
 
   const handlePlay = async (instance: LauncherInstance) => {
+    if (accountMode === 'licensed' && !licensedReady) {
+      message.warning(t('launcher.licensedLaunchFailed'));
+      return;
+    }
     setLaunchingId(instance.id);
     try {
-      if (!selectedProfileId) {
+      if (accountMode === 'offline' && !selectedProfileId) {
         message.info(t('launcher.defaultPlayerHint'));
       }
       const req = await api.createLaunchRequest({
         instance_id: instance.id,
-        offline_profile_id: selectedProfileId,
+        offline_profile_id: accountMode === 'offline' ? selectedProfileId : undefined,
+        use_mojang_account: accountMode === 'licensed',
       });
       message.info(t('launcher.launchSent'));
       await pollLaunchRequest(req.id);
@@ -675,6 +717,19 @@ export function LauncherPage() {
           </div>
         )}
 
+        {linkedDevice && isAuthenticated && (
+          <section className="launcher-section launcher-section--qxmods">
+            <div className="launcher-qxmods-promo">
+              <Title level={4} className="launcher-qxmods-promo-title">
+                {t('qxmods.promoTitle')}
+              </Title>
+              <Paragraph type="secondary" className="launcher-qxmods-promo-body">
+                {t('qxmods.promoBody')}
+              </Paragraph>
+            </div>
+          </section>
+        )}
+
         <div className="launcher-workspace-grid">
           <div className="launcher-panel launcher-panel--instances">
             <div className="launcher-panel-header">
@@ -724,12 +779,20 @@ export function LauncherPage() {
               </div>
             ) : (
               <>
+                <div className="launcher-launch-bar-mode">
+                  <Text type="secondary">{t('launcher.accountMode')}</Text>
+                  <Segmented<LaunchAccountMode>
+                    options={accountModeOptions}
+                    value={accountMode}
+                    onChange={(value) => setAccountMode(value)}
+                  />
+                </div>
                 <div className="launcher-launch-bar">
                   <Text type="secondary">{t('launcher.playingAs')}</Text>
                   <Text strong className="launcher-launch-bar-name">
-                    {activePlayerLabel}
+                    {mojangLoading && accountMode === 'licensed' ? '…' : activePlayerLabel}
                   </Text>
-                  {selectedProfile ? (
+                  {accountMode === 'offline' && selectedProfile ? (
                     <ProfileModelAvatar model={selectedProfile.model ?? 'steve'} size="sm" />
                   ) : null}
                 </div>
@@ -754,6 +817,10 @@ export function LauncherPage() {
                             <span className="launcher-tag">{item.loader_version}</span>
                           ) : null}
                         </div>
+                        <InstanceResourcesPanel
+                          instance={item}
+                          canSync={isAuthenticated}
+                        />
                       </div>
                       <Space wrap className="launcher-instance-actions">
                         <Button
@@ -761,7 +828,10 @@ export function LauncherPage() {
                           size="large"
                           icon={<RocketOutlined />}
                           loading={launchingId === item.id}
-                          disabled={launchingId !== null && launchingId !== item.id}
+                          disabled={
+                            (accountMode === 'licensed' && !licensedReady) ||
+                            (launchingId !== null && launchingId !== item.id)
+                          }
                           onClick={() => handlePlay(item)}
                         >
                           {t('launcher.play')}
@@ -797,17 +867,59 @@ export function LauncherPage() {
                   ) : null}
                 </div>
               </div>
-              {canManage && profiles.length > 0 ? (
+              {canManage && accountMode === 'offline' && profiles.length > 0 ? (
                 <Button icon={<PlusOutlined />} onClick={openProfileModal}>
                   {t('common.add')}
                 </Button>
               ) : null}
             </div>
 
+            {canManage ? (
+              <div className="launcher-launch-bar-mode launcher-launch-bar-mode--panel">
+                <Text type="secondary">{t('launcher.accountMode')}</Text>
+                <Segmented<LaunchAccountMode>
+                  size="small"
+                  options={accountModeOptions}
+                  value={accountMode}
+                  onChange={(value) => setAccountMode(value)}
+                />
+              </div>
+            ) : null}
+
             {!canManage ? (
               <Paragraph type="secondary" className="launcher-panel-empty">
                 {t('launcher.offlineAfterLink')}
               </Paragraph>
+            ) : accountMode === 'licensed' ? (
+              mojangLoading ? (
+                <div className="launcher-panel-loading">
+                  <Spin />
+                </div>
+              ) : mojangStatus?.linked ? (
+                <div className="launcher-licensed-account">
+                  <Paragraph type="secondary" className="launcher-panel-hint">
+                    {t('launcher.licensedAccount')}
+                  </Paragraph>
+                  <div className="launcher-licensed-account-card">
+                    <Text strong>{mojangStatus.username}</Text>
+                    {mojangStatus.minecraft_uuid ? (
+                      <Text type="secondary" className="launcher-licensed-account-uuid">
+                        {mojangStatus.minecraft_uuid}
+                      </Text>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="launcher-empty">
+                  <LinkOutlined className="launcher-empty-icon" />
+                  <Paragraph type="secondary">{t('launcher.licensedNotLinked')}</Paragraph>
+                  <Link to="/profile">
+                    <Button type="primary" ghost>
+                      {t('launcher.goToProfile')}
+                    </Button>
+                  </Link>
+                </div>
+              )
             ) : profilesLoading ? (
               <div className="launcher-panel-loading">
                 <Spin />

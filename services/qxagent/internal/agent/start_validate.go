@@ -9,6 +9,33 @@ import (
 	"github.com/qxproject/qx/pkg/safepath"
 )
 
+// ValidatedStart holds server start fields after path and command validation.
+type ValidatedStart struct {
+	WorkDir   string
+	Command   string
+	JarPath   string
+	JavaBin   string
+	JVMArgs   []string
+	Args      []string
+	ExtraArgs []string
+}
+
+// ValidateStartPayload validates remote start input before exec or file access.
+func ValidateStartPayload(payload protocol.ServerStartPayload) (ValidatedStart, error) {
+	if err := sanitizeStartPayload(&payload); err != nil {
+		return ValidatedStart{}, err
+	}
+	return ValidatedStart{
+		WorkDir:   payload.WorkDir,
+		Command:   payload.Command,
+		JarPath:   payload.JarPath,
+		JavaBin:   payload.JavaBin,
+		JVMArgs:   payload.JVMArgs,
+		Args:      payload.Args,
+		ExtraArgs: payload.ExtraArgs,
+	}, nil
+}
+
 func sanitizeStartPayload(payload *protocol.ServerStartPayload) error {
 	var root string
 	if wd := strings.TrimSpace(payload.WorkDir); wd != "" {

@@ -1,11 +1,13 @@
 extensions:
   - addsTo:
       pack: codeql/go-all
-      extensible: summaryModel
+      extensible: barrierModel
     data:
-      - ["github.com/qxproject/qx/pkg/safepath", "ResolveRoot", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
-      - ["github.com/qxproject/qx/pkg/safepath", "Join", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
-      - ["github.com/qxproject/qx/pkg/safepath", "JoinRel", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
-      - ["github.com/qxproject/qx/pkg/safepath", "ResolveUnder", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
-      - ["github.com/qxproject/qx/pkg/safepath", "ZipEntryBase", False, "", "path-injection", "manual", "ReturnValue", "value", ""]
-      - ["github.com/qxproject/qx/services/qxagent/internal/agent", "sanitizeStartPayload", False, "", "command-injection", "manual", "Argument[0]", "value", ""]
+      - ["github.com/qxproject/qx/pkg/safepath", "", False, "ResolveRoot", "", "", "ReturnValue", "path-injection", "manual"]
+      - ["github.com/qxproject/qx/pkg/safepath", "", False, "Join", "", "", "ReturnValue", "path-injection", "manual"]
+      - ["github.com/qxproject/qx/pkg/safepath", "", False, "JoinRel", "", "", "ReturnValue", "path-injection", "manual"]
+      - ["github.com/qxproject/qx/pkg/safepath", "", False, "ResolveUnder", "", "", "ReturnValue", "path-injection", "manual"]
+      - ["github.com/qxproject/qx/pkg/safepath", "", False, "ZipEntryBase", "", "", "ReturnValue", "path-injection", "manual"]
+      - ["github.com/qxproject/qx/pkg/safepath", "", False, "PartPath", "", "", "ReturnValue", "path-injection", "manual"]
+      - ["github.com/qxproject/qx/services/qxagent/internal/agent", "", False, "ValidateStartPayload", "", "", "ReturnValue", "command-injection", "manual"]
+      - ["github.com/qxproject/qx/services/qxagent/internal/agent", "", False, "ValidateStartPayload", "", "", "ReturnValue", "path-injection", "manual"]

@@ -39,14 +39,16 @@ make dev-up
 | `log_format` | `text` | `text` или `json` |
 | `database_dsn` | MySQL localhost | GORM DSN |
 | `jwt_secret` | dev placeholder | JWT signing; `make jwt-secret-config` |
-| `access_token_ttl` | `15m` | JWT access TTL |
+| `access_token_ttl` | `1h` | JWT access TTL |
 | `refresh_token_ttl` | `168h` | JWT refresh TTL |
 | `cors_origin` | `http://localhost:5173` | CORS для QXWeb |
 | `ssh_master_key` | dev default | base64, 32 bytes — шифрование SSH keys в DB |
-| `public_api_url` | `http://localhost:3000` | URL API для agent.toml на VPS (Flow C) |
+| `public_api_url` | `http://localhost:3000` | URL API для agent.toml на dedicated server (Flow C) |
 | `agent_binary_path` | auto-detect | Путь к `qx-agent-linux` для SSH deploy |
+| `curseforge_api_key` | — | API key CurseForge for Studios (`CURSEFORGE_API_KEY`) — QXMods search |
+| `modrinth_user_agent` | `QXSystem/1.0 (…)` | User-Agent для Modrinth API (`MODRINTH_USER_AGENT`) |
 
-**Flow C (dev VPS):**
+**Flow C (dev dedicated server):**
 
 ```toml
 public_api_url = "http://host.docker.internal:3000"
@@ -64,7 +66,7 @@ public_api_url = "http://host.docker.internal:3000"
 | ----- | --------- | ---------- |
 | `api_base_url` | `http://localhost:3000/api/v1` | REST base для SPA |
 | `log_level` | `debug` | Уровень логов фронтенда |
-| `launcher_download_url` | — | URL кнопки «Скачать QXLauncher» |
+| `launcher_download_url` | `/downloads/qx-launcher.exe` in prod image | URL кнопки «Скачать QXLauncher»; prod Docker bake-in |
 
 ---
 
@@ -93,7 +95,7 @@ public_api_url = "http://host.docker.internal:3000"
 
 ## 5. QXAgent — `agent.toml`
 
-**Prod VPS:** `/etc/qxsystem/agent/agent.toml` (записывается при SSH deploy).  
+**Prod host:** `/etc/qxsystem/agent/agent.toml` (записывается при SSH deploy).  
 **Local dev:** `agent.toml` в корне репо. Override: `qx-agent -config /path/to/agent.toml`.
 
 | Key | Описание |

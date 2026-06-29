@@ -1,4 +1,4 @@
-// Generates ed25519 SSH keys for local dev VPS (Flow C).
+// Generates ed25519 SSH keys for local dev dedicated server (Flow C).
 // Usage: go run . -dir infra/docker/vps-dev/keys
 package main
 

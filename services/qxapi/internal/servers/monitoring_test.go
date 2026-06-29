@@ -27,13 +27,13 @@ func TestListMonitoringServers_PremiumFirst(t *testing.T) {
 		ID: premiumOwnerID, Email: "premium@example.com", PasswordHash: "x", Tier: "premium", CreatedAt: now, UpdatedAt: now,
 	}).Error)
 
-	freeVPSID := "vps-free"
-	premiumVPSID := "vps-premium"
+	freeVPSID := "dedicated server-free"
+	premiumVPSID := "dedicated server-premium"
 	require.NoError(t, db.Create(&models.Server{
-		ID: freeVPSID, OwnerID: freeOwnerID, Name: "Free VPS", Status: models.ServerStatusPending, CreatedAt: now, UpdatedAt: now,
+		ID: freeVPSID, OwnerID: freeOwnerID, Name: "Free Dedicated", Status: models.ServerStatusPending, CreatedAt: now, UpdatedAt: now,
 	}).Error)
 	require.NoError(t, db.Create(&models.Server{
-		ID: premiumVPSID, OwnerID: premiumOwnerID, Name: "Premium VPS", Status: models.ServerStatusPending, CreatedAt: now, UpdatedAt: now,
+		ID: premiumVPSID, OwnerID: premiumOwnerID, Name: "Premium Dedicated", Status: models.ServerStatusPending, CreatedAt: now, UpdatedAt: now,
 	}).Error)
 
 	freeAddr := "1.2.3.4"
@@ -63,14 +63,14 @@ func TestListMonitoringServers_FiltersHidden(t *testing.T) {
 	ctx := context.Background()
 	ownerID := "owner-1"
 	now := time.Now().UTC()
-	vpsID := "vps-1"
+	vpsID := "dedicated server-1"
 	addr := "9.9.9.9"
 
 	require.NoError(t, db.Create(&models.User{
 		ID: ownerID, Email: "owner@example.com", PasswordHash: "x", Tier: "free", CreatedAt: now, UpdatedAt: now,
 	}).Error)
 	require.NoError(t, db.Create(&models.Server{
-		ID: vpsID, OwnerID: ownerID, Name: "VPS", Status: models.ServerStatusPending, CreatedAt: now, UpdatedAt: now,
+		ID: vpsID, OwnerID: ownerID, Name: "Dedicated", Status: models.ServerStatusPending, CreatedAt: now, UpdatedAt: now,
 	}).Error)
 	require.NoError(t, db.Create(&models.GameServer{
 		ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", ServerID: vpsID, Name: "Visible",

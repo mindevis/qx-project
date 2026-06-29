@@ -1,0 +1,34 @@
+---
+description: After every git commit, run lint and coverage; fix failures before finishing.
+alwaysApply: true
+---
+
+# Post-commit verification
+
+After creating **any** git commit in this repo, immediately run the same checks CI uses for lint and coverage. Do not treat the task as done until they pass (or you fix and amend only when allowed by git safety rules).
+
+## Required commands
+
+From repo root:
+
+```bash
+make lint
+make test-coverage
+```
+
+On Windows, use the Makefile targets above (they already handle `findstr` / paths).
+
+## What each target covers
+
+- **`make lint`**: `go vet` for `qxapi`, `qxagent`, `qxlauncher`; `npm run lint` (`tsc --noEmit`) in `web/qxweb`.
+- **`make test-coverage`**: Go coverage for `qxapi` (`./cmd/...`), `qxagent`, `qxlauncher`; Vitest coverage in `web/qxweb`.
+
+## On failure
+
+1. Fix the failing tests, types, or vet issues in the same session.
+2. Create a **new** commit with the fixes (do not amend unless the user explicitly requested amend and git safety rules allow it).
+3. Re-run `make lint` and `make test-coverage` until both succeed.
+
+## Scope of changes
+
+If only one area changed, you may run the narrower equivalent first for speed, but always finish with full `make lint` and `make test-coverage` after the commit.

@@ -52,8 +52,13 @@ export function getLaunchStatusKey(status: string): string {
   return `launcher.launchStatus.${status}`;
 }
 
+export function getDedicatedHostStatusKey(status: string): string {
+  return `servers.dedicatedHostStatus.${status}`;
+}
+
+/** @deprecated Use getDedicatedHostStatusKey */
 export function getVpsHostStatusKey(status: string): string {
-  return `servers.vpsStatus.${status}`;
+  return getDedicatedHostStatusKey(status);
 }
 
 export function getAgentDeployStatusKey(status: string): string {
