@@ -645,4 +645,133 @@ describe('api client', () => {
     );
     expect(urls.some((url) => url.includes('/files/content'))).toBe(true);
   });
+
+  it('calls cosmetics, mojang, monitoring, and mods endpoints', async () => {
+    saveTokens(tokens);
+    const fetchMock = vi.mocked(fetch);
+    const cosmetics = {
+      skin_model: 'steve' as const,
+      has_skin: false,
+      has_cape: false,
+      updated_at: '2026-01-01T00:00:00Z',
+    };
+    const monitoringServer = {
+      id: 'mon-1',
+      name: 'Test',
+      server_type: 'forge',
+      mc_version: '1.21',
+      address: '127.0.0.1',
+      port: 25565,
+      status: 'running',
+      is_online: true,
+      is_premium: false,
+      tags: [] as string[],
+      mods: [] as string[],
+      plugins: [] as string[],
+      likes_count: 0,
+      rating_avg: 0,
+      rating_count: 0,
+    };
+
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (url.includes('/users/me/mojang/oauth/start')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ authorization_url: 'https://oauth.test' }), { status: 200 }),
+        );
+      }
+      if (url.includes('/users/me/mojang') && method === 'DELETE') {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      if (url.includes('/users/me/mojang')) {
+        return Promise.resolve(new Response(JSON.stringify({ linked: false }), { status: 200 }));
+      }
+      if (url.includes('/users/me/cosmetics/skin') || url.includes('/users/me/cosmetics/cape')) {
+        return Promise.resolve(new Response(JSON.stringify(cosmetics), { status: 200 }));
+      }
+      if (url.includes('/users/me/cosmetics')) {
+        return Promise.resolve(new Response(JSON.stringify(cosmetics), { status: 200 }));
+      }
+      if (url.includes('/monitoring/servers') && url.includes('/like')) {
+        return Promise.resolve(new Response(JSON.stringify(monitoringServer), { status: 200 }));
+      }
+      if (url.includes('/monitoring/servers') && url.includes('/rate')) {
+        return Promise.resolve(new Response(JSON.stringify(monitoringServer), { status: 200 }));
+      }
+      if (url.includes('/monitoring/servers')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ items: [monitoringServer] }), { status: 200 }),
+        );
+      }
+      if (url.includes('/mods/search')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  source: 'modrinth',
+                  id: 'sodium',
+                  name: 'Sodium',
+                  summary: 'Fast',
+                  external_url: 'https://modrinth.com/mod/sodium',
+                },
+              ],
+              curseforge_enabled: true,
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/mods/modrinth/sodium/versions')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'ver-1',
+                  version_number: '1.0',
+                  files: [{ filename: 'sodium.jar', url: 'https://example/mod.jar' }],
+                },
+              ],
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/mods/sync')) {
+        return Promise.resolve(new Response(JSON.stringify({ status: 'queued' }), { status: 200 }));
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    await api.mojangStatus();
+    await api.startMojangOAuth();
+    await api.unlinkMojang();
+    await api.getCosmetics();
+    await api.updateCosmetics({ skin_model: 'alex' });
+    await api.deleteCosmeticsSkin();
+    await api.deleteCosmeticsCape();
+    const file = new File(['png'], 'skin.png', { type: 'image/png' });
+    await api.uploadCosmeticsSkin(file);
+    await api.uploadCosmeticsCape(file);
+    await api.listMonitoringServers({ q: 'test', loader: 'forge' });
+    await api.likeMonitoringServer('mon-1');
+    await api.rateMonitoringServer('mon-1', 5);
+    await api.searchMods({ q: 'sodium', loader: 'forge', mc_version: '1.21' });
+    await api.listModVersions('modrinth', 'sodium', { loader: 'forge', mc_version: '1.21' });
+    await api.syncModToGameServer('srv-1', 'gs-1', {
+      source: 'modrinth',
+      project_id: 'sodium',
+      version_id: 'ver-1',
+      filename: 'sodium.jar',
+      download_url: 'https://example/mod.jar',
+    });
+
+    const urls = fetchMock.mock.calls.map(([input]) => String(input));
+    expect(urls.some((url) => url.includes('/users/me/mojang'))).toBe(true);
+    expect(urls.some((url) => url.includes('/users/me/cosmetics/skin'))).toBe(true);
+    expect(urls.some((url) => url.includes('/monitoring/servers'))).toBe(true);
+    expect(urls.some((url) => url.includes('/mods/search'))).toBe(true);
+  });
 });

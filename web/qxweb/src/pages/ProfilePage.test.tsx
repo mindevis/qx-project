@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
 import { renderWithProviders } from '@/test/test-utils';
 import { ProfilePage } from './ProfilePage';
-import { saveTokens } from '@/api/client';
+import { saveTokens, api } from '@/api/client';
 
 vi.mock('skinview3d', () => ({
   SkinViewer: vi.fn().mockImplementation(() => ({
@@ -113,6 +113,22 @@ describe('ProfilePage', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Привязать Microsoft/i })).toBeInTheDocument(),
     );
+  });
+
+  it('starts mojang oauth when link button clicked', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign });
+    vi.spyOn(api, 'startMojangOAuth').mockResolvedValue({
+      authorization_url: 'https://login.microsoftonline.com/oauth',
+    });
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<ProfilePage />, '/profile');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Привязать Microsoft/i })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Привязать Microsoft/i }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://login.microsoftonline.com/oauth'));
+    vi.unstubAllGlobals();
   });
 
   it('shows success message after password change', async () => {
