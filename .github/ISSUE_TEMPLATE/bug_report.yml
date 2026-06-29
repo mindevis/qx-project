@@ -1,0 +1,73 @@
+name: Bug report
+description: Something is broken in dev or production
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [FAQ](https://mindevis.github.io/qx-project/faq/) and [production-deploy troubleshooting](https://mindevis.github.io/qx-project/production-deploy/#5-troubleshooting) first.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - QXWeb (panel)
+        - QXApi
+        - QXLauncher
+        - QXAgent
+        - Infra / deploy / CI
+        - Docs
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Local dev (`make dev-up`)
+        - Production (mc.qx-dev.ru)
+        - Game VPS / agent
+        - CI only
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: API response, browser console, `docker compose ps`, agent logs, workflow run URL
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit or release
+      placeholder: main @ abc1234 or prod deploy date

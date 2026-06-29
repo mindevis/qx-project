@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest an idea for QXSystem
+title: "[feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        See [MVP scope](https://mindevis.github.io/qx-project/mvp/) — some ideas are intentionally post-v1.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What problem does this solve? Who is the user?
+      placeholder: As a server admin, I want to ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Launcher / play flow
+        - Game servers / agent
+        - Web panel / UX
+        - API / auth
+        - Infra / billing (future)
+        - Other
+    validations:
+      required: true

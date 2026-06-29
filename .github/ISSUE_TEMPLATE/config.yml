@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://mindevis.github.io/qx-project/
+    about: Architecture, API, deploy guides, FAQ
+  - name: Security report
+    url: https://github.com/mindevis/qx-project/security/advisories/new
+    about: Report a vulnerability privately (do not use public issues)
