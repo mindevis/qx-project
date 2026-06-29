@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	fyne.io/systray v1.12.2
 	github.com/google/uuid v1.6.0
-	github.com/pelletier/go-toml/v2 v2.4.0
+	github.com/pelletier/go-toml/v2 v2.4.2
 	github.com/qxproject/qx/pkg/log v0.0.0
 	github.com/qxproject/qx/pkg/mcmanifest v0.0.0
 	github.com/qxproject/qx/pkg/mojangjava v0.0.0
