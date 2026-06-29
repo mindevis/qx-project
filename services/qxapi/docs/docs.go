@@ -1221,7 +1221,7 @@ const docTemplate = `{
                 },
                 "expires_in": {
                     "type": "integer",
-                    "example": 900
+                    "example": 3600
                 },
                 "refresh_token": {
                     "type": "string",
