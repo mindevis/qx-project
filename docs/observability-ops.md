@@ -112,6 +112,6 @@ GET /api/v1/health/ready  → DB ping (Phase 0); + Redis + MinIO — prod
 
 ---
 
-*ADR: [0009](./adr/0009-pure-self-hosted.md)* · Prod 🔲 [mvp §7.1](./mvp.md) · [configuration.md](./configuration.md)
+*ADR: [0009](./adr/0009-pure-self-hosted.md)* · **Prod ✅** [mvp §7.1](./mvp.md) · [configuration.md](./configuration.md)
 
-Последнее обновление: 2026-06-21 (TOML config)
+Последнее обновление: 2026-06-29 (prod platform live)

@@ -112,7 +112,7 @@
 | ID | Сценарий | Ожидание | MVP | Статус |
 | ---- | ---------- | ---------- | ----- | -------- |
 | N01 | Docker Compose dev | MySQL, Redis, MinIO up | ☑ | ☑ `make dev-up` |
-| N02 | TLS | HTTPS valid | ☑ | ☐ prod |
+| N02 | TLS / prod reachability | HTTP 200, API health OK | ☑ | ☑ prod 2026-06-29 (`/api/v1/health`); HTTPS — после certbot |
 | N03 | MySQL backup restore | data intact | ⊘ | ⊘ |
 | N04 | Agent non-Linux | deploy to Windows SSH — fail gracefully | ☑ | 🤖 ☑ `ErrNonLinuxHost` |
 | N05 | Dev VPS Flow C | `make dev-vps-up`, deploy agent | agent WSS to API | ☑ | ☑ manual |
@@ -121,11 +121,12 @@
 
 ## 7. Regression checklist (pre-release)
 
-**MVP alpha (dev)** — flows пройдены. **Prod** — отдельно, не готов.
+**MVP alpha (dev)** — flows пройдены. **Prod platform** — ✅ smoke 2026-06-29.
 
 - [x] Flow A/B — manual QXLauncher + full JVM (A09, L03, I04, I05)
 - [x] Flow C deploy agent — manual dev VPS
-- [ ] **Prod readiness** — P.1–P.7 ([production-deploy.md](../production-deploy.md), [mvp §7.1](../mvp.md))
+- [x] **Prod readiness** — P.1–P.4, P.7 ([production-deploy.md](../production-deploy.md), [mvp §7.1](../mvp.md))
+- [ ] P.5 бэкапы MySQL · P.2b HTTPS (certbot)
 - [ ] All ☑ MVP rows passed (manual + E2E)
 - [ ] All 🤖 unit tests green in CI
 - [ ] No P0/P1 open bugs
@@ -135,12 +136,14 @@
 
 ---
 
-## 8. Prod readiness *(не blocking MVP alpha dev)*
+## 8. Prod readiness
 
 Чеклист P.1–P.7: [mvp §7.1](../mvp.md#71-prod-readiness) · гайд: [production-deploy.md](../production-deploy.md).
+
+**Статус (2026-06-29):** platform stack на `mc.qx-dev.ru` — ✅. Остаётся ops: HTTPS (certbot), бэкапы MySQL.
 
 ---
 
 Legend: ☑ = required for MVP alpha · ⊘ = tracked but not blocking MVP · 🤖 = automated unit test in CI
 
-Последнее обновление: 2026-06-25 (prod single origin mc.qx-dev.ru)
+Последнее обновление: 2026-06-29 (prod platform live)

@@ -1,6 +1,6 @@
 # QXApi Specification
 
-> **Версия:** **1.9** · Base URL: `https://mc.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`)
+> **Версия:** **1.9** · Base URL: `https://mc.qx-dev.ru/api/v1` (dev: `http://localhost:3000/api/v1`) · **Prod:** ✅ live 2026-06-29
 > Backend: **Go + Gin + GORM** · Код: `services/qxapi/`
 > **Конфиг (dev):** [configuration.md](./configuration.md) · **Prod:** [production-deploy.md](./production-deploy.md)
 

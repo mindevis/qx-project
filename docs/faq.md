@@ -1,6 +1,16 @@
-# QXSystem — FAQ (MVP Alpha)
+Краткие ответы для **prod** ([mc.qx-dev.ru](https://mc.qx-dev.ru)) и dev. **MVP alpha flows ✅ · Prod platform ✅** — [mvp.md](./mvp.md).
 
-Краткие ответы для закрытой beta (dev). **MVP alpha flows ✅ · Prod 🔲** — [mvp.md](./mvp.md).
+---
+
+## Production
+
+### Где открыть панель?
+
+**[https://mc.qx-dev.ru](https://mc.qx-dev.ru)** (или `http://` до настройки TLS). API: `https://mc.qx-dev.ru/api/v1`.
+
+### Как устроен deploy?
+
+Push в `main` → CI → автоматический **Prod release** → образы в GHCR → VPS `/opt/qxsystem`. Подробно: [production-deploy.md](./production-deploy.md).
 
 ---
 
@@ -102,4 +112,4 @@ make e2e-manual     # чеклист manual (все flows ☑ — см. test-mat
 
 *См. [configuration.md](./configuration.md), [mvp.md](./mvp.md), [qa/test-matrix.md](./qa/test-matrix.md)*
 
-Последнее обновление: 2026-06-25
+Последнее обновление: 2026-06-29 (prod platform live)

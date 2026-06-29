@@ -72,10 +72,11 @@ java/
 
 ## 5. Server agent (Linux)
 
-During SSH deploy optional step:
+During SSH deploy or manually on game VPS:
 
 ```bash
-/opt/qxsystem/java/bin/java -version || qx-agent install-java --component java-runtime-delta
+sudo bash infra/scripts/install-mojang-java17.sh
+# → /opt/qxsystem/java/bin/java
 ```
 
 Agent uses `/opt/qxsystem/java/bin/java` in systemd `ExecStart` wrapper for MC server.

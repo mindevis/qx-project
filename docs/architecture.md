@@ -1,7 +1,7 @@
 # QXSystem — Архитектура
 
 > Документ описывает целевую архитектуру платформы и **текущий статус реализации**.
-> **Версия:** v1.12 (2026-06-25) — modloaders client, auth-only device link · TOML config · **MVP alpha (dev) ✅** · **Prod 🔲**
+> **Версия:** v1.13 (2026-06-29) — modloaders client, auth-only device link · TOML config · **MVP alpha (dev) ✅** · **Prod platform ✅**
 > **Документация:** [mvp](./mvp.md) · [api](./api.md) · [agent-protocol](./agent-protocol.md) ·
 > [device-linking](./device-linking.md) · [launch-bridge](./launch-bridge.md) ·
 > [security-legal](./security-legal.md) · [schema.sql](./schema.sql)
@@ -20,9 +20,9 @@
 | **QXAgent** | Phase 2 | ✅ WSS client, start/stop JAR |
 | **pkg/protocol** | Phase 2 | ✅ WSS envelope types |
 | Auth bridge (registered flow) | Phase 3 | ✅ JWT refresh в QXLauncher, device status в UI |
-| **Prod deploy** | Post-alpha | 🔲 см. [mvp §7.1](./mvp.md) |
+| **Prod deploy** | Post-alpha | ✅ `mc.qx-dev.ru` — [production-deploy.md](./production-deploy.md) |
 
-Следующий шаг: **Prod readiness** — [production-deploy.md](./production-deploy.md), чеклист [mvp §7.1](./mvp.md).
+Следующий шаг (ops): **TLS (HTTPS)**, бэкапы MySQL — [production-deploy §3](./production-deploy.md#3-tls), [mvp §7.1](./mvp.md#71-prod-readiness) P.5.
 
 ### URL и префиксы API
 
@@ -1353,7 +1353,7 @@ flowchart TB
 | **Phase 1** | Launcher Win, device link, modloaders, auth | **10–14 недель** | ✅ **Готово** — linked user → играет |
 | **Phase 2** | Agent SSH deploy + panel Stop/Restart/console (при MC running) | **8–12 недель** | ✅ deploy agent; Start UI — post-MVP |
 | **Phase 3** | Auth bridge (registered user + device) | **2–4 недели** | ✅ JWT refresh, `/users/me/launcher-device` |
-| **Alpha** | Flows A/B/C manual, docs | **4–6 недель** | ✅ dev/manual ☑ · prod 🔲 |
+| **Alpha** | Flows A/B/C manual, docs, prod platform | **4–6 недель** | ✅ dev/manual ☑ · **prod ✅** (2026-06-29) |
 | **Phase 4+** | Modloaders, modpacks, billing, cross-platform | **+6–12 мес** | Public launch |
 
 **До playable alpha: ~7–9 месяцев** при фокусе и урезанном MVP.
@@ -1425,7 +1425,8 @@ gantt
 
 - [x] Сценарии 1–3 end-to-end (dev manual ☑ — [test-matrix](./qa/test-matrix.md))
 - [x] Test matrix, FAQ, README
-- [ ] Prod VPS + TLS + smoke ([mvp §7.1](./mvp.md))
+- [x] Prod VPS + smoke ([mvp §7.1](./mvp.md)) — 2026-06-29
+- [ ] TLS HTTPS (Let's Encrypt) — [production-deploy §3](./production-deploy.md#3-tls)
 
 ### Phase 4 — Modloaders & Modpacks *(+4–6 мес)*
 
@@ -1522,4 +1523,4 @@ QXSystem = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и�
 
 ---
 
-Последнее обновление: 2026-06-25 (v1.14 — prod docs cleanup)
+Последнее обновление: 2026-06-29 (v1.13 — prod platform live)

@@ -3,8 +3,8 @@
 > Минимально жизнеспособный продукт для закрытой alpha.
 > Полная архитектура: [architecture.md](./architecture.md)
 
-**Статус:** v1.20 — **MVP alpha (dev/manual) ✅** · **Prod 🔲 не готов**
-**Реализация:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase Alpha (flows) ✅ · **Prod deploy** 🔲
+**Статус:** v1.21 — **MVP alpha (dev/manual) ✅** · **Prod platform ✅** (2026-06-29, `mc.qx-dev.ru`)
+**Реализация:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · Phase Alpha (flows) ✅ · **Prod deploy** ✅
 
 ### Что уже в репозитории
 
@@ -21,7 +21,7 @@
 **RBAC:** [security-legal.md §8](./security-legal.md) — зарегистрированный пользователь: все client loader'ы; modpacks/shaders/RP из панели — v2+  
 **Guest без регистрации:** 🔲 v2+ (endpoint и UI отключены в alpha)  
 **Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)  
-**Prod:** 🔲 [§7.1](./mvp.md#71-prod-readiness) · **Гайд:** [production-deploy.md](./production-deploy.md)
+**Prod:** ✅ [§7.1](./mvp.md#71-prod-readiness) · **Гайд:** [production-deploy.md](./production-deploy.md) · **URL:** [mc.qx-dev.ru](https://mc.qx-dev.ru)
 
 ---
 
@@ -51,7 +51,7 @@ MVP считается готовым, когда:
 - [x] Launcher UI на сайте **`/launcher`** (React, не WebView) показывает инстансы и кнопку «Играть».
 - [x] Test matrix: [qa/test-matrix.md](./qa/test-matrix.md) — **Flow A manual ☑** (A09, L03, I04, I05); **Flow C deploy ☑** (S01, S02, S11); Flow B (guest) — v2+; S03–S06 MC из UI — post-MVP.
 
-> **Prod ≠ MVP alpha.** Definition of Done выше — для **закрытой alpha в dev** (local + dev VPS). Production: [production-deploy.md](./production-deploy.md) + чеклист §7.1.
+> **Prod platform** на `mc.qx-dev.ru` развёрнут (2026-06-29). Definition of Done выше — для **закрытой alpha в dev**; production smoke: [production-deploy.md §0](./production-deploy.md#0-статус-production) + [test-matrix §8](./qa/test-matrix.md#8-prod-readiness).
 
 ---
 
@@ -248,13 +248,14 @@ Agent         — id, server_id, hostname, connected_at
 
 | # | Задача | Статус |
 | --- | -------- | -------- |
-| P.1 | Platform VPS + `make prod-pack` → `./up.sh` smoke | 🔲 |
-| P.2 | TLS (Let's Encrypt) + DNS (`mc.qx-dev.ru`) | 🔲 |
-| P.3 | Секреты: JWT, MySQL, `SSH_MASTER_KEY` в `.env.prod` | 🔲 |
-| P.4 | N02 — HTTPS valid ([test-matrix](./qa/test-matrix.md)) | 🔲 |
-| P.5 | Бэкапы MySQL, мониторинг | 🔲 |
-| P.6 | Game VPS: deploy agent + game server + console | 🔲 |
-| P.7 | QXLauncher с prod URLs (`mc.qx-dev.ru`) | 🔲 |
+| P.1 | Platform VPS + GH Actions deploy → `/opt/qxsystem` smoke | ✅ 2026-06-29 |
+| P.2 | DNS (`mc.qx-dev.ru`) + HTTP | ✅ A → `178.172.136.26`, панель и API отвечают |
+| P.2b | TLS (Let's Encrypt, HTTPS) | ☑ опционально — [production-deploy §3](./production-deploy.md#3-tls) |
+| P.3 | Секреты: JWT, MySQL, `SSH_MASTER_KEY` в `.env.prod` | ✅ GitHub Environment `production` |
+| P.4 | N02 — API health prod | ✅ `GET /api/v1/health` → 200 |
+| P.5 | Бэкапы MySQL, мониторинг | 🔲 ops (post-launch) |
+| P.6 | Game VPS: deploy agent + game server + console | ☑ BYOS отдельно — [ssh-deploy.md](./ssh-deploy.md) |
+| P.7 | QXLauncher с prod URLs (`mc.qx-dev.ru`) | ✅ `api_base_url` / `web_base_url` в [production-deploy §4](./production-deploy.md#4-game-vps-и-qxlauncher) |
 
 ---
 
@@ -318,13 +319,13 @@ Agent         — id, server_id, hostname, connected_at
 
 ### Phase Alpha — Integration *(4–6 нед)*
 
-**Milestone:** закрытая beta **в dev**; prod — отдельно (§7.1).
+**Milestone:** закрытая beta **в dev**; **prod platform** — ✅ 2026-06-29 (§7.1).
 
 | # | Задача | Ответственный | Статус |
 | --- | -------- | --------------- | -------- |
 | A.1 | E2E: Flow A, B, C | Senior | ✅ `TestRouterFlowA_*`, `TestRouterFlowB_*`, `TestRouterFlowC_*` + Playwright |
 | A.2 | Test matrix + bug bash (dev) | Junior | ✅ Flow A manual ☑ (A09, L03, I04, I05); Flow C deploy ☑ (S01, S02, S11); Flow B — v2+ |
-| A.3 | Prod deploy на VPS | Senior | 🔲 гайд ☑ [production-deploy.md](./production-deploy.md); smoke + TLS — не пройдены |
+| A.3 | Prod deploy на VPS | Senior | ✅ [production-deploy.md](./production-deploy.md); smoke 2026-06-29 |
 | A.4 | User docs (README, FAQ) | Junior | ✅ [faq.md](./faq.md), README |
 | A.5 | Fix P0/P1 bugs (dev) | Senior | ✅ Agent vs MC status, console WS auth, redeploy restart |
 
@@ -393,4 +394,4 @@ gantt
 
 ---
 
-Последнее обновление: 2026-06-25 (prod single origin mc.qx-dev.ru)
+Последнее обновление: 2026-06-29 (prod platform live)

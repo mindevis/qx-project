@@ -2,7 +2,7 @@
 
 Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — каждый в своей папке.
 
-**Статус:** MVP alpha (dev) ✅ · Prod guide ☑ · Prod smoke 🔲
+**Статус:** MVP alpha (dev) ✅ · **Prod platform ✅** ([mc.qx-dev.ru](https://mc.qx-dev.ru)) · docs [GitHub Pages](https://mindevis.github.io/qx-project/)
 
 Документация: **[mindevis.github.io/qx-project](https://mindevis.github.io/qx-project/)** · [architecture](docs/architecture.md) · [mvp](docs/mvp.md) · [FAQ](docs/faq.md) · [test matrix](docs/qa/test-matrix.md)
 

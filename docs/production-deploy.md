@@ -3,11 +3,24 @@
 Platform VPS: **Docker Compose** в `/opt/qxsystem`. Образы в **GHCR**, полностью автоматический деплой из **GitHub Actions**.
 
 > **Домен:** `mc.qx-dev.ru` (панель + API `/api/v1`)  
-> **VPS:** `178.172.136.26` · **Чеклист:** [mvp §7.1](./mvp.md#71-prod-readiness)
+> **VPS:** `178.172.136.26` · **Чеклист:** [mvp §7.1](./mvp.md#71-prod-readiness)  
+> **Статус:** ✅ **production live** (2026-06-29)
 
-Push в `main` → сборка → GHCR → bootstrap VPS → `/opt/qxsystem` + `.env.prod` из Secrets → `docker compose up`.
+Push в `main` → **CI green** → **Prod release** → GHCR → bootstrap VPS → `/opt/qxsystem` + `.env.prod` из Secrets → `docker compose up`.
 
 **На VPS вручную ничего не копируете** — только DNS и секреты в GitHub.
+
+---
+
+## 0. Статус production
+
+| Проверка | Результат |
+| -------- | --------- |
+| Workflow [prod-release.yml](https://github.com/mindevis/qx-project/blob/main/.github/workflows/prod-release.yml) | ✅ deploy после успешного CI |
+| Панель | ✅ [http://mc.qx-dev.ru](http://mc.qx-dev.ru) |
+| API health | ✅ `GET /api/v1/health` → `{"status":"ok"}` |
+| Стек на VPS | QXApi, QXWeb, MySQL, Redis, MinIO, Nginx в `/opt/qxsystem` |
+| TLS (HTTPS) | ☑ следующий шаг — [§3 TLS](#3-tls) |
 
 ---
 
@@ -159,3 +172,5 @@ web_base_url = "https://mc.qx-dev.ru"
 ## Связанные документы
 
 [configuration.md](./configuration.md) · [ssh-deploy.md](./ssh-deploy.md) · [mvp §7.1](./mvp.md#71-prod-readiness)
+
+Последнее обновление: 2026-06-29 (prod platform live)

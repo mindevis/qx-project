@@ -12,7 +12,7 @@ Frontend отделён от Go-сервисов в `services/`.
 
 **Phase 0–3 + Alpha:** `/`, auth, `/profile`, `/launcher`, **`/servers`**, **`/servers/:id/game-servers/:id`**.
 
-**Prod:** панель `https://mc.qx-dev.ru` — [production-deploy.md](../docs/production-deploy.md).
+**Prod:** панель **[mc.qx-dev.ru](https://mc.qx-dev.ru)** — live с 2026-06-29 — [production-deploy.md](../docs/production-deploy.md).
 
 ```bash
 cp ../../web.toml.example ../../web.toml   # из корня репо
