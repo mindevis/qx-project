@@ -3,7 +3,7 @@
 set -euo pipefail
 
 DOMAIN="${CERTBOT_DOMAIN:-mc.qx-dev.ru}"
-EMAIL="${CERTBOT_EMAIL:?set CERTBOT_EMAIL (Let's Encrypt account)}"
+EMAIL="${CERTBOT_EMAIL:?set CERTBOT_EMAIL (Lets Encrypt account)}"
 TOKEN="${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}"
 CRED_FILE="${CLOUDFLARE_CREDENTIALS_FILE:-/opt/qxsystem/.cloudflare-credentials.ini}"
 PROPAGATION="${CLOUDFLARE_PROPAGATION_SECONDS:-30}"
