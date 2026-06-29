@@ -18,6 +18,7 @@ mysql_user="${MYSQL_USER:-qx}"
 kv() { printf '%s=%s\n' "$1" "$2" >> "$out"; }
 
 kv HTTP_PORT "${HTTP_PORT:-80}"
+kv HTTPS_PORT "${HTTPS_PORT:-443}"
 kv CORS_ORIGIN "$cors"
 kv QX_PUBLIC_API_URL "$api_url"
 kv MYSQL_ROOT_PASSWORD "$PROD_MYSQL_ROOT_PASSWORD"

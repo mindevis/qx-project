@@ -20,7 +20,7 @@ Push в `main` → **CI green** → **Prod release** → GHCR → bootstrap VPS 
 | Панель | ✅ [http://mc.qx-dev.ru](http://mc.qx-dev.ru) |
 | API health | ✅ `GET /api/v1/health` → `{"status":"ok"}` |
 | Стек на VPS | QXApi, QXWeb, MySQL, Redis, MinIO, Nginx в `/opt/qxsystem` |
-| TLS (HTTPS) | ☑ следующий шаг — [§3 TLS](#3-tls) |
+| TLS (HTTPS) | ☑ автоматически при `PROD_CLOUDFLARE_API_TOKEN` + `PROD_CERTBOT_EMAIL` — [§3 TLS](#3-tls) |
 
 ---
 
@@ -61,18 +61,23 @@ A-запись `mc.qx-dev.ru` → IP platform VPS (`178.172.136.26`).
 | `PROD_MYSQL_ROOT_PASSWORD` | Пароль root MySQL |
 | `PROD_MYSQL_PASSWORD` | Пароль пользователя `qx` |
 | `PROD_MINIO_PASSWORD` | Пароль MinIO |
+| `CORS_ORIGIN` | *(опционально)* origin для API — можно secret или variable |
+| `QX_PUBLIC_API_URL` | *(опционально)* публичный URL API для agent deploy |
+| `VITE_API_BASE_URL` | *(опционально)* base URL в **сборке** QXWeb; по умолчанию `/api/v1` (same-origin) |
+| `PROD_CLOUDFLARE_API_TOKEN` | *(опционально)* Cloudflare API token с **Zone → DNS → Edit** для зоны `qx-dev.ru` — выпуск LE через DNS-01 |
+| `PROD_CERTBOT_EMAIL` | *(опционально)* email для Let's Encrypt (обязателен вместе с Cloudflare token) |
 
 Опционально в environment **protection rules**: Required reviewers — deploy на VPS только после approve.
 
-**Environment variables** (не секреты, тот же environment `production`):
+**Environment variables** (альтернатива secrets для несекретных URL):
 
 | Variable | Default |
 | -------- | ------- |
-| `VITE_API_BASE_URL` | `https://mc.qx-dev.ru/api/v1` |
+| `VITE_API_BASE_URL` | `/api/v1` (относительный — работает по HTTP до TLS) |
 | `CORS_ORIGIN` | `https://mc.qx-dev.ru` |
 | `QX_PUBLIC_API_URL` | `https://mc.qx-dev.ru` |
 
-> Можно положить те же ключи в **Repository secrets** — workflow подхватит их, если в environment нет значения. Для одного prod-VPS удобнее держать всё в **environment `production`**.
+> `CORS_ORIGIN`, `QX_PUBLIC_API_URL`, `VITE_API_BASE_URL` можно держать в **Secrets** или **Variables** — workflow читает оба. Секреты `PROD_*` обязательны.
 
 PAT для `GHCR_DEPLOY_TOKEN`: Developer settings → Fine-grained token → **read packages** для репозитория.
 
@@ -111,11 +116,24 @@ Workflow: [`.github/workflows/prod-release.yml`](https://github.com/mindevis/qx-
 ```
 /opt/qxsystem/
   docker-compose.yml
-  nginx/prod.conf
+  nginx/prod-http.conf
+  nginx/prod-tls.conf
+  nginx/active.conf   ← выбирается up.sh (HTTP или TLS)
+  certbot-cloudflare.sh
   schema.sql
   .env.prod           ← из GitHub Secrets (каждый deploy)
   image-tag.env       ← GHCR tags
+  .env                ← merge .env.prod + image-tag.env (для `docker compose` без флагов)
   up.sh
+```
+
+**На VPS:**
+
+```bash
+cd /opt/qxsystem
+./up.sh                    # pull + up (как в CI)
+docker compose ps          # после up.sh — читает .env
+curl -s http://127.0.0.1/api/v1/health
 ```
 
 Образы: `ghcr.io/<owner>/qx-api:prod-<sha>`, `ghcr.io/<owner>/qx-web:prod-<sha>` (+ тег `prod`).
@@ -131,15 +149,45 @@ Nginx маршрутизация на `mc.qx-dev.ru`:
 
 ---
 
-## 3. TLS
+## 3. TLS (HTTPS через Cloudflare + Let's Encrypt)
 
-После первого HTTP-smoke — Certbot на VPS (пока вручную):
+При каждом deploy `up.sh` автоматически выпускает сертификат, если в GitHub Environment заданы **`PROD_CLOUDFLARE_API_TOKEN`** и **`PROD_CERTBOT_EMAIL`**. Используется **DNS-01** через Cloudflare — порт 80 на VPS для выпуска не нужен.
+
+### 3.1 Cloudflare
+
+1. **DNS:** A-запись `mc.qx-dev.ru` → IP VPS (оранжевое облако — OK).
+2. **SSL/TLS → Overview:** режим **Full (strict)** (origin с валидным LE-сертификатом).
+3. **API Token** ([My Profile → API Tokens](https://dash.cloudflare.com/profile/api-tokens)):
+   - шаблон *Edit zone DNS* или custom token;
+   - permissions: **Zone → DNS → Edit** для зоны `qx-dev.ru`;
+   - сохраните в GitHub Secret **`PROD_CLOUDFLARE_API_TOKEN`**.
+
+### 3.2 GitHub Secrets
+
+| Secret | Пример |
+| ------ | ------ |
+| `PROD_CERTBOT_EMAIL` | `admin@example.com` |
+| `PROD_CLOUDFLARE_API_TOKEN` | токен из §3.1 |
+
+Опционально в Variables: `CORS_ORIGIN=https://mc.qx-dev.ru`, `QX_PUBLIC_API_URL=https://mc.qx-dev.ru`, `VITE_API_BASE_URL=https://mc.qx-dev.ru/api/v1` (или оставьте `/api/v1`).
+
+### 3.3 Деплой
+
+Re-run workflow **Prod release** (или push в `main`). На VPS:
 
 ```bash
-sudo certbot certonly --standalone -d mc.qx-dev.ru
+cd /opt/qxsystem
+./up.sh
+curl -s https://mc.qx-dev.ru/api/v1/health
 ```
 
-TLS в nginx — отдельный шаг (конфиг синхронизируется из репо при deploy).
+Сертификат: `/etc/letsencrypt/live/mc.qx-dev.ru/`. Продление — системный `certbot.timer`; после renew nginx перезагружается hook'ом.
+
+Без Cloudflare token стек остаётся на HTTP (`nginx/prod-http.conf`).
+
+### 3.4 Firewall
+
+Откройте **443/tcp** на VPS (и 80 для редиректа HTTP→HTTPS).
 
 ---
 
@@ -161,10 +209,13 @@ web_base_url = "https://mc.qx-dev.ru"
 | Проблема | Решение |
 | -------- | ------- |
 | `Missing secret` | Заполните все Secrets из §1.3 |
+| `QX_API_IMAGE is missing` / `MYSQL_PASSWORD` not set | Не запускайте голый `docker compose` — только `./up.sh` или после него `docker compose ps` (нужен файл `.env`) |
 | `unable to authenticate` / `publickey` | Проверьте `PROD_SSH_HOST` / `PROD_SSH_USER`; на VPS в `~/.ssh/authorized_keys` должен быть **public** key, парный к `PROD_SSH_KEY`; ключ в Secret — целиком, с `-----BEGIN … KEY-----` |
+| **«Сервер недоступен»** в UI | API не отвечает: `curl http://127.0.0.1/api/v1/health` на VPS. Если локально OK, а в браузере нет — QXWeb собран с `https://…` без TLS: пересоберите с `VITE_API_BASE_URL=/api/v1` или включите [§3 TLS](#3-tls) |
 | Bootstrap: sudo | Deploy-user нужен `sudo` или используйте `root` |
 | `unauthorized` pull | `GHCR_DEPLOY_TOKEN` + read:packages |
-| CORS | Variable `CORS_ORIGIN=https://mc.qx-dev.ru` |
+| CORS | `CORS_ORIGIN` = origin сайта (`https://mc.qx-dev.ru` после TLS) |
+| HTTPS не открывается | Проверьте `443` на firewall; Cloudflare SSL = **Full (strict)**; secrets `PROD_CLOUDFLARE_API_TOKEN` + `PROD_CERTBOT_EMAIL`; логи: `sudo certbot certificates` на VPS |
 | Смена секретов | Обновите Secret → re-run workflow |
 
 ---

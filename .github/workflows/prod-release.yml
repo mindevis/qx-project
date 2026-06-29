@@ -108,7 +108,7 @@ jobs:
           file: infra/docker/Dockerfile.web
           push: true
           build-args: |
-            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || 'https://mc.qx-dev.ru/api/v1' }}
+            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || secrets.VITE_API_BASE_URL || '/api/v1' }}
           tags: |
             ghcr.io/${{ env.IMAGE_OWNER }}/qx-web:${{ env.IMAGE_TAG }}
             ghcr.io/${{ env.IMAGE_OWNER }}/qx-web:prod
@@ -157,21 +157,26 @@ jobs:
           PROD_MYSQL_ROOT_PASSWORD: ${{ secrets.PROD_MYSQL_ROOT_PASSWORD }}
           PROD_MYSQL_PASSWORD: ${{ secrets.PROD_MYSQL_PASSWORD }}
           PROD_MINIO_PASSWORD: ${{ secrets.PROD_MINIO_PASSWORD }}
-          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
-          QX_PUBLIC_API_URL: ${{ vars.QX_PUBLIC_API_URL }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN || secrets.CORS_ORIGIN }}
+          QX_PUBLIC_API_URL: ${{ vars.QX_PUBLIC_API_URL || secrets.QX_PUBLIC_API_URL }}
         run: |
           set -euo pipefail
           mkdir -p .deploy/nginx
           cp infra/docker/docker-compose.prod.runtime.yml .deploy/docker-compose.yml
-          cp infra/docker/nginx/prod.conf .deploy/nginx/
+          cp infra/docker/nginx/prod-http.conf .deploy/nginx/
+          cp infra/docker/nginx/prod-tls.conf .deploy/nginx/
+          cp infra/docker/nginx/prod-http.conf .deploy/nginx/active.conf
+          cp infra/scripts/prod-certbot-cloudflare.sh .deploy/certbot-cloudflare.sh
           cp docs/schema.sql .deploy/
           cp infra/scripts/prod-remote-up.sh .deploy/up.sh
-          chmod +x .deploy/up.sh
+          cp infra/scripts/prod-merge-compose-env.sh .deploy/merge-compose-env.sh
+          chmod +x .deploy/up.sh .deploy/merge-compose-env.sh .deploy/certbot-cloudflare.sh
           bash infra/scripts/prod-render-env.sh .deploy/.env.prod
           printf '%s\n' \
             "QX_API_IMAGE=ghcr.io/${IMAGE_OWNER}/qx-api:${IMAGE_TAG}" \
             "QX_WEB_IMAGE=ghcr.io/${IMAGE_OWNER}/qx-web:${IMAGE_TAG}" \
             > .deploy/image-tag.env
+          bash infra/scripts/prod-merge-compose-env.sh .deploy
 
       - name: Setup SSH deploy key
         env:
@@ -210,11 +215,16 @@ jobs:
           PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
           GHCR_TOKEN: ${{ secrets.GHCR_DEPLOY_TOKEN }}
           GHCR_USER: ${{ github.repository_owner }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CLOUDFLARE_API_TOKEN }}
+          CERTBOT_EMAIL: ${{ secrets.PROD_CERTBOT_EMAIL }}
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/prod_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
             "${PROD_SSH_USER}@${PROD_SSH_HOST}" \
-            "cd /opt/qxsystem && chmod 600 .env.prod && chmod +x up.sh && GHCR_TOKEN=\"${GHCR_TOKEN}\" GHCR_USER=\"${GHCR_USER}\" ./up.sh"
+            "cd /opt/qxsystem && chmod 600 .env.prod && chmod +x up.sh certbot-cloudflare.sh && \
+            GHCR_TOKEN=\"${GHCR_TOKEN}\" GHCR_USER=\"${GHCR_USER}\" \
+            CLOUDFLARE_API_TOKEN=\"${CLOUDFLARE_API_TOKEN}\" CERTBOT_EMAIL=\"${CERTBOT_EMAIL}\" \
+            ./up.sh"
 
       - name: Summary
         run: |
@@ -222,3 +232,11 @@ jobs:
           echo "- Path: \`/opt/qxsystem\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- API: \`ghcr.io/${IMAGE_OWNER}/qx-api:${IMAGE_TAG}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Web: \`ghcr.io/${IMAGE_OWNER}/qx-web:${IMAGE_TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -n "${CLOUDFLARE_API_TOKEN:-}" && -n "${CERTBOT_EMAIL:-}" ]]; then
+            echo "- TLS: Let's Encrypt (Cloudflare DNS) for \`mc.qx-dev.ru\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- TLS: HTTP only — add \`PROD_CLOUDFLARE_API_TOKEN\` + \`PROD_CERTBOT_EMAIL\` for HTTPS" >> "$GITHUB_STEP_SUMMARY"
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.PROD_CLOUDFLARE_API_TOKEN }}
+          CERTBOT_EMAIL: ${{ secrets.PROD_CERTBOT_EMAIL }}
