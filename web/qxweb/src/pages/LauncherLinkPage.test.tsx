@@ -1,10 +1,24 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
+import { message } from 'antd';
 import { renderWithProviders } from '@/test/test-utils';
 import { LauncherLinkPage } from './LauncherLinkPage';
 import { saveTokens, clearTokens } from '@/api/client';
+
+const messageMocks = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+  loading: vi.fn(),
+  destroy: vi.fn(),
+}));
+
+vi.mock('@/hooks/useMessage', () => ({
+  useMessage: () => messageMocks,
+}));
 
 function requestUrl(input: RequestInfo | URL): string {
   return typeof input === 'string'
@@ -50,6 +64,16 @@ describe('LauncherLinkPage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     clearTokens();
+    messageMocks.success.mockReset();
+    messageMocks.error.mockReset();
+  });
+
+  afterEach(async () => {
+    message.destroy();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
   });
 
   it('shows error without device param', async () => {
@@ -339,6 +363,7 @@ describe('LauncherLinkPage', () => {
       await waitFor(() => expect(screen.getByText('dev-copy')).toBeInTheDocument());
       await user.click(screen.getByRole('button', { name: /Копировать ID/i }));
       await waitFor(() => expect(writeText).toHaveBeenCalledWith('dev-copy'));
+      expect(messageMocks.success).toHaveBeenCalled();
     } finally {
       clipboardSpy.mockRestore();
       await act(async () => {
