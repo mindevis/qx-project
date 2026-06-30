@@ -34,11 +34,11 @@ jobs:
       - run: cd services/qxapi && go build -o /dev/null ./cmd
       - run: cd services/qxagent && go vet ./... && go build -o /dev/null ./cmd
       - run: cd services/qxlauncher && go vet ./... && go build -o /dev/null ./cmd
-      - run: cd services/qxlauncher && GOOS=windows GOARCH=amd64 go build -o qx-launcher.exe ./cmd
+      - run: make build-launcher-win
       - uses: actions/upload-artifact@v7
         with:
           name: qx-launcher-windows-amd64
-          path: services/qxlauncher/qx-launcher.exe
+          path: bin/qx-launcher.exe
           if-no-files-found: error
 
   web:
