@@ -50,4 +50,12 @@ if [[ -n "${MOJANG_OAUTH_REDIRECT_URI:-}" ]]; then
   kv MOJANG_OAUTH_REDIRECT_URI "$MOJANG_OAUTH_REDIRECT_URI"
 fi
 
+# Optional — QXMods catalog (CurseForge + Modrinth).
+if [[ -n "${CURSEFORGE_API_KEY:-}" ]]; then
+  kv CURSEFORGE_API_KEY "$CURSEFORGE_API_KEY"
+fi
+if [[ -n "${MODRINTH_USER_AGENT:-}" ]]; then
+  kv MODRINTH_USER_AGENT "$MODRINTH_USER_AGENT"
+fi
+
 chmod 600 "$out"

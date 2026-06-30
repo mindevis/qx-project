@@ -155,6 +155,12 @@ export function InstanceResourcesPanel({
             {t('qxmods.search')}
           </Button>
         </div>
+        <Paragraph type="secondary" className="qxmods-filter-context">
+          {t('qxmods.filterContext', {
+            mcVersion: instance.mc_version,
+            loader: instance.loader,
+          })}
+        </Paragraph>
         <Paragraph type="secondary" className="qxmods-attribution">
           {t('qxmods.attribution')}
           {!curseforgeEnabled ? ` ${t('qxmods.curseforgeDisabled')}` : ''}

@@ -73,6 +73,35 @@ describe('InstanceResourcesPanel', () => {
     expect(api.listModVersions).toHaveBeenCalled();
   });
 
+  it('shows curseforge disabled notice when api key missing', async () => {
+    vi.mocked(api.searchMods).mockResolvedValueOnce({
+      items: [],
+      curseforge_enabled: false,
+    });
+    const user = userEvent.setup({ delay: null });
+    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
+
+    await user.type(screen.getByPlaceholderText('Поиск по названию…'), 'sodium');
+    await user.click(screen.getByRole('button', { name: 'Найти' }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/CurseForge отключён/)).toBeInTheDocument(),
+    );
+    expect(api.searchMods).toHaveBeenCalledWith({
+      q: 'sodium',
+      type: 'mod',
+      loader: 'forge',
+      mc_version: '1.21',
+    });
+  });
+
+  it('shows instance loader and mc version filter context', () => {
+    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
+    expect(
+      screen.getByText('Результаты отфильтрованы для Minecraft 1.21 · forge'),
+    ).toBeInTheDocument();
+  });
+
   it('shows search error from api', async () => {
     const user = userEvent.setup({ delay: null });
     vi.mocked(api.searchMods).mockRejectedValueOnce(new Error('search failed'));

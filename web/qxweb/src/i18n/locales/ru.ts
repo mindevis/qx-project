@@ -667,8 +667,10 @@ export const ru = {
     versionsFailed: 'Не удалось загрузить версии',
     empty: 'Ничего не найдено',
     attribution:
-      'Каталог QXMods загружает метаданные из официальных API CurseForge и Modrinth. Файлы скачиваются с сайтов авторов.',
-    curseforgeDisabled: 'CurseForge отключён — укажите curseforge_api_key в qxapi.toml.',
+      'Каталог QXMods загружает метаданные из официальных API CurseForge и Modrinth. Файлы скачиваются через API поставщиков каталога.',
+    curseforgeDisabled:
+      'CurseForge отключён — укажите CURSEFORGE_API_KEY (или curseforge_api_key в qxapi.toml).',
+    filterContext: 'Результаты отфильтрованы для Minecraft {{mcVersion}} · {{loader}}',
     detailTitle: 'Детали',
     detailAttribution: 'Источник и лицензия указаны на странице проекта у поставщика каталога.',
     viewOnSource: 'Открыть у источника',

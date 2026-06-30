@@ -45,6 +45,16 @@ func TestNormalizeProjectType(t *testing.T) {
 	}
 }
 
+func TestServiceCurseForgeEnabled(t *testing.T) {
+	t.Parallel()
+	if !mods.NewService(mods.Config{CurseForgeAPIKey: "test-key"}).CurseForgeEnabled() {
+		t.Fatal("expected curseforge enabled with api key")
+	}
+	if mods.NewService(mods.Config{}).CurseForgeEnabled() {
+		t.Fatal("expected curseforge disabled without api key")
+	}
+}
+
 func TestInterleaveSearch(t *testing.T) {
 	t.Parallel()
 	// interleaveSearch is unexported; covered indirectly via service_test helper duplicate

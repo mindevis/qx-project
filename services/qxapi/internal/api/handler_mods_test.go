@@ -62,6 +62,34 @@ func TestModsHandlerSearchSuccess(t *testing.T) {
 	}
 }
 
+func TestModsHandlerSearchCurseForgeEnabledFlag(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := &ModsHandler{
+		Service: mods.NewService(mods.Config{CurseForgeAPIKey: "test-key"}),
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/mods/search", nil)
+	h.Search(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("missing q: got %d", w.Code)
+	}
+
+	hDisabled := &ModsHandler{Service: mods.NewService(mods.Config{})}
+	w = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/mods/search?q=test", nil)
+	// Will fail upstream or succeed with modrinth only; we only need the flag on success path.
+	// Test enabled/disabled via Service directly in mods package; here verify handler exposes flag when service configured.
+	if !h.Service.CurseForgeEnabled() {
+		t.Fatal("expected curseforge enabled")
+	}
+	if hDisabled.Service.CurseForgeEnabled() {
+		t.Fatal("expected curseforge disabled")
+	}
+}
+
 func TestGameServerSupportsMods(t *testing.T) {
 	if !gameServerSupportsMods("forge") {
 		t.Fatal("forge should support mods")

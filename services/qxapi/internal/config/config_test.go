@@ -153,6 +153,20 @@ func TestLoadMojangFromEnv(t *testing.T) {
 	}
 }
 
+func TestLoadCurseForgeFromEnv(t *testing.T) {
+	root := t.TempDir()
+	writeRepo(t, root)
+	if err := os.WriteFile(filepath.Join(root, "qxapi.toml"), []byte("curseforge_api_key = \"from-toml\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CURSEFORGE_API_KEY", "from-env")
+
+	cfg := config.Load()
+	if cfg.CurseForgeAPIKey != "from-env" {
+		t.Fatalf("env should override toml: got %q", cfg.CurseForgeAPIKey)
+	}
+}
+
 func TestLoadInvalidDurationFallback(t *testing.T) {
 	root := t.TempDir()
 	writeRepo(t, root)

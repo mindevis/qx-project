@@ -671,7 +671,9 @@ export const en: Messages = {
     empty: 'No results',
     attribution:
       'QXMods loads metadata from official CurseForge and Modrinth APIs. Files are downloaded from the catalog providers.',
-    curseforgeDisabled: 'CurseForge is disabled — set curseforge_api_key in qxapi.toml.',
+    curseforgeDisabled:
+      'CurseForge is disabled — set CURSEFORGE_API_KEY (or curseforge_api_key in qxapi.toml).',
+    filterContext: 'Results filtered for Minecraft {{mcVersion}} · {{loader}}',
     detailTitle: 'Details',
     detailAttribution: 'Source and license are shown on the provider project page.',
     viewOnSource: 'View on source',

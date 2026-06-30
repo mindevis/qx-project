@@ -171,6 +171,7 @@ jobs:
           MOJANG_CLIENT_ID: ${{ vars.MOJANG_CLIENT_ID || secrets.MOJANG_CLIENT_ID }}
           PROD_MOJANG_CLIENT_SECRET: ${{ secrets.PROD_MOJANG_CLIENT_SECRET }}
           MOJANG_OAUTH_REDIRECT_URI: ${{ vars.MOJANG_OAUTH_REDIRECT_URI || secrets.MOJANG_OAUTH_REDIRECT_URI }}
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p .deploy/nginx
