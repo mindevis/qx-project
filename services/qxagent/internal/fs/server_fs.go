@@ -110,7 +110,7 @@ func ReadFile(workDir, relPath string) (string, int64, error) {
 	if info.Size() > 2*1024*1024 {
 		return "", 0, fmt.Errorf("file too large")
 	}
-	data, err := os.ReadFile(abs)
+	data, err := safepath.ReadFileBytes(abs)
 	if err != nil {
 		return "", 0, err
 	}

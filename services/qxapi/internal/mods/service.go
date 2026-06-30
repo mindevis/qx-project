@@ -129,6 +129,9 @@ func normalizeProjectType(raw string) string {
 }
 
 func interleaveSearch(primary, secondary []SearchItem, limit int) []SearchItem {
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
 	out := make([]SearchItem, 0, limit)
 	i, j := 0, 0
 	for len(out) < limit && (i < len(primary) || j < len(secondary)) {

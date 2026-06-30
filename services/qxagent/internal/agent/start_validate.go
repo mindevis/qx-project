@@ -36,6 +36,24 @@ func ValidateStartPayload(payload protocol.ServerStartPayload) (ValidatedStart, 
 	}, nil
 }
 
+// ResolvedExecBin returns the validated java binary path for exec.Command.
+func ResolvedExecBin(start ValidatedStart) (string, error) {
+	return resolveJavaBin(start.JavaBin, start.WorkDir)
+}
+
+// ResolvedJarPath returns the validated jar path for exec.Command args.
+func ResolvedJarPath(start ValidatedStart) (string, error) {
+	if strings.TrimSpace(start.JarPath) == "" {
+		return "", fmt.Errorf("jar_path required")
+	}
+	return resolvePathRef(start.JarPath, start.WorkDir)
+}
+
+// ResolvedExecCommand returns the validated command for exec.Command.
+func ResolvedExecCommand(start ValidatedStart) (string, error) {
+	return resolveCommand(start.Command, start.WorkDir)
+}
+
 func sanitizeStartPayload(payload *protocol.ServerStartPayload) error {
 	var root string
 	if wd := strings.TrimSpace(payload.WorkDir); wd != "" {

@@ -577,15 +577,23 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 	if start.JarPath == "" {
 		return 0, errors.New("jar_path required")
 	}
+	bin, err := ResolvedExecBin(start)
+	if err != nil {
+		return 0, err
+	}
+	jar, err := ResolvedJarPath(start)
+	if err != nil {
+		return 0, err
+	}
 	args := append([]string{}, start.JVMArgs...)
-	args = append(args, "-jar", start.JarPath)
+	args = append(args, "-jar", jar)
 	args = append(args, start.ExtraArgs...)
 
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 
-	cmd := exec.Command(javaBin(start), args...)
+	cmd := exec.Command(bin, args...)
 	cmd.Stdin = stdinR
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
@@ -612,13 +620,17 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 }
 
 func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
+	cmdName, err := ResolvedExecCommand(start)
+	if err != nil {
+		return 0, err
+	}
 	args := append([]string{}, start.Args...)
 	args = append(args, start.ExtraArgs...)
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 
-	cmd := exec.Command(start.Command, args...)
+	cmd := exec.Command(cmdName, args...)
 	if start.WorkDir != "" {
 		cmd.Dir = start.WorkDir
 	}

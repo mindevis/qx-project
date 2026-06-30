@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -126,10 +125,10 @@ func (s *Service) UploadSkin(ctx context.Context, userID string, png []byte) (*V
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := safepath.EnsureParent(path); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(path, png, 0o644); err != nil {
+	if err := safepath.WriteFileBytes(path, png, 0o644); err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
@@ -153,7 +152,7 @@ func (s *Service) DeleteSkin(ctx context.Context, userID string) (*View, error) 
 	if err != nil {
 		return nil, err
 	}
-	_ = os.Remove(path)
+	_ = safepath.Remove(path)
 	now := time.Now().UTC()
 	row, err := s.ensureRow(ctx, userID)
 	if err != nil {
@@ -178,10 +177,10 @@ func (s *Service) UploadCape(ctx context.Context, userID string, png []byte) (*V
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := safepath.EnsureParent(path); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(path, png, 0o644); err != nil {
+	if err := safepath.WriteFileBytes(path, png, 0o644); err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
@@ -208,7 +207,7 @@ func (s *Service) DeleteCape(ctx context.Context, userID string) (*View, error) 
 	if err != nil {
 		return nil, err
 	}
-	_ = os.Remove(path)
+	_ = safepath.Remove(path)
 	now := time.Now().UTC()
 	row, err := s.ensureRow(ctx, userID)
 	if err != nil {
@@ -232,7 +231,7 @@ func (s *Service) ReadSkinPNG(userID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(path)
+	data, err := safepath.ReadFileBytes(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, ErrNoSkin
@@ -285,7 +284,7 @@ func (s *Service) readCapeForRow(row *models.UserCosmetics) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		data, err := os.ReadFile(path)
+		data, err := safepath.ReadFileBytes(path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return nil, ErrNoCape

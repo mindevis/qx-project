@@ -26,100 +26,124 @@ func assertVettedAbs(path string) error {
 	return nil
 }
 
+// vettedPath returns path after vetting (CodeQL path-injection barrier).
+func vettedPath(path string) (string, error) {
+	if err := assertVettedAbs(path); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 // EnsureDir creates a validated server root directory.
 func EnsureDir(dir string) error {
-	if err := assertVettedAbs(dir); err != nil {
+	safe, err := vettedPath(dir)
+	if err != nil {
 		return err
 	}
-	return os.MkdirAll(dir, 0o755)
+	return os.MkdirAll(safe, 0o755)
 }
 
 // EnsureParent creates the parent directory of a validated file path.
 func EnsureParent(filePath string) error {
-	if err := assertVettedAbs(filePath); err != nil {
+	safe, err := vettedPath(filePath)
+	if err != nil {
 		return err
 	}
-	return os.MkdirAll(filepath.Dir(filePath), 0o755)
+	return os.MkdirAll(filepath.Dir(safe), 0o755)
 }
 
 // PartPath returns dest + ".part" when dest is already vetted.
 func PartPath(dest string) (string, error) {
-	if err := assertVettedAbs(dest); err != nil {
+	safe, err := vettedPath(dest)
+	if err != nil {
 		return "", err
 	}
-	return dest + ".part", nil
+	return safe + ".part", nil
 }
 
 // ReadFileBytes reads a file at a vetted absolute path.
 func ReadFileBytes(path string) ([]byte, error) {
-	if err := assertVettedAbs(path); err != nil {
+	safe, err := vettedPath(path)
+	if err != nil {
 		return nil, err
 	}
-	return os.ReadFile(path)
+	return os.ReadFile(safe)
 }
 
 // WriteFileBytes writes a file at a vetted absolute path.
 func WriteFileBytes(path string, data []byte, perm os.FileMode) error {
-	if err := assertVettedAbs(path); err != nil {
+	safe, err := vettedPath(path)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, perm)
+	return os.WriteFile(safe, data, perm)
 }
 
 // OpenRead opens a file at a vetted absolute path for reading.
 func OpenRead(path string) (*os.File, error) {
-	if err := assertVettedAbs(path); err != nil {
+	safe, err := vettedPath(path)
+	if err != nil {
 		return nil, err
 	}
-	return os.Open(path)
+	return os.Open(safe)
 }
 
 // Stat returns file metadata for a vetted absolute path.
 func Stat(path string) (os.FileInfo, error) {
-	if err := assertVettedAbs(path); err != nil {
+	safe, err := vettedPath(path)
+	if err != nil {
 		return nil, err
 	}
-	return os.Stat(path)
+	return os.Stat(safe)
 }
 
 // ReadDir lists a vetted absolute directory.
 func ReadDir(path string) ([]os.DirEntry, error) {
-	if err := assertVettedAbs(path); err != nil {
+	safe, err := vettedPath(path)
+	if err != nil {
 		return nil, err
 	}
-	return os.ReadDir(path)
+	return os.ReadDir(safe)
 }
 
 // Chmod sets permissions on a vetted absolute path.
 func Chmod(path string, mode os.FileMode) error {
-	if err := assertVettedAbs(path); err != nil {
+	safe, err := vettedPath(path)
+	if err != nil {
 		return err
 	}
-	return os.Chmod(path, mode)
+	return os.Chmod(safe, mode)
 }
 
 // Remove deletes a vetted absolute path.
 func Remove(path string) error {
-	if err := assertVettedAbs(path); err != nil {
+	safe, err := vettedPath(path)
+	if err != nil {
 		return err
 	}
-	return os.Remove(path)
+	return os.Remove(safe)
 }
 
 // Rename moves a vetted absolute path to another vetted absolute path.
 func Rename(oldPath, newPath string) error {
-	if err := assertVettedAbs(oldPath); err != nil {
+	oldSafe, err := vettedPath(oldPath)
+	if err != nil {
 		return err
 	}
-	if err := assertVettedAbs(newPath); err != nil {
+	newSafe, err := vettedPath(newPath)
+	if err != nil {
 		return err
 	}
-	return os.Rename(oldPath, newPath)
+	return os.Rename(oldSafe, newSafe)
 }
 
 // WriteStreamAtomic writes reader content to dest using a ".part" temp file.
 func WriteStreamAtomic(dest string, r io.Reader) error {
-	part, err := PartPath(dest)
+	safeDest, err := vettedPath(dest)
+	if err != nil {
+		return err
+	}
+	part, err := PartPath(safeDest)
 	if err != nil {
 		return err
 	}
@@ -136,5 +160,5 @@ func WriteStreamAtomic(dest string, r io.Reader) error {
 		_ = Remove(part)
 		return err
 	}
-	return Rename(part, dest)
+	return Rename(part, safeDest)
 }
