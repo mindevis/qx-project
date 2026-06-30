@@ -6,6 +6,12 @@ import { BackendStatusProvider } from '@/backend/BackendStatusContext';
 import { I18nProvider } from '@/i18n/I18nContext';
 import { ThemeProvider } from '@/theme/ThemeContext';
 import App from './App';
+import { saveTokens } from '@/api/client';
+
+vi.mock('skinview3d', async () => {
+  const { skinview3dMock } = await import('@/test/skinview3d-mock');
+  return skinview3dMock;
+});
 
 function renderApp(path = '/') {
   window.history.pushState({}, '', path);
@@ -111,5 +117,55 @@ describe('App', () => {
     await waitFor(() =>
       expect(screen.getByText('Пока нет серверов в мониторинге')).toBeInTheDocument(),
     );
+
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes('/health')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+        );
+      }
+      if (url.includes('/users/me/cosmetics')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              skin_model: 'steve',
+              has_skin: false,
+              has_cape: false,
+              updated_at: '2026-01-01T00:00:00Z',
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/users/me')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: '1',
+              email: 'user@test.com',
+              tier: 'free',
+              created_at: 'now',
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    });
+
+    renderApp('/skins');
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Скины' })).toBeInTheDocument());
   });
 });

@@ -157,4 +157,11 @@ describe('ProfilePage', () => {
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Пароль изменён'));
     successSpy.mockRestore();
   });
+
+  it('shows link to skins section instead of embedded panel', async () => {
+    renderWithProviders(<ProfilePage />, '/profile');
+    await waitFor(() => expect(screen.getByText('Скины QX')).toBeInTheDocument());
+    expect(screen.getByRole('link', { name: /Управление скинами/i })).toHaveAttribute('href', '/skins');
+    expect(screen.queryByRole('button', { name: 'Загрузить скин (PNG)' })).not.toBeInTheDocument();
+  });
 });

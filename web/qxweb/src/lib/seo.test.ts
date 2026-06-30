@@ -23,6 +23,7 @@ describe('seo helpers', () => {
     expect(resolveSeoPageKey('/monitoring')).toBe('monitoring');
     expect(resolveSeoPageKey('/servers/abc')).toBe('servers');
     expect(resolveSeoPageKey('/profile')).toBe('profile');
+    expect(resolveSeoPageKey('/skins')).toBe('skins');
     expect(resolveSeoPageKey('/auth/login')).toBe('auth');
   });
 
@@ -35,6 +36,7 @@ describe('seo helpers', () => {
     expect(buildCanonicalPath('/servers/abc/game-servers/1')).toBe('/servers');
     expect(buildCanonicalPath('/launcher/instances')).toBe('/launcher');
     expect(buildCanonicalPath('/launcher/link')).toBe('/launcher/link');
+    expect(buildCanonicalPath('/skins')).toBe('/skins');
     expect(buildCanonicalPath('/auth/login')).toBe('/');
   });
 

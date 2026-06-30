@@ -72,7 +72,10 @@ export function AppLayout() {
     { key: '/launcher', label: <Link to="/launcher">{t('layout.navLauncher')}</Link> },
     { key: '/monitoring', label: <Link to="/monitoring">{t('layout.navMonitoring')}</Link> },
     ...(isAuthenticated
-      ? [{ key: '/servers', label: <Link to="/servers">{t('layout.navServers')}</Link> }]
+      ? [
+          { key: '/skins', label: <Link to="/skins">{t('layout.navSkins')}</Link> },
+          { key: '/servers', label: <Link to="/servers">{t('layout.navServers')}</Link> },
+        ]
       : []),
   ];
 

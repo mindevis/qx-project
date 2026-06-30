@@ -6,8 +6,14 @@ import { renderWithProviders } from '@/test/test-utils';
 import { AppLayout } from './AppLayout';
 import * as BackendStatus from '@/backend/BackendStatusContext';
 import { HomePage } from '@/pages/HomePage';
+import { SkinsPage } from '@/pages/SkinsPage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
 import { saveTokens } from '@/api/client';
+
+vi.mock('skinview3d', async () => {
+  const { skinview3dMock } = await import('@/test/skinview3d-mock');
+  return skinview3dMock;
+});
 
 describe('AppLayout', () => {
   beforeEach(() => {
@@ -96,6 +102,7 @@ describe('AppLayout', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
+    expect(screen.getByText('Скины')).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: 'Светлая тема' }));
     expect(window.localStorage.getItem('qxweb-theme')).toBe('light');
   });
@@ -169,5 +176,64 @@ describe('AppLayout', () => {
     const header = document.querySelector('header');
     expect(header?.className).toContain('app-header--landing');
     expect(header?.className).toContain('app-header--sticky');
+  });
+
+  it('navigates to skins page from header link', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes('/users/me/cosmetics')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              skin_model: 'steve',
+              has_skin: false,
+              has_cape: false,
+              updated_at: '2026-01-01T00:00:00Z',
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/users/me')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: '1',
+              email: 'user@test.com',
+              tier: 'free',
+              created_at: 'now',
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="skins" element={<SkinsPage />} />
+        </Route>
+      </Routes>,
+      '/',
+    );
+
+    await waitFor(() => expect(screen.getByText('Скины')).toBeInTheDocument());
+    await user.click(screen.getByText('Скины'));
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Скины' })).toBeInTheDocument());
   });
 });

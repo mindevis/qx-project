@@ -7,6 +7,7 @@ export const SITEMAP_ROUTES = [
   { path: '/monitoring', changefreq: 'daily', priority: '0.8' },
   { path: '/servers', changefreq: 'weekly', priority: '0.7' },
   { path: '/profile', changefreq: 'monthly', priority: '0.5' },
+  { path: '/skins', changefreq: 'monthly', priority: '0.5' },
 ] as const;
 
 const SEO_PAGE_KEYS = [
@@ -16,6 +17,7 @@ const SEO_PAGE_KEYS = [
   'monitoring',
   'servers',
   'profile',
+  'skins',
   'auth',
 ] as const;
 
@@ -47,6 +49,7 @@ export function resolveSeoPageKey(pathname: string): SeoPageKey {
   if (pathname === '/monitoring') return 'monitoring';
   if (pathname.startsWith('/servers')) return 'servers';
   if (pathname === '/profile') return 'profile';
+  if (pathname === '/skins') return 'skins';
   if (pathname.startsWith('/auth')) return 'auth';
   return 'home';
 }

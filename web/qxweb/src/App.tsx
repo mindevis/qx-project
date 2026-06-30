@@ -23,6 +23,9 @@ const MonitoringPage = lazy(() =>
 const ServersPage = lazy(() =>
   import('@/pages/ServersPage').then((module) => ({ default: module.ServersPage })),
 );
+const SkinsPage = lazy(() =>
+  import('@/pages/SkinsPage').then((module) => ({ default: module.SkinsPage })),
+);
 
 function RouteFallback() {
   return (
@@ -56,6 +59,14 @@ export default function App() {
               element={
                 <LazyRoute>
                   <ProfilePage />
+                </LazyRoute>
+              }
+            />
+            <Route
+              path="skins"
+              element={
+                <LazyRoute>
+                  <SkinsPage />
                 </LazyRoute>
               }
             />

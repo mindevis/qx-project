@@ -86,7 +86,11 @@ function CosmeticsPreview({ model, skinUrl, capeUrl }: CosmeticsPreviewProps) {
   return <canvas ref={canvasRef} className="cosmetics-preview-canvas" width={140} height={180} aria-hidden />;
 }
 
-export function CosmeticsPanel() {
+type CosmeticsPanelProps = {
+  embedded?: boolean;
+};
+
+export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
   const { t } = useI18n();
   const message = useMessage();
   const [loading, setLoading] = useState(true);
@@ -177,82 +181,88 @@ export function CosmeticsPanel() {
     ? `${cosmetics.cape_url}${cacheBust}`
     : undefined;
 
+  const content = loading ? (
+    <Spin />
+  ) : (
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {!embedded ? <p className="cosmetics-hint">{t('cosmetics.hint')}</p> : null}
+      <div className="cosmetics-preview-row">
+        <CosmeticsPreview model={model} skinUrl={previewSkinUrl} capeUrl={previewCapeUrl} />
+        <div className="cosmetics-controls">
+          <div className="cosmetics-field">
+            <span className="cosmetics-label">{t('cosmetics.skinModel')}</span>
+            <ProfileModelPicker
+              value={model}
+              onChange={(value) => {
+                setModel(value);
+                void saveEquip({ skin_model: value });
+              }}
+            />
+          </div>
+          <Space wrap>
+            <Upload {...skinUploadProps}>
+              <Button icon={<UploadOutlined />} loading={saving}>
+                {t('cosmetics.uploadSkin')}
+              </Button>
+            </Upload>
+            {cosmetics?.has_skin ? (
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                loading={saving}
+                onClick={() => void api.deleteCosmeticsSkin().then(load)}
+              >
+                {t('cosmetics.resetSkin')}
+              </Button>
+            ) : null}
+          </Space>
+          <div className="cosmetics-field">
+            <span className="cosmetics-label">{t('cosmetics.cape')}</span>
+            <Radio.Group
+              value={capeType}
+              onChange={(e) => {
+                const value = e.target.value as CapeType;
+                setCapeType(value);
+                void saveEquip({ cape_type: value });
+              }}
+            >
+              <Radio.Button value="none">{t('cosmetics.capeNone')}</Radio.Button>
+              <Radio.Button value="qx">{t('cosmetics.capeQX')}</Radio.Button>
+              <Radio.Button value="custom">{t('cosmetics.capeCustom')}</Radio.Button>
+            </Radio.Group>
+          </div>
+          {capeType === 'custom' ? (
+            <Space wrap>
+              <Upload {...capeUploadProps}>
+                <Button icon={<UploadOutlined />} loading={saving}>
+                  {t('cosmetics.uploadCape')}
+                </Button>
+              </Upload>
+              {cosmetics?.has_cape && cosmetics.cape_type === 'custom' ? (
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  loading={saving}
+                  onClick={() => void api.deleteCosmeticsCape().then(load)}
+                >
+                  {t('cosmetics.resetCape')}
+                </Button>
+              ) : null}
+            </Space>
+          ) : null}
+        </div>
+      </div>
+      <p className="cosmetics-note">{t('cosmetics.skinServerNote')}</p>
+    </Space>
+  );
+
+  if (embedded) {
+    return <div className="cosmetics-panel cosmetics-panel--embedded">{content}</div>;
+  }
+
   return (
     <Card title={t('cosmetics.title')} style={{ maxWidth: 560 }} className="cosmetics-panel">
-      {loading ? (
-        <Spin />
-      ) : (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <p className="cosmetics-hint">{t('cosmetics.hint')}</p>
-          <div className="cosmetics-preview-row">
-            <CosmeticsPreview model={model} skinUrl={previewSkinUrl} capeUrl={previewCapeUrl} />
-            <div className="cosmetics-controls">
-              <div className="cosmetics-field">
-                <span className="cosmetics-label">{t('cosmetics.skinModel')}</span>
-                <ProfileModelPicker
-                  value={model}
-                  onChange={(value) => {
-                    setModel(value);
-                    void saveEquip({ skin_model: value });
-                  }}
-                />
-              </div>
-              <Space wrap>
-                <Upload {...skinUploadProps}>
-                  <Button icon={<UploadOutlined />} loading={saving}>
-                    {t('cosmetics.uploadSkin')}
-                  </Button>
-                </Upload>
-                {cosmetics?.has_skin ? (
-                  <Button
-                    danger
-                    icon={<DeleteOutlined />}
-                    loading={saving}
-                    onClick={() => void api.deleteCosmeticsSkin().then(load)}
-                  >
-                    {t('cosmetics.resetSkin')}
-                  </Button>
-                ) : null}
-              </Space>
-              <div className="cosmetics-field">
-                <span className="cosmetics-label">{t('cosmetics.cape')}</span>
-                <Radio.Group
-                  value={capeType}
-                  onChange={(e) => {
-                    const value = e.target.value as CapeType;
-                    setCapeType(value);
-                    void saveEquip({ cape_type: value });
-                  }}
-                >
-                  <Radio.Button value="none">{t('cosmetics.capeNone')}</Radio.Button>
-                  <Radio.Button value="qx">{t('cosmetics.capeQX')}</Radio.Button>
-                  <Radio.Button value="custom">{t('cosmetics.capeCustom')}</Radio.Button>
-                </Radio.Group>
-              </div>
-              {capeType === 'custom' ? (
-                <Space wrap>
-                  <Upload {...capeUploadProps}>
-                    <Button icon={<UploadOutlined />} loading={saving}>
-                      {t('cosmetics.uploadCape')}
-                    </Button>
-                  </Upload>
-                  {cosmetics?.has_cape && cosmetics.cape_type === 'custom' ? (
-                    <Button
-                      danger
-                      icon={<DeleteOutlined />}
-                      loading={saving}
-                      onClick={() => void api.deleteCosmeticsCape().then(load)}
-                    >
-                      {t('cosmetics.resetCape')}
-                    </Button>
-                  ) : null}
-                </Space>
-              ) : null}
-            </div>
-          </div>
-          <p className="cosmetics-note">{t('cosmetics.skinServerNote')}</p>
-        </Space>
-      )}
+      {content}
     </Card>
   );
 }

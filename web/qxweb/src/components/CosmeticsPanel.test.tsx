@@ -61,4 +61,12 @@ describe('CosmeticsPanel', () => {
     );
     expect(message.success).toHaveBeenCalledWith('Настройки скина сохранены');
   });
+
+  it('renders embedded variant without card title', async () => {
+    renderWithTheme(<CosmeticsPanel embedded />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Загрузить скин/i })).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('QX Skin Server')).not.toBeInTheDocument();
+  });
 });

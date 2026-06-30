@@ -10,6 +10,7 @@ const SITEMAP_ROUTES = [
   { path: '/monitoring', changefreq: 'daily', priority: '0.8' },
   { path: '/servers', changefreq: 'weekly', priority: '0.7' },
   { path: '/profile', changefreq: 'monthly', priority: '0.5' },
+  { path: '/skins', changefreq: 'monthly', priority: '0.5' },
 ] as const;
 
 function normalizeSiteUrl(raw?: string): string {

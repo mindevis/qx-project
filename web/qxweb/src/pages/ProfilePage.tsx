@@ -1,11 +1,10 @@
-import { Navigate, useSearchParams } from 'react-router-dom';
-import { Button, Card, Descriptions, Popconfirm, Space, Spin, Tooltip } from 'antd';
-import { EditOutlined, LinkOutlined } from '@ant-design/icons';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Button, Card, Descriptions, Popconfirm, Space, Spin, Tooltip, Typography } from 'antd';
+import { EditOutlined, LinkOutlined, SkinOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { ChangeEmailModal } from '@/components/ChangeEmailModal';
 import { ChangePasswordModal } from '@/components/ChangePasswordModal';
-import { CosmeticsPanel } from '@/components/CosmeticsPanel';
 import { useMessage } from '@/hooks/useMessage';
 import { useI18n } from '@/i18n/I18nContext';
 import { api, type MojangLinkStatus } from '@/api/client';
@@ -157,7 +156,18 @@ export function ProfilePage() {
         )}
       </Card>
 
-      <CosmeticsPanel />
+      <Card title={t('profile.skinsTitle')} style={{ maxWidth: 560 }}>
+        <Space direction="vertical" size="middle">
+          <Typography.Paragraph style={{ marginBottom: 0 }}>
+            {t('profile.skinsHint')}
+          </Typography.Paragraph>
+          <Link to="/skins">
+            <Button type="primary" icon={<SkinOutlined />}>
+              {t('profile.goToSkins')}
+            </Button>
+          </Link>
+        </Space>
+      </Card>
 
       <ChangeEmailModal
         open={emailModalOpen}
