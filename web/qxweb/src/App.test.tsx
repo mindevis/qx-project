@@ -78,4 +78,38 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
     expect(screen.getByRole('tab', { name: 'Регистрация' })).toHaveAttribute('aria-selected', 'true');
   });
+
+  it('lazy-loads profile, launcher link, and monitoring routes', async () => {
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes('/health')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    });
+
+    renderApp('/profile');
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Единая экосистема для Minecraft',
+      ),
+    );
+
+    renderApp('/launcher/link');
+    await waitFor(() =>
+      expect(screen.getByText(/Не указан идентификатор устройства/)).toBeInTheDocument(),
+    );
+
+    renderApp('/monitoring');
+    await waitFor(() =>
+      expect(screen.getByText('Пока нет серверов в мониторинге')).toBeInTheDocument(),
+    );
+  });
 });
