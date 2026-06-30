@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import {
   Button,
   Form,
@@ -18,6 +18,7 @@ import {
   DeleteOutlined,
   DesktopOutlined,
   DownloadOutlined,
+  AppstoreOutlined,
   LinkOutlined,
   LoginOutlined,
   PlusOutlined,
@@ -26,7 +27,6 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { LauncherDownloadButton } from '@/components/LauncherDownloadButton';
-import { InstanceResourcesPanel } from '@/components/InstanceResourcesPanel';
 import { ProfileModelPicker, ProfileModelAvatar } from '@/components/ProfileModelPicker';
 import { useMessage } from '@/hooks/useMessage';
 import {
@@ -64,6 +64,8 @@ import { getLaunchStatusKey } from '@/i18n';
 import { useI18n } from '@/i18n/I18nContext';
 import { modalMotionProps } from '@/lib/modal';
 import { logger } from '@/lib/logger';
+import { isModdedLauncherLoader } from '@/lib/isModdedLoader';
+import { LauncherInstanceResourcesPage } from '@/pages/LauncherInstanceResourcesPage';
 import './LauncherPage.css';
 
 const { Title, Paragraph, Text } = Typography;
@@ -74,6 +76,16 @@ const LAUNCH_TERMINAL = new Set(['completed', 'failed', 'expired']);
 type LaunchAccountMode = 'offline' | 'licensed';
 
 export function LauncherPage() {
+  return (
+    <Routes>
+      <Route index element={<LauncherHome />} />
+      <Route path="instances/:instanceId/resources" element={<LauncherInstanceResourcesPage />} />
+      <Route path="*" element={<Navigate to="/launcher" replace />} />
+    </Routes>
+  );
+}
+
+function LauncherHome() {
   const { t } = useI18n();
   const { isAuthenticated, user, loading: authLoading } = useAuth();
   const { openAuthModal } = useAuthModal();
@@ -817,10 +829,14 @@ export function LauncherPage() {
                             <span className="launcher-tag">{item.loader_version}</span>
                           ) : null}
                         </div>
-                        <InstanceResourcesPanel
-                          instance={item}
-                          canSync={isAuthenticated}
-                        />
+                        {isModdedLauncherLoader(item.loader) ? (
+                          <Link
+                            to={`/launcher/instances/${item.id}/resources`}
+                            className="launcher-instance-resources-link"
+                          >
+                            <AppstoreOutlined /> {t('launcher.browseResources')}
+                          </Link>
+                        ) : null}
                       </div>
                       <Space wrap className="launcher-instance-actions">
                         <Button

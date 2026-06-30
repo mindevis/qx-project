@@ -30,13 +30,16 @@ export function AppLayout() {
     location.pathname === '/' ||
     location.pathname === '/launcher' ||
     location.pathname === '/launcher/link' ||
+    location.pathname.startsWith('/launcher/instances/') ||
     location.pathname === '/monitoring' ||
     location.pathname === '/servers' ||
     location.pathname.startsWith('/servers/');
   const footerClassName =
     location.pathname === '/'
       ? 'app-footer app-footer--landing app-footer--landing-home'
-      : location.pathname === '/launcher' || location.pathname === '/launcher/link'
+      : location.pathname === '/launcher' ||
+          location.pathname === '/launcher/link' ||
+          location.pathname.startsWith('/launcher/instances/')
         ? 'app-footer app-footer--landing app-footer--landing-launcher'
         : location.pathname === '/monitoring'
           ? 'app-footer app-footer--landing app-footer--landing-monitoring'

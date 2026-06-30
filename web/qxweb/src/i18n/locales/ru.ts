@@ -377,6 +377,13 @@ export const ru = {
     openLinkPage: 'Страница привязки',
     createFirstInstance: 'Создать первый инстанс',
     addProfile: 'Добавить профиль',
+    browseResources: 'Ресурсы',
+  },
+  launcherInstanceResources: {
+    backToLauncher: 'Назад к лаунчеру',
+    badge: 'QXMods',
+    notFound: 'Инстанс не найден',
+    loadFailed: 'Не удалось загрузить инстанс',
   },
   servers: {
     title: 'Серверы',

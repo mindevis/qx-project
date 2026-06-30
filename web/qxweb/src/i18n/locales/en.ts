@@ -380,6 +380,13 @@ export const en: Messages = {
     openLinkPage: 'Link page',
     createFirstInstance: 'Create first instance',
     addProfile: 'Add profile',
+    browseResources: 'Resources',
+  },
+  launcherInstanceResources: {
+    backToLauncher: 'Back to launcher',
+    badge: 'QXMods',
+    notFound: 'Instance not found',
+    loadFailed: 'Failed to load instance',
   },
   servers: {
     title: 'Servers',

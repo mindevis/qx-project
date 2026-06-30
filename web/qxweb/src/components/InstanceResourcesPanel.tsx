@@ -31,11 +31,16 @@ const { Text, Paragraph, Title } = Typography;
 type InstanceResourcesPanelProps = {
   instance: LauncherInstance;
   canSync: boolean;
+  layout?: 'embedded' | 'standalone';
 };
 
 const TAB_TYPES: ModProjectType[] = ['mod', 'modpack', 'resourcepack', 'shader'];
 
-export function InstanceResourcesPanel({ instance, canSync }: InstanceResourcesPanelProps) {
+export function InstanceResourcesPanel({
+  instance,
+  canSync,
+  layout = 'embedded',
+}: InstanceResourcesPanelProps) {
   const { t } = useI18n();
   const message = useMessage();
   const [activeTab, setActiveTab] = useState<ModProjectType>('mod');
@@ -200,7 +205,10 @@ export function InstanceResourcesPanel({ instance, canSync }: InstanceResourcesP
   }));
 
   return (
-    <section className="instance-resources-panel" aria-label={t('qxmods.sectionTitle')}>
+    <section
+      className={`instance-resources-panel${layout === 'standalone' ? ' instance-resources-panel--standalone' : ''}`}
+      aria-label={t('qxmods.sectionTitle')}
+    >
       <div className="instance-resources-header">
         <Title level={5} className="instance-resources-title">
           {t('qxmods.sectionTitle')}

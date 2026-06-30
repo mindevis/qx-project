@@ -4,6 +4,12 @@
   border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
+.instance-resources-panel--standalone {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 html[data-theme='dark'] .instance-resources-panel {
   border-top-color: rgba(255, 255, 255, 0.08);
 }

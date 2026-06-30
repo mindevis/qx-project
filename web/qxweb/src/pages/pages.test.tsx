@@ -180,7 +180,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -198,7 +198,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -212,7 +212,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -229,7 +229,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -264,7 +264,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -321,7 +321,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -378,7 +378,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -410,7 +410,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -448,7 +448,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -499,7 +499,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -558,7 +558,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -624,7 +624,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -666,7 +666,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -708,7 +708,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -755,7 +755,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -799,7 +799,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -841,7 +841,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -874,7 +874,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -910,7 +910,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -950,7 +950,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -994,7 +994,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1041,7 +1041,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1089,7 +1089,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1145,7 +1145,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1230,7 +1230,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1318,7 +1318,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1386,7 +1386,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1463,7 +1463,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1547,7 +1547,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1583,7 +1583,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1631,7 +1631,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1677,7 +1677,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1727,7 +1727,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1773,7 +1773,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1828,7 +1828,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -1897,7 +1897,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
@@ -2200,7 +2200,7 @@ describe('pages', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
-          <Route path="/launcher" element={<LauncherPage />} />
+          <Route path="/launcher/*" element={<LauncherPage />} />
         </Route>
       </Routes>,
       '/launcher',
