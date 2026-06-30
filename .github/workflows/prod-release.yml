@@ -168,6 +168,9 @@ jobs:
           PROD_MINIO_PASSWORD: ${{ secrets.PROD_MINIO_PASSWORD }}
           CORS_ORIGIN: ${{ vars.CORS_ORIGIN || secrets.CORS_ORIGIN }}
           QX_PUBLIC_API_URL: ${{ vars.QX_PUBLIC_API_URL || secrets.QX_PUBLIC_API_URL }}
+          MOJANG_CLIENT_ID: ${{ vars.MOJANG_CLIENT_ID || secrets.MOJANG_CLIENT_ID }}
+          PROD_MOJANG_CLIENT_SECRET: ${{ secrets.PROD_MOJANG_CLIENT_SECRET }}
+          MOJANG_OAUTH_REDIRECT_URI: ${{ vars.MOJANG_OAUTH_REDIRECT_URI || secrets.MOJANG_OAUTH_REDIRECT_URI }}
         run: |
           set -euo pipefail
           mkdir -p .deploy/nginx

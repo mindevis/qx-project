@@ -44,6 +44,9 @@ make dev-up
 | `cors_origin` | `http://localhost:5173` | CORS для QXWeb |
 | `ssh_master_key` | dev default | base64, 32 bytes — шифрование SSH keys в DB |
 | `public_api_url` | `http://localhost:3000` | URL API для agent.toml на dedicated server (Flow C) |
+| `mojang_client_id` | — | Azure AD Application (client) ID для привязки Microsoft/Minecraft |
+| `mojang_client_secret` | — | Client secret (Web app); env: `MOJANG_CLIENT_SECRET` |
+| `mojang_oauth_redirect_uri` | `{public_api_url}/api/v1/mojang/oauth/callback` | Redirect URI в Azure; env: `MOJANG_OAUTH_REDIRECT_URI` |
 | `agent_binary_path` | auto-detect | Путь к `qx-agent-linux` для SSH deploy |
 | `curseforge_api_key` | — | API key CurseForge for Studios (`CURSEFORGE_API_KEY`) — QXMods search |
 | `modrinth_user_agent` | `QXSystem/1.0 (…)` | User-Agent для Modrinth API (`MODRINTH_USER_AGENT`) |
@@ -125,6 +128,7 @@ public_api_url = "http://host.docker.internal:3000"
 | `PROD_MYSQL_PASSWORD` | `MYSQL_PASSWORD`, `DATABASE_DSN` |
 | `PROD_MINIO_PASSWORD` | `MINIO_ROOT_PASSWORD` |
 | Variables `CORS_ORIGIN`, `QX_PUBLIC_API_URL` | одноимённые |
+| Secrets `MOJANG_CLIENT_ID`, `PROD_MOJANG_CLIENT_SECRET` | `MOJANG_CLIENT_ID`, `MOJANG_CLIENT_SECRET` |
 
 ---
 

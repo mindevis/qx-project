@@ -108,6 +108,51 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 }
 
+func TestResolvedMojangRedirectURI(t *testing.T) {
+	t.Run("from public api url", func(t *testing.T) {
+		cfg := config.Config{PublicAPIURL: "https://mc.qx-dev.ru"}
+		got := cfg.ResolvedMojangRedirectURI()
+		want := "https://mc.qx-dev.ru/api/v1/mojang/oauth/callback"
+		if got != want {
+			t.Fatalf("got %q want %q", got, want)
+		}
+	})
+	t.Run("trims trailing slash on public api url", func(t *testing.T) {
+		cfg := config.Config{PublicAPIURL: "https://mc.qx-dev.ru/"}
+		got := cfg.ResolvedMojangRedirectURI()
+		want := "https://mc.qx-dev.ru/api/v1/mojang/oauth/callback"
+		if got != want {
+			t.Fatalf("got %q want %q", got, want)
+		}
+	})
+	t.Run("explicit override wins", func(t *testing.T) {
+		cfg := config.Config{
+			PublicAPIURL:      "https://mc.qx-dev.ru",
+			MojangRedirectURI: "https://custom.example/callback",
+		}
+		if got := cfg.ResolvedMojangRedirectURI(); got != "https://custom.example/callback" {
+			t.Fatalf("got %q", got)
+		}
+	})
+}
+
+func TestLoadMojangFromEnv(t *testing.T) {
+	root := t.TempDir()
+	writeRepo(t, root)
+	t.Setenv("MOJANG_CLIENT_ID", "azure-app-id")
+	t.Setenv("MOJANG_CLIENT_SECRET", "azure-secret")
+	t.Setenv("MOJANG_OAUTH_REDIRECT_URI", "https://mc.qx-dev.ru/api/v1/mojang/oauth/callback")
+	t.Setenv("QX_PUBLIC_API_URL", "https://mc.qx-dev.ru")
+
+	cfg := config.Load()
+	if cfg.MojangClientID != "azure-app-id" || cfg.MojangClientSecret != "azure-secret" {
+		t.Fatalf("mojang creds: %+v", cfg)
+	}
+	if cfg.ResolvedMojangRedirectURI() != "https://mc.qx-dev.ru/api/v1/mojang/oauth/callback" {
+		t.Fatalf("redirect: %s", cfg.ResolvedMojangRedirectURI())
+	}
+}
+
 func TestLoadInvalidDurationFallback(t *testing.T) {
 	root := t.TempDir()
 	writeRepo(t, root)

@@ -19,9 +19,11 @@ public_api_url = "http://host.docker.internal:3000"
 # Optional; default resolves ../../bin/qx-agent-linux when API runs via make api
 # agent_binary_path = "../../bin/qx-agent-linux"
 
-# Microsoft / Minecraft account linking (OAuth PKCE). Redirect URI defaults to
-# {public_api_url}/api/v1/mojang/oauth/callback — register it in Azure if using a custom app.
-# mojang_client_id = "00000000402b5328"
+# Microsoft / Minecraft account linking (OAuth PKCE). Requires a **custom** Azure AD app in prod —
+# the public launcher client (00000000402b5328) only accepts its own redirect URIs.
+# Redirect URI defaults to {public_api_url}/api/v1/mojang/oauth/callback — register it in Azure.
+# Prod env: MOJANG_CLIENT_ID, MOJANG_CLIENT_SECRET (see infra/docker/.env.prod.example).
+# mojang_client_id = "your-azure-app-client-id"
 # mojang_client_secret = ""
 # mojang_oauth_redirect_uri = "http://localhost:3000/api/v1/mojang/oauth/callback"
 

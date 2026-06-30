@@ -37,4 +37,17 @@ kv LOG_LEVEL "${LOG_LEVEL:-info}"
 kv LOG_FORMAT "${LOG_FORMAT:-json}"
 kv QX_AGENT_BINARY_PATH "/opt/qxsystem/bin/qx-agent-linux"
 
+# Optional — Microsoft/Minecraft account linking (custom Azure AD app required in prod).
+if [[ -n "${MOJANG_CLIENT_ID:-}" ]]; then
+  kv MOJANG_CLIENT_ID "$MOJANG_CLIENT_ID"
+fi
+if [[ -n "${PROD_MOJANG_CLIENT_SECRET:-}" ]]; then
+  kv MOJANG_CLIENT_SECRET "$PROD_MOJANG_CLIENT_SECRET"
+elif [[ -n "${MOJANG_CLIENT_SECRET:-}" ]]; then
+  kv MOJANG_CLIENT_SECRET "$MOJANG_CLIENT_SECRET"
+fi
+if [[ -n "${MOJANG_OAUTH_REDIRECT_URI:-}" ]]; then
+  kv MOJANG_OAUTH_REDIRECT_URI "$MOJANG_OAUTH_REDIRECT_URI"
+fi
+
 chmod 600 "$out"

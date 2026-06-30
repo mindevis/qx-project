@@ -114,6 +114,15 @@ func (c *Config) applyEnv() {
 	if v := os.Getenv("QX_PUBLIC_API_URL"); v != "" {
 		c.PublicAPIURL = v
 	}
+	if v := os.Getenv("MOJANG_CLIENT_ID"); v != "" {
+		c.MojangClientID = v
+	}
+	if v := os.Getenv("MOJANG_CLIENT_SECRET"); v != "" {
+		c.MojangClientSecret = v
+	}
+	if v := os.Getenv("MOJANG_OAUTH_REDIRECT_URI"); v != "" {
+		c.MojangRedirectURI = v
+	}
 	if v := os.Getenv("QX_AGENT_BINARY_PATH"); v != "" {
 		c.AgentBinaryPath = v
 	}
