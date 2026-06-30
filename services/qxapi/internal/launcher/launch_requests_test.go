@@ -3,6 +3,7 @@ package launcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/qxproject/qx/services/qxapi/internal/models"
@@ -105,6 +106,27 @@ func TestFetchPendingLaunchEmpty(t *testing.T) {
 	}
 	if pending != nil {
 		t.Fatalf("expected nil pending, got %+v", pending)
+	}
+}
+
+func TestGetLaunchRequestManifestFailure(t *testing.T) {
+	svc, _, _ := newLauncherService(t)
+	svc.SetManifestProvider(stubManifestProvider{err: fmt.Errorf("version not found")})
+	ctx := context.Background()
+
+	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-manifest"})
+	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-manifest", UserID: "user-manifest"})
+	owner := Owner{UserID: "user-manifest"}
+	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
+	})
+	created, _ := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
+		InstanceID: inst.ID, DeviceID: "dev-manifest",
+	})
+
+	_, err := svc.GetLaunchRequest(ctx, owner, created.ID)
+	if !errors.Is(err, ErrManifest) {
+		t.Fatalf("expected ErrManifest, got %v", err)
 	}
 }
 

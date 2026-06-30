@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,6 +29,12 @@ func (testManifestProvider) BuildInstanceManifest(_ context.Context, instanceID,
 		Loader:     loader,
 		MainClass:  "net.minecraft.client.main.Main",
 	}, nil
+}
+
+type failingManifestProvider struct{ err error }
+
+func (p failingManifestProvider) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error) {
+	return nil, p.err
 }
 
 func newLaunchHandler(t *testing.T) (*LaunchRequestsHandler, *launcher.Service, *auth.TokenService) {
@@ -173,6 +180,46 @@ func TestLaunchRequestsHandlerUpdate(t *testing.T) {
 	h.Update(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("update: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLaunchRequestsHandlerGetManifestFailure(t *testing.T) {
+	h, svc, tokens := newLaunchHandler(t)
+	ctx := context.Background()
+
+	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-manifest-h"})
+	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-manifest-h", UserID: "user-manifest-h"})
+	pair, _ := tokens.IssueUserTokens("user-manifest-h", "u@test.com")
+	claims, _ := tokens.Parse(pair.AccessToken)
+	owner := launcher.Owner{UserID: claims.UserID}
+	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
+	})
+	created, _ := svc.CreateLaunchRequest(ctx, owner, launcher.CreateLaunchRequestInput{
+		InstanceID: inst.ID, DeviceID: "dev-manifest-h",
+	})
+
+	svc.SetManifestProvider(failingManifestProvider{err: fmt.Errorf("upstream unavailable")})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Params = gin.Params{{Key: "id", Value: created.ID}}
+	c.Set(UserIDKey, claims.UserID)
+	h.Get(c)
+	if w.Code != http.StatusBadGateway {
+		t.Fatalf("get manifest failure: %d %s", w.Code, w.Body.String())
+	}
+	var body struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	if body.Error.Code != "MANIFEST_UNAVAILABLE" {
+		t.Fatalf("error code: %q", body.Error.Code)
 	}
 }
 

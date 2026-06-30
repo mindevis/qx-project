@@ -81,17 +81,35 @@ func (h *LaunchRequestsHandler) Create(c *gin.Context) {
 		UseMojangAccount: req.UseMojangAccount,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, launcher.ErrNotFound):
-			JSONError(c, http.StatusNotFound, "NOT_FOUND", "instance or profile not found")
-		case errors.Is(err, launcher.ErrValidation):
-			JSONValidation(c, "invalid launch request")
-		default:
-			JSONInternal(c)
+		if mapLaunchServiceError(c, err) {
+			return
 		}
+		JSONInternal(c)
 		return
 	}
 	c.JSON(http.StatusCreated, launchResponseFromView(view))
+}
+
+func mapLaunchServiceError(c *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, launcher.ErrNotFound):
+		JSONError(c, http.StatusNotFound, "NOT_FOUND", "resource not found")
+		return true
+	case errors.Is(err, launcher.ErrValidation):
+		JSONValidation(c, "invalid launch request")
+		return true
+	case errors.Is(err, launcher.ErrDeviceNotLinked), errors.Is(err, launcher.ErrDeviceMismatch):
+		JSONError(c, http.StatusForbidden, "FORBIDDEN", "device not linked to account")
+		return true
+	case errors.Is(err, launcher.ErrManifest):
+		JSONError(c, http.StatusBadGateway, "MANIFEST_UNAVAILABLE", "could not build launch manifest")
+		return true
+	case errors.Is(err, launcher.ErrMojangSession):
+		JSONError(c, http.StatusUnauthorized, "MOJANG_SESSION", "mojang session expired or unavailable")
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *LaunchRequestsHandler) Pending(c *gin.Context) {
@@ -102,6 +120,9 @@ func (h *LaunchRequestsHandler) Pending(c *gin.Context) {
 	}
 	view, err := h.Service.FetchPendingLaunch(c.Request.Context(), deviceID)
 	if err != nil {
+		if mapLaunchServiceError(c, err) {
+			return
+		}
 		JSONInternal(c)
 		return
 	}
@@ -141,6 +162,9 @@ func (h *LaunchRequestsHandler) Update(c *gin.Context) {
 			JSONError(c, http.StatusNotFound, "NOT_FOUND", "launch request not found")
 			return
 		}
+		if mapLaunchServiceError(c, err) {
+			return
+		}
 		JSONInternal(c)
 		return
 	}
@@ -157,6 +181,9 @@ func (h *LaunchRequestsHandler) Get(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, launcher.ErrNotFound) {
 			JSONError(c, http.StatusNotFound, "NOT_FOUND", "launch request not found")
+			return
+		}
+		if mapLaunchServiceError(c, err) {
 			return
 		}
 		JSONInternal(c)

@@ -24,6 +24,8 @@ var (
 	ErrLinkExpired      = errors.New("link expired")
 	ErrAuthRequired     = errors.New("authentication required")
 	ErrDeviceNotPending = errors.New("device is not pending link")
+	ErrManifest         = errors.New("manifest build failed")
+	ErrMojangSession    = errors.New("mojang session failed")
 )
 
 const (

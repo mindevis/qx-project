@@ -3,11 +3,13 @@ package launcher
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/qxproject/qx/pkg/mcmanifest"
 	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
+	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 	"gorm.io/gorm"
 )
@@ -198,7 +200,7 @@ func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest
 	}
 	manifest, err := s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, instanceLoaderVersion(inst))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrManifest, err)
 	}
 	var profile *models.OfflineProfile
 	if req.OfflineProfileID != nil {
@@ -211,7 +213,10 @@ func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest
 	if req.UseMojangAccount && s.mojang != nil && inst.UserID != nil {
 		session, err := s.mojang.SessionForLaunch(ctx, *inst.UserID)
 		if err != nil {
-			return nil, err
+			if errors.Is(err, mojang.ErrNotLinked) {
+				return nil, ErrValidation
+			}
+			return nil, fmt.Errorf("%w: %v", ErrMojangSession, err)
 		}
 		mojangSession = &MojangSessionView{
 			Username:    session.Username,
@@ -228,10 +233,9 @@ func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest
 			gameUUID = profile.OfflineUUID
 		}
 		view, err := s.cosmetics.LaunchViewForGame(ctx, *inst.UserID, gameUUID)
-		if err != nil {
-			return nil, err
+		if err == nil {
+			cosmeticsView = view
 		}
-		cosmeticsView = view
 	}
 	return launchViewFromModel(req, manifest, profile, mojangSession, cosmeticsView), nil
 }
