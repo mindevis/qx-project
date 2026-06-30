@@ -38,6 +38,23 @@ else
   echo "Nginx: HTTP only (set PROD_CLOUDFLARE_API_TOKEN + PROD_CERTBOT_EMAIL for HTTPS)"
 fi
 
+for f in spa-security-headers.conf upstream-proxies.conf; do
+  if [[ ! -f "$ROOT/nginx/$f" ]]; then
+    echo "Missing nginx/$f (deploy bundle incomplete)." >&2
+    exit 1
+  fi
+done
+
+nginx_test_mounts=(
+  -v "$NGINX_ACTIVE:/etc/nginx/conf.d/default.conf:ro"
+  -v "$ROOT/nginx/spa-security-headers.conf:/etc/nginx/spa-security-headers.conf:ro"
+  -v "$ROOT/nginx/upstream-proxies.conf:/etc/nginx/upstream-proxies.conf:ro"
+)
+if [[ "$use_tls" == "true" ]]; then
+  nginx_test_mounts+=(-v "/etc/letsencrypt:/etc/letsencrypt:ro")
+fi
+docker run --rm "${nginx_test_mounts[@]}" nginx:1.27-alpine nginx -t
+
 if [[ -n "${GHCR_TOKEN:-}" ]]; then
   echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-github}" --password-stdin
 fi
