@@ -80,6 +80,18 @@ func (c *curseForgeClient) enabled() bool {
 }
 
 func (c *curseForgeClient) search(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {
+	return c.searchProjects(ctx, query, projectType, loader, mcVersion, "downloads", limit, 0)
+}
+
+func (c *curseForgeClient) browse(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
+	return c.searchProjects(ctx, "", projectType, loader, mcVersion, sort, limit, offset)
+}
+
+func (c *curseForgeClient) searchProjects(
+	ctx context.Context,
+	query, projectType, loader, mcVersion, sort string,
+	limit, offset int,
+) ([]SearchItem, error) {
 	if !c.enabled() {
 		return nil, nil
 	}
@@ -88,6 +100,10 @@ func (c *curseForgeClient) search(ctx context.Context, query, projectType, loade
 	params.Set("classId", strconv.Itoa(curseForgeClassID(projectType)))
 	params.Set("searchFilter", query)
 	params.Set("pageSize", strconv.Itoa(limit))
+	params.Set("index", strconv.Itoa(offset))
+	sortField, sortOrder := curseForgeSortParams(sort)
+	params.Set("sortField", sortField)
+	params.Set("sortOrder", sortOrder)
 	if mcVersion != "" {
 		params.Set("gameVersion", mcVersion)
 	}
@@ -241,6 +257,17 @@ func (c *curseForgeClient) getJSON(ctx context.Context, path string, dest any) e
 		return fmt.Errorf("curseforge: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return json.NewDecoder(resp.Body).Decode(dest)
+}
+
+func curseForgeSortParams(sort string) (field, order string) {
+	switch strings.ToLower(strings.TrimSpace(sort)) {
+	case "newest", "updated":
+		return "3", "2"
+	case "relevance":
+		return "2", "2"
+	default:
+		return "6", "2"
+	}
 }
 
 func curseForgeClassID(projectType string) int {

@@ -43,6 +43,34 @@ func (h *ModsHandler) Search(c *gin.Context) {
 	})
 }
 
+func (h *ModsHandler) Browse(c *gin.Context) {
+	if h.Service == nil {
+		JSONError(c, http.StatusServiceUnavailable, "MODS_UNAVAILABLE", "mods service not configured")
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	items, hasMore, err := h.Service.Browse(
+		c.Request.Context(),
+		c.DefaultQuery("type", mods.ProjectTypeMod),
+		c.Query("loader"),
+		c.Query("mc_version"),
+		c.DefaultQuery("source", "all"),
+		c.DefaultQuery("sort", "downloads"),
+		limit,
+		offset,
+	)
+	if err != nil {
+		JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"items":              items,
+		"has_more":           hasMore,
+		"curseforge_enabled": h.Service.CurseForgeEnabled(),
+	})
+}
+
 func (h *ModsHandler) GetProject(c *gin.Context) {
 	if h.Service == nil {
 		JSONError(c, http.StatusServiceUnavailable, "MODS_UNAVAILABLE", "mods service not configured")

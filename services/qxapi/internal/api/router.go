@@ -181,6 +181,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.POST("/monitoring/servers/:id/rate", monitoringH.Rate)
 
 			authed.GET("/mods/search", modsH.Search)
+			authed.GET("/mods/browse", modsH.Browse)
 			authed.GET("/mods/:source/:projectId", modsH.GetProject)
 			authed.GET("/mods/:source/:projectId/versions", modsH.ListVersions)
 		}

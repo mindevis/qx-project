@@ -77,6 +77,18 @@ func modrinthExternalURL(slug string) string {
 }
 
 func (c *modrinthClient) search(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {
+	return c.searchProjects(ctx, query, projectType, loader, mcVersion, "relevance", limit, 0)
+}
+
+func (c *modrinthClient) browse(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
+	return c.searchProjects(ctx, "", projectType, loader, mcVersion, modrinthBrowseIndex(sort), limit, offset)
+}
+
+func (c *modrinthClient) searchProjects(
+	ctx context.Context,
+	query, projectType, loader, mcVersion, index string,
+	limit, offset int,
+) ([]SearchItem, error) {
 	facets := [][]string{{"project_type:" + modrinthProjectTypeFacet(projectType)}}
 	if loader != "" {
 		facets = append(facets, []string{"categories:" + loaderFacetModrinth(loader)})
@@ -92,7 +104,11 @@ func (c *modrinthClient) search(ctx context.Context, query, projectType, loader,
 	params.Set("query", query)
 	params.Set("facets", string(facetsJSON))
 	params.Set("limit", strconv.Itoa(limit))
-	params.Set("index", "relevance")
+	params.Set("offset", strconv.Itoa(offset))
+	if index == "" {
+		index = "downloads"
+	}
+	params.Set("index", index)
 
 	var resp modrinthSearchResponse
 	if err := c.getJSON(ctx, "/search?"+params.Encode(), &resp); err != nil {
@@ -116,6 +132,19 @@ func (c *modrinthClient) search(ctx context.Context, query, projectType, loader,
 		})
 	}
 	return out, nil
+}
+
+func modrinthBrowseIndex(sort string) string {
+	switch strings.ToLower(strings.TrimSpace(sort)) {
+	case "newest":
+		return "newest"
+	case "updated":
+		return "updated"
+	case "relevance":
+		return "relevance"
+	default:
+		return "downloads"
+	}
 }
 
 func (c *modrinthClient) getProject(ctx context.Context, projectID string) (*ProjectDetail, error) {

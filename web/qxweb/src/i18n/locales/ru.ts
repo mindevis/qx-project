@@ -34,6 +34,7 @@ export const ru = {
     navHome: 'Главная',
     navLauncher: 'Лаунчер',
     navMonitoring: 'Мониторинг',
+    navSkins: 'Скины',
     navServers: 'Серверы',
     footer: 'QXSystem — экосистема Minecraft',
   },
@@ -69,6 +70,11 @@ export const ru = {
       profile: {
         title: 'Профиль',
         description: 'Настройки аккаунта QXSystem, email, пароль и привязка Minecraft (Microsoft).',
+      },
+      skins: {
+        title: 'Скины',
+        description:
+          'Загрузите свой скин и плащ Minecraft для QXLauncher — как Ely.by, без модов.',
       },
       auth: {
         title: 'Вход',
@@ -182,6 +188,14 @@ export const ru = {
     mojangUnlinkFailed: 'Не удалось отвязать аккаунт Microsoft',
     mojangHint:
       'Привяжите аккаунт Microsoft, чтобы запускать лицензионную версию Minecraft со своим ником и UUID.',
+    skinsTitle: 'Скины QX',
+    skinsHint: 'Загрузите свой скин и плащ для QXLauncher. Управление — в разделе «Скины».',
+    goToSkins: 'Управление скинами',
+  },
+  skins: {
+    title: 'Скины',
+    subtitle:
+      'Загрузите скин и плащ. QXLauncher применяет их как Ely.by — моды Fabric/Forge не нужны.',
   },
   cosmetics: {
     title: 'QX Skin Server',
@@ -653,7 +667,7 @@ export const ru = {
     sectionTitle: 'Ресурсы',
     promoTitle: 'QXMods — каталог модов в лаунчере',
     promoBody:
-      'Ищите моды, модпаки, ресурспаки и шейдеры напрямую из CurseForge и Modrinth. Синхронизируйте серверные моды на ваш game server одним кликом.',
+      'Просматривайте моды, модпаки, ресурспаки и шейдеры из CurseForge и Modrinth. Каталог отфильтрован по версии Minecraft и загрузчику инстанса; серверные моды можно синхронизировать на game server одним кликом.',
     tabs: {
       mod: 'Моды',
       modpack: 'Модпаки',
@@ -662,15 +676,31 @@ export const ru = {
     },
     search: 'Найти',
     searchPlaceholder: 'Поиск по названию…',
+    searchFilterPlaceholder: 'Необязательно: сузить по названию…',
+    applySearch: 'Применить',
+    clearSearch: 'Сбросить поиск',
     searchPrompt: 'Введите запрос и нажмите «Найти»',
     searchFailed: 'Не удалось выполнить поиск',
+    browseFailed: 'Не удалось загрузить каталог',
+    catalogIntro: 'Ниже — каталог ресурсов для вашего инстанса. Список учитывает версию Minecraft и загрузчик.',
+    catalogEmpty: 'В каталоге нет элементов для выбранных фильтров',
+    loadMore: 'Загрузить ещё',
     versionsFailed: 'Не удалось загрузить версии',
     empty: 'Ничего не найдено',
+    filters: {
+      source: 'Источник',
+      sourceAll: 'Все источники',
+      sort: 'Сортировка',
+      sortDownloads: 'По загрузкам',
+      sortNewest: 'Новые',
+      sortUpdated: 'Недавно обновлённые',
+      sortRelevance: 'По релевантности',
+    },
     attribution:
       'Каталог QXMods загружает метаданные из официальных API CurseForge и Modrinth. Файлы скачиваются через API поставщиков каталога.',
     curseforgeDisabled:
       'CurseForge отключён — укажите CURSEFORGE_API_KEY (или curseforge_api_key в qxapi.toml).',
-    filterContext: 'Результаты отфильтрованы для Minecraft {{mcVersion}} · {{loader}}',
+    filterContext: 'Каталог отфильтрован для Minecraft {{mcVersion}} · {{loader}}',
     detailTitle: 'Детали',
     detailAttribution: 'Источник и лицензия указаны на странице проекта у поставщика каталога.',
     viewOnSource: 'Открыть у источника',

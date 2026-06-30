@@ -30,7 +30,21 @@ describe('LauncherInstanceResourcesPage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     vi.spyOn(api, 'listInstances').mockResolvedValue({ items: [forgeInstance] });
-    vi.spyOn(api, 'searchMods').mockResolvedValue({ items: [], curseforge_enabled: true });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'sodium',
+          name: 'Sodium',
+          summary: 'Performance mod',
+          external_url: 'https://modrinth.com/mod/sodium',
+          client_side: 'unsupported',
+          server_side: 'required',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
   });
 
   afterEach(() => {
@@ -60,9 +74,16 @@ describe('LauncherInstanceResourcesPage', () => {
     await waitFor(() => expect(screen.getByText('Launcher home')).toBeInTheDocument());
   });
 
-  it('searches mods from the resources page', async () => {
+  it('loads mod catalog on the resources page', async () => {
+    renderResources();
+    await waitFor(() => expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    expect(api.browseMods).toHaveBeenCalled();
+  });
+
+  it('supports optional name filter on the resources page', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(api.searchMods).mockResolvedValueOnce({
+    vi.spyOn(api, 'searchMods').mockResolvedValueOnce({
       items: [
         {
           source: 'modrinth',
@@ -80,8 +101,8 @@ describe('LauncherInstanceResourcesPage', () => {
     renderResources();
     await waitFor(() => expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument());
 
-    await user.type(screen.getByPlaceholderText('Поиск по названию…'), 'sodium');
+    await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'sodium');
     await user.click(screen.getByRole('button', { name: 'Найти' }));
-    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    await waitFor(() => expect(api.searchMods).toHaveBeenCalled());
   });
 });

@@ -191,6 +191,10 @@ export type GameServerFileContent = {
 
 export type ModSource = 'curseforge' | 'modrinth';
 
+export type ModCatalogSourceFilter = 'all' | ModSource;
+
+export type ModCatalogSort = 'downloads' | 'newest' | 'updated' | 'relevance';
+
 export type ModProjectType = 'mod' | 'modpack' | 'resourcepack' | 'shader';
 
 export type ModCatalogItem = {
@@ -782,6 +786,29 @@ export const api = {
     if (params.limit != null) search.set('limit', String(params.limit));
     return request<{ items: ModCatalogItem[]; curseforge_enabled: boolean }>(
       `/mods/search?${search.toString()}`,
+    );
+  },
+
+  browseMods: (params: {
+    type?: ModProjectType;
+    loader?: string;
+    mc_version?: string;
+    source?: ModCatalogSourceFilter;
+    sort?: ModCatalogSort;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const search = new URLSearchParams();
+    if (params.type) search.set('type', params.type);
+    if (params.loader) search.set('loader', params.loader);
+    if (params.mc_version) search.set('mc_version', params.mc_version);
+    if (params.source) search.set('source', params.source);
+    if (params.sort) search.set('sort', params.sort);
+    if (params.limit != null) search.set('limit', String(params.limit));
+    if (params.offset != null) search.set('offset', String(params.offset));
+    const qs = search.toString();
+    return request<{ items: ModCatalogItem[]; has_more: boolean; curseforge_enabled: boolean }>(
+      `/mods/browse${qs ? `?${qs}` : ''}`,
     );
   },
 

@@ -36,6 +36,33 @@ func TestModsHandlerSearch(t *testing.T) {
 	}
 }
 
+func TestModsHandlerBrowseSuccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := &ModsHandler{
+		Service: mods.NewService(mods.Config{ModrinthUserAgent: "QXTest/1.0"}),
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/mods/browse?type=mod&loader=fabric&mc_version=1.21.1&sort=downloads", nil)
+	h.Browse(c)
+	if w.Code != http.StatusOK && w.Code != http.StatusBadGateway {
+		t.Fatalf("status: %d %s", w.Code, w.Body.String())
+	}
+	if w.Code == http.StatusOK {
+		var body struct {
+			Items   []mods.SearchItem `json:"items"`
+			HasMore bool              `json:"has_more"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if len(body.Items) == 0 {
+			t.Fatalf("expected items")
+		}
+	}
+}
+
 func TestModsHandlerSearchSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := &ModsHandler{

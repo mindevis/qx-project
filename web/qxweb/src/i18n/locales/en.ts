@@ -36,6 +36,7 @@ export const en: Messages = {
     navHome: 'Home',
     navLauncher: 'Launcher',
     navMonitoring: 'Monitoring',
+    navSkins: 'Skins',
     navServers: 'Servers',
     footer: 'QXSystem — Minecraft ecosystem',
   },
@@ -71,6 +72,11 @@ export const en: Messages = {
       profile: {
         title: 'Profile',
         description: 'QXSystem account settings, email, password, and Minecraft (Microsoft) linking.',
+      },
+      skins: {
+        title: 'Skins',
+        description:
+          'Upload a custom Minecraft skin and cape for QXLauncher — applied like Ely.by without mods.',
       },
       auth: {
         title: 'Sign in',
@@ -184,6 +190,14 @@ export const en: Messages = {
     mojangUnlinkFailed: 'Failed to unlink Microsoft account',
     mojangHint:
       'Link your Microsoft account to launch the licensed game with your real username and UUID.',
+    skinsTitle: 'QX Skins',
+    skinsHint: 'Upload a custom skin and cape for QXLauncher. Manage them in the Skins section.',
+    goToSkins: 'Manage skins',
+  },
+  skins: {
+    title: 'Skins',
+    subtitle:
+      'Upload a custom skin and cape. QXLauncher applies them like Ely.by — no Fabric/Forge mods required.',
   },
   cosmetics: {
     title: 'QX Skin Server',
@@ -656,7 +670,7 @@ export const en: Messages = {
     sectionTitle: 'Resources',
     promoTitle: 'QXMods — mod catalog in the launcher',
     promoBody:
-      'Search mods, modpacks, resource packs, and shaders from CurseForge and Modrinth. Sync server-side mods to your game server in one click.',
+      'Browse mods, modpacks, resource packs, and shaders from CurseForge and Modrinth. Filter by your instance version and loader, then sync server-side mods to your game server in one click.',
     tabs: {
       mod: 'Mods',
       modpack: 'Modpacks',
@@ -665,15 +679,31 @@ export const en: Messages = {
     },
     search: 'Search',
     searchPlaceholder: 'Search by name…',
+    searchFilterPlaceholder: 'Optional: narrow by name…',
+    applySearch: 'Apply',
+    clearSearch: 'Clear search',
     searchPrompt: 'Enter a query and press Search',
     searchFailed: 'Search failed',
+    browseFailed: 'Failed to load catalog',
+    catalogIntro: 'Browse the catalog below. Results match your instance Minecraft version and loader.',
+    catalogEmpty: 'No items in the catalog for these filters',
+    loadMore: 'Load more',
     versionsFailed: 'Failed to load versions',
     empty: 'No results',
+    filters: {
+      source: 'Source',
+      sourceAll: 'All sources',
+      sort: 'Sort by',
+      sortDownloads: 'Downloads',
+      sortNewest: 'Newest',
+      sortUpdated: 'Recently updated',
+      sortRelevance: 'Relevance',
+    },
     attribution:
       'QXMods loads metadata from official CurseForge and Modrinth APIs. Files are downloaded from the catalog providers.',
     curseforgeDisabled:
       'CurseForge is disabled — set CURSEFORGE_API_KEY (or curseforge_api_key in qxapi.toml).',
-    filterContext: 'Results filtered for Minecraft {{mcVersion}} · {{loader}}',
+    filterContext: 'Catalog filtered for Minecraft {{mcVersion}} · {{loader}}',
     detailTitle: 'Details',
     detailAttribution: 'Source and license are shown on the provider project page.',
     viewOnSource: 'View on source',

@@ -83,6 +83,78 @@ func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVers
 	return merged, nil
 }
 
+func (s *Service) Browse(ctx context.Context, projectType, loader, mcVersion, source, sort string, limit, offset int) ([]SearchItem, bool, error) {
+	projectType = normalizeProjectType(projectType)
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	source = strings.ToLower(strings.TrimSpace(source))
+
+	var (
+		items   []SearchItem
+		err     error
+		hasMore bool
+	)
+	switch source {
+	case SourceCurseForge:
+		items, err = s.curseforge.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+	case SourceModrinth:
+		items, err = s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+	default:
+		items, err = s.browseBoth(ctx, projectType, loader, mcVersion, sort, limit, offset)
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	hasMore = len(items) >= limit
+	return items, hasMore, nil
+}
+
+func (s *Service) browseBoth(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
+	pageSize := limit
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	half := pageSize / 2
+	if half < 1 {
+		half = 1
+	}
+	cfOffset := offset / 2
+	mrOffset := offset / 2
+
+	var (
+		cfItems []SearchItem
+		mrItems []SearchItem
+		cfErr   error
+		mrErr   error
+		wg      sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		cfItems, cfErr = s.curseforge.browse(ctx, projectType, loader, mcVersion, sort, half, cfOffset)
+	}()
+	go func() {
+		defer wg.Done()
+		mrItems, mrErr = s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, pageSize-half, mrOffset)
+	}()
+	wg.Wait()
+
+	if mrErr != nil && cfErr != nil {
+		return nil, mrErr
+	}
+	if mrErr != nil {
+		return cfItems[:min(len(cfItems), pageSize)], nil
+	}
+	if cfErr != nil || len(cfItems) == 0 {
+		return mrItems[:min(len(mrItems), pageSize)], nil
+	}
+	return interleaveSearch(cfItems, mrItems, pageSize), nil
+}
+
 func (s *Service) GetProject(ctx context.Context, source, projectID string) (*ProjectDetail, error) {
 	source = strings.ToLower(strings.TrimSpace(source))
 	projectID = strings.TrimSpace(projectID)

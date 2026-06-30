@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Drawer,
   Empty,
   Input,
   List,
+  Select,
   Space,
   Spin,
   Tabs,
@@ -15,6 +16,8 @@ import {
   api,
   type LauncherInstance,
   type ModCatalogItem,
+  type ModCatalogSort,
+  type ModCatalogSourceFilter,
   type ModProjectType,
   type ModVersion,
 } from '@/api/client';
@@ -35,6 +38,7 @@ type InstanceResourcesPanelProps = {
 };
 
 const TAB_TYPES: ModProjectType[] = ['mod', 'modpack', 'resourcepack', 'shader'];
+const PAGE_SIZE = 20;
 
 export function InstanceResourcesPanel({
   instance,
@@ -44,11 +48,16 @@ export function InstanceResourcesPanel({
   const { t } = useI18n();
   const message = useMessage();
   const [activeTab, setActiveTab] = useState<ModProjectType>('mod');
-  const [query, setQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<ModCatalogSourceFilter>('all');
+  const [sort, setSort] = useState<ModCatalogSort>('downloads');
   const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [items, setItems] = useState<ModCatalogItem[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [curseforgeEnabled, setCurseforgeEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<ModCatalogItem | null>(null);
   const [versions, setVersions] = useState<ModVersion[]>([]);
@@ -58,36 +67,105 @@ export function InstanceResourcesPanel({
   const [syncSelection, setSyncSelection] = useState<ModSyncSelection | null>(null);
 
   const modded = isModdedLauncherLoader(instance.loader);
+  const isSearchMode = appliedSearch.trim().length > 0;
 
-  const runSearch = useCallback(async () => {
-    const q = searchInput.trim();
-    if (!q) {
-      setItems([]);
-      return;
-    }
-    setQuery(q);
-    setLoading(true);
+  useEffect(() => {
+    if (!modded) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      setLoading(true);
+      setLoadingMore(false);
+      try {
+        if (appliedSearch.trim()) {
+          const res = await api.searchMods({
+            q: appliedSearch.trim(),
+            type: activeTab,
+            loader: instance.loader,
+            mc_version: instance.mc_version,
+            limit: PAGE_SIZE,
+          });
+          if (cancelled) return;
+          setItems(res.items ?? []);
+          setHasMore(false);
+          setOffset(0);
+          setCurseforgeEnabled(res.curseforge_enabled ?? false);
+          return;
+        }
+
+        const res = await api.browseMods({
+          type: activeTab,
+          loader: instance.loader,
+          mc_version: instance.mc_version,
+          source: sourceFilter,
+          sort,
+          limit: PAGE_SIZE,
+          offset: 0,
+        });
+        if (cancelled) return;
+        const nextItems = res.items ?? [];
+        setItems(nextItems);
+        setHasMore(res.has_more ?? false);
+        setOffset(nextItems.length);
+        setCurseforgeEnabled(res.curseforge_enabled ?? false);
+      } catch (e) {
+        if (cancelled) return;
+        message.error(
+          e instanceof Error
+            ? e.message
+            : appliedSearch.trim()
+              ? t('qxmods.searchFailed')
+              : t('qxmods.browseFailed'),
+        );
+        setItems([]);
+        setHasMore(false);
+        setOffset(0);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, appliedSearch, instance.loader, instance.mc_version, modded, sort, sourceFilter, message, t]);
+
+  const loadMore = async () => {
+    if (appliedSearch.trim()) return;
+    setLoadingMore(true);
     try {
-      const res = await api.searchMods({
-        q,
+      const res = await api.browseMods({
         type: activeTab,
         loader: instance.loader,
         mc_version: instance.mc_version,
+        source: sourceFilter,
+        sort,
+        limit: PAGE_SIZE,
+        offset,
       });
-      setItems(res.items ?? []);
+      const nextItems = res.items ?? [];
+      setItems((prev) => [...prev, ...nextItems]);
+      setHasMore(res.has_more ?? false);
+      setOffset((prev) => prev + nextItems.length);
       setCurseforgeEnabled(res.curseforge_enabled ?? false);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('qxmods.searchFailed'));
-      setItems([]);
+      message.error(e instanceof Error ? e.message : t('qxmods.browseFailed'));
     } finally {
-      setLoading(false);
+      setLoadingMore(false);
     }
-  }, [activeTab, instance.loader, instance.mc_version, message, searchInput, t]);
+  };
 
-  useEffect(() => {
-    setItems([]);
-    setQuery('');
-  }, [activeTab]);
+  const applySearch = () => {
+    setAppliedSearch(searchInput.trim());
+  };
+
+  const clearSearch = () => {
+    setSearchInput('');
+    setAppliedSearch('');
+  };
 
   const openDetail = async (item: ModCatalogItem) => {
     setDetailItem(item);
@@ -133,49 +211,42 @@ export function InstanceResourcesPanel({
     setSyncOpen(true);
   };
 
+  const sourceOptions = useMemo(
+    () => [
+      { value: 'all', label: t('qxmods.filters.sourceAll') },
+      { value: 'modrinth', label: t('qxmods.source.modrinth') },
+      { value: 'curseforge', label: t('qxmods.source.curseforge') },
+    ],
+    [t],
+  );
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'downloads', label: t('qxmods.filters.sortDownloads') },
+      { value: 'newest', label: t('qxmods.filters.sortNewest') },
+      { value: 'updated', label: t('qxmods.filters.sortUpdated') },
+      { value: 'relevance', label: t('qxmods.filters.sortRelevance') },
+    ],
+    [t],
+  );
+
   if (!modded) {
     return null;
   }
 
-  const tabItems = TAB_TYPES.map((type) => ({
-    key: type,
-    label: t(`qxmods.tabs.${type}`),
-    children: (
-      <div className="qxmods-tab-panel">
-        <div className="qxmods-search-bar">
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder={t('qxmods.searchPlaceholder')}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onPressEnter={() => void runSearch()}
-          />
-          <Button type="primary" onClick={() => void runSearch()} loading={loading}>
-            {t('qxmods.search')}
-          </Button>
+  const catalogList = (
+    <>
+      {loading ? (
+        <div className="qxmods-loading">
+          <Spin />
         </div>
-        <Paragraph type="secondary" className="qxmods-filter-context">
-          {t('qxmods.filterContext', {
-            mcVersion: instance.mc_version,
-            loader: instance.loader,
-          })}
-        </Paragraph>
-        <Paragraph type="secondary" className="qxmods-attribution">
-          {t('qxmods.attribution')}
-          {!curseforgeEnabled ? ` ${t('qxmods.curseforgeDisabled')}` : ''}
-        </Paragraph>
-        {loading ? (
-          <div className="qxmods-loading">
-            <Spin />
-          </div>
-        ) : query && items.length === 0 ? (
-          <Empty description={t('qxmods.empty')} />
-        ) : (
+      ) : items.length === 0 ? (
+        <Empty description={isSearchMode ? t('qxmods.empty') : t('qxmods.catalogEmpty')} />
+      ) : (
+        <>
           <List
             className="qxmods-results"
             dataSource={items}
-            locale={{ emptyText: t('qxmods.searchPrompt') }}
             renderItem={(item) => (
               <List.Item
                 key={`${item.source}:${item.id}`}
@@ -205,7 +276,87 @@ export function InstanceResourcesPanel({
               </List.Item>
             )}
           />
-        )}
+          {!isSearchMode && hasMore ? (
+            <div className="qxmods-load-more">
+              <Button loading={loadingMore} onClick={() => void loadMore()}>
+                {t('qxmods.loadMore')}
+              </Button>
+            </div>
+          ) : null}
+        </>
+      )}
+    </>
+  );
+
+  const tabItems = TAB_TYPES.map((type) => ({
+    key: type,
+    label: t(`qxmods.tabs.${type}`),
+    children: (
+      <div className="qxmods-tab-panel">
+        <div className="qxmods-filters">
+          <div className="qxmods-filters-row">
+            <label className="qxmods-filter-field">
+              <Text type="secondary" className="qxmods-filter-label">
+                {t('qxmods.filters.source')}
+              </Text>
+              <Select
+                value={sourceFilter}
+                options={sourceOptions}
+                disabled={isSearchMode}
+                onChange={(value) => setSourceFilter(value as ModCatalogSourceFilter)}
+                className="qxmods-filter-select"
+              />
+            </label>
+            <label className="qxmods-filter-field">
+              <Text type="secondary" className="qxmods-filter-label">
+                {t('qxmods.filters.sort')}
+              </Text>
+              <Select
+                value={sort}
+                options={sortOptions}
+                disabled={isSearchMode}
+                onChange={(value) => setSort(value as ModCatalogSort)}
+                className="qxmods-filter-select"
+              />
+            </label>
+          </div>
+          <div className="qxmods-search-filter">
+            <Input
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder={t('qxmods.searchFilterPlaceholder')}
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchInput(value);
+                if (!value.trim() && appliedSearch) {
+                  setAppliedSearch('');
+                }
+              }}
+              onPressEnter={applySearch}
+              onClear={clearSearch}
+            />
+            <Button onClick={applySearch} disabled={!searchInput.trim() && !appliedSearch}>
+              {appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
+            </Button>
+            {appliedSearch ? (
+              <Button type="link" onClick={clearSearch}>
+                {t('qxmods.clearSearch')}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        <Paragraph type="secondary" className="qxmods-filter-context">
+          {t('qxmods.filterContext', {
+            mcVersion: instance.mc_version,
+            loader: instance.loader,
+          })}
+        </Paragraph>
+        <Paragraph type="secondary" className="qxmods-attribution">
+          {t('qxmods.attribution')}
+          {!curseforgeEnabled ? ` ${t('qxmods.curseforgeDisabled')}` : ''}
+        </Paragraph>
+        {catalogList}
       </div>
     ),
   }));
@@ -223,6 +374,9 @@ export function InstanceResourcesPanel({
           {t('qxmods.brand')}
         </Text>
       </div>
+      <Paragraph type="secondary" className="qxmods-catalog-intro">
+        {t('qxmods.catalogIntro')}
+      </Paragraph>
       <Tabs activeKey={activeTab} onChange={(key) => setActiveTab(key as ModProjectType)} items={tabItems} />
 
       <Drawer
