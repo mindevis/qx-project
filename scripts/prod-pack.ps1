@@ -34,6 +34,7 @@ docker save "qx-web:$Tag" -o (Join-Path $Bundle "images/qx-web.tar")
 Copy-Item (Join-Path $ComposeDir "docker-compose.prod.runtime.yml") (Join-Path $Bundle "docker-compose.yml")
 Copy-Item (Join-Path $ComposeDir "nginx/prod.conf") (Join-Path $Bundle "nginx/")
 Copy-Item (Join-Path $ComposeDir "nginx/spa-security-headers.conf") (Join-Path $Bundle "nginx/")
+Copy-Item (Join-Path $ComposeDir "nginx/gzip.conf") (Join-Path $Bundle "nginx/")
 Copy-Item (Join-Path $ComposeDir "nginx/upstream-proxies.conf") (Join-Path $Bundle "nginx/")
 Copy-Item (Join-Path $Root "docs/schema.sql") $Bundle
 Copy-Item (Join-Path $ComposeDir ".env.prod.example") $Bundle

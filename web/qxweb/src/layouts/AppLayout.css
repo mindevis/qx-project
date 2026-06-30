@@ -91,6 +91,17 @@ html[data-theme='dark'] .app-header--sticky:not(.app-header--landing).app-header
   border-radius: 10px;
 }
 
+@media (max-width: 768px) {
+  .app-header-controls {
+    --header-control-height: 48px;
+  }
+
+  .app-header-login-btn.ant-btn {
+    min-width: 48px;
+    min-height: 48px;
+  }
+}
+
 .app-footer--landing {
   border-top: none !important;
 }

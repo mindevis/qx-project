@@ -12,6 +12,7 @@ ENV VITE_LAUNCHER_DOWNLOAD_URL=$VITE_LAUNCHER_DOWNLOAD_URL
 RUN npm run build
 
 FROM nginx:1.27-alpine
+COPY infra/docker/nginx/gzip.conf /etc/nginx/gzip.conf
 COPY infra/docker/nginx/web-spa.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY bin/qx-launcher.exe /usr/share/nginx/html/downloads/qx-launcher.exe

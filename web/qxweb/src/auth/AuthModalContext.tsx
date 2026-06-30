@@ -1,13 +1,18 @@
 import {
   createContext,
+  lazy,
+  Suspense,
   useCallback,
   useContext,
   useState,
   type ReactNode,
 } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AuthModal } from '@/components/AuthModal';
 import { buildAuthReturnPath } from '@/auth/authReturn';
+
+const AuthModal = lazy(() =>
+  import('@/components/AuthModal').then((module) => ({ default: module.AuthModal })),
+);
 
 export type AuthMode = 'login' | 'register';
 
@@ -43,13 +48,17 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   return (
     <AuthModalContext.Provider value={{ openAuthModal, closeAuthModal }}>
       {children}
-      <AuthModal
-        open={open}
-        mode={mode}
-        returnTo={returnTo}
-        onModeChange={setMode}
-        onClose={closeAuthModal}
-      />
+      {open ? (
+        <Suspense fallback={null}>
+          <AuthModal
+            open={open}
+            mode={mode}
+            returnTo={returnTo}
+            onModeChange={setMode}
+            onClose={closeAuthModal}
+          />
+        </Suspense>
+      ) : null}
     </AuthModalContext.Provider>
   );
 }

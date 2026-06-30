@@ -5,6 +5,7 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { apiProxyConfig, suppressProxyErrorLogs } from './vite.proxy';
+import { gzipStaticAssets } from './vite.gzip';
 import { seoStaticPlugin } from './vite.seo';
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
@@ -50,7 +51,7 @@ function applyWebToml() {
 applyWebToml();
 
 export default defineConfig({
-  plugins: [suppressProxyErrorLogs(), seoStaticPlugin(), react()],
+  plugins: [suppressProxyErrorLogs(), seoStaticPlugin(), gzipStaticAssets(), react()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

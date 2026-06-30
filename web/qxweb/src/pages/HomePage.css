@@ -97,6 +97,7 @@ html[data-theme='dark'] .home-hero-grid-pattern {
 
 .home-hero-content {
   min-width: 0;
+  min-height: 280px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -817,6 +818,13 @@ html[data-theme='dark'] .home-cta-band-inner {
   .home-hero {
     padding-top: 96px;
     padding-bottom: 64px;
+  }
+
+  .home-section--features,
+  .home-section--steps,
+  .home-cta-band {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 480px;
   }
 
   .home-section {

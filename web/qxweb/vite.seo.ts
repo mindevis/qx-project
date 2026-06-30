@@ -92,7 +92,7 @@ export function seoStaticPlugin(): Plugin {
       return html
         .replace('</head>', `${preconnect}${canonical}\n  </head>`)
         .replace(
-          '<meta name="viewport"',
+          '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
           `<meta name="description" content="QXSystem — единая экосистема для Minecraft: QXLauncher, QXMods и QXAgent на одном аккаунте." />
     <meta name="robots" content="index, follow" />
     <meta property="og:type" content="website" />
@@ -106,7 +106,7 @@ export function seoStaticPlugin(): Plugin {
     <meta name="twitter:description" content="Десктопный лаунчер, каталог модов и агент для вашего сервера — один аккаунт и общие настройки." />
     <meta name="twitter:image" content="${ogImage}" />
     <meta name="theme-color" content="#1677ff" />
-    <meta name="viewport"`,
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />`,
         );
     },
   };

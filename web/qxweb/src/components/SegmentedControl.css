@@ -66,18 +66,35 @@ html[data-theme='dark'] .qx-segment__btn:hover:not(.qx-segment__btn--active) {
 
 .qx-segment__btn--active {
   color: #fff;
-  background: #1677ff;
-  box-shadow: 0 1px 4px rgba(22, 119, 255, 0.45);
+  background: #0958d9;
+  box-shadow: 0 1px 4px rgba(9, 88, 217, 0.45);
 }
 
 html[data-theme='dark'] .qx-segment__btn--active {
-  background: #1677ff;
+  background: #0958d9;
   color: #fff;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
 }
 
 .qx-segment__btn:active {
   transform: scale(0.96);
+}
+
+@media (max-width: 768px) {
+  .qx-segment {
+    height: var(--header-control-height, 48px);
+    padding: 4px;
+  }
+
+  .qx-segment__btn {
+    height: calc(var(--header-control-height, 48px) - 8px);
+    min-width: 40px;
+  }
+
+  .qx-segment__btn--icon {
+    width: 40px;
+    min-width: 40px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

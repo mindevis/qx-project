@@ -38,7 +38,7 @@ else
   echo "Nginx: HTTP only (set PROD_CLOUDFLARE_API_TOKEN + PROD_CERTBOT_EMAIL for HTTPS)"
 fi
 
-for f in spa-security-headers.conf upstream-proxies.conf; do
+for f in spa-security-headers.conf upstream-proxies.conf gzip.conf; do
   if [[ ! -f "$ROOT/nginx/$f" ]]; then
     echo "Missing nginx/$f (deploy bundle incomplete)." >&2
     exit 1
