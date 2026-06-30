@@ -2,7 +2,6 @@ package servers
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -19,8 +18,17 @@ import (
 func TestMonitoringJoinClausesUseUnicodeCollation(t *testing.T) {
 	require.Contains(t, monitoringJoinServersMySQL, "COLLATE "+mysqlUnicodeCI)
 	require.Contains(t, monitoringJoinServersMySQL, "game_servers.server_id")
+	require.Contains(t, monitoringJoinUsersMySQL, "COLLATE "+mysqlUnicodeCI)
+	require.Contains(t, monitoringJoinUsersMySQL, "servers.owner_id")
 	require.Equal(t, monitoringJoinServersPlain, monitoringJoinServers(testutil.OpenSQLiteDB(t)))
-	require.True(t, strings.Contains(monitoringJoinUsersSQL, "servers.owner_id"))
+	require.Equal(t, monitoringJoinUsersPlain, monitoringJoinUsers(testutil.OpenSQLiteDB(t)))
+}
+
+func TestMonitoringJoinClausesMySQLDialect(t *testing.T) {
+	require.Contains(t, monitoringJoinServersMySQL, "COLLATE "+mysqlUnicodeCI)
+	require.Contains(t, monitoringJoinUsersMySQL, "COLLATE "+mysqlUnicodeCI)
+	require.NotContains(t, monitoringJoinServersPlain, "COLLATE")
+	require.NotContains(t, monitoringJoinUsersPlain, "COLLATE")
 }
 
 func TestListMonitoringServers_PremiumFirst(t *testing.T) {

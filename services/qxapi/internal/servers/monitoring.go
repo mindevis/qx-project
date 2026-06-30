@@ -22,14 +22,26 @@ const mysqlUnicodeCI = "utf8mb4_unicode_ci"
 const (
 	monitoringJoinServersMySQL = "JOIN servers ON servers.id = game_servers.server_id COLLATE " + mysqlUnicodeCI
 	monitoringJoinServersPlain = "JOIN servers ON servers.id = game_servers.server_id"
-	monitoringJoinUsersSQL     = "JOIN users ON users.id = servers.owner_id"
+	monitoringJoinUsersMySQL     = "JOIN users ON users.id = servers.owner_id COLLATE " + mysqlUnicodeCI
+	monitoringJoinUsersPlain     = "JOIN users ON users.id = servers.owner_id"
 )
 
+func monitoringIsMySQL(db *gorm.DB) bool {
+	return db != nil && db.Dialector != nil && db.Dialector.Name() == "mysql"
+}
+
 func monitoringJoinServers(db *gorm.DB) string {
-	if db != nil && db.Dialector != nil && db.Dialector.Name() == "mysql" {
+	if monitoringIsMySQL(db) {
 		return monitoringJoinServersMySQL
 	}
 	return monitoringJoinServersPlain
+}
+
+func monitoringJoinUsers(db *gorm.DB) string {
+	if monitoringIsMySQL(db) {
+		return monitoringJoinUsersMySQL
+	}
+	return monitoringJoinUsersPlain
 }
 
 type MonitoringServerView struct {
@@ -71,7 +83,7 @@ func (s *Service) ListMonitoringServers(ctx context.Context, in ListMonitoringIn
 		Table("game_servers").
 		Select("game_servers.*, users.tier AS owner_tier").
 		Joins(monitoringJoinServers(s.db)).
-		Joins(monitoringJoinUsersSQL).
+		Joins(monitoringJoinUsers(s.db)).
 		Where("game_servers.show_in_monitoring = ?", true).
 		Where("game_servers.address IS NOT NULL AND game_servers.address <> ''")
 
@@ -257,7 +269,7 @@ func (s *Service) getListedMonitoringServer(ctx context.Context, gameServerID st
 		Table("game_servers").
 		Select("game_servers.*, users.tier AS owner_tier").
 		Joins(monitoringJoinServers(s.db)).
-		Joins(monitoringJoinUsersSQL).
+		Joins(monitoringJoinUsers(s.db)).
 		Where("game_servers.id = ? AND game_servers.show_in_monitoring = ?", gameServerID, true).
 		First(&row).Error
 	if err != nil {

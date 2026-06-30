@@ -30,6 +30,14 @@ func TestConnectInvalidDSN(t *testing.T) {
 	}
 }
 
+func TestFixMonitoringTablesCollationSkipsSQLite(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(testutil.MemoryDSN(t)), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	fixMonitoringTablesCollation(db) // must not error on non-MySQL
+}
+
 func TestDropRedundantUsersEmailIndex(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(testutil.MemoryDSN(t)), &gorm.Config{})
 	if err != nil {

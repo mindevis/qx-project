@@ -52,9 +52,17 @@ func Open(dialector gorm.Dialector) (*gorm.DB, error) {
 	return db, nil
 }
 
+const schemaUnicodeCI = "utf8mb4_unicode_ci"
+
+// monitoringCollationTables matches docs/migrations/2026-06-30_game_servers_collation.sql.
+var monitoringCollationTables = []string{
+	"game_servers",
+	"game_server_monitoring_feedback",
+}
+
 var migrateUsers = func(db *gorm.DB) error {
 	dropRedundantUsersEmailIndex(db)
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&models.User{},
 		&models.LauncherDevice{},
 		&models.LauncherInstance{},
@@ -67,7 +75,38 @@ var migrateUsers = func(db *gorm.DB) error {
 		&models.Agent{},
 		&models.GameServer{},
 		&models.GameServerMonitoringFeedback{},
-	)
+	); err != nil {
+		return err
+	}
+	fixMonitoringTablesCollation(db)
+	return nil
+}
+
+// fixMonitoringTablesCollation aligns GORM-created tables with docs/schema.sql on MySQL.
+// GORM AutoMigrate uses utf8mb4_0900_ai_ci by default; monitoring JOINs need utf8mb4_unicode_ci.
+func fixMonitoringTablesCollation(db *gorm.DB) {
+	if db == nil || db.Dialector == nil || db.Dialector.Name() != "mysql" {
+		return
+	}
+	m := db.Migrator()
+	for _, table := range monitoringCollationTables {
+		if !m.HasTable(table) {
+			continue
+		}
+		var collation string
+		if err := db.Raw(
+			`SELECT TABLE_COLLATION FROM information_schema.TABLES
+			 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+			table,
+		).Scan(&collation).Error; err != nil || collation == "" || collation == schemaUnicodeCI {
+			continue
+		}
+		if err := db.Exec(
+			"ALTER TABLE " + table + " CONVERT TO CHARACTER SET utf8mb4 COLLATE " + schemaUnicodeCI,
+		).Error; err != nil {
+			log.Printf("warning: fix %s collation (%s -> %s): %v", table, collation, schemaUnicodeCI, err)
+		}
+	}
 }
 
 // dropRedundantUsersEmailIndex removes a legacy non-unique index from docs/schema.sql
