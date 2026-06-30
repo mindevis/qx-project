@@ -1,20 +1,14 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { gameServerUpstreamUrl } from './gameServerUpstream';
 
 describe('gameServerUpstream', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it('uses production host outside dev', () => {
-    vi.stubEnv('DEV', false);
+  it('uses same-origin upstream proxy path in all environments', () => {
     expect(gameServerUpstreamUrl('forge', '/net/minecraftforge/forge/promotions_slim.json')).toBe(
-      'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json',
+      '/upstream/forge/net/minecraftforge/forge/promotions_slim.json',
     );
-  });
-
-  it('uses vite proxy prefix in dev', () => {
-    vi.stubEnv('DEV', true);
+    expect(gameServerUpstreamUrl('mavenforge', '/net/minecraftforge/forge/maven-metadata.xml')).toBe(
+      '/upstream/mavenforge/net/minecraftforge/forge/maven-metadata.xml',
+    );
     expect(gameServerUpstreamUrl('papermc', '/v2/projects/paper')).toBe(
       '/upstream/papermc/v2/projects/paper',
     );
