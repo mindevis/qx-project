@@ -16,7 +16,7 @@ For Mojang-linked accounts, upload a custom skin on Profile to override the offi
 
 ### Out of scope (requires client mods)
 
-Capes, wings, and other non-vanilla cosmetics are **not supported**. The archived Fabric mod in `mods/qx-cosmetics-fabric/` is not used by QXLauncher.
+Capes, wings, and other non-vanilla cosmetics are **not supported** (would require client mods; QX uses the skin server approach instead).
 
 ## Flow
 
