@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -5,27 +6,73 @@ import { message } from 'antd';
 import { renderWithProviders } from '@/test/test-utils';
 import { saveTokens } from '@/api/client';
 
+vi.mock('skinview3d', async () => {
+  const { skinview3dWebGlFailureMock } = await import('@/test/skinview3d-mock');
+  return skinview3dWebGlFailureMock;
+});
+
 vi.mock('@/components/ChangeEmailModal', () => ({
   ChangeEmailModal: ({ onSuccess, open }: { onSuccess: () => void; open: boolean }) => {
-    if (!open) return null;
-    queueMicrotask(() => onSuccess());
+    const firedRef = useRef(false);
+    const onSuccessRef = useRef(onSuccess);
+    onSuccessRef.current = onSuccess;
+    useEffect(() => {
+      if (!open) {
+        firedRef.current = false;
+        return;
+      }
+      if (!firedRef.current) {
+        firedRef.current = true;
+        queueMicrotask(() => onSuccessRef.current());
+      }
+    }, [open]);
     return null;
   },
 }));
 
 import { ProfilePage } from './ProfilePage';
 
-describe('ProfilePage email success', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-    saveTokens({
-      access_token: 'a',
-      refresh_token: 'r',
-      token_type: 'Bearer',
-      expires_in: 3600,
-    });
-    vi.mocked(fetch).mockImplementation(() =>
-      Promise.resolve(
+function mockProfileFetch() {
+  vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (url.includes('/auth/refresh')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            access_token: 'a',
+            refresh_token: 'r',
+            token_type: 'Bearer',
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        ),
+      );
+    }
+    if (url.includes('/users/me/mojang')) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ linked: false }), { status: 200 }),
+      );
+    }
+    if (url.includes('/users/me/cosmetics')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            skin_model: 'steve',
+            has_skin: false,
+            has_cape: false,
+            updated_at: '2026-01-01T00:00:00Z',
+          }),
+          { status: 200 },
+        ),
+      );
+    }
+    if (url.includes('/users/me')) {
+      return Promise.resolve(
         new Response(
           JSON.stringify({
             id: '1',
@@ -35,8 +82,23 @@ describe('ProfilePage email success', () => {
           }),
           { status: 200 },
         ),
-      ),
-    );
+      );
+    }
+    return Promise.resolve(new Response('{}', { status: 200 }));
+  });
+}
+
+describe('ProfilePage email success', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+      saved_at: Date.now(),
+    });
+    mockProfileFetch();
   });
 
   afterEach(() => {

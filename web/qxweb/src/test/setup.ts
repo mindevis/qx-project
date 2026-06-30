@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { afterEach, vi } from 'vitest';
+import { afterAll, afterEach, vi } from 'vitest';
 import { act, cleanup, configure } from '@testing-library/react';
 import { message } from 'antd';
 import { clearTokens } from '@/api/client';
@@ -43,6 +43,14 @@ class ResizeObserverMock {
 
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 
+async function flushReactWork() {
+  await act(async () => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  });
+}
+
 afterEach(async () => {
   cleanup();
   clearTokens();
@@ -51,8 +59,9 @@ afterEach(async () => {
   mockMatchMedia();
   message.destroy();
   vi.stubGlobal('ResizeObserver', ResizeObserverMock);
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
+  await flushReactWork();
+});
+
+afterAll(async () => {
+  await flushReactWork();
 });

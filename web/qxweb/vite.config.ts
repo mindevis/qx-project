@@ -65,7 +65,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/vite-env.d.ts', 'src/main.tsx', 'src/hooks/useMessage.ts'],
+      exclude: ['src/vite-env.d.ts', 'src/main.tsx', 'src/hooks/useMessage.ts', 'src/test/skinview3d-mock.ts'],
       thresholds: {
         statements: 88,
         branches: 77,

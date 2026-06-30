@@ -6,17 +6,10 @@ import { renderWithProviders } from '@/test/test-utils';
 import { ProfilePage } from './ProfilePage';
 import { saveTokens, api } from '@/api/client';
 
-vi.mock('skinview3d', () => ({
-  SkinViewer: vi.fn().mockImplementation(() => ({
-    disposed: false,
-    background: null,
-    autoRotate: false,
-    controls: { enableZoom: false, enablePan: false, enableRotate: true },
-    loadSkin: vi.fn().mockResolvedValue(undefined),
-    resetCameraPose: vi.fn(),
-    dispose: vi.fn(),
-  })),
-}));
+vi.mock('skinview3d', async () => {
+  const { skinview3dMock } = await import('@/test/skinview3d-mock');
+  return skinview3dMock;
+});
 
 function mockProfileFetch() {
   vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
