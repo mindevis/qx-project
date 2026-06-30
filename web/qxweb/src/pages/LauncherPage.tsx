@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import {
+  Alert,
   Button,
   Form,
   Input,
@@ -127,6 +128,11 @@ function LauncherHome() {
   const instancesTitle = t('launcher.myInstances');
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
   const licensedReady = accountMode === 'licensed' && mojangStatus?.linked === true;
+  const sortedInstances = useMemo(
+    () => [...instances].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+    [instances],
+  );
+  const launchBlocked = accountMode === 'licensed' && !licensedReady;
   const activePlayerLabel =
     accountMode === 'licensed'
       ? mojangStatus?.linked
@@ -583,7 +589,7 @@ function LauncherHome() {
             </Title>
             <Paragraph className="launcher-intro">{t('launcher.intro')}</Paragraph>
             {canManage ? (
-              <div className="launcher-hero-actions">
+              <Space wrap size="middle" className="launcher-hero-actions">
                 <Button
                   type="primary"
                   size="large"
@@ -593,14 +599,10 @@ function LauncherHome() {
                 >
                   {t('launcher.heroCreateInstance')}
                 </Button>
-                <Button
-                  size="large"
-                  icon={<UserOutlined />}
-                  onClick={openProfileModal}
-                >
+                <Button size="large" icon={<UserOutlined />} onClick={openProfileModal}>
                   {t('launcher.heroAddProfile')}
                 </Button>
-              </div>
+              </Space>
             ) : null}
           </div>
 
@@ -730,67 +732,41 @@ function LauncherHome() {
         )}
 
         {linkedDevice && isAuthenticated && (
-          <section className="launcher-section launcher-section--qxmods">
-            <div className="launcher-qxmods-promo">
-              <Title level={4} className="launcher-qxmods-promo-title">
-                {t('qxmods.promoTitle')}
-              </Title>
-              <Paragraph type="secondary" className="launcher-qxmods-promo-body">
-                {t('qxmods.promoBody')}
-              </Paragraph>
-            </div>
-          </section>
+          <div className="launcher-qxmods-promo">
+            <Title level={4} className="launcher-qxmods-promo-title">
+              {t('qxmods.promoTitle')}
+            </Title>
+            <Paragraph type="secondary" className="launcher-qxmods-promo-body">
+              {t('qxmods.promoBody')}
+            </Paragraph>
+          </div>
         )}
 
-        <div className="launcher-workspace-grid">
-          <div className="launcher-panel launcher-panel--instances">
-            <div className="launcher-panel-header">
-              <div className="launcher-panel-heading">
-                <span className="launcher-panel-icon launcher-panel-icon--play">
-                  <RocketOutlined />
-                </span>
-                <div>
-                  <Title level={4} className="launcher-panel-title">
-                    {instancesTitle}
-                  </Title>
-                  {instances.length > 0 ? (
+        <div className="launcher-workspace-stack">
+          {canManage ? (
+            <div className="launcher-panel launcher-panel--player">
+              <div className="launcher-panel-header">
+                <div className="launcher-panel-heading">
+                  <span className="launcher-panel-icon">
+                    <UserOutlined />
+                  </span>
+                  <div>
+                    <Title level={4} className="launcher-panel-title">
+                      {t('launcher.playerSectionTitle')}
+                    </Title>
                     <Text type="secondary" className="launcher-panel-count">
-                      {instances.length}
+                      {t('launcher.playerSectionHint')}
                     </Text>
-                  ) : null}
+                  </div>
                 </div>
-              </div>
-              {canManage && instances.length > 0 ? (
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-                  {t('common.create')}
-                </Button>
-              ) : null}
-            </div>
-
-            {authLoading ? (
-              <div className="launcher-panel-loading">
-                <Spin />
-              </div>
-            ) : !canManage ? (
-              <Paragraph type="secondary" className="launcher-panel-empty">
-                {t('launcher.signInRequired')}
-              </Paragraph>
-            ) : loading ? (
-              <div className="launcher-panel-loading">
-                <Spin />
-              </div>
-            ) : instances.length === 0 ? (
-              <div className="launcher-empty">
-                <RocketOutlined className="launcher-empty-icon" />
-                <Paragraph type="secondary">{t('launcher.noInstances')}</Paragraph>
-                {canManage ? (
-                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-                    {t('launcher.createFirstInstance')}
+                {accountMode === 'offline' ? (
+                  <Button icon={<PlusOutlined />} onClick={openProfileModal}>
+                    {t('launcher.addProfile')}
                   </Button>
                 ) : null}
               </div>
-            ) : (
-              <>
+
+              <div className="launcher-player-controls">
                 <div className="launcher-launch-bar-mode">
                   <Text type="secondary">{t('launcher.accountMode')}</Text>
                   <Segmented<LaunchAccountMode>
@@ -807,17 +783,196 @@ function LauncherHome() {
                   {accountMode === 'offline' && selectedProfile ? (
                     <ProfileModelAvatar model={selectedProfile.model ?? 'steve'} size="sm" />
                   ) : null}
+                  {launchBlocked ? (
+                    <Text type="warning" className="launcher-launch-blocked">
+                      {t('launcher.licensedLaunchFailed')}
+                    </Text>
+                  ) : null}
                 </div>
-                <div className="launcher-instance-list">
-                  {instances.map((item) => (
+              </div>
+
+              {accountMode === 'licensed' ? (
+                mojangLoading ? (
+                  <div className="launcher-panel-loading">
+                    <Spin />
+                  </div>
+                ) : mojangStatus?.linked ? (
+                  <div className="launcher-licensed-account-card">
+                    <Text strong>{mojangStatus.username}</Text>
+                    {mojangStatus.minecraft_uuid ? (
+                      <Text type="secondary" className="launcher-licensed-account-uuid">
+                        {mojangStatus.minecraft_uuid}
+                      </Text>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="launcher-empty launcher-empty--inline">
+                    <LinkOutlined className="launcher-empty-icon" />
+                    <Paragraph type="secondary">{t('launcher.licensedNotLinked')}</Paragraph>
+                    <Link to="/profile">
+                      <Button type="primary" icon={<LinkOutlined />}>
+                        {t('launcher.linkMicrosoft')}
+                      </Button>
+                    </Link>
+                  </div>
+                )
+              ) : profilesLoading ? (
+                <div className="launcher-panel-loading">
+                  <Spin />
+                </div>
+              ) : profiles.length === 0 ? (
+                <div className="launcher-empty launcher-empty--inline">
+                  <UserOutlined className="launcher-empty-icon" />
+                  <Paragraph type="secondary">{t('launcher.noProfiles')}</Paragraph>
+                  <Paragraph type="secondary" className="launcher-empty-hint">
+                    {t('launcher.noProfilesHint')}
+                  </Paragraph>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={openProfileModal}>
+                    {t('launcher.addProfile')}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Paragraph type="secondary" className="launcher-panel-hint">
+                    {t('launcher.selectNickname')}
+                  </Paragraph>
+                  <div className="launcher-profile-list">
+                    {profiles.map((profile) => {
+                      const selected = selectedProfileId === profile.id;
+                      return (
+                        <div
+                          key={profile.id}
+                          className={`launcher-profile-chip${selected ? ' launcher-profile-chip--selected' : ''}`}
+                        >
+                          <button
+                            type="button"
+                            className="launcher-profile-chip-main"
+                            onClick={() => setSelectedProfileId(profile.id)}
+                          >
+                            <span className="profile-model-chip-avatar" aria-hidden>
+                              <ProfileModelAvatar model={profile.model ?? 'steve'} size="sm" />
+                            </span>
+                            <span className="launcher-profile-chip-text">
+                              <span className="launcher-profile-name">
+                                {profile.username}
+                                {selected ? (
+                                  <CheckCircleOutlined className="launcher-profile-selected-icon" />
+                                ) : null}
+                              </span>
+                              <span className="launcher-profile-meta">
+                                {t(`launcher.profileModel.${profile.model ?? 'steve'}`)} ·{' '}
+                                {t(`launcher.profileGender.${profile.model ?? 'steve'}`)}
+                              </span>
+                            </span>
+                          </button>
+                          <Popconfirm
+                            title={t('launcher.deleteProfileConfirm')}
+                            onConfirm={() => handleDeleteProfile(profile.id)}
+                          >
+                            <Button
+                              type="text"
+                              danger
+                              size="small"
+                              icon={<DeleteOutlined />}
+                              aria-label={t('launcher.deleteProfileConfirm')}
+                            />
+                          </Popconfirm>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          <div className="launcher-panel launcher-panel--instances">
+            <div className="launcher-panel-header">
+              <div className="launcher-panel-heading">
+                <span className="launcher-panel-icon launcher-panel-icon--play">
+                  <RocketOutlined />
+                </span>
+                <div>
+                  <Title level={4} className="launcher-panel-title">
+                    {instancesTitle}
+                  </Title>
+                  {instances.length > 0 ? (
+                    <Text type="secondary" className="launcher-panel-count">
+                      {t('launcher.instancesSorted', { count: instances.length })}
+                    </Text>
+                  ) : null}
+                </div>
+              </div>
+              {canManage ? (
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+                  {t('launcher.heroCreateInstance')}
+                </Button>
+              ) : null}
+            </div>
+
+            {!linkedDevice && isAuthenticated && canManage ? (
+              <Alert
+                type="warning"
+                showIcon
+                className="launcher-instance-link-alert"
+                title={t('launcher.linkDevicePrompt')}
+                action={
+                  <Link to="/launcher/link">
+                    <Button size="small" type="primary" icon={<LinkOutlined />}>
+                      {t('launcher.openLinkPage')}
+                    </Button>
+                  </Link>
+                }
+              />
+            ) : null}
+
+            {authLoading ? (
+              <div className="launcher-panel-loading">
+                <Spin />
+              </div>
+            ) : !canManage ? (
+              <div className="launcher-empty">
+                <LoginOutlined className="launcher-empty-icon" />
+                <Paragraph type="secondary" className="launcher-panel-empty">
+                  {t('launcher.signInRequired')}
+                </Paragraph>
+              </div>
+            ) : loading ? (
+              <div className="launcher-panel-loading">
+                <Spin />
+              </div>
+            ) : instances.length === 0 ? (
+              <div className="launcher-empty">
+                <RocketOutlined className="launcher-empty-icon" />
+                <Paragraph strong>{t('launcher.noInstances')}</Paragraph>
+                <Paragraph type="secondary" className="launcher-empty-hint">
+                  {t('launcher.noInstancesHint')}
+                </Paragraph>
+                <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+                  {t('launcher.createFirstInstance')}
+                </Button>
+              </div>
+            ) : (
+              <div className="launcher-instance-list">
+                {sortedInstances.map((item) => {
+                  const isLaunching = launchingId === item.id;
+                  const isModded = isModdedLauncherLoader(item.loader);
+                  return (
                     <div
                       key={item.id}
-                      className={`launcher-instance-card${launchingId === item.id ? ' launcher-instance-card--launching' : ''}`}
+                      className={`launcher-instance-card${isLaunching ? ' launcher-instance-card--launching' : ''}`}
                     >
                       <div className="launcher-instance-info">
-                        <Text strong className="launcher-instance-name">
-                          {item.name}
-                        </Text>
+                        <div className="launcher-instance-name-row">
+                          <Text strong className="launcher-instance-name">
+                            {item.name}
+                          </Text>
+                          {isLaunching ? (
+                            <span className="launcher-instance-status launcher-instance-status--active">
+                              {t('launcher.launching')}
+                            </span>
+                          ) : null}
+                        </div>
                         <div className="launcher-instance-tags">
                           <span className="launcher-tag launcher-tag--version">
                             Minecraft {item.mc_version}
@@ -829,176 +984,40 @@ function LauncherHome() {
                             <span className="launcher-tag">{item.loader_version}</span>
                           ) : null}
                         </div>
-                        {isModdedLauncherLoader(item.loader) ? (
-                          <Link
-                            to={`/launcher/instances/${item.id}/resources`}
-                            className="launcher-instance-resources-link"
-                          >
-                            <AppstoreOutlined /> {t('launcher.browseResources')}
-                          </Link>
-                        ) : null}
                       </div>
                       <Space wrap className="launcher-instance-actions">
                         <Button
                           type="primary"
                           size="large"
                           icon={<RocketOutlined />}
-                          loading={launchingId === item.id}
-                          disabled={
-                            (accountMode === 'licensed' && !licensedReady) ||
-                            (launchingId !== null && launchingId !== item.id)
-                          }
+                          loading={isLaunching}
+                          disabled={launchBlocked || (launchingId !== null && !isLaunching)}
                           onClick={() => handlePlay(item)}
                         >
                           {t('launcher.play')}
                         </Button>
+                        {isModded ? (
+                          <Link to={`/launcher/instances/${item.id}/resources`}>
+                            <Button size="large" icon={<AppstoreOutlined />}>
+                              {t('launcher.browseResources')}
+                            </Button>
+                          </Link>
+                        ) : null}
                         <Popconfirm
                           title={t('launcher.deleteInstanceConfirm')}
                           onConfirm={() => handleDelete(item.id)}
                         >
-                          <Button danger icon={<DeleteOutlined />} />
+                          <Button
+                            danger
+                            icon={<DeleteOutlined />}
+                            aria-label={t('launcher.deleteInstanceConfirm')}
+                          />
                         </Popconfirm>
                       </Space>
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="launcher-panel launcher-panel--profiles">
-            <div className="launcher-panel-header">
-              <div className="launcher-panel-heading">
-                <span className="launcher-panel-icon">
-                  <UserOutlined />
-                </span>
-                <div>
-                  <Title level={4} className="launcher-panel-title">
-                    {t('launcher.offlineProfiles')}
-                  </Title>
-                  {profiles.length > 0 ? (
-                    <Text type="secondary" className="launcher-panel-count">
-                      {profiles.length}
-                    </Text>
-                  ) : null}
-                </div>
+                  );
+                })}
               </div>
-              {canManage && accountMode === 'offline' && profiles.length > 0 ? (
-                <Button icon={<PlusOutlined />} onClick={openProfileModal}>
-                  {t('common.add')}
-                </Button>
-              ) : null}
-            </div>
-
-            {canManage ? (
-              <div className="launcher-launch-bar-mode launcher-launch-bar-mode--panel">
-                <Text type="secondary">{t('launcher.accountMode')}</Text>
-                <Segmented<LaunchAccountMode>
-                  size="small"
-                  options={accountModeOptions}
-                  value={accountMode}
-                  onChange={(value) => setAccountMode(value)}
-                />
-              </div>
-            ) : null}
-
-            {!canManage ? (
-              <Paragraph type="secondary" className="launcher-panel-empty">
-                {t('launcher.offlineAfterLink')}
-              </Paragraph>
-            ) : accountMode === 'licensed' ? (
-              mojangLoading ? (
-                <div className="launcher-panel-loading">
-                  <Spin />
-                </div>
-              ) : mojangStatus?.linked ? (
-                <div className="launcher-licensed-account">
-                  <Paragraph type="secondary" className="launcher-panel-hint">
-                    {t('launcher.licensedAccount')}
-                  </Paragraph>
-                  <div className="launcher-licensed-account-card">
-                    <Text strong>{mojangStatus.username}</Text>
-                    {mojangStatus.minecraft_uuid ? (
-                      <Text type="secondary" className="launcher-licensed-account-uuid">
-                        {mojangStatus.minecraft_uuid}
-                      </Text>
-                    ) : null}
-                  </div>
-                </div>
-              ) : (
-                <div className="launcher-empty">
-                  <LinkOutlined className="launcher-empty-icon" />
-                  <Paragraph type="secondary">{t('launcher.licensedNotLinked')}</Paragraph>
-                  <Link to="/profile">
-                    <Button type="primary" ghost>
-                      {t('launcher.goToProfile')}
-                    </Button>
-                  </Link>
-                </div>
-              )
-            ) : profilesLoading ? (
-              <div className="launcher-panel-loading">
-                <Spin />
-              </div>
-            ) : profiles.length === 0 ? (
-              <div className="launcher-empty">
-                <UserOutlined className="launcher-empty-icon" />
-                <Paragraph type="secondary">{t('launcher.noProfiles')}</Paragraph>
-                <Button type="primary" ghost onClick={openProfileModal}>
-                  {t('launcher.addProfile')}
-                </Button>
-              </div>
-            ) : (
-              <>
-                <Paragraph type="secondary" className="launcher-panel-hint">
-                  {t('launcher.selectNickname')}
-                </Paragraph>
-                <div className="launcher-profile-list">
-                  {profiles.map((profile) => {
-                    const selected = selectedProfileId === profile.id;
-                    return (
-                      <div
-                        key={profile.id}
-                        className={`launcher-profile-chip${selected ? ' launcher-profile-chip--selected' : ''}`}
-                      >
-                        <button
-                          type="button"
-                          className="launcher-profile-chip-main"
-                          onClick={() => setSelectedProfileId(profile.id)}
-                        >
-                          <span className="profile-model-chip-avatar" aria-hidden>
-                            <ProfileModelAvatar model={profile.model ?? 'steve'} size="sm" />
-                          </span>
-                          <span className="launcher-profile-chip-text">
-                            <span className="launcher-profile-name">
-                              {profile.username}
-                              {selected ? (
-                                <CheckCircleOutlined className="launcher-profile-selected-icon" />
-                              ) : null}
-                            </span>
-                            <span className="launcher-profile-meta">
-                              {t(`launcher.profileModel.${profile.model ?? 'steve'}`)} ·{' '}
-                              {t(`launcher.profileGender.${profile.model ?? 'steve'}`)}
-                            </span>
-                          </span>
-                        </button>
-                        <Popconfirm
-                          title={t('launcher.deleteProfileConfirm')}
-                          onConfirm={() => handleDeleteProfile(profile.id)}
-                        >
-                          <Button
-                            type="text"
-                            danger
-                            size="small"
-                            icon={<DeleteOutlined />}
-                            aria-label={t('launcher.deleteProfileConfirm')}
-                          />
-                        </Popconfirm>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
             )}
           </div>
         </div>

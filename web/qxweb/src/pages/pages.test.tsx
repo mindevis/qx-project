@@ -117,6 +117,19 @@ async function expectLauncherProfileListed(username: string) {
   });
 }
 
+async function openCreateInstanceModal(user: ReturnType<typeof userEvent.setup>) {
+  const createFirst = screen.queryByRole('button', { name: /Создать первый инстанс/ });
+  if (createFirst) {
+    await user.click(createFirst);
+    return;
+  }
+  await user.click(screen.getAllByRole('button', { name: /Новый инстанс/ })[0]!);
+}
+
+async function openAddProfileModal(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getAllByRole('button', { name: /Добавить профиль/ })[0]!);
+}
+
 function getProfileDeleteButton() {
   return screen.getByRole('button', { name: 'Удалить профиль?' });
 }
@@ -189,7 +202,7 @@ describe('pages', () => {
     await waitFor(() =>
       expect(screen.getByText('Войдите в аккаунт, чтобы управлять инстансами и профилями.')).toBeInTheDocument(),
     );
-    await user.click(screen.getByRole('button', { name: 'Войти в аккаунт' }));
+    await user.click(screen.getAllByRole('button', { name: 'Войти в аккаунт' })[0]!);
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 
@@ -204,7 +217,7 @@ describe('pages', () => {
       '/launcher',
     );
 
-    await user.click(screen.getByRole('button', { name: 'Войти в аккаунт' }));
+    await user.click(screen.getAllByRole('button', { name: 'Войти в аккаунт' })[0]!);
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });
 
@@ -329,12 +342,12 @@ describe('pages', () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: /Создать/ }));
+    await openCreateInstanceModal(user);
     await user.type(screen.getByLabelText('Название'), 'New');
     await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('create failed'));
 
-    await user.click(screen.getByRole('button', { name: 'delete' }));
+    await user.click(screen.getByRole('button', { name: 'Удалить инстанс?' }));
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('delete failed'));
 
@@ -385,13 +398,13 @@ describe('pages', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /Создать/ }));
+    await openCreateInstanceModal(user);
     await user.type(screen.getByLabelText('Название'), 'X');
     await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось создать инстанс'));
     createSpy.mockRestore();
 
-    await user.click(screen.getByRole('button', { name: 'delete' }));
+    await user.click(screen.getByRole('button', { name: 'Удалить инстанс?' }));
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось удалить'));
     deleteSpy.mockRestore();
@@ -506,7 +519,7 @@ describe('pages', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Пока нет инстансов')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /Создать/ }));
+    await openCreateInstanceModal(user);
     await user.type(screen.getByLabelText('Название'), 'Survival');
     await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
 
@@ -517,16 +530,18 @@ describe('pages', () => {
         'Создайте offline-профиль с ником или играйте с Player по умолчанию',
       ),
     );
-    await waitFor(() => expect(screen.getByText('Добавить профиль')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'Новый профиль игрока' })).toBeInTheDocument(),
+    );
     await user.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
     await waitForNoDialog();
 
-    await user.click(screen.getByRole('button', { name: /Создать/ }));
+    await openCreateInstanceModal(user);
     await waitFor(() => expect(screen.getByRole('dialog', { name: 'Новый инстанс' })).toBeInTheDocument());
     await user.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
     await waitForNoDialog();
 
-    await user.click(screen.getByRole('button', { name: 'delete' }));
+    await user.click(screen.getByRole('button', { name: 'Удалить инстанс?' }));
     await user.click(await screen.findByRole('button', { name: 'OK' }));
 
     await waitFor(() => expect(screen.getByText('Пока нет инстансов')).toBeInTheDocument());
@@ -635,7 +650,7 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() =>
       expect(infoSpy).toHaveBeenCalledWith(
-        'Ник Player (по умолчанию). Создайте профиль выше для своего ника.',
+        'Ник Player (по умолчанию). Добавьте профиль в разделе «Игрок» для своего ника.',
       ),
     );
     infoSpy.mockRestore();
@@ -1096,7 +1111,7 @@ describe('pages', () => {
     );
 
     await expectLauncherProfileListed('Steve');
-    await user.click(screen.getByRole('button', { name: /Добавить/ }));
+    await openAddProfileModal(user);
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('username taken'));
@@ -1152,11 +1167,11 @@ describe('pages', () => {
     );
 
     await expectLauncherProfileListed('Steve');
-    await user.click(screen.getByRole('button', { name: /Создать/ }));
+    await openCreateInstanceModal(user);
     await user.type(screen.getByLabelText('Название'), 'Survival');
     await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    expect(screen.queryByText('Добавить профиль')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Новый профиль игрока' })).not.toBeInTheDocument();
   });
 
   it('reports failed launch and deletes profile', async () => {
@@ -1237,7 +1252,7 @@ describe('pages', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /Добавить/ }));
+    await openAddProfileModal(user);
     await user.type(screen.getByLabelText('Никнейм'), 'Steve');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
     await expectLauncherProfileListed('Steve');
@@ -1325,7 +1340,7 @@ describe('pages', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /Добавить/ }));
+    await openAddProfileModal(user);
     await user.type(screen.getByLabelText('Никнейм'), 'Steve');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
     await expectLauncherProfileListed('Steve');
@@ -1638,7 +1653,7 @@ describe('pages', () => {
     );
 
     await expectLauncherProfileListed('Steve');
-    await user.click(screen.getByRole('button', { name: /Добавить/ }));
+    await openAddProfileModal(user);
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось создать профиль'));
@@ -1835,7 +1850,7 @@ describe('pages', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Пока нет инстансов')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /Создать/ }));
+    await openCreateInstanceModal(user);
     await user.type(screen.getByLabelText('Название'), 'Survival');
     await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
     await waitFor(() =>
