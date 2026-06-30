@@ -197,22 +197,23 @@ describe('ServerConsolePanel', () => {
   });
 
   it('scrolls console output when new lines arrive', async () => {
-    renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
+    const { container } = renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
     await waitFor(() =>
       expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
     );
 
-    const pre = document.querySelector('pre');
+    const pre = container.querySelector('pre');
     expect(pre).not.toBeNull();
     const scrollTo = vi.fn();
-    Object.defineProperty(pre!, 'scrollTo', { value: scrollTo, configurable: true });
+    Object.defineProperty(pre!, 'scrollTo', { value: scrollTo, configurable: true, writable: true });
+    Object.defineProperty(pre!, 'scrollHeight', { value: 100, configurable: true });
 
     const ws = MockWebSocket.instances.at(-1);
     ws?.onmessage?.({ data: JSON.stringify({ type: 'output', stream: 'out', line: 'hello' }) });
 
     await waitFor(() => expect(screen.getByText(/\[out\] hello/)).toBeInTheDocument());
-    expect(scrollTo).toHaveBeenCalledWith(0, pre!.scrollHeight);
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 100));
   });
 
   it('ignores empty commands and closes on unmount', async () => {
