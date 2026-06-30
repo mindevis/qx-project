@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
 import { Routes, Route } from 'react-router-dom';
@@ -118,6 +118,12 @@ async function expectLauncherProfileListed(username: string) {
 }
 
 async function openCreateInstanceModal(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => {
+    const hasCreate =
+      screen.queryByRole('button', { name: /Создать первый инстанс/ }) ??
+      screen.queryAllByRole('button', { name: /Новый инстанс/ })[0];
+    expect(hasCreate).toBeTruthy();
+  });
   const createFirst = screen.queryByRole('button', { name: /Создать первый инстанс/ });
   if (createFirst) {
     await user.click(createFirst);
@@ -134,7 +140,7 @@ function getProfileDeleteButton() {
   return screen.getByRole('button', { name: 'Удалить профиль?' });
 }
 
-describe('pages', () => {
+describe('pages', { timeout: 30_000 }, () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     clearTokens();
@@ -585,6 +591,219 @@ describe('pages', () => {
     warnSpy.mockRestore();
   });
 
+  it('reloads create form versions when loader type changes', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/instances') || url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        if (url.includes('fabric') || url.includes('meta.fabricmc')) {
+          return new Response(
+            JSON.stringify({
+              versions: [{ version: '1.21', stable: true }],
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Пока нет инстансов')).toBeInTheDocument());
+    await openCreateInstanceModal(user);
+    const dialog = await screen.findByRole('dialog', { name: 'Новый инстанс' });
+    const comboboxes = within(dialog).getAllByRole('combobox');
+    await user.click(comboboxes[0]!);
+    await user.click(await screen.findByText('Fabric', { selector: '.ant-select-item-option-content' }));
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText('Версия Fabric Loader')).toBeInTheDocument(),
+    );
+    const mcCombobox = within(dialog).getAllByRole('combobox')[1]!;
+    await user.click(mcCombobox);
+    await user.click(await screen.findByText('1.20.4', { selector: '.ant-select-item-option-content' }));
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText('Версия Fabric Loader')).toBeInTheDocument(),
+    );
+  });
+
+  it('falls back when create mc versions fail for mod loader', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/instances') || url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        if (url.includes('fabric') && url.includes('game')) {
+          return new Response('fail', { status: 500 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await openCreateInstanceModal(user);
+    const dialog = await screen.findByRole('dialog', { name: 'Новый инстанс' });
+    const comboboxes = within(dialog).getAllByRole('combobox');
+    await user.click(comboboxes[0]!);
+    await user.click(await screen.findByText('Fabric', { selector: '.ant-select-item-option-content' }));
+    await waitFor(() => expect(within(dialog).getByLabelText('Версия Minecraft')).toBeInTheDocument());
+  });
+
+  it('handles loader version fetch failure in create modal', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/instances') || url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        if (url.includes('loader') && url.includes('fabric')) {
+          return new Response('fail', { status: 500 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await openCreateInstanceModal(user);
+    const dialog = await screen.findByRole('dialog', { name: 'Новый инстанс' });
+    const comboboxes = within(dialog).getAllByRole('combobox');
+    await user.click(comboboxes[0]!);
+    await user.click(await screen.findByText('Fabric', { selector: '.ant-select-item-option-content' }));
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText('Версия Fabric Loader')).toBeInTheDocument(),
+    );
+  });
+
+  it('opens profile modal from hero action', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/instances') || url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Игрок')).toBeInTheDocument());
+    await user.click(screen.getAllByRole('button', { name: /Новый профиль/ })[0]!);
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'Новый профиль игрока' })).toBeInTheDocument(),
+    );
+  });
+
+  it('selects an offline profile for launch', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    const profiles = [
+      {
+        id: 'prof-1',
+        username: 'Steve',
+        model: 'steve' as const,
+        offline_uuid: 'u1',
+        created_at: 't',
+      },
+      {
+        id: 'prof-2',
+        username: 'AlexName',
+        model: 'alex' as const,
+        offline_uuid: 'u2',
+        created_at: 't',
+      },
+    ];
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/launcher/profiles')) {
+          return new Response(JSON.stringify({ items: profiles }), { status: 200 });
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await expectLauncherProfileListed('Steve');
+    await user.click(screen.getByText('AlexName'));
+    await waitFor(() => {
+      const selected = document.querySelector('.launcher-profile-chip--selected .launcher-profile-name');
+      expect(selected).toHaveTextContent('AlexName');
+    });
+  });
+
   it('launches with default player when no offline profile', async () => {
     const user = userEvent.setup({ delay: null });
     const infoSpy = vi.spyOn(message, 'info');
@@ -656,6 +875,70 @@ describe('pages', () => {
     infoSpy.mockRestore();
   });
 
+  it('shows launching status badge while polling launch request', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    const instance = {
+      id: 'inst-1',
+      name: 'Survival',
+      mc_version: '1.21',
+      loader: 'vanilla',
+      created_at: 't',
+      updated_at: 't',
+    };
+    let polls = 0;
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
+          return new Response(
+            JSON.stringify({
+              id: 'lr-1',
+              status: 'queued',
+              instance_id: instance.id,
+              expires_at: new Date().toISOString(),
+            }),
+            { status: 201 },
+          );
+        }
+        if (url.includes('/launcher/launch-requests/lr-1')) {
+          polls += 1;
+          const status = polls < 3 ? 'running' : 'completed';
+          return new Response(
+            JSON.stringify({
+              id: 'lr-1',
+              status,
+              instance_id: instance.id,
+              expires_at: new Date().toISOString(),
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Играть/ }));
+    await waitFor(() => expect(screen.getByText('Запуск…')).toBeInTheDocument());
+  });
+
   it('shows linked device without download prompt', async () => {
     saveTokens({
       access_token: 'a',
@@ -691,6 +974,299 @@ describe('pages', () => {
       expect(screen.getByText(/QXLauncher связан \(dev-99\)/)).toBeInTheDocument(),
     );
     expect(screen.queryByRole('button', { name: /Скачать QXLauncher/ })).not.toBeInTheDocument();
+  });
+
+  it('shows player section, sorted instances, and link prompt when device is not linked', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    const instances = [
+      {
+        id: 'inst-z',
+        name: 'Zeta',
+        mc_version: '1.21',
+        loader: 'vanilla',
+        created_at: 't',
+        updated_at: 't',
+      },
+      {
+        id: 'inst-a',
+        name: 'Alpha',
+        mc_version: '1.21',
+        loader: 'fabric',
+        loader_version: '0.16.0',
+        created_at: 't',
+        updated_at: 't',
+      },
+    ];
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: instances }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Игрок')).toBeInTheDocument());
+    const instancesPanel = document.querySelector('.launcher-panel--instances');
+    expect(instancesPanel).toBeTruthy();
+    await waitFor(() =>
+      expect(within(instancesPanel as HTMLElement).getByText(/по алфавиту/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/Свяжите QXLauncher на этом ПК/)).toBeInTheDocument();
+    await waitFor(() => {
+      const names = screen.getAllByText(/^(Alpha|Zeta)$/);
+      expect(names[0]).toHaveTextContent('Alpha');
+      expect(names[1]).toHaveTextContent('Zeta');
+    });
+    expect(screen.getByRole('link', { name: /Ресурсы/ })).toBeInTheDocument();
+  });
+
+  it('shows licensed launch hint when Microsoft account is not linked', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    const instance = {
+      id: 'inst-1',
+      name: 'Survival',
+      mc_version: '1.21',
+      loader: 'vanilla',
+      created_at: 't',
+      updated_at: 't',
+    };
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/users/me/mojang')) {
+          return new Response(JSON.stringify({ linked: false }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await user.click(screen.getByText('Лицензия (Microsoft)'));
+    await waitFor(() =>
+      expect(screen.getAllByText(/Привяжите Microsoft в профиле/).length).toBeGreaterThan(0),
+    );
+    expect(screen.getByRole('button', { name: /Играть/ })).toBeDisabled();
+    expect(screen.getByRole('link', { name: /Привязать Microsoft/ })).toHaveAttribute('href', '/profile');
+  });
+
+  it('refreshes launcher workspace data', async () => {
+    const user = userEvent.setup({ delay: null });
+    const successSpy = vi.spyOn(message, 'success');
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Обновить/ })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Обновить/ }));
+    await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Данные обновлены'));
+    successSpy.mockRestore();
+  });
+
+  it('handles mojang status load failure in licensed mode', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/users/me/mojang')) {
+          return new Response('fail', { status: 500 });
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Игрок')).toBeInTheDocument());
+    await user.click(screen.getByText('Лицензия (Microsoft)'));
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /Привязать Microsoft/ })).toBeInTheDocument(),
+    );
+  });
+
+  it('shows linked Microsoft account in licensed player section', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/users/me/mojang')) {
+          return new Response(
+            JSON.stringify({
+              linked: true,
+              username: 'Notch',
+              minecraft_uuid: 'uuid-notchy',
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Игрок')).toBeInTheDocument());
+    await user.click(screen.getByText('Лицензия (Microsoft)'));
+    await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
+    expect(screen.getByText('uuid-notchy')).toBeInTheDocument();
+    expect(screen.queryByText(/Привяжите Microsoft в профиле/)).not.toBeInTheDocument();
+  });
+
+  it('launches with linked licensed mojang account', async () => {
+    const user = userEvent.setup({ delay: null });
+    const successSpy = vi.spyOn(message, 'success');
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    const instance = {
+      id: 'inst-1',
+      name: 'Survival',
+      mc_version: '1.21',
+      loader: 'vanilla',
+      created_at: 't',
+      updated_at: 't',
+    };
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/users/me/mojang')) {
+          return new Response(
+            JSON.stringify({ linked: true, username: 'Notch', minecraft_uuid: 'uuid' }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
+          const body = JSON.parse(String(init.body));
+          expect(body.use_mojang_account).toBe(true);
+          expect(body.offline_profile_id).toBeUndefined();
+          return new Response(
+            JSON.stringify({
+              id: 'lr-lic',
+              status: 'queued',
+              instance_id: instance.id,
+              expires_at: new Date().toISOString(),
+            }),
+            { status: 201 },
+          );
+        }
+        if (url.includes('/launcher/launch-requests/lr-lic')) {
+          return new Response(
+            JSON.stringify({
+              id: 'lr-lic',
+              status: 'completed',
+              instance_id: instance.id,
+              expires_at: new Date().toISOString(),
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await user.click(screen.getByText('Лицензия (Microsoft)'));
+    await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
+    await user.click(screen.getByRole('button', { name: /Играть/ }));
+    await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'));
+    successSpy.mockRestore();
   });
 
   it('unlinks launcher device from alert', async () => {

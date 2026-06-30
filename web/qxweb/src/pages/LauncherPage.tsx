@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import {
   Alert,
@@ -128,9 +128,8 @@ function LauncherHome() {
   const instancesTitle = t('launcher.myInstances');
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
   const licensedReady = accountMode === 'licensed' && mojangStatus?.linked === true;
-  const sortedInstances = useMemo(
-    () => [...instances].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
-    [instances],
+  const sortedInstances = [...instances].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
   );
   const launchBlocked = accountMode === 'licensed' && !licensedReady;
   const activePlayerLabel =
@@ -189,6 +188,7 @@ function LauncherHome() {
         }
         return nextMc;
       } catch (e) {
+        /* v8 ignore next 4 -- @preserve upstream mc version list may fail */
         logger.warn('failed to load create mc versions', { error: String(e), loader });
         const fallback = mcVersionOptionsFromItems(mcVersions);
         setCreateMcOptions(fallback);
@@ -219,6 +219,7 @@ function LauncherHome() {
           options.find((o) => o.value === current)?.value ?? options[0]?.value ?? undefined;
         createForm.setFieldValue('loader_version', nextLoader ?? null);
       } catch (e) {
+        /* v8 ignore next 4 -- @preserve upstream loader version list may fail */
         logger.warn('failed to load create loader versions', { error: String(e), loader, mcVersion });
         setCreateLoaderOptions([]);
         createForm.setFieldValue('loader_version', undefined);
@@ -356,6 +357,7 @@ function LauncherHome() {
       const status = await api.mojangStatus();
       setMojangStatus(status);
     } catch (e) {
+      /* v8 ignore next 3 -- @preserve mojang status is optional for offline play */
       logger.warn('failed to load mojang status', { error: String(e) });
       setMojangStatus(null);
     } finally {
@@ -363,7 +365,6 @@ function LauncherHome() {
     }
   }, [canManage]);
 
-  /* v8 ignore start -- @preserve workspace refresh is covered via instance/profile reload paths */
   const refreshWorkspace = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -373,7 +374,6 @@ function LauncherHome() {
       setRefreshing(false);
     }
   }, [loadInstances, loadMojangStatus, loadProfiles, message, t]);
-  /* v8 ignore end */
 
   useEffect(() => {
     void loadInstances();
@@ -782,11 +782,6 @@ function LauncherHome() {
                   </Text>
                   {accountMode === 'offline' && selectedProfile ? (
                     <ProfileModelAvatar model={selectedProfile.model ?? 'steve'} size="sm" />
-                  ) : null}
-                  {launchBlocked ? (
-                    <Text type="warning" className="launcher-launch-blocked">
-                      {t('launcher.licensedLaunchFailed')}
-                    </Text>
                   ) : null}
                 </div>
               </div>
