@@ -47,7 +47,7 @@ Panel shows **pre-flight checklist** before deploy.
 
 **dev dedicated server:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
 
-**Prod:** `QX_PUBLIC_API_URL=https://mc.qx-dev.ru` в `.env.prod` — [production-deploy.md](./production-deploy.md).
+**Prod:** `QX_PUBLIC_API_URL=https://mc.qx-dev.ru` в `.env.prod` — [production-deploy.md](./production-deploy.md). Это **домен platform host** (куда смотрит публичный DNS), не hostname dedicated game server.
 
 ---
 
@@ -66,9 +66,10 @@ No user-supplied shell. Deployer executes fixed script template:
 
 1. `mkdir -p /opt/qxsystem/agent /opt/qxsystem/server` (`plugins/`, `mods/` — по [server-content-install.md](./server-content-install.md))
 2. `install -m 755` agent binary to `/opt/qxsystem/agent/qx-agent`
-3. Write `/etc/qxsystem/agent/agent.toml` (0600 root)
-4. Write `/etc/systemd/system/qx-agent.service`
-5. `systemctl daemon-reload && systemctl enable qx-agent && systemctl restart qx-agent`
+3. When needed, patch `/etc/hosts` so `QX_PUBLIC_API_URL` hostname resolves to the platform IP (not Debian `127.0.1.1` loopback alias)
+4. Write `/etc/qxsystem/agent/agent.toml` (0600 root)
+5. Write `/etc/systemd/system/qx-agent.service`
+6. `systemctl daemon-reload && systemctl enable qx-agent && systemctl restart qx-agent`
 
 **Re-deploy:** `restart` (не только `enable --now`) — новый `agent_token` подхватывается без ручного restart на dedicated server.
 
@@ -107,11 +108,19 @@ On successful deploy:
    server_root = "/opt/qxsystem/server"
    ```
 
+   `ws_url` не пишется по умолчанию — агент строит `wss://<api-host>/agent/v1/connect` из `api_base_url`. Override: `ws_url = "wss://mc.qx-dev.ru/agent/v1/connect"`.
+
 3. Store `agent_token_hash` in `servers` table
 
 **Re-deploy:** revokes old token, issues new, **restarts** systemd unit.
 
 **Dev localhost SSH:** `agent_api_url` в deploy → `http://host.docker.internal:3000/api/v1` (см. `internal/deploy/agent_api_url.go`).
+
+**Prod co-located:** когда A-запись `QX_PUBLIC_API_URL` резолвится в IP SSH host (platform stack на том же сервере), deploy пишет `http://127.0.0.1:3000/api/v1` — agent подключается к API через loopback. Требуется `127.0.0.1:3000:3000` publish у сервиса `api` в prod compose.
+
+**Prod remote game server:** `api_base_url` = `QX_PUBLIC_API_URL` + `/api/v1` (platform domain, не hostname game server). Если на game server hostname совпадает с API domain (Debian `127.0.1.1` в `/etc/hosts`), deploy добавляет managed-запись в `/etc/hosts` с публичным IP platform host.
+
+**Prod remote dedicated server:** системный hostname **не должен** совпадать с публичным API (`mc.qx-dev.ru`). Рекомендуется отдельное имя, напр. `mcs.qx-dev.ru`; в `agent.toml` `api_base_url` по-прежнему указывает на `https://mc.qx-dev.ru/api/v1`. См. [production-deploy §5](./production-deploy.md#5-troubleshooting).
 
 ---
 

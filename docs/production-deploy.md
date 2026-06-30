@@ -30,7 +30,7 @@ Push в `main` → **CI green** → **Prod release** → GHCR → bootstrap plat
 
 A-запись `mc.qx-dev.ru` → IP Platform host (`178.172.136.26`).
 
-### 1.2 ���� ���������
+### 1.2 Подготовка хоста
 
 Свежий Ubuntu/Debian с **SSH-доступом** для deploy-пользователя (рекомендуется `root` или user с `sudo` без пароля).
 
@@ -191,7 +191,9 @@ curl -s https://mc.qx-dev.ru/api/v1/health
 
 ---
 
-## 4. ������� ������� � QXLauncher и QXLauncher
+## 4. Game dedicated server и QXLauncher
+
+> **Hostname игрового сервера** не должен совпадать с `QX_PUBLIC_API_URL` (`mc.qx-dev.ru`). Рекомендуется `mcs.qx-dev.ru`; `api_base_url` в agent.toml остаётся `https://mc.qx-dev.ru/api/v1`.
 
 1. **Servers** → Deploy agent ([ssh-deploy.md](./ssh-deploy.md))
 2. **Add game server** → Start
@@ -216,6 +218,7 @@ web_base_url = "https://mc.qx-dev.ru"
 | `unauthorized` pull | `GHCR_DEPLOY_TOKEN` + read:packages |
 | CORS | `CORS_ORIGIN` = origin сайта (`https://mc.qx-dev.ru` после TLS) |
 | HTTPS не открывается | Проверьте `443` на firewall; Cloudflare SSL = **Full (strict)**; secrets `PROD_CLOUDFLARE_API_TOKEN` + `PROD_CERTBOT_EMAIL`; логи: `sudo certbot certificates` на dedicated server |
+| Agent `dial tcp 127.0.1.1:443: connection refused` | **Co-located** (API и agent на одном хосте): `./up.sh`, затем `api_base_url = "http://127.0.0.1:3000/api/v1"` в `/etc/qxsystem/agent/agent.toml`, `sudo systemctl restart qx-agent`. **Remote** game server: hostname **не должен** совпадать с `QX_PUBLIC_API_URL` — переименуйте в `mcs.qx-dev.ru` (`hostnamectl`, `/etc/hosts`); `api_base_url` остаётся `https://mc.qx-dev.ru/api/v1`. Проверка: `getent hosts mc.qx-dev.ru` → публичный IP платформы, не `127.0.1.1` |
 | Смена секретов | Обновите Secret → re-run workflow |
 
 ---

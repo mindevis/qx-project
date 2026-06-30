@@ -101,10 +101,10 @@ public_api_url = "http://host.docker.internal:3000"
 | Key | Описание |
 | ----- | ---------- |
 | `agent_token` | JWT от deploy (обязателен) |
-| `api_base_url` | REST base QXApi |
+| `api_base_url` | REST base QXApi (`QX_PUBLIC_API_URL` + `/api/v1` on remote game servers; co-located prod: `http://127.0.0.1:3000/api/v1`) |
 | `server_id` | UUID сервера |
 | `server_root` | `/opt/qxsystem/server` |
-| `ws_url` | Override WSS URL |
+| `ws_url` | Optional WSS override; default derived from `api_base_url` → `wss://<host>/agent/v1/connect` |
 | `hostname` | Имя в heartbeat |
 | `dry_run` | Не запускать JAR, только лог |
 | `log_level` / `log_format` | Логирование |

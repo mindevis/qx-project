@@ -93,7 +93,7 @@ func TestSSHDeployerProvisionSuccess(t *testing.T) {
 			return testSSHClient{}, nil
 		},
 		VerifyOS: noopVerifyOS,
-		RunRemote: func(_ any, apiURL, serverID, agentToken string, binary []byte) error {
+		RunRemote: func(_ any, apiURL, serverID, agentToken string, binary []byte, _ string) error {
 			if serverID != "srv-42" || agentToken != "jwt-token" {
 				t.Fatalf("unexpected ids: %s %s", serverID, agentToken)
 			}
@@ -162,7 +162,7 @@ func TestDefaultVerifyOSHookRunsBeforeProvision(t *testing.T) {
 			called = true
 			return nil
 		},
-		RunRemote: func(any, string, string, string, []byte) error { return nil },
+		RunRemote: func(any, string, string, string, []byte, string) error { return nil },
 	})
 	err := d.Deploy(context.Background(), "srv-1", models.SSHCredential{
 		PrivateKeyEnc: mustEncryptValidKey(t, enc),
@@ -231,7 +231,7 @@ func TestSSHDeployerTimeout(t *testing.T) {
 			return testSSHClient{}, nil
 		},
 		VerifyOS: noopVerifyOS,
-		RunRemote: func(any, string, string, string, []byte) error {
+		RunRemote: func(any, string, string, string, []byte, string) error {
 			time.Sleep(50 * time.Millisecond)
 			return nil
 		},
@@ -259,7 +259,7 @@ func TestSSHDeployerRunRemoteFailure(t *testing.T) {
 			return testSSHClient{}, nil
 		},
 		VerifyOS: noopVerifyOS,
-		RunRemote: func(any, string, string, string, []byte) error {
+		RunRemote: func(any, string, string, string, []byte, string) error {
 			return errors.New("systemctl failed")
 		},
 	})

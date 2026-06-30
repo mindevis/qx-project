@@ -2,7 +2,11 @@
 # Prod dedicated server: /etc/qxsystem/agent/agent.toml (written by SSH deploy).
 
 api_base_url = "http://localhost:3000/api/v1"
-# Prod (deploy writes this): api_base_url = "https://mc.qx-dev.ru/api/v1"
+# Prod remote dedicated server: api_base_url from QX_PUBLIC_API_URL (platform API domain), e.g.
+#   api_base_url = "https://mc.qx-dev.ru/api/v1"
+# ws_url is optional; when omitted the agent derives WSS from api_base_url:
+#   wss://<api-host>/agent/v1/connect
+# Prod co-located (agent on same host as platform stack): api_base_url = "http://127.0.0.1:3000/api/v1"
 # agent_token = "eyJ..."  # from deploy or API test helper
 # server_id = "uuid"
 # server_root = "/opt/qxsystem/server"

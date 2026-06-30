@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -36,7 +37,7 @@ type SSHConfig struct {
 	BinaryPath string
 	Dial       func(ctx context.Context, addr string, config *ssh.ClientConfig) (any, error)
 	VerifyOS   func(client any) error
-	RunRemote  func(client any, apiURL, serverID, agentToken string, binary []byte) error
+	RunRemote  func(client any, apiURL, serverID, agentToken string, binary []byte, hostsFix string) error
 }
 
 type SSHDeployer struct {
@@ -114,13 +115,17 @@ func (d *SSHDeployer) Deploy(ctx context.Context, serverID string, cred models.S
 		return err
 	}
 
+	remoteAPI, hostsFix, err := d.resolveRemoteAgentAPI(client, cred)
+	if err != nil {
+		return err
+	}
+
 	deployCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
 	done := make(chan error, 1)
-	remoteAPI := agentAPIURL(d.cfg.APIBaseURL, cred)
 	go func() {
-		done <- d.cfg.RunRemote(client, remoteAPI, serverID, agentToken, binary)
+		done <- d.cfg.RunRemote(client, remoteAPI, serverID, agentToken, binary, hostsFix)
 	}()
 
 	select {
@@ -158,7 +163,35 @@ func verifyHostKernel(unameOutput string) error {
 	return nil
 }
 
-func runRemoteProvision(clientAny any, apiURL, serverID, agentToken string, binary []byte) error {
+func (d *SSHDeployer) resolveRemoteAgentAPI(clientAny any, cred models.SSHCredential) (string, string, error) {
+	apiURL := d.cfg.APIBaseURL
+	remoteAPI := agentAPIURL(apiURL, cred)
+
+	client, ok := clientAny.(*ssh.Client)
+	if !ok {
+		return remoteAPI, "", nil
+	}
+
+	u, err := url.Parse(strings.TrimSpace(apiURL))
+	if err != nil || u.Hostname() == "" {
+		return remoteAPI, "", nil
+	}
+	apiHost := u.Hostname()
+
+	out, err := runSSHCommand(client, fmt.Sprintf("getent ahostsv4 %q 2>/dev/null | awk 'NR==1{print $1}'", apiHost))
+	if err != nil {
+		out, _ = runSSHCommand(client, fmt.Sprintf("getent hosts %q 2>/dev/null | awk 'NR==1{print $1}'", apiHost))
+	}
+	hostnameOut, _ := runSSHCommand(client, "hostname -f 2>/dev/null || hostname")
+
+	hostsFix := apiHostsOverrideScript(apiURL, cred, remoteAPIResolution{
+		ResolvedIP:     strings.TrimSpace(out),
+		RemoteHostname: strings.TrimSpace(hostnameOut),
+	})
+	return remoteAPI, hostsFix, nil
+}
+
+func runRemoteProvision(clientAny any, apiURL, serverID, agentToken string, binary []byte, hostsFix string) error {
 	client, ok := clientAny.(*ssh.Client)
 	if !ok {
 		return errors.New("invalid ssh client")
@@ -179,10 +212,10 @@ $SUDO tee %s > /dev/null <<'QXCFG'
 $SUDO chmod 600 %s
 $SUDO tee %s > /dev/null <<'QXUNIT'
 %sQXUNIT
-$SUDO systemctl daemon-reload
+%s$SUDO systemctl daemon-reload
 $SUDO systemctl enable qx-agent
 $SUDO systemctl restart qx-agent
-`, uploadPath, agentInstallPath, agentConfigPath, envBody, agentConfigPath, agentUnitPath, unitBody)
+`, uploadPath, agentInstallPath, agentConfigPath, envBody, agentConfigPath, agentUnitPath, unitBody, hostsFix)
 
 	out, err := runSSHCommand(client, script)
 	if err != nil {
