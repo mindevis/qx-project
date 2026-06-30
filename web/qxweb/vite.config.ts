@@ -78,4 +78,24 @@ export default defineConfig({
     port: 5173,
     proxy: apiProxyConfig(),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return;
+          }
+          if (id.includes('react-router') || /[/\\]react[/\\]/.test(id) || /[/\\]react-dom[/\\]/.test(id)) {
+            return 'vendor-react';
+          }
+          if (id.includes('antd') || id.includes('@ant-design')) {
+            return 'vendor-antd';
+          }
+          if (id.includes('skinview3d') || id.includes('three')) {
+            return 'vendor-3d';
+          }
+        },
+      },
+    },
+  },
 });

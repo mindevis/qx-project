@@ -398,6 +398,15 @@ html[data-theme='dark'] .home-section-eyebrow {
   font-size: 15px;
 }
 
+html[data-theme='dark'] .home-section-lead,
+html[data-theme='dark'] .home-intro,
+html[data-theme='dark'] .home-benefit-desc,
+html[data-theme='dark'] .home-feature-body,
+html[data-theme='dark'] .home-step-body,
+html[data-theme='dark'] .home-cta-band-body {
+  color: rgba(255, 255, 255, 0.70) !important;
+}
+
 /* Benefits */
 
 .home-benefits {

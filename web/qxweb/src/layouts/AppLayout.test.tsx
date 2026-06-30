@@ -131,7 +131,7 @@ describe('AppLayout', () => {
     );
 
     await waitFor(() => expect(screen.getByText('US')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'Меню аккаунта' }));
+    await user.click(screen.getByRole('button', { name: 'US, Меню аккаунта' }));
     await user.click(await screen.findByText('Выйти'));
     await waitFor(() => expect(screen.queryByText('US')).not.toBeInTheDocument());
   });

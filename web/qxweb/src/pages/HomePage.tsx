@@ -192,7 +192,7 @@ export function HomePage() {
               variant="borderless"
             >
               <div className="home-feature-icon">{feature.icon}</div>
-              <Title level={4} className="home-feature-title">
+              <Title level={3} className="home-feature-title">
                 {feature.title}
               </Title>
               <Paragraph type="secondary" className="home-feature-body">
@@ -216,7 +216,7 @@ export function HomePage() {
           {steps.map((step) => (
             <div key={step.title} className="home-step">
               <span className="home-step-icon">{step.icon}</span>
-              <Title level={5} className="home-step-title">
+              <Title level={3} className="home-step-title">
                 {step.title}
               </Title>
               <Paragraph type="secondary" className="home-step-body">

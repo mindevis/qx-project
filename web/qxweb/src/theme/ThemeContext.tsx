@@ -67,6 +67,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const antTheme = useMemo(
     () => ({
       algorithm: mode === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
+      token:
+        mode === 'dark'
+          ? {
+              colorTextSecondary: 'rgba(255, 255, 255, 0.70)',
+            }
+          : undefined,
     }),
     [mode],
   );

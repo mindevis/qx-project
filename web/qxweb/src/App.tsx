@@ -1,13 +1,40 @@
+import { lazy, Suspense, type ReactNode } from 'react';
+import { Spin } from 'antd';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthModalProvider } from '@/auth/AuthModalContext';
 import { AppLayout } from '@/layouts/AppLayout';
 import { HomePage } from '@/pages/HomePage';
-import { LauncherLinkPage } from '@/pages/LauncherLinkPage';
-import { LauncherPage } from '@/pages/LauncherPage';
-import { AuthRedirect } from '@/pages/AuthRedirect';
-import { ProfilePage } from '@/pages/ProfilePage';
-import { MonitoringPage } from '@/pages/MonitoringPage';
-import { ServersPage } from '@/pages/ServersPage';
+
+const ProfilePage = lazy(() =>
+  import('@/pages/ProfilePage').then((module) => ({ default: module.ProfilePage })),
+);
+const LauncherLinkPage = lazy(() =>
+  import('@/pages/LauncherLinkPage').then((module) => ({ default: module.LauncherLinkPage })),
+);
+const LauncherPage = lazy(() =>
+  import('@/pages/LauncherPage').then((module) => ({ default: module.LauncherPage })),
+);
+const AuthRedirect = lazy(() =>
+  import('@/pages/AuthRedirect').then((module) => ({ default: module.AuthRedirect })),
+);
+const MonitoringPage = lazy(() =>
+  import('@/pages/MonitoringPage').then((module) => ({ default: module.MonitoringPage })),
+);
+const ServersPage = lazy(() =>
+  import('@/pages/ServersPage').then((module) => ({ default: module.ServersPage })),
+);
+
+function RouteFallback() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '48px 0' }}>
+      <Spin size="large" />
+    </div>
+  );
+}
+
+function LazyRoute({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
 
 export default function App() {
   return (
@@ -16,12 +43,54 @@ export default function App() {
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<HomePage />} />
-              <Route path="auth/:mode" element={<AuthRedirect />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="launcher/link" element={<LauncherLinkPage />} />
-            <Route path="launcher/*" element={<LauncherPage />} />
-            <Route path="monitoring" element={<MonitoringPage />} />
-            <Route path="servers/*" element={<ServersPage />} />
+            <Route
+              path="auth/:mode"
+              element={
+                <LazyRoute>
+                  <AuthRedirect />
+                </LazyRoute>
+              }
+            />
+            <Route
+              path="profile"
+              element={
+                <LazyRoute>
+                  <ProfilePage />
+                </LazyRoute>
+              }
+            />
+            <Route
+              path="launcher/link"
+              element={
+                <LazyRoute>
+                  <LauncherLinkPage />
+                </LazyRoute>
+              }
+            />
+            <Route
+              path="launcher/*"
+              element={
+                <LazyRoute>
+                  <LauncherPage />
+                </LazyRoute>
+              }
+            />
+            <Route
+              path="monitoring"
+              element={
+                <LazyRoute>
+                  <MonitoringPage />
+                </LazyRoute>
+              }
+            />
+            <Route
+              path="servers/*"
+              element={
+                <LazyRoute>
+                  <ServersPage />
+                </LazyRoute>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

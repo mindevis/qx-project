@@ -1951,7 +1951,7 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: 'Войти' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Меню аккаунта' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'U@, Меню аккаунта' })).toBeInTheDocument();
     });
     await waitForNoDialog();
   });
@@ -2051,7 +2051,7 @@ describe('pages', () => {
     await user.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Меню аккаунта' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'NE, Меню аккаунта' })).toBeInTheDocument();
     });
     await waitForNoDialog();
   });

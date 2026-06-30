@@ -39,7 +39,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={active}
-            aria-label={item.ariaLabel}
+            {...(iconOnly ? { 'aria-label': item.ariaLabel } : {})}
             title={item.ariaLabel}
             className={[
               'qx-segment__btn',

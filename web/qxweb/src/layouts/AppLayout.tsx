@@ -86,7 +86,7 @@ export function AppLayout() {
           } as CSSProperties
         }
       >
-        <Link to="/" className="app-header-brand" aria-label={t('layout.navHome')}>
+        <Link to="/" className="app-header-brand">
           <Typography.Title level={4} style={{ color: token.colorText, margin: 0 }}>
             QXSystem
           </Typography.Title>

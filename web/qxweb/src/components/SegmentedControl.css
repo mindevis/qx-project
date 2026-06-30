@@ -46,7 +46,7 @@ html[data-theme='dark'] .qx-segment {
 }
 
 html[data-theme='dark'] .qx-segment__btn {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .qx-segment__btn:hover:not(.qx-segment__btn--active) {

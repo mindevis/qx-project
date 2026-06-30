@@ -41,7 +41,7 @@ export function UserMenu({ user, onLogout }: UserMenuProps) {
       <span
         role="button"
         tabIndex={0}
-        aria-label={t('common.accountMenu')}
+        aria-label={`${emailInitials(user.email)}, ${t('common.accountMenu')}`}
         style={{ cursor: 'pointer', lineHeight: 0 }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {

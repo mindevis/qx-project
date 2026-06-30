@@ -43,7 +43,7 @@ describe('UserMenu', () => {
     const clicker = userEvent.setup({ delay: null });
     renderMenu();
 
-    await clicker.click(screen.getByRole('button', { name: 'Меню аккаунта' }));
+    await clicker.click(screen.getByRole('button', { name: 'US, Меню аккаунта' }));
     await clicker.click(screen.getByText('Профиль'));
     expect(screen.getByText('Profile page')).toBeInTheDocument();
   });
@@ -52,7 +52,7 @@ describe('UserMenu', () => {
     const clicker = userEvent.setup({ delay: null });
     const { onLogout } = renderMenu();
 
-    await clicker.click(screen.getByRole('button', { name: 'Меню аккаунта' }));
+    await clicker.click(screen.getByRole('button', { name: 'US, Меню аккаунта' }));
     await clicker.click(screen.getByText('Выйти'));
     expect(onLogout).toHaveBeenCalled();
   });
@@ -61,7 +61,7 @@ describe('UserMenu', () => {
     const clicker = userEvent.setup({ delay: null });
     renderMenu();
 
-    const trigger = screen.getByRole('button', { name: 'Меню аккаунта' });
+    const trigger = screen.getByRole('button', { name: 'US, Меню аккаунта' });
     trigger.focus();
     await clicker.keyboard('{Enter}');
     expect(screen.getByText('Профиль')).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe('UserMenu', () => {
     const clicker = userEvent.setup({ delay: null });
     renderMenu();
 
-    const trigger = screen.getByRole('button', { name: 'Меню аккаунта' });
+    const trigger = screen.getByRole('button', { name: 'US, Меню аккаунта' });
     trigger.focus();
     await clicker.keyboard('{ArrowDown}');
     expect(screen.queryByText('Профиль')).not.toBeInTheDocument();
