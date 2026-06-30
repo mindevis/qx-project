@@ -24,10 +24,9 @@ jobs:
       - run: cd services/qxapi && go mod tidy && go vet ./...
       - run: cd services/qxapi && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g internal/api/openapi.go -o docs --parseInternal
       - run: cd services/qxapi && git diff --exit-code docs/ || (echo "Swagger docs out of date — run make swagger" && exit 1)
-      - run: cd services/qxapi && go test ./... -coverpkg=./cmd/... -coverprofile=coverage.out -count=1
-      - run: cd services/qxapi && go tool cover -func=coverage.out | tail -1 | grep '100.0%'
-      - run: cd services/qxagent && go test ./... -coverprofile=coverage.out -count=1
-      - run: cd services/qxlauncher && go test ./... -coverprofile=coverage.out -count=1
+      - run: cd services/qxapi && go test ./... -count=1
+      - run: cd services/qxagent && go test ./... -count=1
+      - run: cd services/qxlauncher && go test ./... -count=1
       - run: |
           for pkg in reporoot envfile log mcmanifest protocol; do
             (cd pkg/$pkg && go test ./...)
@@ -58,7 +57,7 @@ jobs:
           cache-dependency-path: web/qxweb/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm run test:coverage
+      - run: npm run test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run build

@@ -15,7 +15,7 @@
 | **QXWeb** | Phase 0–2 | ✅ `/`, auth modal, `/profile`, `/launcher`, **`/servers`** (SSH, deploy agent, MC controls при `minecraft_running`) |
 | **QXApi** — launcher, servers | Phase 1–2 | ✅ devices, instances, launch-requests, servers CRUD/deploy, agent hub |
 | **Infra dev** | Phase 0–2 | ✅ Docker Compose (MySQL, Redis, MinIO); **dev dedicated server** `make dev-vps-up` (Flow C) |
-| **CI / тесты** | Phase 0–Alpha | ✅ GitHub Actions; Go и web — **100% unit coverage**; Playwright + manual matrix |
+| **CI / тесты** | Phase 0–Alpha | ✅ GitHub Actions (unit tests, no coverage); **100% coverage** — локально `make test-coverage`; Playwright + manual matrix |
 | **QXLauncher** | Phase 1 | ✅ HWID device link, auto browser, tray loop, **Vanilla + Forge/NeoForge/Fabric/Quilt** |
 | **QXAgent** | Phase 2 | ✅ WSS client, start/stop JAR |
 | **pkg/protocol** | Phase 2 | ✅ WSS envelope types |
@@ -1240,7 +1240,7 @@ QXSystem/
 ├── scripts/                 # e2e-manual, dev-vps, gen-jwt-secret
 ├── docs/                    # architecture, API, configuration, ADR
 ├── infra/docker/            # compose dev + prod + vps-dev (Flow C)
-├── .github/workflows/ci.yml # Go test + web test:coverage + Playwright
+├── .github/workflows/ci.yml # Go test + web test + Playwright (coverage — локально)
 ├── go.work                  # Go workspace
 ├── Makefile                 # dev-up, jwt-secret-config, api, test, e2e-alpha
 └── README.md
@@ -1397,7 +1397,7 @@ gantt
   `POST /auth/guest` — 🔲 v2+
 - [x] Web UI: auth modal, profile (модалки), `/launcher`, **`/servers`** (SSH, deploy agent) *(Junior)*
 - [x] Docker Compose dev env (`infra/docker/`) *(Senior)*
-- [x] CI: `go test`, web `test:coverage`, build *(Senior)*
+- [x] CI: `go test`, web `test`, build *(Senior)*; coverage — `make test-coverage` локально
 - [x] Unit tests 100% (qxapi, qxweb) *(Senior)*
 
 ### Phase 1 — Launcher MVP *(10–14 нед, mostly Senior)*

@@ -12,7 +12,7 @@
 ## Test plan
 
 - [ ] `go test` (affected services)
-- [ ] `web/qxweb`: `npm run lint` + `npm run test:coverage` (+ e2e if UI flows changed)
+- [ ] `web/qxweb`: `npm run lint` + `npm run test` (+ `make test-coverage` locally; e2e if UI flows changed)
 - [ ] Manual smoke (describe):
 
 ## Checklist

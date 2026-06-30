@@ -39,7 +39,8 @@ cd services/qxagent && go test ./...
 cd services/qxlauncher && go test ./...
 
 # Web
-cd web/qxweb && npm ci && npm run lint && npm run test:coverage && npm run build
+cd web/qxweb && npm ci && npm run lint && npm run test && npm run build
+make test-coverage   # optional: 100% coverage gate before push
 ```
 
 4. CI должен быть зелёным (`.github/workflows/ci.yml`).
