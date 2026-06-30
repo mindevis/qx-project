@@ -8,6 +8,7 @@ COPY pkg/log pkg/log
 COPY pkg/mcmanifest pkg/mcmanifest
 COPY pkg/protocol pkg/protocol
 COPY pkg/reporoot pkg/reporoot
+COPY pkg/safepath pkg/safepath
 COPY services/qxapi services/qxapi
 
 WORKDIR /src/services/qxapi
