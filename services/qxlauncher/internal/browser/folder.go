@@ -8,18 +8,18 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
 )
 
-func Open(url string) error {
-	if url == "" {
-		return fmt.Errorf("empty url")
+func OpenFolder(path string) error {
+	if path == "" {
+		return fmt.Errorf("empty path")
 	}
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.Command("explorer", path)
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", path)
 	default:
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", path)
 	}
 	proc.HideConsole(cmd)
 	return cmd.Start()

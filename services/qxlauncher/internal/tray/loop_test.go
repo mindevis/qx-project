@@ -165,8 +165,12 @@ func TestSyncInstances(t *testing.T) {
 		t.Fatal(err)
 	}
 	api := apiclient.New(apiSrv.URL, "token")
-	if err := syncInstances(context.Background(), api, dir); err != nil {
+	items, err := syncInstances(context.Background(), api, dir)
+	if err != nil {
 		t.Fatalf("sync: %v", err)
+	}
+	if len(items) != 1 || items[0].Name != "Survival" {
+		t.Fatalf("sync items: %+v", items)
 	}
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {
 		t.Fatalf("stale instance dir still exists: %v", err)

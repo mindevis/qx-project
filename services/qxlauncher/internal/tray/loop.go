@@ -28,6 +28,7 @@ type Config struct {
 	SkipJavaDownload bool
 	LaunchPoll       time.Duration
 	InstancePoll     time.Duration
+	OnInstancesSynced func([]apiclient.InstanceItem)
 }
 
 var activeLaunches sync.Map
@@ -61,14 +62,19 @@ func RunLoop(ctx context.Context, cfg Config) {
 		case <-ctx.Done():
 			return
 		case <-syncTicker.C:
-			if err := syncInstances(ctx, api, cfg.DataDir); err != nil {
+			items, err := syncInstances(ctx, api, cfg.DataDir)
+			if err != nil {
 				if apiclient.IsUnauthorized(err) && tryRefreshDeviceToken(ctx, api, cfg, err) {
-					if err := syncInstances(ctx, api, cfg.DataDir); err != nil {
+					items, err = syncInstances(ctx, api, cfg.DataDir)
+					if err != nil {
 						logAPIFailure("instance sync failed", err)
 					}
 				} else {
 					logAPIFailure("instance sync failed", err)
 				}
+			}
+			if err == nil && cfg.OnInstancesSynced != nil {
+				cfg.OnInstancesSynced(items)
 			}
 		case <-launchTicker.C:
 			item, err := api.FetchPendingLaunch(ctx)
@@ -228,14 +234,14 @@ func tryRefreshDeviceToken(ctx context.Context, api *apiclient.Client, cfg Confi
 	return true
 }
 
-func syncInstances(ctx context.Context, api *apiclient.Client, dataDir string) error {
+func syncInstances(ctx context.Context, api *apiclient.Client, dataDir string) ([]apiclient.InstanceItem, error) {
 	items, err := api.FetchDeviceInstances(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := cache.SyncInstances(dataDir, items); err != nil {
-		return err
+		return nil, err
 	}
 	slog.Info("instances synced", "count", len(items))
-	return nil
+	return items, nil
 }

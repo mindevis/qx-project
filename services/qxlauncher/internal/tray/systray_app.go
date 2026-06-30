@@ -3,11 +3,13 @@ package tray
 import (
 	"context"
 	"log/slog"
+	"path/filepath"
 	"sync/atomic"
 
 	"fyne.io/systray"
 
 	"github.com/qxproject/qx/services/qxlauncher/internal/browser"
+	"github.com/qxproject/qx/services/qxlauncher/internal/cache"
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
 )
@@ -59,6 +61,19 @@ func RunSystrayApp(cfg SystrayConfig) {
 		mOpen := systray.AddMenuItem("Открыть сайт", launcherURL)
 		mUnlink := systray.AddMenuItem("Отвязать", "Снять привязку с сайтом")
 		systray.AddSeparator()
+		instancesMenu := NewInstancesMenu(InstancesMenuConfig{
+			APIBase:     cfg.APIBase,
+			DeviceToken: cfg.DeviceToken,
+			UserToken:   cfg.UserToken,
+			AuthPath:    filepath.Join(cfg.DataDir, "user_auth.json"),
+			DataDir:     cfg.DataDir,
+		})
+		instancesMenu.Attach()
+		if linked {
+			if snap, err := cache.LoadInstances(cfg.DataDir); err == nil && len(snap.Instances) > 0 {
+				instancesMenu.Refresh(snap.Instances)
+			}
+		}
 		mQuit := systray.AddMenuItem("Выход", "")
 
 		if linked {
@@ -74,15 +89,17 @@ func RunSystrayApp(cfg SystrayConfig) {
 				return
 			}
 			currentToken = token
+			instancesMenu.SetDeviceToken(token)
 			go RunLoop(ctx, Config{
-				APIBase:          cfg.APIBase,
-				DeviceToken:      token,
-				TokenPath:        cfg.TokenPath,
-				DeviceClient:     cfg.DeviceClient,
-				DataDir:          cfg.DataDir,
-				LaunchDryRun:     cfg.LaunchDryRun,
-				JavaPath:         cfg.JavaPath,
-				SkipJavaDownload: cfg.SkipJavaDownload,
+				APIBase:           cfg.APIBase,
+				DeviceToken:       token,
+				TokenPath:         cfg.TokenPath,
+				DeviceClient:      cfg.DeviceClient,
+				DataDir:           cfg.DataDir,
+				LaunchDryRun:      cfg.LaunchDryRun,
+				JavaPath:          cfg.JavaPath,
+				SkipJavaDownload:  cfg.SkipJavaDownload,
+				OnInstancesSynced: instancesMenu.Refresh,
 			})
 		}
 
@@ -144,6 +161,7 @@ func RunSystrayApp(cfg SystrayConfig) {
 					mLink.Enable()
 					systray.SetIcon(iconPendingPNG)
 					systray.SetTooltip("QXLauncher — ожидает привязки")
+					instancesMenu.Clear()
 					notify.Show("QXLauncher", "Устройство отвязано")
 				case <-mQuit.ClickedCh:
 					cancel()

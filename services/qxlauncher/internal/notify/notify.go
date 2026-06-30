@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
 )
 
 const dedupeWindow = 60 * time.Second
@@ -30,7 +32,9 @@ func Show(title, message string) {
 	switch runtime.GOOS {
 	case "windows":
 		script := fmtToastScript(title, message)
-		_ = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script).Start()
+		cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+		proc.HideConsole(cmd)
+		_ = cmd.Start()
 	case "darwin":
 		_ = exec.Command("osascript", "-e", `display notification "`+escapeAppleScript(message)+`" with title "`+escapeAppleScript(title)+`"`).Start()
 	}

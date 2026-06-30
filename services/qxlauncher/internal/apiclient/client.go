@@ -67,6 +67,12 @@ type InstanceItem struct {
 	Loader    string `json:"loader"`
 }
 
+type LaunchRequestCreated struct {
+	ID         string `json:"id"`
+	Status     string `json:"status"`
+	InstanceID string `json:"instance_id"`
+}
+
 func (c *Client) FetchPendingLaunch(ctx context.Context) (*LaunchRequestItem, error) {
 	body, err := c.request(ctx, http.MethodGet, "/launcher/launch-requests/pending", nil, true)
 	if err != nil {
@@ -144,6 +150,50 @@ func (c *Client) FetchDeviceInstances(ctx context.Context) ([]InstanceItem, erro
 		return nil, err
 	}
 	return resp.Items, nil
+}
+
+func (c *Client) ListProfiles(ctx context.Context, userToken string) ([]OfflineProfile, error) {
+	body, err := c.requestWithToken(ctx, http.MethodGet, "/launcher/profiles", nil, userToken)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Items []OfflineProfile `json:"items"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Items, nil
+}
+
+func (c *Client) CreateLaunchRequest(ctx context.Context, userToken, instanceID, offlineProfileID string, useMojangAccount bool) (*LaunchRequestCreated, error) {
+	payload := map[string]any{
+		"instance_id": instanceID,
+	}
+	if offlineProfileID != "" {
+		payload["offline_profile_id"] = offlineProfileID
+	}
+	if useMojangAccount {
+		payload["use_mojang_account"] = true
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	body, err := c.requestWithToken(ctx, http.MethodPost, "/launcher/launch-requests", b, userToken)
+	if err != nil {
+		return nil, err
+	}
+	var created LaunchRequestCreated
+	if err := json.Unmarshal(body, &created); err != nil {
+		return nil, err
+	}
+	return &created, nil
+}
+
+func (c *Client) DeleteInstance(ctx context.Context, userToken, instanceID string) error {
+	_, err := c.requestWithToken(ctx, http.MethodDelete, "/instances/"+instanceID, nil, userToken)
+	return err
 }
 
 func (c *Client) request(ctx context.Context, method, path string, body []byte, deviceAuth bool) ([]byte, error) {
