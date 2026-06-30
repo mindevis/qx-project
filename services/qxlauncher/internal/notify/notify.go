@@ -2,7 +2,6 @@ package notify
 
 import (
 	"log/slog"
-	"os/exec"
 	"runtime"
 	"sync"
 	"time"
@@ -32,11 +31,9 @@ func Show(title, message string) {
 	switch runtime.GOOS {
 	case "windows":
 		script := fmtToastScript(title, message)
-		cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
-		proc.HideConsole(cmd)
-		_ = cmd.Start()
+		_ = proc.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script).Start()
 	case "darwin":
-		_ = exec.Command("osascript", "-e", `display notification "`+escapeAppleScript(message)+`" with title "`+escapeAppleScript(title)+`"`).Start()
+		_ = proc.Command("osascript", "-e", `display notification "`+escapeAppleScript(message)+`" with title "`+escapeAppleScript(title)+`"`).Start()
 	}
 }
 

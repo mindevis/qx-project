@@ -2,7 +2,6 @@ package browser
 
 import (
 	"fmt"
-	"os/exec"
 	"runtime"
 
 	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
@@ -12,15 +11,12 @@ func OpenFolder(path string) error {
 	if path == "" {
 		return fmt.Errorf("empty path")
 	}
-	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("explorer", path)
+		return proc.Command("explorer", path).Start()
 	case "darwin":
-		cmd = exec.Command("open", path)
+		return proc.Command("open", path).Start()
 	default:
-		cmd = exec.Command("xdg-open", path)
+		return proc.Command("xdg-open", path).Start()
 	}
-	proc.HideConsole(cmd)
-	return cmd.Start()
 }

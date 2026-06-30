@@ -2,7 +2,6 @@ package browser
 
 import (
 	"fmt"
-	"os/exec"
 	"runtime"
 
 	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
@@ -12,15 +11,12 @@ func Open(url string) error {
 	if url == "" {
 		return fmt.Errorf("empty url")
 	}
-	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		return proc.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	case "darwin":
-		cmd = exec.Command("open", url)
+		return proc.Command("open", url).Start()
 	default:
-		cmd = exec.Command("xdg-open", url)
+		return proc.Command("xdg-open", url).Start()
 	}
-	proc.HideConsole(cmd)
-	return cmd.Start()
 }

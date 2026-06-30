@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
 )
 
 type LaunchAuth struct {
@@ -169,7 +170,7 @@ func writeLaunchDebug(gameDir string, plan LaunchPlan) error {
 }
 
 func StartClientProcess(ctx context.Context, plan LaunchPlan, logPath string) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, plan.JavaBin, plan.Args...)
+	cmd := proc.CommandContext(ctx, plan.JavaBin, plan.Args...)
 	cmd.Dir = plan.WorkingDir
 	if logPath != "" {
 		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {

@@ -5,11 +5,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
 )
 
 func (d *Downloader) EnsureLoaderInstalled(ctx context.Context, manifest *mcmanifest.InstanceLaunchManifest, javaBin string) error {
@@ -62,7 +62,7 @@ func (d *Downloader) runLoaderInstaller(ctx context.Context, manifest *mcmanifes
 	if err := os.WriteFile(profilesPath, []byte("{}"), 0o644); err != nil {
 		return fmt.Errorf("write launcher_profiles.json: %w", err)
 	}
-	cmd := exec.CommandContext(ctx, javaBin, "-jar", installerPath, "--installClient", d.RootDir)
+	cmd := proc.CommandContext(ctx, javaBin, "-jar", installerPath, "--installClient", d.RootDir)
 	cmd.Dir = d.RootDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
