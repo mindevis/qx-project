@@ -32,33 +32,43 @@ export function LauncherInstanceResourcesPage() {
     [t],
   );
 
-  const load = useCallback(async () => {
-    if (!instanceId) return;
-    try {
-      const res = await api.listInstances();
-      const found = res.items?.find((item) => item.id === instanceId) ?? null;
-      setInstance(found);
-      if (!found) {
-        message.error(t('launcherInstanceResources.notFound'));
-        navigate('/launcher');
-        return;
-      }
-      if (!isModdedLauncherLoader(found.loader)) {
-        navigate('/launcher');
-        return;
-      }
-    } catch (e) {
-      logger.warn('failed to load launcher instance resources', { error: String(e) });
-      message.error(t('launcherInstanceResources.loadFailed'));
-      navigate('/launcher');
-    } finally {
-      setLoading(false);
-    }
-  }, [instanceId, message, navigate, t]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!instanceId) return;
+
+    let cancelled = false;
+    setLoading(true);
+
+    void (async () => {
+      try {
+        const res = await api.listInstances();
+        if (cancelled) return;
+        const found = res.items?.find((item) => item.id === instanceId) ?? null;
+        setInstance(found);
+        if (!found) {
+          message.error(t('launcherInstanceResources.notFound'));
+          navigate('/launcher');
+          return;
+        }
+        if (!isModdedLauncherLoader(found.loader)) {
+          navigate('/launcher');
+          return;
+        }
+      } catch (e) {
+        if (cancelled) return;
+        logger.warn('failed to load launcher instance resources', { error: String(e) });
+        message.error(t('launcherInstanceResources.loadFailed'));
+        navigate('/launcher');
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [instanceId, message, navigate, t]);
 
   if (loading || !instance) {
     return (
