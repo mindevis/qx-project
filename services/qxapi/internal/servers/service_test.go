@@ -251,8 +251,8 @@ func TestOnAgentEvent(t *testing.T) {
 
 	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStart, Payload: []byte(`{"error":"java not found"}`)})
 	got, _ = svc.Get(ctx, "owner-1", view.ID)
-	if got.Status != models.ServerStatusError {
-		t.Fatalf("start error: %s", got.Status)
+	if got.Status != models.ServerStatusOffline {
+		t.Fatalf("start error should leave host offline, not error: %s", got.Status)
 	}
 
 	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeResServerStart, Payload: []byte(`{}`)})

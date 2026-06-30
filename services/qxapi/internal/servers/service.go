@@ -332,7 +332,7 @@ func (s *Service) applyServerStartResult(ctx context.Context, serverID, requestI
 		Error string `json:"error"`
 	}
 	if json.Unmarshal(payload, &errPayload) == nil && strings.TrimSpace(errPayload.Error) != "" {
-		status = models.ServerStatusError
+		// Game server start failure is not a VPS host/SSH error; keep host offline.
 		if s.hub != nil {
 			s.hub.BroadcastConsole(serverID, protocol.ConsoleOutputPayload{
 				Stream: "stderr",

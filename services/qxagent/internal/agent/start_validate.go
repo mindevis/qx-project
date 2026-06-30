@@ -155,11 +155,19 @@ func resolveJavaBin(bin, root string) (string, error) {
 	if bin == "" || bin == "java" {
 		return "java", nil
 	}
-	if root == "" {
-		if !filepath.IsAbs(bin) {
-			return "", fmt.Errorf("relative java bin requires work dir")
+	if filepath.IsAbs(bin) {
+		abs, err := filepath.Abs(bin)
+		if err != nil {
+			return "", err
 		}
-		return safepath.ResolveRoot(bin)
+		if filepath.Base(abs) != "java" {
+			return "", fmt.Errorf("java bin not allowed: %q", bin)
+		}
+		// Mojang Java lives outside per-instance work dirs (e.g. /opt/qxsystem/java).
+		return abs, nil
+	}
+	if root == "" {
+		return "", fmt.Errorf("relative java bin requires work dir")
 	}
 	return safepath.ResolveUnder(root, bin)
 }

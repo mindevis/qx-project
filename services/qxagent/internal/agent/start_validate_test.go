@@ -42,3 +42,21 @@ func TestValidateStartPayloadAllowsJava(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestValidateStartPayloadAllowsMojangJavaOutsideWorkDir(t *testing.T) {
+	dir := t.TempDir()
+	javaBin := filepath.Join(filepath.Dir(dir), "java", "bin", "java")
+	payload := protocol.ServerStartPayload{
+		WorkDir: dir,
+		Command: javaBin,
+		JavaBin: javaBin,
+		Args:    []string{"@user_jvm_args.txt", "@libraries/net/minecraftforge/forge/1.20.1-47.4.20/unix_args.txt", "nogui"},
+	}
+	start, err := ValidateStartPayload(payload)
+	if err != nil {
+		t.Fatalf("forge-style start with external java: %v", err)
+	}
+	if start.Command != javaBin || start.JavaBin != javaBin {
+		t.Fatalf("java paths: command=%q java_bin=%q", start.Command, start.JavaBin)
+	}
+}
