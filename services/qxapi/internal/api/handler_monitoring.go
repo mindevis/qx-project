@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -71,6 +72,7 @@ func monitoringError(c *gin.Context, err error) {
 	case servers.ErrNotFound:
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 	default:
+		slog.Error("monitoring request failed", "error", err)
 		JSONInternal(c)
 	}
 }

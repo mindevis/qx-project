@@ -100,3 +100,29 @@ func TestListMonitoringServers_FiltersHidden(t *testing.T) {
 	require.Len(t, items, 1)
 	require.Equal(t, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", items[0].ID)
 }
+
+func TestListMonitoringServers_OmitsServersWithoutAddress(t *testing.T) {
+	db := testutil.OpenSQLiteDB(t)
+	svc := NewService(db, nil, nil, nil, NoopDeployer{})
+	ctx := context.Background()
+	ownerID := "owner-no-addr"
+	vpsID := "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+	empty := ""
+	now := time.Now().UTC()
+
+	require.NoError(t, db.Create(&models.User{
+		ID: ownerID, Email: "noaddr@example.com", PasswordHash: "x", Tier: "free", CreatedAt: now, UpdatedAt: now,
+	}).Error)
+	require.NoError(t, db.Create(&models.Server{
+		ID: vpsID, OwnerID: ownerID, Name: "Dedicated", Status: models.ServerStatusOnline, CreatedAt: now, UpdatedAt: now,
+	}).Error)
+	require.NoError(t, db.Create(&models.GameServer{
+		ID: "cccccccc-cccc-cccc-cccc-cccccccccccc", ServerID: vpsID, Name: "No Address",
+		ServerType: models.ServerTypeVanilla, MCVersion: "1.21", Address: &empty, Port: 25565,
+		Status: models.GameServerStatusRunning, ShowInMonitoring: true, CreatedAt: now, UpdatedAt: now,
+	}).Error)
+
+	items, err := svc.ListMonitoringServers(ctx, ListMonitoringInput{})
+	require.NoError(t, err)
+	require.Empty(t, items)
+}
