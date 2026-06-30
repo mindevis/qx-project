@@ -1,0 +1,3 @@
+name: qx-project
+provide:
+  - .github/codeql
