@@ -174,6 +174,8 @@ jobs:
           cp infra/docker/docker-compose.prod.runtime.yml .deploy/docker-compose.yml
           cp infra/docker/nginx/prod-http.conf .deploy/nginx/
           cp infra/docker/nginx/prod-tls.conf .deploy/nginx/
+          cp infra/docker/nginx/spa-security-headers.conf .deploy/nginx/
+          cp infra/docker/nginx/upstream-proxies.conf .deploy/nginx/
           cp infra/docker/nginx/prod-http.conf .deploy/nginx/active.conf
           cp infra/scripts/prod-certbot-cloudflare.sh .deploy/certbot-cloudflare.sh
           cp docs/schema.sql .deploy/

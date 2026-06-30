@@ -37,6 +37,8 @@ docker save "qx-web:$TAG" -o "$BUNDLE/images/qx-web.tar"
 
 cp "$COMPOSE_DIR/docker-compose.prod.runtime.yml" "$BUNDLE/docker-compose.yml"
 cp "$COMPOSE_DIR/nginx/prod.conf" "$BUNDLE/nginx/"
+cp "$COMPOSE_DIR/nginx/spa-security-headers.conf" "$BUNDLE/nginx/"
+cp "$COMPOSE_DIR/nginx/upstream-proxies.conf" "$BUNDLE/nginx/"
 cp "$ROOT/docs/schema.sql" "$BUNDLE/"
 cp "$COMPOSE_DIR/.env.prod.example" "$BUNDLE/.env.prod.example"
 echo "QX_API_IMAGE=qx-api:$TAG" > "$BUNDLE/image-tag.env"
