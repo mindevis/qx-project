@@ -73,3 +73,29 @@ skip_tray = true
 		t.Fatal("expected skip_tray from toml")
 	}
 }
+
+func TestDefaultsWithoutEmbedded(t *testing.T) {
+	if embeddedAPIBaseURL != "" || embeddedWebBaseURL != "" {
+		t.Skip("test binary built with prod ldflags")
+	}
+	cfg := defaults()
+	if cfg.APIBaseURL != defaultDevAPIBaseURL {
+		t.Fatalf("api base: got %q want %q", cfg.APIBaseURL, defaultDevAPIBaseURL)
+	}
+	if cfg.WebBaseURL != defaultDevWebBaseURL {
+		t.Fatalf("web base: got %q want %q", cfg.WebBaseURL, defaultDevWebBaseURL)
+	}
+}
+
+func TestEmbeddedProdDefaults(t *testing.T) {
+	if embeddedAPIBaseURL == "" || embeddedWebBaseURL == "" {
+		t.Skip("re-run with LAUNCHER_PROD_LDFLAGS (see Makefile build-launcher-win)")
+	}
+	cfg := defaults()
+	if cfg.APIBaseURL != embeddedAPIBaseURL {
+		t.Fatalf("api base: got %q want %q", cfg.APIBaseURL, embeddedAPIBaseURL)
+	}
+	if cfg.WebBaseURL != embeddedWebBaseURL {
+		t.Fatalf("web base: got %q want %q", cfg.WebBaseURL, embeddedWebBaseURL)
+	}
+}

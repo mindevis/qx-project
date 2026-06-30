@@ -95,7 +95,12 @@ lint:
 AGENT_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)
 AGENT_LDFLAGS = -X main.agentVersion=$(AGENT_VERSION)
 # Systray GUI app: release Windows builds use the windowsgui subsystem (no console).
-LAUNCHER_WIN_LDFLAGS = -H=windowsgui
+LAUNCHER_WIN_GUI_LDFLAGS = -H=windowsgui
+LAUNCHER_PROD_API_BASE ?= https://mc.qx-dev.ru/api/v1
+LAUNCHER_PROD_WEB_BASE ?= https://mc.qx-dev.ru
+LAUNCHER_PROD_LDFLAGS = $(LAUNCHER_WIN_GUI_LDFLAGS) \
+	-X github.com/qxproject/qx/services/qxlauncher/internal/config.embeddedAPIBaseURL=$(LAUNCHER_PROD_API_BASE) \
+	-X github.com/qxproject/qx/services/qxlauncher/internal/config.embeddedWebBaseURL=$(LAUNCHER_PROD_WEB_BASE)
 
 build-api:
 	cd services/qxapi && go build -o ../../bin/qx-api ./cmd
@@ -113,7 +118,7 @@ endif
 
 ifeq ($(OS),Windows_NT)
 build-launcher:
-	cd services/qxlauncher && go build -ldflags "$(LAUNCHER_WIN_LDFLAGS)" -o ../../bin/qx-launcher$(EXE) ./cmd
+	cd services/qxlauncher && go build -ldflags "$(LAUNCHER_WIN_GUI_LDFLAGS)" -o ../../bin/qx-launcher$(EXE) ./cmd
 else
 build-launcher:
 	cd services/qxlauncher && go build -o ../../bin/qx-launcher$(EXE) ./cmd
@@ -121,10 +126,10 @@ endif
 
 ifeq ($(OS),Windows_NT)
 build-launcher-win:
-	cd services/qxlauncher && go build -ldflags "$(LAUNCHER_WIN_LDFLAGS)" -o ../../bin/qx-launcher.exe ./cmd
+	cd services/qxlauncher && go build -ldflags "$(LAUNCHER_PROD_LDFLAGS)" -o ../../bin/qx-launcher.exe ./cmd
 else
 build-launcher-win:
-	cd services/qxlauncher && GOOS=windows GOARCH=amd64 go build -ldflags "$(LAUNCHER_WIN_LDFLAGS)" -o ../../bin/qx-launcher.exe ./cmd
+	cd services/qxlauncher && GOOS=windows GOARCH=amd64 go build -ldflags "$(LAUNCHER_PROD_LDFLAGS)" -o ../../bin/qx-launcher.exe ./cmd
 endif
 
 ifeq ($(OS),Windows_NT)

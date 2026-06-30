@@ -13,6 +13,16 @@ const (
 	defaultLauncherTOML = "launcher.toml"
 	// DefaultDataDirName is the launcher config and cache root under the user home directory.
 	DefaultDataDirName = ".qxlauncher"
+
+	defaultDevAPIBaseURL = "http://localhost:3000/api/v1"
+	defaultDevWebBaseURL = "http://localhost:5173"
+)
+
+// embeddedAPIBaseURL and embeddedWebBaseURL are set at link time for release Windows builds
+// (see Makefile LAUNCHER_PROD_LDFLAGS / build-launcher-win).
+var (
+	embeddedAPIBaseURL string
+	embeddedWebBaseURL string
 )
 
 // UserDataDir returns ~/.qxlauncher (or platform equivalent).
@@ -72,9 +82,17 @@ func Load() Config {
 func defaults() Config {
 	home, _ := os.UserHomeDir()
 	tokenPath := filepath.Join(UserDataDir(home), "device_token")
+	apiBase := defaultDevAPIBaseURL
+	if embeddedAPIBaseURL != "" {
+		apiBase = embeddedAPIBaseURL
+	}
+	webBase := defaultDevWebBaseURL
+	if embeddedWebBaseURL != "" {
+		webBase = embeddedWebBaseURL
+	}
 	return Config{
-		APIBaseURL:      "http://localhost:3000/api/v1",
-		WebBaseURL:      "http://localhost:5173",
+		APIBaseURL:      apiBase,
+		WebBaseURL:      webBase,
 		DeviceTokenPath: tokenPath,
 		LinkMaxPolls:    60,
 		LogLevel:        "info",
