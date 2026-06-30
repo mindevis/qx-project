@@ -11,8 +11,8 @@ const (
 )
 
 type GameServer struct {
-	ID            string    `gorm:"type:char(36);primaryKey" json:"id"`
-	ServerID      string    `gorm:"type:char(36);not null;index" json:"server_id"`
+	ID            string    `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;primaryKey" json:"id"`
+	ServerID      string    `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;not null;index" json:"server_id"`
 	Name          string    `gorm:"type:varchar(128);not null" json:"name"`
 	ServerType    string    `gorm:"type:varchar(32);not null" json:"server_type"`
 	MCVersion     string    `gorm:"type:varchar(32);not null" json:"mc_version"`

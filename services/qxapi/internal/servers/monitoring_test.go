@@ -2,6 +2,7 @@ package servers
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,17 @@ import (
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 	"github.com/qxproject/qx/services/qxapi/internal/testutil"
 )
+
+// Collation mismatch (utf8mb4_unicode_ci vs utf8mb4_0900_ai_ci) only surfaces on MySQL
+// when game_servers was AutoMigrate'd without matching docs/schema.sql. SQLite tests
+// below do not catch it; see docs/migrations/2026-06-30_game_servers_collation.sql.
+
+func TestMonitoringJoinClausesUseUnicodeCollation(t *testing.T) {
+	require.Contains(t, monitoringJoinServersMySQL, "COLLATE "+mysqlUnicodeCI)
+	require.Contains(t, monitoringJoinServersMySQL, "game_servers.server_id")
+	require.Equal(t, monitoringJoinServersPlain, monitoringJoinServers(testutil.OpenSQLiteDB(t)))
+	require.True(t, strings.Contains(monitoringJoinUsersSQL, "servers.owner_id"))
+}
 
 func TestListMonitoringServers_PremiumFirst(t *testing.T) {
 	svc, _, _ := newServersService(t)

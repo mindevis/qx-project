@@ -14,6 +14,24 @@ import (
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 )
 
+// mysqlUnicodeCI matches docs/schema.sql (utf8mb4_unicode_ci). GORM AutoMigrate on
+// MySQL 8.4 defaults to utf8mb4_0900_ai_ci; COLLATE in JOINs avoids prod errors until
+// docs/migrations/2026-06-30_game_servers_collation.sql is applied.
+const mysqlUnicodeCI = "utf8mb4_unicode_ci"
+
+const (
+	monitoringJoinServersMySQL = "JOIN servers ON servers.id = game_servers.server_id COLLATE " + mysqlUnicodeCI
+	monitoringJoinServersPlain = "JOIN servers ON servers.id = game_servers.server_id"
+	monitoringJoinUsersSQL     = "JOIN users ON users.id = servers.owner_id"
+)
+
+func monitoringJoinServers(db *gorm.DB) string {
+	if db != nil && db.Dialector != nil && db.Dialector.Name() == "mysql" {
+		return monitoringJoinServersMySQL
+	}
+	return monitoringJoinServersPlain
+}
+
 type MonitoringServerView struct {
 	ID            string   `json:"id"`
 	Name          string   `json:"name"`
@@ -52,8 +70,8 @@ func (s *Service) ListMonitoringServers(ctx context.Context, in ListMonitoringIn
 	query := s.db.WithContext(ctx).
 		Table("game_servers").
 		Select("game_servers.*, users.tier AS owner_tier").
-		Joins("JOIN servers ON servers.id = game_servers.server_id").
-		Joins("JOIN users ON users.id = servers.owner_id").
+		Joins(monitoringJoinServers(s.db)).
+		Joins(monitoringJoinUsersSQL).
 		Where("game_servers.show_in_monitoring = ?", true).
 		Where("game_servers.address IS NOT NULL AND game_servers.address <> ''")
 
@@ -238,8 +256,8 @@ func (s *Service) getListedMonitoringServer(ctx context.Context, gameServerID st
 	err := s.db.WithContext(ctx).
 		Table("game_servers").
 		Select("game_servers.*, users.tier AS owner_tier").
-		Joins("JOIN servers ON servers.id = game_servers.server_id").
-		Joins("JOIN users ON users.id = servers.owner_id").
+		Joins(monitoringJoinServers(s.db)).
+		Joins(monitoringJoinUsersSQL).
 		Where("game_servers.id = ? AND game_servers.show_in_monitoring = ?", gameServerID, true).
 		First(&row).Error
 	if err != nil {

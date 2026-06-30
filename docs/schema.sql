@@ -303,6 +303,57 @@ CREATE TABLE launch_requests (
 CREATE INDEX idx_launch_pending ON launch_requests (device_id, status);
 
 -- ---------------------------------------------------------------------------
+-- Game servers (Minecraft instances on dedicated servers)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE game_servers (
+    id                      CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    server_id               CHAR(36) NOT NULL,
+    name                    VARCHAR(128) NOT NULL,
+    server_type             VARCHAR(32) NOT NULL,
+    mc_version              VARCHAR(32) NOT NULL,
+    loader_version          VARCHAR(64) NULL,
+    address                 VARCHAR(255) NULL,
+    port                    INT NOT NULL DEFAULT 25565,
+    rcon_password           VARCHAR(64) NULL,
+    status                  VARCHAR(32) NOT NULL DEFAULT 'installing',
+    work_dir                VARCHAR(512) NULL,
+    start_command           VARCHAR(255) NULL,
+    start_args_json         TEXT NULL,
+    jar_path                VARCHAR(512) NULL,
+    show_in_monitoring      TINYINT(1) NOT NULL DEFAULT 0,
+    monitoring_description  TEXT NULL,
+    banner_url              VARCHAR(512) NULL,
+    monitoring_tags_json    TEXT NULL,
+    monitoring_mods_json    TEXT NULL,
+    monitoring_plugins_json TEXT NULL,
+    likes_count             INT NOT NULL DEFAULT 0,
+    rating_sum              INT NOT NULL DEFAULT 0,
+    rating_count            INT NOT NULL DEFAULT 0,
+    created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_game_servers_server FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_game_servers_server_id ON game_servers (server_id);
+CREATE INDEX idx_game_servers_show_in_monitoring ON game_servers (show_in_monitoring);
+
+CREATE TABLE game_server_monitoring_feedback (
+    id             CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id        CHAR(36) NOT NULL,
+    game_server_id CHAR(36) NOT NULL,
+    liked          TINYINT(1) NOT NULL DEFAULT 0,
+    rating         TINYINT NULL,
+    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY idx_monitoring_feedback_user_game (user_id, game_server_id),
+    CONSTRAINT fk_monitoring_feedback_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_monitoring_feedback_game_server FOREIGN KEY (game_server_id) REFERENCES game_servers (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_game_server_monitoring_feedback_game_server_id ON game_server_monitoring_feedback (game_server_id);
+
+-- ---------------------------------------------------------------------------
 -- Audit log (append-only)
 -- ---------------------------------------------------------------------------
 
