@@ -196,6 +196,6 @@ QX Launcher today ships as a **single portable EXE** with in-place self-update f
 
 ---
 
-*See also [auto-update.md](./auto-update.md) (signing roadmap), [security-legal.md](./security-legal.md) §10.*
+*See also [post-mvp.md#launcher-update](./post-mvp.md#launcher-update), [security-legal.md](./security-legal.md) §10.*
 
 Last updated: 2026-07-01

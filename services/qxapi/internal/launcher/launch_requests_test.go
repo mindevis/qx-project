@@ -330,3 +330,43 @@ func TestFindLinkedDevice(t *testing.T) {
 	}
 }
 
+func TestCreateLaunchRequestWithJoinServer(t *testing.T) {
+	svc, db, _ := newLauncherService(t)
+	ctx := context.Background()
+
+	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-join"})
+	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-join", UserID: "user-join"})
+	owner := Owner{UserID: "user-join"}
+
+	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name: "Client", MCVersion: "1.21", Loader: models.LoaderVanilla,
+	})
+	if err != nil {
+		t.Fatalf("instance: %v", err)
+	}
+
+	created, err := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
+		InstanceID:        inst.ID,
+		DeviceID:          "dev-join",
+		JoinServerAddress: "play.example.com",
+		JoinServerPort:    25565,
+	})
+	if err != nil {
+		t.Fatalf("create launch: %v", err)
+	}
+	if created.JoinServerAddress == nil || *created.JoinServerAddress != "play.example.com" {
+		t.Fatalf("join address: %+v", created.JoinServerAddress)
+	}
+	if created.JoinServerPort == nil || *created.JoinServerPort != 25565 {
+		t.Fatalf("join port: %+v", created.JoinServerPort)
+	}
+
+	var stored models.LaunchRequest
+	if err := db.Where("id = ?", created.ID).First(&stored).Error; err != nil {
+		t.Fatalf("load stored: %v", err)
+	}
+	if stored.JoinServerAddress == nil || *stored.JoinServerAddress != "play.example.com" {
+		t.Fatalf("stored address: %+v", stored.JoinServerAddress)
+	}
+}
+

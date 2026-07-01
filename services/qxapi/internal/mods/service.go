@@ -190,6 +190,23 @@ func (s *Service) ListVersions(ctx context.Context, source, projectID, loader, m
 	}
 }
 
+func (s *Service) GetVersion(ctx context.Context, source, projectID, versionID, loader, mcVersion string) (*Version, error) {
+	source = strings.ToLower(strings.TrimSpace(source))
+	projectID = strings.TrimSpace(projectID)
+	versionID = strings.TrimSpace(versionID)
+	if projectID == "" || versionID == "" {
+		return nil, fmt.Errorf("project id and version id required")
+	}
+	switch source {
+	case SourceModrinth:
+		return s.modrinth.getVersion(ctx, versionID, loader, mcVersion)
+	case SourceCurseForge:
+		return s.curseforge.getVersion(ctx, projectID, versionID, loader, mcVersion)
+	default:
+		return nil, fmt.Errorf("unknown source %q", source)
+	}
+}
+
 func normalizeProjectType(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case ProjectTypeModpack:

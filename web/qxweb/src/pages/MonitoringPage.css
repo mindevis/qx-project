@@ -183,6 +183,21 @@
   font-size: 13px;
 }
 
+.monitoring-card-binding {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.monitoring-card-binding-label {
+  font-size: 12px;
+}
+
+.monitoring-card-binding-select {
+  width: 100%;
+}
+
 .monitoring-card-actions {
   display: flex;
   flex-wrap: wrap;

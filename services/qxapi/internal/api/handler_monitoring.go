@@ -17,6 +17,56 @@ type rateMonitoringRequest struct {
 	Rating int `json:"rating" binding:"required"`
 }
 
+type setInstanceBindingRequest struct {
+	InstanceID string `json:"instance_id" binding:"required"`
+}
+
+func (h *MonitoringHandler) ListBindings(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	items, err := h.Service.ListInstanceBindings(c.Request.Context(), userID.(string))
+	if err != nil {
+		monitoringError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+func (h *MonitoringHandler) SetBinding(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req setInstanceBindingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	view, err := h.Service.SetInstanceBinding(c.Request.Context(), userID.(string), c.Param("id"), req.InstanceID)
+	if err != nil {
+		monitoringError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
+}
+
+func (h *MonitoringHandler) ClearBinding(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	if err := h.Service.ClearInstanceBinding(c.Request.Context(), userID.(string), c.Param("id")); err != nil {
+		monitoringError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func (h *MonitoringHandler) List(c *gin.Context) {
 	items, err := h.Service.ListMonitoringServers(c.Request.Context(), servers.ListMonitoringInput{
 		MCVersion: c.Query("mc_version"),

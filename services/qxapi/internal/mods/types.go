@@ -44,14 +44,28 @@ type VersionFile struct {
 	Size     int64  `json:"size,omitempty"`
 }
 
+// ModDependency is a resolved dependency for a mod version.
+type ModDependency struct {
+	ProjectID      string `json:"project_id"`
+	ProjectName    string `json:"project_name,omitempty"`
+	Source         string `json:"source"`
+	DependencyType string `json:"dependency_type"`
+	VersionID      string `json:"version_id,omitempty"`
+	VersionNumber  string `json:"version_number,omitempty"`
+	Filename       string `json:"filename,omitempty"`
+	DownloadURL    string `json:"download_url,omitempty"`
+	FileSize       int64  `json:"file_size,omitempty"`
+}
+
 // Version is a normalized project version.
 type Version struct {
-	ID            string        `json:"id"`
-	VersionNumber string        `json:"version_number"`
-	GameVersions  []string      `json:"game_versions,omitempty"`
-	Loaders       []string      `json:"loaders,omitempty"`
-	Files         []VersionFile `json:"files"`
-	PublishedAt   string        `json:"published_at,omitempty"`
+	ID            string          `json:"id"`
+	VersionNumber string          `json:"version_number"`
+	GameVersions  []string        `json:"game_versions,omitempty"`
+	Loaders       []string        `json:"loaders,omitempty"`
+	Files         []VersionFile   `json:"files"`
+	Dependencies  []ModDependency `json:"dependencies,omitempty"`
+	PublishedAt   string          `json:"published_at,omitempty"`
 }
 
 // SyncModRequest is the body for POST .../mods/sync.

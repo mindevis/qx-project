@@ -24,6 +24,9 @@ type CreateModInstallRequestInput struct {
 	Filename      string
 	DownloadURL   string
 	ResourceType  string
+	IconURL       string
+	Downloads     int64
+	FileSize      int64
 }
 
 type ModInstallRequestView struct {
@@ -102,6 +105,9 @@ func (s *Service) CreateModInstallRequest(ctx context.Context, owner Owner, in C
 		Filename:      in.Filename,
 		DownloadURL:   in.DownloadURL,
 		ResourceType:  normalizeResourceType(in.ResourceType),
+		IconURL:       in.IconURL,
+		Downloads:     in.Downloads,
+		FileSize:      in.FileSize,
 		Status:        models.ModInstallStatusQueued,
 		ExpiresAt:     now.Add(modInstallRequestTTL),
 		CreatedAt:     now,
@@ -205,6 +211,9 @@ func (s *Service) recordInstalledResource(ctx context.Context, req models.ModIns
 		VersionNumber: req.VersionNumber,
 		Filename:      req.Filename,
 		ResourceType:  req.ResourceType,
+		IconURL:       req.IconURL,
+		Downloads:     req.Downloads,
+		FileSize:      req.FileSize,
 		InstalledAt:   resourceInstalledAt(),
 	}
 	appendInstanceResource(&inst, entry)

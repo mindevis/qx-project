@@ -27,12 +27,14 @@ type LaunchCosmetics struct {
 }
 
 type ClientLaunchInput struct {
-	Manifest    *mcmanifest.InstanceLaunchManifest
-	Username    string
-	OfflineUUID string
-	SkinModel   string
-	Licensed    *LaunchAuth
-	Cosmetics   *LaunchCosmetics
+	Manifest          *mcmanifest.InstanceLaunchManifest
+	Username          string
+	OfflineUUID       string
+	SkinModel         string
+	Licensed          *LaunchAuth
+	Cosmetics         *LaunchCosmetics
+	JoinServerAddress string
+	JoinServerPort    int
 }
 
 type ClientLaunchReady struct {
@@ -121,6 +123,15 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		return nil, fmt.Errorf("player skin: %w", err)
 	}
 
+	quickPlayMultiplayer := ""
+	if addr := strings.TrimSpace(in.JoinServerAddress); addr != "" {
+		port := in.JoinServerPort
+		if port <= 0 {
+			port = 25565
+		}
+		quickPlayMultiplayer = fmt.Sprintf("%s:%d", addr, port)
+	}
+
 	plan := BuildLaunchPlan(
 		in.Manifest,
 		jar,
@@ -133,6 +144,7 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		offlineUUID,
 		javaBin,
 		in.Licensed,
+		quickPlayMultiplayer,
 	)
 
 	if in.Cosmetics != nil && in.Cosmetics.UseSkinServer {

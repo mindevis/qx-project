@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { Button, Empty, List, Spin, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { api, type InstanceResource } from '@/api/client';
+import { InstanceServerBinding } from '@/components/InstanceServerBinding';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { formatDownloadCount, formatFileSize } from '@/lib/formatFileSize';
 import './InstanceResourcesPanel.css';
 
 const { Text, Title } = Typography;
@@ -48,6 +50,7 @@ export function InstanceInstalledResources({ layout = 'standalone' }: { layout?:
           {t('qxmods.brand')}
         </Text>
       </div>
+      <InstanceServerBinding />
       <div className="qxmods-installed-toolbar">
         <Text type="secondary">{t('qxmods.installed.intro')}</Text>
         <Link to={`${basePath}/catalog`}>
@@ -73,6 +76,13 @@ export function InstanceInstalledResources({ layout = 'standalone' }: { layout?:
           renderItem={(item) => (
             <List.Item key={`${item.source}:${item.project_id ?? item.filename}`}>
               <List.Item.Meta
+                avatar={
+                  item.icon_url ? (
+                    <img src={item.icon_url} alt="" className="qxmods-installed-icon" />
+                  ) : (
+                    <span className="qxmods-installed-icon qxmods-installed-icon--placeholder" />
+                  )
+                }
                 title={
                   <span>
                     {item.project_name}{' '}
@@ -84,6 +94,8 @@ export function InstanceInstalledResources({ layout = 'standalone' }: { layout?:
                     {t(`qxmods.tabs.${item.resource_type}`)}
                     {item.version_number ? ` · ${item.version_number}` : ''}
                     {item.filename ? ` · ${item.filename}` : ''}
+                    {item.file_size ? ` · ${formatFileSize(item.file_size)}` : ''}
+                    {item.downloads ? ` · ${formatDownloadCount(item.downloads)} ${t('qxmods.installed.downloads')}` : ''}
                   </Text>
                 }
               />

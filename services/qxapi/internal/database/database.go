@@ -76,6 +76,7 @@ var migrateUsers = func(db *gorm.DB) error {
 		&models.Agent{},
 		&models.GameServer{},
 		&models.GameServerMonitoringFeedback{},
+		&models.GameServerInstanceBinding{},
 	); err != nil {
 		return err
 	}

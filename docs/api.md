@@ -199,7 +199,7 @@ Deploy/onboarding: [production-deploy.md §7](./production-deploy.md) · [ssh-de
 
 ### 4.3 Server content (mods / plugins) — post-MVP API
 
-По `server_type` — см. [server-content-install.md](./server-content-install.md).  
+По `server_type` — см. [post-mvp.md#server-content](./post-mvp.md#server-content).  
 Ошибка `403 CONTENT_NOT_ALLOWED` если тип не поддерживает контент.
 
 | Method | Path | Auth | Allowed `server_type` |
@@ -238,7 +238,7 @@ Deploy/onboarding: [production-deploy.md §7](./production-deploy.md) · [ssh-de
 | POST | `/modpacks/import` | Bearer | Import from CF/MR external id |
 
 **Modpack sync:** same `modpack_id` on `instances` and `servers` → QXLauncher (ПК) + QXAgent (сервер).
-На сервере состав путей по `server_type`: [server-content-install.md](./server-content-install.md).
+На сервере состав путей по `server_type`: [post-mvp.md#server-content](./post-mvp.md#server-content).
 
 ---
 

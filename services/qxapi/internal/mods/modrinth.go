@@ -53,7 +53,12 @@ type modrinthVersion struct {
 	GameVersions  []string
 	Loaders       []string
 	DatePublished string `json:"date_published"`
-	Files         []struct {
+	Dependencies  []struct {
+		VersionID      string `json:"version_id"`
+		ProjectID      string `json:"project_id"`
+		DependencyType string `json:"dependency_type"`
+	} `json:"dependencies"`
+	Files []struct {
 		Filename string `json:"filename"`
 		URL      string `json:"url"`
 		Size     int64  `json:"size"`
@@ -192,25 +197,105 @@ func (c *modrinthClient) listVersions(ctx context.Context, projectID, loader, mc
 	}
 	out := make([]Version, 0, len(raw))
 	for _, v := range raw {
-		files := make([]VersionFile, 0, len(v.Files))
-		for _, f := range v.Files {
-			files = append(files, VersionFile{
-				Filename: f.Filename,
-				URL:      f.URL,
-				SHA1:     f.Hashes.SHA1,
-				Size:     f.Size,
-			})
-		}
-		out = append(out, Version{
-			ID:            v.ID,
-			VersionNumber: v.VersionNumber,
-			GameVersions:  v.GameVersions,
-			Loaders:       v.Loaders,
-			Files:         files,
-			PublishedAt:   v.DatePublished,
-		})
+		out = append(out, *c.versionFromModrinthBasic(v))
 	}
 	return out, nil
+}
+
+func (c *modrinthClient) getVersion(ctx context.Context, versionID, loader, mcVersion string) (*Version, error) {
+	var v modrinthVersion
+	if err := c.getJSON(ctx, "/version/"+url.PathEscape(versionID), &v); err != nil {
+		return nil, err
+	}
+	ver := c.versionFromModrinthBasic(v)
+	deps, err := c.resolveDependencies(ctx, v.Dependencies, loader, mcVersion)
+	if err != nil {
+		return nil, err
+	}
+	ver.Dependencies = deps
+	return ver, nil
+}
+
+func (c *modrinthClient) versionFromModrinthBasic(v modrinthVersion) *Version {
+	files := make([]VersionFile, 0, len(v.Files))
+	for _, f := range v.Files {
+		files = append(files, VersionFile{
+			Filename: f.Filename,
+			URL:      f.URL,
+			SHA1:     f.Hashes.SHA1,
+			Size:     f.Size,
+		})
+	}
+	return &Version{
+		ID:            v.ID,
+		VersionNumber: v.VersionNumber,
+		GameVersions:  v.GameVersions,
+		Loaders:       v.Loaders,
+		Files:         files,
+		PublishedAt:   v.DatePublished,
+	}
+}
+
+func (c *modrinthClient) resolveDependencies(ctx context.Context, raw []struct {
+	VersionID      string `json:"version_id"`
+	ProjectID      string `json:"project_id"`
+	DependencyType string `json:"dependency_type"`
+}, loader, mcVersion string) ([]ModDependency, error) {
+	out := make([]ModDependency, 0, len(raw))
+	for _, dep := range raw {
+		depType := normalizeDependencyType(dep.DependencyType)
+		if depType == "embedded" {
+			continue
+		}
+		entry := ModDependency{
+			ProjectID:      dep.ProjectID,
+			Source:         SourceModrinth,
+			DependencyType: depType,
+			VersionID:      dep.VersionID,
+		}
+		if dep.ProjectID != "" {
+			if project, err := c.getProject(ctx, dep.ProjectID); err == nil {
+				entry.ProjectName = project.Name
+			}
+		}
+		if dep.VersionID != "" {
+			var rv modrinthVersion
+			if err := c.getJSON(ctx, "/version/"+url.PathEscape(dep.VersionID), &rv); err == nil {
+				best := c.versionFromModrinthBasic(rv)
+				entry.VersionNumber = best.VersionNumber
+				if len(best.Files) > 0 {
+					entry.Filename = best.Files[0].Filename
+					entry.DownloadURL = best.Files[0].URL
+					entry.FileSize = best.Files[0].Size
+				}
+			}
+		} else if dep.ProjectID != "" {
+			versions, err := c.listVersions(ctx, dep.ProjectID, loader, mcVersion)
+			if err == nil && len(versions) > 0 {
+				best := versions[0]
+				entry.VersionID = best.ID
+				entry.VersionNumber = best.VersionNumber
+				if len(best.Files) > 0 {
+					entry.Filename = best.Files[0].Filename
+					entry.DownloadURL = best.Files[0].URL
+					entry.FileSize = best.Files[0].Size
+				}
+			}
+		}
+		out = append(out, entry)
+	}
+	return out, nil
+}
+
+func normalizeDependencyType(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "optional":
+		return "optional"
+	case "embedded":
+		return "embedded"
+	default:
+		return "required"
+	}
 }
 
 func (c *modrinthClient) getJSON(ctx context.Context, path string, dest any) error {

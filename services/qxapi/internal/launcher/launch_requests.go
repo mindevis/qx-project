@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,10 +17,12 @@ import (
 const launchRequestTTL = 5 * time.Minute
 
 type CreateLaunchRequestInput struct {
-	InstanceID       string
-	OfflineProfileID string
-	DeviceID         string
-	UseMojangAccount bool
+	InstanceID        string
+	OfflineProfileID  string
+	DeviceID          string
+	UseMojangAccount  bool
+	JoinServerAddress string
+	JoinServerPort    int
 }
 
 type MojangSessionView struct {
@@ -34,6 +37,7 @@ type LaunchInstanceView struct {
 	MCVersion     string  `json:"mc_version"`
 	Loader        string  `json:"loader"`
 	LoaderVersion *string `json:"loader_version,omitempty"`
+	MaxMemoryMB   *int    `json:"max_memory_mb,omitempty"`
 }
 
 type LaunchRequestView struct {
@@ -42,6 +46,8 @@ type LaunchRequestView struct {
 	InstanceID       string                 `json:"instance_id"`
 	OfflineProfileID *string                `json:"offline_profile_id,omitempty"`
 	UseMojangAccount bool                   `json:"use_mojang_account,omitempty"`
+	JoinServerAddress *string               `json:"join_server_address,omitempty"`
+	JoinServerPort    *int                  `json:"join_server_port,omitempty"`
 	ExpiresAt        time.Time              `json:"expires_at"`
 	Instance         *LaunchInstanceView    `json:"instance,omitempty"`
 	Profile          *models.OfflineProfile `json:"profile,omitempty"`
@@ -107,6 +113,14 @@ func (s *Service) CreateLaunchRequest(ctx context.Context, owner Owner, in Creat
 		Status:           models.LaunchStatusQueued,
 		ExpiresAt:        now.Add(launchRequestTTL),
 		CreatedAt:        now,
+	}
+	if addr := strings.TrimSpace(in.JoinServerAddress); addr != "" {
+		req.JoinServerAddress = &addr
+		port := in.JoinServerPort
+		if port <= 0 {
+			port = 25565
+		}
+		req.JoinServerPort = &port
 	}
 	if err := s.db.WithContext(ctx).Create(&req).Error; err != nil {
 		return nil, err
@@ -250,6 +264,7 @@ func launchInstanceFromModel(inst models.LauncherInstance) *LaunchInstanceView {
 		MCVersion:     inst.MCVersion,
 		Loader:        inst.Loader,
 		LoaderVersion: inst.LoaderVersion,
+		MaxMemoryMB:   inst.MaxMemoryMB,
 	}
 }
 
@@ -305,12 +320,14 @@ func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest
 
 func launchViewFromModel(req models.LaunchRequest, instance *LaunchInstanceView, profile *models.OfflineProfile, mojangSession *MojangSessionView, cosmeticsView *cosmetics.LaunchView) *LaunchRequestView {
 	return &LaunchRequestView{
-		ID:               req.ID,
-		Status:           req.Status,
-		InstanceID:       req.InstanceID,
-		OfflineProfileID: req.OfflineProfileID,
-		UseMojangAccount: req.UseMojangAccount,
-		ExpiresAt:        req.ExpiresAt,
+		ID:                req.ID,
+		Status:            req.Status,
+		InstanceID:        req.InstanceID,
+		OfflineProfileID:  req.OfflineProfileID,
+		UseMojangAccount:  req.UseMojangAccount,
+		JoinServerAddress: req.JoinServerAddress,
+		JoinServerPort:    req.JoinServerPort,
+		ExpiresAt:         req.ExpiresAt,
 		Instance:         instance,
 		Profile:          profile,
 		MojangSession:    mojangSession,

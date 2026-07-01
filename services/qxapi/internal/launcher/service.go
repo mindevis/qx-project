@@ -356,6 +356,28 @@ func instanceLoaderVersion(inst models.LauncherInstance) string {
 	return *inst.LoaderVersion
 }
 
+type UpdateInstanceInput struct {
+	MaxMemoryMB *int
+}
+
+func (s *Service) UpdateInstance(ctx context.Context, owner Owner, instanceID string, in UpdateInstanceInput) (*models.LauncherInstance, error) {
+	inst, err := s.GetInstance(ctx, owner, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	if in.MaxMemoryMB != nil {
+		if *in.MaxMemoryMB < 512 || *in.MaxMemoryMB > 65536 {
+			return nil, ErrValidation
+		}
+		inst.MaxMemoryMB = in.MaxMemoryMB
+	}
+	inst.UpdatedAt = time.Now().UTC()
+	if err := s.db.WithContext(ctx).Save(inst).Error; err != nil {
+		return nil, err
+	}
+	return inst, nil
+}
+
 func (s *Service) DeleteInstance(ctx context.Context, owner Owner, instanceID string) error {
 	q := s.db.WithContext(ctx).Where("id = ?", instanceID)
 	q = scopeOwner(q, owner)

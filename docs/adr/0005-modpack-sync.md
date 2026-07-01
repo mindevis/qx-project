@@ -12,7 +12,7 @@
 - Единый `modpack_id` на `launcher_instances` и `servers`.
 - Один `QxModpackManifest` + `manifest_sha256` в MySQL.
 - Client: QXLauncher install to PC.
-- Server: QXAgent install to server disk; **mods vs plugins** by `server_type` ([server-content-install.md](../server-content-install.md)).
+- Server: QXAgent install to server disk; **mods vs plugins** by `server_type` ([post-mvp.md#server-content](../post-mvp.md#server-content)).
 
 ## Rationale
 

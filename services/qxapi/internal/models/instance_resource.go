@@ -15,6 +15,9 @@ type InstanceResourceEntry struct {
 	VersionNumber string `json:"version_number,omitempty"`
 	Filename      string `json:"filename"`
 	ResourceType  string `json:"resource_type"`
+	IconURL       string `json:"icon_url,omitempty"`
+	Downloads     int64  `json:"downloads,omitempty"`
+	FileSize      int64  `json:"file_size,omitempty"`
 	InstalledAt   string `json:"installed_at"`
 }
 

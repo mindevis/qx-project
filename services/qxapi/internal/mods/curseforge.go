@@ -238,6 +238,117 @@ func (c *curseForgeClient) listVersions(ctx context.Context, projectID, loader, 
 	return out, nil
 }
 
+func (c *curseForgeClient) getVersion(ctx context.Context, projectID, fileID, loader, mcVersion string) (*Version, error) {
+	if !c.enabled() {
+		return nil, fmt.Errorf("curseforge api key not configured")
+	}
+	var resp struct {
+		Data struct {
+			ID           int    `json:"id"`
+			DisplayName  string `json:"displayName"`
+			FileName     string `json:"fileName"`
+			FileDate     string `json:"fileDate"`
+			GameVersions []string
+			ModLoader    int `json:"modLoader"`
+			DownloadURL  string `json:"downloadUrl"`
+			FileLength   int64  `json:"fileLength"`
+			Hashes       []struct {
+				Value string `json:"value"`
+				Algo  int    `json:"algo"`
+			} `json:"hashes"`
+		} `json:"data"`
+	}
+	path := "/mods/" + url.PathEscape(projectID) + "/files/" + url.PathEscape(fileID)
+	if err := c.getJSON(ctx, path, &resp); err != nil {
+		return nil, err
+	}
+	f := resp.Data
+	sha1 := ""
+	for _, h := range f.Hashes {
+		if h.Algo == 1 {
+			sha1 = h.Value
+			break
+		}
+	}
+	downloadURL := f.DownloadURL
+	if downloadURL == "" {
+		downloadURL, _ = c.fileDownloadURL(ctx, projectID, fileID)
+	}
+	deps, err := c.fileDependencies(ctx, projectID, fileID, loader, mcVersion)
+	if err != nil {
+		return nil, err
+	}
+	return &Version{
+		ID:            fileID,
+		VersionNumber: f.DisplayName,
+		GameVersions:  f.GameVersions,
+		Loaders:       []string{curseForgeLoaderName(f.ModLoader)},
+		Files: []VersionFile{{
+			Filename: f.FileName,
+			URL:      downloadURL,
+			SHA1:     sha1,
+			Size:     f.FileLength,
+		}},
+		Dependencies: deps,
+		PublishedAt:  f.FileDate,
+	}, nil
+}
+
+func (c *curseForgeClient) fileDependencies(ctx context.Context, projectID, fileID, loader, mcVersion string) ([]ModDependency, error) {
+	var resp struct {
+		Data []struct {
+			ModID        int `json:"modId"`
+			RelationType int `json:"relationType"`
+		} `json:"data"`
+	}
+	path := "/mods/" + url.PathEscape(projectID) + "/files/" + url.PathEscape(fileID) + "/dependencies"
+	if err := c.getJSON(ctx, path, &resp); err != nil {
+		return nil, err
+	}
+	out := make([]ModDependency, 0, len(resp.Data))
+	for _, dep := range resp.Data {
+		depType := curseForgeRelationType(dep.RelationType)
+		if depType == "embedded" {
+			continue
+		}
+		modID := strconv.Itoa(dep.ModID)
+		entry := ModDependency{
+			ProjectID:      modID,
+			Source:         SourceCurseForge,
+			DependencyType: depType,
+		}
+		if project, err := c.getProject(ctx, modID); err == nil {
+			entry.ProjectName = project.Name
+		}
+		versions, err := c.listVersions(ctx, modID, loader, mcVersion)
+		if err == nil && len(versions) > 0 {
+			best := versions[0]
+			entry.VersionID = best.ID
+			entry.VersionNumber = best.VersionNumber
+			if len(best.Files) > 0 {
+				entry.Filename = best.Files[0].Filename
+				entry.DownloadURL = best.Files[0].URL
+				entry.FileSize = best.Files[0].Size
+			}
+		}
+		out = append(out, entry)
+	}
+	return out, nil
+}
+
+func curseForgeRelationType(code int) string {
+	switch code {
+	case 2:
+		return "optional"
+	case 3:
+		return "required"
+	case 1:
+		return "embedded"
+	default:
+		return "required"
+	}
+}
+
 func (c *curseForgeClient) fileDownloadURL(ctx context.Context, projectID, fileID string) (string, error) {
 	var resp struct {
 		Data string `json:"data"`

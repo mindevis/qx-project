@@ -158,7 +158,7 @@ EULA](https://www.minecraft.net/en-us/eula) and [Usage Guidelines](https://www.m
 
 ## 5. CurseForge ToS & direct client install
 
-See also [modpacks-pipeline.md](./modpacks-pipeline.md), [ADR-0011](./adr/0011-client-local-content-install.md).
+See also [post-mvp.md#modpacks](./post-mvp.md#modpacks), [ADR-0011](./adr/0011-client-local-content-install.md).
 
 ### 5.1 Allowed (typical CF API usage)
 
@@ -250,6 +250,6 @@ Full details, signing steps, and Microsoft submission: **[launcher-windows-defen
 
 ---
 
-*См. [ssh-deploy.md](./ssh-deploy.md), [launch-bridge.md](./launch-bridge.md), [server-content-install.md](./server-content-install.md), [configuration.md](./configuration.md)*
+*См. [ssh-deploy.md](./ssh-deploy.md), [launch-bridge.md](./launch-bridge.md), [post-mvp.md](./post-mvp.md), [configuration.md](./configuration.md)*
 
 Последнее обновление: 2026-07-01 (Defender / launcher signing)

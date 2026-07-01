@@ -190,11 +190,15 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 
 			authed.POST("/monitoring/servers/:id/like", monitoringH.Like)
 			authed.POST("/monitoring/servers/:id/rate", monitoringH.Rate)
+			authed.GET("/monitoring/bindings", monitoringH.ListBindings)
+			authed.PUT("/monitoring/servers/:id/binding", monitoringH.SetBinding)
+			authed.DELETE("/monitoring/servers/:id/binding", monitoringH.ClearBinding)
 
 			authed.GET("/mods/search", modsH.Search)
 			authed.GET("/mods/browse", modsH.Browse)
 			authed.GET("/mods/:source/:projectId", modsH.GetProject)
 			authed.GET("/mods/:source/:projectId/versions", modsH.ListVersions)
+			authed.GET("/mods/:source/:projectId/versions/:versionId", modsH.GetVersion)
 		}
 
 		launcherOwner := v1.Group("")
@@ -203,6 +207,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			launcherOwner.GET("/instances", instancesH.List)
 			launcherOwner.POST("/instances", instancesH.Create)
 			launcherOwner.GET("/instances/:id", instancesH.Get)
+			launcherOwner.PATCH("/instances/:id", instancesH.Update)
 			launcherOwner.GET("/instances/:id/resources", instancesH.ListResources)
 			launcherOwner.GET("/instances/:id/manifest", instancesH.Manifest)
 			launcherOwner.DELETE("/instances/:id", instancesH.Delete)

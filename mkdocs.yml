@@ -1,5 +1,5 @@
 site_name: QXSystem
-site_description: Документация экосистемы QX — QXWeb, QXApi, QXLauncher, QXAgent
+site_description: Документация QX — QXWeb, QXApi, QXLauncher, QXAgent
 site_url: https://mindevis.github.io/qx-project/
 repo_url: https://github.com/mindevis/qx-project
 repo_name: mindevis/qx-project
@@ -7,6 +7,12 @@ edit_uri: edit/main/docs/
 
 docs_dir: docs
 site_dir: site
+
+exclude_docs: |
+  schema.sql
+  migrations/*
+  mvp.md
+  qa/*
 
 theme:
   name: material
@@ -29,7 +35,6 @@ theme:
   features:
     - navigation.tabs
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - navigation.footer
     - search.suggest
@@ -60,41 +65,23 @@ markdown_extensions:
 
 nav:
   - Главная: index.md
-  - Начало:
-      - FAQ: faq.md
-      - MVP: mvp.md
-      - Конфигурация: configuration.md
-  - Архитектура: architecture.md
-  - API: api.md
-  - Компоненты:
-      - Device linking: device-linking.md
-      - Launch bridge: launch-bridge.md
-      - Agent protocol: agent-protocol.md
-      - SSH deploy: ssh-deploy.md
-      - Production deploy: production-deploy.md
-  - Гайды:
-      - Mojang Java: mojang-java.md
-      - Modpacks pipeline: modpacks-pipeline.md
-      - Server content: server-content-install.md
-      - Skin server: skin-server.md
-      - Auto-update: auto-update.md
+  - FAQ: faq.md
+  - Конфигурация: configuration.md
+  - Деплой:
+      - Production: production-deploy.md
+      - SSH / агент: ssh-deploy.md
       - Observability: observability-ops.md
-      - Security & legal: security-legal.md
-  - QA:
-      - Test matrix: qa/test-matrix.md
-  - ADR:
-      - adr/README.md
-      - "0001 Tech stack": adr/0001-tech-stack.md
-      - "0002 Launcher hybrid UI": adr/0002-launcher-hybrid-ui.md
-      - "0003 Agent SSH deploy": adr/0003-agent-linux-ssh-deploy.md
-      - "0004 Self-hosted infra": adr/0004-self-hosted-infra.md
-      - "0005 Modpack sync": adr/0005-modpack-sync.md
-      - "0006 Launcher website UI": adr/0006-launcher-website-ui.md
-      - "0007 CurseForge priority": adr/0007-curseforge-priority.md
-      - "0008 Launch bridge": adr/0008-launch-bridge-hybrid.md
-      - "0009 Pure self-hosted": adr/0009-pure-self-hosted.md
-      - "0010 Own launcher": adr/0010-own-launcher-not-gml.md
-      - "0011 Client local content": adr/0011-client-local-content-install.md
+  - API: api.md
+  - Лаунчер:
+      - Привязка устройства: device-linking.md
+      - Запуск игры: launch-bridge.md
+      - Скины (QX Cosmetics): cosmetics.md
+      - Windows Defender: launcher-windows-defender.md
+  - QXAgent: agent-protocol.md
+  - Архитектура: architecture.md
+  - Безопасность: security-legal.md
+  - Post-MVP: post-mvp.md
+  - ADR: adr/README.md
 
 extra:
   social:

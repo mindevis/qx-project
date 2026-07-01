@@ -5,7 +5,7 @@
 >
 > Для закрытой beta / MVP Definition of Done.
 > Статус теста: ☐ не пройден · ☑ пройден · ⊘ N/A (post-MVP) · 🤖 автоматизирован (unit)
-> Server content (mods/plugins): [server-content-install.md](../server-content-install.md)
+> Server content (mods/plugins): [post-mvp.md#server-content](../post-mvp.md#server-content)
 
 **Flow A/B:** manual pass ☑ — A09, L03, I04, I05 (QXLauncher: auto browser link, tray fallback, full JVM, Mojang JRE с нуля).
 

@@ -9,6 +9,7 @@ import {
   type ModSource,
   type ModVersion,
 } from '@/api/client';
+import { ModInstallDepsModal, type InstallItem } from '@/components/ModInstallDepsModal';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
@@ -35,9 +36,12 @@ export function ModDetailPanel() {
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncSelection, setSyncSelection] = useState<ModSyncSelection | null>(null);
   const [lastInstalledVersion, setLastInstalledVersion] = useState<ModVersion | null>(null);
+  const [depsOpen, setDepsOpen] = useState(false);
+  const [pendingVersion, setPendingVersion] = useState<ModVersion | null>(null);
+  const [installedResources, setInstalledResources] = useState<{ source: ModSource; project_id?: string }[]>([]);
 
   const resourceType: ModProjectType = detail?.project_type ?? 'mod';
-  const { installingVersionId, installedVersionId, installVersion } = useModInstall(instance.id);
+  const { installingVersionId, installedVersionId, installBatch } = useModInstall(instance.id);
 
   useEffect(() => {
     if (!source || !projectId) return;
@@ -92,6 +96,27 @@ export function ModDetailPanel() {
     setLastInstalledVersion(version);
   }, [installedVersionId, versions]);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await api.listInstanceResources(instance.id);
+        setInstalledResources(res.items ?? []);
+      } catch {
+        setInstalledResources([]);
+      }
+    })();
+  }, [instance.id, installedVersionId]);
+
+  const installedProjectIds = useMemo(
+    () =>
+      new Set(
+        installedResources
+          .filter((r) => r.project_id)
+          .map((r) => `${r.source}:${r.project_id}`),
+      ),
+    [installedResources],
+  );
+
   const mcVersionOptions = useMemo(() => {
     const fromProject = detail?.game_versions ?? [];
     const fromVersions = versions.flatMap((v) => v.game_versions ?? []);
@@ -113,15 +138,20 @@ export function ModDetailPanel() {
     modSupportsServerSync(detail) &&
     resourceType === 'mod';
 
-  const handleInstall = async (version: ModVersion) => {
-    if (!detail || !source) return;
-    await installVersion({
-      source,
-      projectId: detail.id,
-      projectName: detail.name,
-      version,
-      resourceType,
-    });
+  const handleInstallClick = (version: ModVersion) => {
+    setPendingVersion(version);
+    setDepsOpen(true);
+  };
+
+  const handleInstallConfirm = async (items: InstallItem[]) => {
+    const enriched = items.map((item) => ({
+      ...item,
+      iconUrl: item.projectId === detail?.id ? detail?.icon_url : undefined,
+      downloads: item.projectId === detail?.id ? detail?.downloads : undefined,
+      fileSize: item.version.files[0]?.size,
+    }));
+    const ok = await installBatch(enriched);
+    if (ok) setDepsOpen(false);
   };
 
   const handleSyncClick = () => {
@@ -220,7 +250,7 @@ export function ModDetailPanel() {
                     size="small"
                     loading={installingVersionId === version.id}
                     disabled={installingVersionId != null && installingVersionId !== version.id}
-                    onClick={() => void handleInstall(version)}
+                    onClick={() => handleInstallClick(version)}
                   >
                     {t('qxmods.install.action')}
                   </Button>,
@@ -256,6 +286,20 @@ export function ModDetailPanel() {
         instanceLoader={instance.loader}
         onClose={() => setSyncOpen(false)}
       />
+      {pendingVersion && source && detail ? (
+        <ModInstallDepsModal
+          open={depsOpen}
+          source={source}
+          projectId={detail.id}
+          projectName={detail.name}
+          version={pendingVersion}
+          resourceType={resourceType}
+          installedProjectIds={installedProjectIds}
+          confirming={installingVersionId === pendingVersion.id}
+          onCancel={() => setDepsOpen(false)}
+          onConfirm={(items) => void handleInstallConfirm(items)}
+        />
+      ) : null}
     </section>
   );
 }

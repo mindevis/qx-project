@@ -6,23 +6,20 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — ка�
 
 [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [License](LICENSE)
 
-Документация: **[mindevis.github.io/qx-project](https://mindevis.github.io/qx-project/)** · [architecture](docs/architecture.md) · [mvp](docs/mvp.md) · [FAQ](docs/faq.md) · [test matrix](docs/qa/test-matrix.md)
+Документация: **[mindevis.github.io/qx-project](https://mindevis.github.io/qx-project/)** · [FAQ](docs/faq.md) · [configuration](docs/configuration.md) · [production-deploy](docs/production-deploy.md)
 
-Локальный предпросмотр: `make docs-serve`
+Локальный предпросмотр: `make docs-serve` · сборка: `make docs-build`
 
 | Документ | Содержание |
 | -------- | ------------ |
-| [mvp.md](docs/mvp.md) | Scope, DoD, фазы, prod readiness |
-| [architecture.md](docs/architecture.md) | Полная архитектура + статус |
+| [faq.md](docs/faq.md) | Как играть, привязка лаунчера |
+| [configuration.md](docs/configuration.md) | TOML (dev) и prod `.env` |
+| [production-deploy.md](docs/production-deploy.md) | Деплой `mc.qx-dev.ru` |
 | [api.md](docs/api.md) | REST + WebSocket |
-| [agent-protocol.md](docs/agent-protocol.md) | Agent WSS, deploy |
-| [device-linking.md](docs/device-linking.md) | Launcher ↔ сайт |
-| [launch-bridge.md](docs/launch-bridge.md) | Site → QXLauncher → JVM |
-| [ssh-deploy.md](docs/ssh-deploy.md) | SSH deploy agent |
-| [faq.md](docs/faq.md) | FAQ alpha |
-| [configuration.md](docs/configuration.md) | TOML-конфиг (dev) · [prod .env](docs/configuration.md#6-prod--infradockerenvprod) |
-| [production-deploy.md](docs/production-deploy.md) | **Prod: deploy на хост платформы** (`mc.qx-dev.ru`) |
-| [adr/](docs/adr/) | Architecture Decision Records |
+| [device-linking.md](docs/device-linking.md) · [launch-bridge.md](docs/launch-bridge.md) | Лаунчер |
+| [agent-protocol.md](docs/agent-protocol.md) · [ssh-deploy.md](docs/ssh-deploy.md) | QXAgent |
+| [architecture.md](docs/architecture.md) | Полная архитектура |
+| [adr/](docs/adr/) | ADR |
 
 ## Требования
 

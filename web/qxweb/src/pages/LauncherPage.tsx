@@ -5,6 +5,7 @@ import {
   Button,
   Form,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Segmented,
@@ -26,6 +27,7 @@ import {
   PlusOutlined,
   RocketOutlined,
   ReloadOutlined,
+  SettingOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { LauncherDownloadButton } from '@/components/LauncherDownloadButton';
@@ -134,6 +136,10 @@ function LauncherHome() {
   const [accountMode, setAccountMode] = useState<LaunchAccountMode>('offline');
   const [mojangStatus, setMojangStatus] = useState<MojangLinkStatus | null>(null);
   const [mojangLoading, setMojangLoading] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInstance, setSettingsInstance] = useState<LauncherInstance | null>(null);
+  const [settingsRamMb, setSettingsRamMb] = useState(2048);
+  const [savingSettings, setSavingSettings] = useState(false);
   const userChoseAccountMode = useRef(false);
   const [, setAccessKey] = useState(0);
   const refreshAccess = useCallback(() => setAccessKey((k) => k + 1), []);
@@ -646,6 +652,29 @@ function LauncherHome() {
       message.success(t('launcher.launcherUnlinked'));
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('launcher.unlinkFailed'));
+    }
+  };
+
+  const openInstanceSettings = (instance: LauncherInstance) => {
+    setSettingsInstance(instance);
+    setSettingsRamMb(instance.max_memory_mb ?? 2048);
+    setSettingsOpen(true);
+  };
+
+  const handleSaveInstanceSettings = async () => {
+    if (!settingsInstance) return;
+    setSavingSettings(true);
+    try {
+      const updated = await api.updateInstance(settingsInstance.id, {
+        max_memory_mb: settingsRamMb,
+      });
+      setInstances((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      message.success(t('launcher.instanceSettingsSaved'));
+      setSettingsOpen(false);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('launcher.instanceSettingsFailed'));
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -1242,6 +1271,12 @@ function LauncherHome() {
                             </Button>
                           </Link>
                         ) : null}
+                        <Button
+                          size="large"
+                          icon={<SettingOutlined />}
+                          aria-label={t('launcher.instanceSettings')}
+                          onClick={() => openInstanceSettings(item)}
+                        />
                         <Popconfirm
                           title={t('launcher.deleteInstanceConfirm')}
                           onConfirm={() => handleDelete(item.id)}
@@ -1362,6 +1397,33 @@ function LauncherHome() {
           <Button type="primary" htmlType="submit" loading={creatingProfile} block>
             {t('common.create')}
           </Button>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={t('launcher.instanceSettingsTitle', { name: settingsInstance?.name ?? '' })}
+        open={settingsOpen}
+        onCancel={() => setSettingsOpen(false)}
+        onOk={() => void handleSaveInstanceSettings()}
+        confirmLoading={savingSettings}
+        okText={t('common.save')}
+        cancelText={t('common.cancel')}
+        destroyOnHidden
+        {...modalMotionProps}
+      >
+        <Paragraph type="secondary">{t('launcher.instanceSettingsHint')}</Paragraph>
+        <Form layout="vertical">
+          <Form.Item label={t('launcher.maxMemoryMb')}>
+            <InputNumber
+              min={512}
+              max={65536}
+              step={512}
+              addonAfter="MB"
+              value={settingsRamMb}
+              onChange={(value) => setSettingsRamMb(value ?? 2048)}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

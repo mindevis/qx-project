@@ -186,7 +186,7 @@ interface Envelope {
 **server_type:** `vanilla` \| `paper` \| `spigot` \| `purpur` \| `forge` \| `neoforge` \| `fabric` \| `quilt` \|
 `hybrid` (требует `hybrid_platform`: `mohist` \| `magma` \| `arclight`).
 
-См. [server-content-install.md](./server-content-install.md).
+См. [post-mvp.md#server-content](./post-mvp.md#server-content).
 
 ### 5.2 Console & RCON
 
@@ -209,7 +209,7 @@ Paths relative to server root. Traversal blocked (`..`, absolute paths).
 
 ### 5.4 Modpack, mods & plugins
 
-**Modpack** — полная сборка; пути зависят от `server_type` ([server-content-install.md](server-content-install.md)).
+**Modpack** — полная сборка; пути зависят от `server_type` ([post-mvp.md#server-content](post-mvp.md#server-content)).
 
 ```json
 {
@@ -385,7 +385,7 @@ Error:
 | `PROCESS_NOT_RUNNING` | Stop while stopped |
 | `MODPACK_HASH_MISMATCH` | Manifest sha256 mismatch |
 | `DOWNLOAD_FAILED` | Network/hash error |
-| `CONTENT_NOT_ALLOWED` | `server_type` не поддерживает mods/plugins (см. [server-content-install.md](./server-content-install.md)) |
+| `CONTENT_NOT_ALLOWED` | `server_type` не поддерживает mods/plugins (см. [post-mvp.md#server-content](./post-mvp.md#server-content)) |
 
 ---
 

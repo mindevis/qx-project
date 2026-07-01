@@ -18,12 +18,23 @@ type LaunchInstance struct {
 	MCVersion     string
 	Loader        string
 	LoaderVersion string
+	MaxMemoryMB   int
 }
 
 func (d *Downloader) BuildLaunchManifest(ctx context.Context, inst LaunchInstance) (*mcmanifest.InstanceLaunchManifest, error) {
 	targetOS := runtime.GOOS
+	var manifest *mcmanifest.InstanceLaunchManifest
+	var err error
 	if d.ManifestBuilder != nil {
-		return d.ManifestBuilder.BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, inst.LoaderVersion, targetOS)
+		manifest, err = d.ManifestBuilder.BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, inst.LoaderVersion, targetOS)
+	} else {
+		manifest, err = mcmanifest.NewClient().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, inst.LoaderVersion, targetOS)
 	}
-	return mcmanifest.NewClient().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, inst.LoaderVersion, targetOS)
+	if err != nil {
+		return nil, err
+	}
+	if inst.MaxMemoryMB > 0 {
+		mcmanifest.ApplyMaxMemoryMB(manifest, inst.MaxMemoryMB)
+	}
+	return manifest, nil
 }

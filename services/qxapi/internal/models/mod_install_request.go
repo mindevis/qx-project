@@ -23,6 +23,9 @@ type ModInstallRequest struct {
 	Filename      string     `gorm:"type:varchar(256);not null" json:"filename"`
 	DownloadURL   string     `gorm:"type:text;not null" json:"download_url"`
 	ResourceType  string     `gorm:"type:varchar(32);not null;default:mod" json:"resource_type"`
+	IconURL       string     `gorm:"type:text" json:"icon_url,omitempty"`
+	Downloads     int64      `gorm:"type:bigint" json:"downloads,omitempty"`
+	FileSize      int64      `gorm:"type:bigint" json:"file_size,omitempty"`
 	Status        string     `gorm:"type:varchar(32);not null;default:queued;index" json:"status"`
 	ErrorCode     *string    `gorm:"type:varchar(64);column:error_code" json:"error_code,omitempty"`
 	ExpiresAt     time.Time  `json:"expires_at"`

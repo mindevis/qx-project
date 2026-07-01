@@ -36,6 +36,7 @@ func TestBuildLaunchPlanForgeModulePath(t *testing.T) {
 		"uuid-1",
 		"",
 		nil,
+		"",
 	)
 	joined := strings.Join(plan.Args, " ")
 	if strings.Contains(joined, "-cp") {

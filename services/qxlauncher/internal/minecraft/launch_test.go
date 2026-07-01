@@ -75,7 +75,7 @@ func TestBuildLaunchPlanForgeLegacyClasspath(t *testing.T) {
 		GameArguments: []string{"--launchTarget", "forgeclient"},
 	}
 	libs := []string{`C:\libs\cpw\mods\modlauncher\10.0.9\modlauncher-10.0.9.jar`}
-	plan := BuildLaunchPlan(manifest, "", libs, "", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil)
+	plan := BuildLaunchPlan(manifest, "", libs, "", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil, "")
 	joined := strings.Join(plan.Args, " ")
 	if !strings.Contains(joined, "-DlegacyClassPath=") {
 		t.Fatalf("missing legacy classpath: %s", joined)
@@ -97,13 +97,29 @@ func TestBuildLaunchPlanModded(t *testing.T) {
 		JVMArguments: []string{"-Xmx4G"},
 	}
 	jar := filepath.Join(t.TempDir(), "1.20.1.jar")
-	plan := BuildLaunchPlan(manifest, jar, []string{"/lib/a.jar"}, "/natives", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil)
+	plan := BuildLaunchPlan(manifest, jar, []string{"/lib/a.jar"}, "/natives", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil, "")
 	if plan.Args[0] != "-Xmx4G" {
 		t.Fatalf("jvm args: %+v", plan.Args)
 	}
 	joined := strings.Join(plan.Args, " ")
 	if !strings.Contains(joined, "Steve") || !strings.Contains(joined, "/game") {
 		t.Fatalf("substituted args: %s", joined)
+	}
+}
+
+func TestBuildLaunchPlanQuickPlayMultiplayer(t *testing.T) {
+	manifest := &mcmanifest.InstanceLaunchManifest{
+		MCVersion: "1.21",
+		MainClass: "net.minecraft.client.main.Main",
+		GameArguments: []string{
+			"--quickPlayMultiplayer", "${quickPlayMultiplayer}",
+		},
+	}
+	jar := "/game/1.21.jar"
+	plan := BuildLaunchPlan(manifest, jar, nil, "", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil, "play.example.com:25565")
+	joined := strings.Join(plan.Args, " ")
+	if !strings.Contains(joined, "play.example.com:25565") {
+		t.Fatalf("quick play missing: %s", joined)
 	}
 }
 
@@ -114,7 +130,7 @@ func TestBuildLaunchPlan(t *testing.T) {
 		AssetIndex: mcmanifest.AssetIndexRef{ID: "1.21"},
 	}
 	jar := filepath.Join(t.TempDir(), "1.21.jar")
-	plan := BuildLaunchPlan(manifest, jar, []string{"/lib/a.jar"}, "/natives", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil)
+	plan := BuildLaunchPlan(manifest, jar, []string{"/lib/a.jar"}, "/natives", "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil, "")
 	if plan.MainClass == "" || len(plan.Args) == 0 {
 		t.Fatalf("plan: %+v", plan)
 	}

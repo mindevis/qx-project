@@ -20,6 +20,8 @@ type LaunchRequest struct {
 	InstanceID       string     `gorm:"type:char(36);not null;index" json:"instance_id"`
 	OfflineProfileID *string    `gorm:"type:char(36);index" json:"offline_profile_id,omitempty"`
 	UseMojangAccount bool       `gorm:"not null;default:false" json:"use_mojang_account"`
+	JoinServerAddress *string   `gorm:"type:varchar(255)" json:"join_server_address,omitempty"`
+	JoinServerPort    *int      `gorm:"column:join_server_port" json:"join_server_port,omitempty"`
 	Status           string     `gorm:"type:varchar(32);not null;default:queued;index" json:"status"`
 	PID              *int       `gorm:"column:pid" json:"pid,omitempty"`
 	ExitCode         *int       `gorm:"column:exit_code" json:"exit_code,omitempty"`

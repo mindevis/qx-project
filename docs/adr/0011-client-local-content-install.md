@@ -24,7 +24,7 @@ QXAgent устанавливает контент **на диск ноды** (п
 - **Mods** — только `forge` / `neoforge` / `fabric` / `quilt` / `hybrid` → `mods/`.
 - **Plugins** — только `paper` / `spigot` / `purpur` / `hybrid` (Mohist, …) → `plugins/`.
 
-См. [server-content-install.md](../server-content-install.md).
+См. [post-mvp.md#server-content](../post-mvp.md#server-content).
 
 ## Rationale
 
@@ -35,6 +35,6 @@ QXAgent устанавливает контент **на диск ноды** (п
 
 ## Consequences
 
-- `modpacks-pipeline.md` — без шага «upload to MinIO»; server install — [server-content-install.md](../server-content-install.md).
+- [post-mvp.md#modpacks](../post-mvp.md#modpacks) — без шага «upload to MinIO»; server install — [post-mvp.md#server-content](../post-mvp.md#server-content).
 - CF/MR rate limits — кэш metadata в Redis/MySQL; файлы — retry на клиенте.
 - MVP может обойтись **без MinIO**, если нет auto-update builds и server backups.

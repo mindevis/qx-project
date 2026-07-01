@@ -56,3 +56,8 @@ infra/docker/vps-dev/keys/
 
 # MkDocs build output
 /site/
+
+# Local tooling artifacts
+coverage-run.txt
+vitest-out.txt
+.lighthouse-mobile.json

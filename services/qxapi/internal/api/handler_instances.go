@@ -21,6 +21,7 @@ type instanceResponse struct {
 	MCVersion     string  `json:"mc_version"`
 	Loader        string  `json:"loader"`
 	LoaderVersion *string `json:"loader_version,omitempty"`
+	MaxMemoryMB   *int    `json:"max_memory_mb,omitempty"`
 	CreatedAt     string  `json:"created_at"`
 	UpdatedAt     string  `json:"updated_at"`
 }
@@ -32,6 +33,7 @@ func instanceFromModel(inst models.LauncherInstance) instanceResponse {
 		MCVersion:     inst.MCVersion,
 		Loader:        inst.Loader,
 		LoaderVersion: inst.LoaderVersion,
+		MaxMemoryMB:   inst.MaxMemoryMB,
 		CreatedAt:     inst.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:     inst.UpdatedAt.UTC().Format(time.RFC3339),
 	}
@@ -42,6 +44,10 @@ type createInstanceRequest struct {
 	MCVersion     string `json:"mc_version" binding:"required"`
 	Loader        string `json:"loader"`
 	LoaderVersion string `json:"loader_version"`
+}
+
+type updateInstanceRequest struct {
+	MaxMemoryMB *int `json:"max_memory_mb"`
 }
 
 func (h *InstancesHandler) List(c *gin.Context) {
@@ -98,6 +104,39 @@ func (h *InstancesHandler) Get(c *gin.Context) {
 	}
 	inst, err := h.Service.GetInstance(c.Request.Context(), owner, c.Param("id"))
 	if err != nil {
+		if errors.Is(err, launcher.ErrNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "instance not found")
+			return
+		}
+		JSONInternal(c)
+		return
+	}
+	c.JSON(http.StatusOK, instanceFromModel(*inst))
+}
+
+func (h *InstancesHandler) Update(c *gin.Context) {
+	owner, ok := ownerFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req updateInstanceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	if req.MaxMemoryMB == nil {
+		JSONValidation(c, "max_memory_mb required")
+		return
+	}
+	inst, err := h.Service.UpdateInstance(c.Request.Context(), owner, c.Param("id"), launcher.UpdateInstanceInput{
+		MaxMemoryMB: req.MaxMemoryMB,
+	})
+	if err != nil {
+		if errors.Is(err, launcher.ErrValidation) {
+			JSONValidation(c, "invalid instance settings")
+			return
+		}
 		if errors.Is(err, launcher.ErrNotFound) {
 			JSONError(c, http.StatusNotFound, "NOT_FOUND", "instance not found")
 			return

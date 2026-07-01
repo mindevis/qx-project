@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
 import { api, saveTokens } from '@/api/client';
@@ -70,6 +70,16 @@ describe('MonitoringPage', () => {
       rating_avg: 5,
       rating_count: 6,
     });
+    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'setMonitoringBinding').mockResolvedValue({
+      game_server_id: 'mon-1',
+      instance_id: 'inst-1',
+      instance_name: 'Forge Client',
+    });
+    vi.spyOn(api, 'clearMonitoringBinding').mockResolvedValue(undefined);
+    vi.spyOn(api, 'listInstances').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'myLauncherDevice').mockRejectedValue(new Error('no device'));
+    vi.spyOn(api, 'listProfiles').mockResolvedValue({ items: [] });
   });
 
   afterEach(() => {
@@ -130,4 +140,157 @@ describe('MonitoringPage', () => {
       ),
     );
   });
+
+  it('saves instance binding when authenticated', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(mockAuthedFetch());
+    vi.spyOn(api, 'listInstances').mockResolvedValue({
+      items: [
+        {
+          id: 'inst-1',
+          name: 'Forge Client',
+          mc_version: '1.21',
+          loader: 'forge',
+          created_at: 'now',
+          updated_at: 'now',
+        },
+      ],
+    });
+    vi.spyOn(api, 'setMonitoringBinding').mockResolvedValue({
+      game_server_id: 'mon-1',
+      instance_id: 'inst-1',
+      instance_name: 'Forge Client',
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Инстанс лаунчера' })).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole('combobox', { name: 'Инстанс лаунчера' }));
+    await user.click(await screen.findByText('Forge Client (1.21)'));
+
+    await waitFor(() =>
+      expect(api.setMonitoringBinding).toHaveBeenCalledWith('mon-1', 'inst-1'),
+    );
+    expect(message.success).toHaveBeenCalledWith('Привязка инстанса сохранена');
+  });
+
+  it('does not launch via QXLauncher when no binding is set', async () => {
+    const createSpy = vi.spyOn(api, 'createLaunchRequest');
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Подключиться/ }));
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it('clears instance binding when authenticated', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(mockAuthedFetch());
+    vi.spyOn(api, 'listInstances').mockResolvedValue({
+      items: [
+        {
+          id: 'inst-1',
+          name: 'Forge Client',
+          mc_version: '1.21',
+          loader: 'forge',
+          created_at: 'now',
+          updated_at: 'now',
+        },
+      ],
+    });
+    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
+      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client' }],
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Инстанс лаунчера' })).toBeInTheDocument(),
+    );
+
+    const card = screen.getByText('Survival World').closest('article');
+    expect(card).not.toBeNull();
+    await user.click(within(card!).getByRole('img', { name: 'close-circle' }));
+
+    await waitFor(() => expect(api.clearMonitoringBinding).toHaveBeenCalledWith('mon-1'));
+    expect(message.success).toHaveBeenCalledWith('Привязка инстанса удалена');
+  });
+
+  it('launches bound instance when launcher is linked', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(mockAuthedFetch());
+    vi.spyOn(api, 'listInstances').mockResolvedValue({
+      items: [
+        {
+          id: 'inst-1',
+          name: 'Forge Client',
+          mc_version: '1.21',
+          loader: 'forge',
+          created_at: 'now',
+          updated_at: 'now',
+        },
+      ],
+    });
+    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
+      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client' }],
+    });
+    vi.spyOn(api, 'myLauncherDevice').mockResolvedValue({
+      device_id: 'dev-1',
+      owner_type: 'user',
+    });
+    vi.spyOn(api, 'listProfiles').mockResolvedValue({
+      items: [{ id: 'prof-1', username: 'Steve', offline_uuid: 'uuid', model: 'steve', created_at: 'now' }],
+    });
+    vi.spyOn(api, 'createLaunchRequest').mockResolvedValue({
+      id: 'lr-1',
+      status: 'queued',
+      instance_id: 'inst-1',
+      expires_at: new Date().toISOString(),
+    });
+    vi.spyOn(api, 'getLaunchRequest').mockResolvedValue({
+      id: 'lr-1',
+      status: 'completed',
+      instance_id: 'inst-1',
+      expires_at: new Date().toISOString(),
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await waitFor(() => expect(api.listMonitoringBindings).toHaveBeenCalled());
+    await waitFor(() => expect(api.myLauncherDevice).toHaveBeenCalled());
+
+    await user.click(screen.getByRole('button', { name: /Подключиться/ }));
+
+    await waitFor(
+      () =>
+        expect(api.createLaunchRequest).toHaveBeenCalledWith({
+          instance_id: 'inst-1',
+          offline_profile_id: 'prof-1',
+          join_server_address: 'play.example.com',
+          join_server_port: 25565,
+        }),
+      { timeout: 5000 },
+    );
+  }, 20000);
 });

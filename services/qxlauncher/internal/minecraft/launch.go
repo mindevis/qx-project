@@ -73,7 +73,7 @@ type LaunchPlan struct {
 	WorkingDir string
 }
 
-func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar string, libPaths []string, nativesDir, assetsDir, gameDir, librariesDir, username, offlineUUID, javaBin string, licensed *LaunchAuth) LaunchPlan {
+func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar string, libPaths []string, nativesDir, assetsDir, gameDir, librariesDir, username, offlineUUID, javaBin string, licensed *LaunchAuth, quickPlayMultiplayer string) LaunchPlan {
 	if gameDir == "" {
 		gameDir = filepath.Dir(clientJar)
 	}
@@ -83,7 +83,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 	if librariesDir == "" {
 		librariesDir = filepath.Join(filepath.Dir(clientJar), "libraries")
 	}
-	subs := launchSubstitutions(manifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID, licensed)
+	subs := launchSubstitutions(manifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID, licensed, quickPlayMultiplayer)
 
 	var args []string
 	if len(manifest.JVMArguments) > 0 {
@@ -165,7 +165,7 @@ func launchPathSlash(path string) string {
 	return strings.ReplaceAll(path, "\\", "/")
 }
 
-func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID string, licensed *LaunchAuth) map[string]string {
+func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID string, licensed *LaunchAuth, quickPlayMultiplayer string) map[string]string {
 	if nativesDir == "" {
 		nativesDir = filepath.Join(gameDir, "natives")
 	}
@@ -212,7 +212,7 @@ func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, a
 		"${resolution_height}":      "480",
 		"${quickPlayPath}":          "",
 		"${quickPlaySingleplayer}":  "",
-		"${quickPlayMultiplayer}":  "",
+		"${quickPlayMultiplayer}":  quickPlayMultiplayer,
 		"${quickPlayRealms}":        "",
 	}
 }

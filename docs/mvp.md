@@ -20,7 +20,7 @@
 **Launch:** [launch-bridge.md](./launch-bridge.md) — гибрид site → QXLauncher → JVM  
 **RBAC:** [security-legal.md §8](./security-legal.md) — зарегистрированный пользователь: все client loader'ы; modpacks/shaders/RP из панели — v2+  
 **Guest без регистрации:** 🔲 v2+ (endpoint и UI отключены в alpha)  
-**Server content:** [server-content-install.md](./server-content-install.md) — mods/plugins по `server_type` (post-MVP)  
+**Server content:** [post-mvp.md#server-content](./post-mvp.md#server-content) — mods/plugins по `server_type` (post-MVP)  
 **Prod:** ✅ [§7.1](./mvp.md#71-prod-readiness) · **Гайд:** [production-deploy.md](./production-deploy.md) · **URL:** [mc.qx-dev.ru](https://mc.qx-dev.ru)
 
 ---
@@ -191,7 +191,7 @@ flowchart TB
 | Agent | WSS `/agent/v1/connect` (JWT at SSH deploy) | ✅ |
 | Console | WS `/servers/:id/console?access_token=…` (proxy → agent) | ✅ |
 
-Полная спецификация: [api.md](./api.md). Server mods/plugins — post-MVP: [server-content-install.md](./server-content-install.md).
+Полная спецификация: [api.md](./api.md). Server mods/plugins — post-MVP: [post-mvp.md#server-content](./post-mvp.md#server-content).
 
 ### 5.3 QXLauncher (Senior)
 
@@ -389,7 +389,7 @@ gantt
 | [ssh-deploy.md](./ssh-deploy.md) | SSH deploy worker |
 | [schema.sql](./schema.sql) | MySQL DDL |
 | [qa/test-matrix.md](./qa/test-matrix.md) | QA alpha |
-| [server-content-install.md](./server-content-install.md) | Server mods/plugins by type |
+| [post-mvp.md#server-content](./post-mvp.md#server-content) | Server mods/plugins by type |
 | [adr/](./adr/) | ADR |
 
 ---

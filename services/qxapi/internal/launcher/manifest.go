@@ -54,11 +54,26 @@ func (s *Service) GetInstance(ctx context.Context, owner Owner, instanceID strin
 }
 
 func (s *Service) InstanceManifest(ctx context.Context, owner Owner, instanceID string) (*mcmanifest.InstanceLaunchManifest, error) {
+	return s.InstanceManifestWithMemory(ctx, owner, instanceID)
+}
+
+func applyInstanceMemory(manifest *mcmanifest.InstanceLaunchManifest, inst *models.LauncherInstance) {
+	if inst.MaxMemoryMB != nil {
+		mcmanifest.ApplyMaxMemoryMB(manifest, *inst.MaxMemoryMB)
+	}
+}
+
+func (s *Service) InstanceManifestWithMemory(ctx context.Context, owner Owner, instanceID string) (*mcmanifest.InstanceLaunchManifest, error) {
 	inst, err := s.GetInstance(ctx, owner, instanceID)
 	if err != nil {
 		return nil, err
 	}
-	return s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, instanceLoaderVersion(*inst), "")
+	manifest, err := s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, instanceLoaderVersion(*inst), "")
+	if err != nil {
+		return nil, err
+	}
+	applyInstanceMemory(manifest, inst)
+	return manifest, nil
 }
 
 func (s *Service) FindLinkedDevice(ctx context.Context, owner Owner) (string, error) {

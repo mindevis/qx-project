@@ -28,6 +28,9 @@ type createModInstallRequestBody struct {
 	Filename      string `json:"filename" binding:"required"`
 	DownloadURL   string `json:"download_url" binding:"required"`
 	ResourceType  string `json:"resource_type"`
+	IconURL       string `json:"icon_url"`
+	Downloads     int64  `json:"downloads"`
+	FileSize      int64  `json:"file_size"`
 }
 
 type modInstallRequestResponse struct {
@@ -104,6 +107,9 @@ func (h *ModInstallRequestsHandler) Create(c *gin.Context) {
 		Filename:      req.Filename,
 		DownloadURL:   req.DownloadURL,
 		ResourceType:  req.ResourceType,
+		IconURL:       req.IconURL,
+		Downloads:     req.Downloads,
+		FileSize:      req.FileSize,
 	})
 	if err != nil {
 		if mapModInstallServiceError(c, err) {

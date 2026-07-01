@@ -21,16 +21,26 @@ import {
   PlayCircleOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { api, type MonitoringServer } from '@/api/client';
+import {
+  api,
+  type LauncherInstance,
+  type MonitoringInstanceBinding,
+  type MonitoringServer,
+  type OfflineProfile,
+} from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { useAuthModal } from '@/auth/AuthModalContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { ALL_GAME_SERVER_TYPES, gameServerTypeLabelText } from '@/lib/gameServerTypes';
+import { isLaunchTerminal } from '@/lib/launchProgress';
 import { highlightMinecraft } from '@/pages/HomePage';
 import './MonitoringPage.css';
 
 const { Title, Paragraph, Text } = Typography;
+
+const LAUNCH_POLL_MS = 1500;
+const LAUNCH_POLL_MAX = 120;
 
 type Filters = {
   mc_version: string;
@@ -60,6 +70,11 @@ function MonitoringServerCard({
   canInteract,
   onRequireAuth,
   loaderLabel,
+  instances,
+  boundInstanceId,
+  onBindingChange,
+  onConnect,
+  connecting,
 }: {
   server: MonitoringServer;
   liked: boolean;
@@ -68,6 +83,11 @@ function MonitoringServerCard({
   canInteract: boolean;
   onRequireAuth: () => void;
   loaderLabel: string;
+  instances: LauncherInstance[];
+  boundInstanceId?: string;
+  onBindingChange: (server: MonitoringServer, instanceId: string | null) => void;
+  onConnect: (server: MonitoringServer) => void;
+  connecting: boolean;
 }) {
   const { t } = useI18n();
   const message = useMessage();
@@ -96,6 +116,14 @@ function MonitoringServerCard({
       return;
     }
     onRate(server, value);
+  };
+
+  const handleBindingSelect = (value: string | null) => {
+    if (!canInteract) {
+      onRequireAuth();
+      return;
+    }
+    onBindingChange(server, value);
   };
 
   return (
@@ -182,6 +210,28 @@ function MonitoringServerCard({
           </div>
         </div>
 
+        {canInteract && instances.length > 0 ? (
+          <div className="monitoring-card-binding">
+            <Text type="secondary" className="monitoring-card-binding-label">
+              {t('monitoring.bindInstance')}
+            </Text>
+            <Select
+              allowClear
+              showSearch
+              aria-label={t('monitoring.bindInstance')}
+              placeholder={t('monitoring.bindInstancePlaceholder')}
+              className="monitoring-card-binding-select"
+              value={boundInstanceId}
+              onChange={handleBindingSelect}
+              optionFilterProp="label"
+              options={instances.map((instance) => ({
+                value: instance.id,
+                label: `${instance.name} (${instance.mc_version})`,
+              }))}
+            />
+          </div>
+        ) : null}
+
         <div className="monitoring-card-actions">
           <Text className="monitoring-card-address" copyable={false}>
             {endpoint}
@@ -195,7 +245,8 @@ function MonitoringServerCard({
             <Button
               type="primary"
               icon={<PlayCircleOutlined />}
-              href={`minecraft://${server.address}:${server.port}`}
+              loading={connecting}
+              onClick={() => onConnect(server)}
             >
               {t('monitoring.connect')}
             </Button>
@@ -217,6 +268,11 @@ export function MonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [mcVersions, setMcVersions] = useState<string[]>([]);
+  const [instances, setInstances] = useState<LauncherInstance[]>([]);
+  const [bindings, setBindings] = useState<Map<string, MonitoringInstanceBinding>>(new Map());
+  const [linkedDevice, setLinkedDevice] = useState<{ device_id: string } | null>(null);
+  const [profiles, setProfiles] = useState<OfflineProfile[]>([]);
+  const [connectingServerId, setConnectingServerId] = useState<string | null>(null);
 
   const loaderLabel = useCallback(
     (type: string) => gameServerTypeLabelText(t, type),
@@ -234,6 +290,34 @@ export function MonitoringPage() {
         /* optional filter source */
       });
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setInstances([]);
+      setBindings(new Map());
+      setLinkedDevice(null);
+      setProfiles([]);
+      return;
+    }
+    void (async () => {
+      try {
+        const [instanceData, bindingData, device, profileData] = await Promise.all([
+          api.listInstances(),
+          api.listMonitoringBindings(),
+          api.myLauncherDevice().catch(() => null),
+          api.listProfiles().catch(() => ({ items: [] as OfflineProfile[] })),
+        ]);
+        setInstances(instanceData.items ?? []);
+        setBindings(
+          new Map((bindingData.items ?? []).map((item) => [item.game_server_id, item])),
+        );
+        setLinkedDevice(device?.device_id ? { device_id: device.device_id } : null);
+        setProfiles(profileData.items ?? []);
+      } catch {
+        /* optional workspace data */
+      }
+    })();
+  }, [isAuthenticated]);
 
   const loadServers = useCallback(async () => {
     setLoading(true);
@@ -292,6 +376,74 @@ export function MonitoringPage() {
       message.success(t('monitoring.rated'));
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('common.error'));
+    }
+  };
+
+  const handleBindingChange = async (server: MonitoringServer, instanceId: string | null) => {
+    try {
+      if (!instanceId) {
+        await api.clearMonitoringBinding(server.id);
+        setBindings((prev) => {
+          const next = new Map(prev);
+          next.delete(server.id);
+          return next;
+        });
+        message.success(t('monitoring.bindingCleared'));
+        return;
+      }
+      const binding = await api.setMonitoringBinding(server.id, instanceId);
+      setBindings((prev) => new Map(prev).set(server.id, binding));
+      message.success(t('monitoring.bindingSaved'));
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('common.error'));
+    }
+  };
+
+  const openMinecraftLink = (server: MonitoringServer) => {
+    window.location.href = `minecraft://${server.address}:${server.port}`;
+  };
+
+  const pollLaunchRequest = async (requestId: string) => {
+    for (let attempt = 0; attempt < LAUNCH_POLL_MAX; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
+      const req = await api.getLaunchRequest(requestId);
+      if (isLaunchTerminal(req.status)) {
+        if (req.status === 'completed') {
+          message.success(t('monitoring.launchCompleted'));
+        } else if (req.status === 'failed') {
+          message.error(t('monitoring.launchFailed'));
+        }
+        return;
+      }
+    }
+    message.warning(t('monitoring.launchTimeout'));
+  };
+
+  const handleConnect = async (server: MonitoringServer) => {
+    const binding = bindings.get(server.id);
+    if (!isAuthenticated || !binding || !linkedDevice) {
+      openMinecraftLink(server);
+      if (isAuthenticated && binding && !linkedDevice) {
+        message.info(t('monitoring.connectNeedsLauncher'));
+      }
+      return;
+    }
+
+    setConnectingServerId(server.id);
+    try {
+      const req = await api.createLaunchRequest({
+        instance_id: binding.instance_id,
+        offline_profile_id: profiles[0]?.id,
+        join_server_address: server.address,
+        join_server_port: server.port,
+      });
+      message.info(t('monitoring.launchSent'));
+      await pollLaunchRequest(req.id);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('monitoring.launchFailed'));
+      openMinecraftLink(server);
+    } finally {
+      setConnectingServerId(null);
     }
   };
 
@@ -408,6 +560,11 @@ export function MonitoringPage() {
                 canInteract={isAuthenticated}
                 onRequireAuth={() => openAuthModal('login')}
                 loaderLabel={loaderLabel(server.server_type)}
+                instances={instances}
+                boundInstanceId={bindings.get(server.id)?.instance_id}
+                onBindingChange={(item, instanceId) => void handleBindingChange(item, instanceId)}
+                onConnect={(item) => void handleConnect(item)}
+                connecting={connectingServerId === server.id}
               />
             ))}
           </div>

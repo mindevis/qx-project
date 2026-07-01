@@ -75,6 +75,7 @@ export type LauncherInstance = {
   mc_version: string;
   loader: string;
   loader_version?: string;
+  max_memory_mb?: number;
   created_at: string;
   updated_at: string;
 };
@@ -186,6 +187,14 @@ export type MonitoringServer = {
   rating_count: number;
 };
 
+export type MonitoringInstanceBinding = {
+  game_server_id: string;
+  instance_id: string;
+  instance_name?: string;
+  instance_mc_version?: string;
+  instance_loader?: string;
+};
+
 export type GameServerProperty = {
   key: string;
   value: string;
@@ -243,7 +252,20 @@ export type ModVersion = {
   game_versions?: string[];
   loaders?: string[];
   files: ModVersionFile[];
+  dependencies?: ModDependency[];
   published_at?: string;
+};
+
+export type ModDependency = {
+  project_id: string;
+  project_name?: string;
+  source: ModSource;
+  dependency_type: 'required' | 'optional' | 'embedded';
+  version_id?: string;
+  version_number?: string;
+  filename?: string;
+  download_url?: string;
+  file_size?: number;
 };
 
 export type ModSyncResult = {
@@ -259,6 +281,9 @@ export type InstanceResource = {
   version_number?: string;
   filename: string;
   resource_type: ModProjectType;
+  icon_url?: string;
+  downloads?: number;
+  file_size?: number;
   installed_at: string;
 };
 
@@ -629,6 +654,12 @@ export const api = {
   deleteInstance: (id: string) =>
     request<void>(`/instances/${id}`, { method: 'DELETE' }, 'launcher'),
 
+  updateInstance: (id: string, body: { max_memory_mb: number }) =>
+    request<LauncherInstance>(`/instances/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }, 'launcher'),
+
   listInstanceResources: (instanceId: string) =>
     request<{ items: InstanceResource[] }>(
       `/instances/${encodeURIComponent(instanceId)}/resources`,
@@ -646,6 +677,9 @@ export const api = {
     filename: string;
     download_url: string;
     resource_type?: ModProjectType;
+    icon_url?: string;
+    downloads?: number;
+    file_size?: number;
   }) =>
     request<ModInstallRequest>(
       '/launcher/mod-install-requests',
@@ -669,6 +703,8 @@ export const api = {
     instance_id: string;
     offline_profile_id?: string;
     use_mojang_account?: boolean;
+    join_server_address?: string;
+    join_server_port?: number;
   }) =>
     request<LaunchRequest>('/launcher/launch-requests', {
       method: 'POST',
@@ -859,6 +895,20 @@ export const api = {
       body: JSON.stringify({ rating }),
     }),
 
+  listMonitoringBindings: () =>
+    request<{ items: MonitoringInstanceBinding[] }>('/monitoring/bindings'),
+
+  setMonitoringBinding: (gameServerId: string, instanceId: string) =>
+    request<MonitoringInstanceBinding>(
+      `/monitoring/servers/${encodeURIComponent(gameServerId)}/binding`,
+      { method: 'PUT', body: JSON.stringify({ instance_id: instanceId }) },
+    ),
+
+  clearMonitoringBinding: (gameServerId: string) =>
+    request<void>(`/monitoring/servers/${encodeURIComponent(gameServerId)}/binding`, {
+      method: 'DELETE',
+    }),
+
   searchMods: (params: {
     q: string;
     type?: ModProjectType;
@@ -916,6 +966,21 @@ export const api = {
     const qs = search.toString();
     return request<{ items: ModVersion[] }>(
       `/mods/${encodeURIComponent(source)}/${encodeURIComponent(projectId)}/versions${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  getModVersion: (
+    source: ModSource,
+    projectId: string,
+    versionId: string,
+    params?: { loader?: string; mc_version?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.loader) search.set('loader', params.loader);
+    if (params?.mc_version) search.set('mc_version', params.mc_version);
+    const qs = search.toString();
+    return request<ModVersion>(
+      `/mods/${encodeURIComponent(source)}/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}${qs ? `?${qs}` : ''}`,
     );
   },
 

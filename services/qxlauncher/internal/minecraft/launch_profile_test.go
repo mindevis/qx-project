@@ -34,6 +34,7 @@ func TestBuildLaunchPlanFabricClasspath(t *testing.T) {
 		"uuid-1",
 		"",
 		nil,
+		"",
 	)
 	joined := strings.Join(plan.Args, " ")
 	if !strings.Contains(joined, "-cp") {
@@ -76,6 +77,7 @@ func TestBuildLaunchPlanQuiltClasspath(t *testing.T) {
 		"uuid-1",
 		"",
 		nil,
+		"",
 	)
 	joined := strings.Join(plan.Args, " ")
 	if !strings.Contains(joined, "-cp") {

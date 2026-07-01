@@ -43,10 +43,10 @@
 | [configuration.md](./configuration.md) | TOML-конфиг (dev) |
 | [mojang-java.md](./mojang-java.md) | Java runtime matrix |
 | [ssh-deploy.md](./ssh-deploy.md) | SSH agent provisioning |
-| [auto-update.md](./auto-update.md) | Tray updates |
-| [skin-server.md](./skin-server.md) | Skins (registered) |
-| [modpacks-pipeline.md](./modpacks-pipeline.md) | CF/MR, client install |
-| [server-content-install.md](./server-content-install.md) | Server mods/plugins by type |
+| [post-mvp.md#launcher-update](./post-mvp.md#launcher-update) | Tray updates |
+| [cosmetics.md](./cosmetics.md) | Skins (registered) |
+| [post-mvp.md#modpacks](./post-mvp.md#modpacks) | CF/MR, client install |
+| [post-mvp.md#server-content](./post-mvp.md#server-content) | Server mods/plugins by type |
 | [observability-ops.md](./observability-ops.md) | Self-hosted ops |
 
 ## 1. Видение продукта
@@ -407,7 +407,7 @@ binary + systemd unit. См. [agent-protocol.md §2](./agent-protocol.md).
 | **Deploy** | Установка через SSH job с backend (не ручной pairing token) |
 | **Связь** | WSS к Agent Hub, heartbeat, reconnect + idempotency |
 | **Lifecycle** | start/stop/restart/kill — **все типы JAR** (см. §3.7) |
-| **Modpack** | `modpack.install` — manifest на диск сервера (см. [server-content-install.md](./server-content-install.md)) |
+| **Modpack** | `modpack.install` — manifest на диск сервера (см. [post-mvp.md#server-content](./post-mvp.md#server-content)) |
 | **Mods / Plugins** | `mods.install` / `plugins.install` — по `server_type` |
 | **Консоль / RCON / Файлы / Метрики** | Полный набор (A2) |
 
@@ -527,7 +527,7 @@ webhooks провайдера оплаты. Поле `users.tier` — на бу�
 
 Примеры: **Paper** — только плагины; **NeoForge** — только моды; **Mohist** — и моды, и плагины.
 
-Полная матрица и команды агента: **[server-content-install.md](./server-content-install.md)**.
+Полная матрица и команды агента: **[post-mvp.md#server-content](./post-mvp.md#server-content)**.
 
 Config: `server_type`, `hybrid_platform?`, `jar_path`, `jvm_args`.
 
@@ -676,7 +676,7 @@ erDiagram
 | Сессии, pub/sub Agent Hub, кэш metadata | Redis |
 | **Платформенные файлы** (launcher builds, server backups, skins) | **MinIO** |
 | Mods / modpacks / shaders / RP инстанса | **Диск ПК** (QXLauncher) |
-| Mods / plugins / modpack на dedicated server-сервере | **Диск ноды** (QXAgent), см. [server-content-install.md](./server-content-install.md) |
+| Mods / plugins / modpack на dedicated server-сервере | **Диск ноды** (QXAgent), см. [post-mvp.md#server-content](./post-mvp.md#server-content) |
 | Логи (опционально) | Loki / Elasticsearch — TBD |
 
 ---
@@ -944,7 +944,7 @@ packages/
 | Audit log | security-legal §2 |
 | SSH encryption & rotation | security-legal §3, [ssh-deploy.md](./ssh-deploy.md) |
 | Mojang EULA / offline | security-legal §4 |
-| CurseForge / client install | security-legal §5, [modpacks-pipeline.md](./modpacks-pipeline.md), [ADR-0011](./adr/0011-client-local-content-install.md) |
+| CurseForge / client install | security-legal §5, [post-mvp.md#modpacks](./post-mvp.md#modpacks), [ADR-0011](./adr/0011-client-local-content-install.md) |
 | 2FA (post-MVP) | security-legal §6 |
 | TLS без Cloudflare | security-legal §7, [observability-ops.md](./observability-ops.md) |
 | Guest vs Registered RBAC | security-legal §8 |
@@ -1432,7 +1432,7 @@ gantt
 
 - [ ] Forge + NeoForge + Fabric + Quilt
 - [ ] Modpack catalog + client↔server sync
-- [ ] Server mods/plugins по `server_type` ([server-content-install.md](./server-content-install.md))
+- [ ] Server mods/plugins по `server_type` ([post-mvp.md#server-content](./post-mvp.md#server-content))
 - [ ] macOS / Linux launcher
 
 ### Phase 5 — Premium & Polish *(+2–4 мес)*
@@ -1492,7 +1492,7 @@ QXSystem = **TLauncher/KLauncher UX** (offline, modpacks) + **Aurora sync** (и�
 | Offline-first запуск | TLauncher, KLauncher | Сценарий 2 (guest flow) — **v2+** |
 | Modpack wizard | KLauncher, Aurora | Web: выбор сборки → tray install |
 | Instance manifest | Prism, Aurora | `internal/mc/manifest`, QXLauncher engine |
-| Auth-server | Aurora | QXAccount validation, [skin-server.md](./skin-server.md) |
+| Auth-server | Aurora | QXAccount validation, [cosmetics.md](./cosmetics.md) |
 | Version/mod cache | Все | CDN + локальный cache dir |
 
 ---

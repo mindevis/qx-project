@@ -64,7 +64,7 @@ Go SSH deployer (`internal/deploy/ssh_deployer.go`):
 
 No user-supplied shell. Deployer executes fixed script template:
 
-1. `mkdir -p /opt/qxsystem/agent /opt/qxsystem/server` (`plugins/`, `mods/` — по [server-content-install.md](./server-content-install.md))
+1. `mkdir -p /opt/qxsystem/agent /opt/qxsystem/server` (`plugins/`, `mods/` — post-MVP, см. [post-mvp.md#server-content](./post-mvp.md#server-content))
 2. `install -m 755` agent binary to `/opt/qxsystem/agent/qx-agent`
 3. When needed, patch `/etc/hosts` so `QX_PUBLIC_API_URL` hostname resolves to the platform IP (not Debian `127.0.1.1` loopback alias)
 4. Write `/etc/qxsystem/agent/agent.toml` (0600 root)

@@ -33,3 +33,17 @@ npm run build
 | `launcher_download_url` | URL кнопки «Скачать QXLauncher» |
 
 Vite proxy: `/api` → `http://localhost:3000` (`vite.config.ts`).
+
+## SEO (production build)
+
+Set public site origin before build:
+
+```bash
+# web.toml (repo root)
+site_url = "https://mc.qx-dev.ru"
+
+# or CI / shell
+export VITE_SITE_URL=https://mc.qx-dev.ru
+```
+
+This drives `robots.txt`, `sitemap.xml`, canonical URLs, and Open Graph tags. Per-route meta is in `RouteSeo` + i18n keys `seo.pages.*`.

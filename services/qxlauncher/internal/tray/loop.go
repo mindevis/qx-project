@@ -241,6 +241,7 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		MCVersion:     item.Instance.MCVersion,
 		Loader:        item.Instance.Loader,
 		LoaderVersion: item.Instance.LoaderVersion,
+		MaxMemoryMB:   maxMemoryMB(item.Instance.MaxMemoryMB),
 	})
 	if err != nil {
 		slog.Error("launch manifest build failed", "err", err)
@@ -269,13 +270,24 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		}
 	}
 
+	joinAddr := ""
+	joinPort := 0
+	if item.JoinServerAddress != nil {
+		joinAddr = strings.TrimSpace(*item.JoinServerAddress)
+	}
+	if item.JoinServerPort != nil {
+		joinPort = *item.JoinServerPort
+	}
+
 	ready, err := dl.PrepareClientLaunch(ctx, minecraft.ClientLaunchInput{
-		Manifest:    manifest,
-		Username:    username,
-		OfflineUUID: offlineUUID,
-		SkinModel:   skinModel,
-		Licensed:    licensed,
-		Cosmetics:   launchCosmetics,
+		Manifest:          manifest,
+		Username:          username,
+		OfflineUUID:       offlineUUID,
+		SkinModel:         skinModel,
+		Licensed:          licensed,
+		Cosmetics:         launchCosmetics,
+		JoinServerAddress: joinAddr,
+		JoinServerPort:    joinPort,
 	})
 	dl.OnProgress = nil
 	if err != nil {
@@ -365,6 +377,13 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 	}
 	reportLaunchStatus(status, payload)
 	slog.Info("launch finished", "pid", strconv.Itoa(pid), "exit", exitCode)
+}
+
+func maxMemoryMB(v *int) int {
+	if v == nil {
+		return 0
+	}
+	return *v
 }
 
 func logAPIFailure(msg string, err error) {

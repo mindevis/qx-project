@@ -103,6 +103,26 @@ func (h *ModsHandler) ListVersions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": versions})
 }
 
+func (h *ModsHandler) GetVersion(c *gin.Context) {
+	if h.Service == nil {
+		JSONError(c, http.StatusServiceUnavailable, "MODS_UNAVAILABLE", "mods service not configured")
+		return
+	}
+	version, err := h.Service.GetVersion(
+		c.Request.Context(),
+		c.Param("source"),
+		c.Param("projectId"),
+		c.Param("versionId"),
+		c.Query("loader"),
+		c.Query("mc_version"),
+	)
+	if err != nil {
+		writeModsUpstreamError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, version)
+}
+
 type syncModBody struct {
 	mods.SyncModRequest
 }
@@ -153,7 +173,7 @@ func (h *GameServersHandler) SyncMod(c *gin.Context) {
 		}
 	}
 
-	// Agent cmd.mods.install is planned (see docs/server-content-install.md).
+	// Agent cmd.mods.install is planned (see docs/post-mvp.md#server-content).
 	c.JSON(http.StatusAccepted, gin.H{
 		"status":  "queued",
 		"message": "mod sync queued; agent install pipeline not yet implemented",

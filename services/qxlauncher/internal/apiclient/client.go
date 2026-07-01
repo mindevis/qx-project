@@ -47,16 +47,19 @@ type LaunchInstance struct {
 	MCVersion     string `json:"mc_version"`
 	Loader        string `json:"loader"`
 	LoaderVersion string `json:"loader_version,omitempty"`
+	MaxMemoryMB   *int   `json:"max_memory_mb,omitempty"`
 }
 
 type LaunchRequestItem struct {
-	ID         string           `json:"id"`
-	Status     string           `json:"status"`
-	InstanceID string           `json:"instance_id"`
-	Instance   *LaunchInstance  `json:"instance"`
-	Profile    *OfflineProfile  `json:"profile"`
-	Mojang     *MojangSession   `json:"mojang_session"`
-	Cosmetics  *LaunchCosmetics `json:"cosmetics"`
+	ID                string           `json:"id"`
+	Status            string           `json:"status"`
+	InstanceID        string           `json:"instance_id"`
+	Instance          *LaunchInstance  `json:"instance"`
+	Profile           *OfflineProfile  `json:"profile"`
+	Mojang            *MojangSession   `json:"mojang_session"`
+	Cosmetics         *LaunchCosmetics `json:"cosmetics"`
+	JoinServerAddress *string          `json:"join_server_address,omitempty"`
+	JoinServerPort    *int             `json:"join_server_port,omitempty"`
 }
 
 type OfflineProfile struct {

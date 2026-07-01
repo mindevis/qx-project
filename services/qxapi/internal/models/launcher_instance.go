@@ -18,6 +18,7 @@ type LauncherInstance struct {
 	MCVersion      string               `gorm:"type:varchar(32);not null" json:"mc_version"`
 	Loader         string               `gorm:"type:varchar(32);not null;default:vanilla" json:"loader"`
 	LoaderVersion  *string              `gorm:"type:varchar(32)" json:"loader_version,omitempty"`
+	MaxMemoryMB    *int                 `gorm:"type:int" json:"max_memory_mb,omitempty"`
 	Mods           InstanceResourceList `gorm:"type:text" json:"mods"`
 	ResourcePacks  InstanceResourceList `gorm:"type:text" json:"resource_packs"`
 	Shaders        InstanceResourceList `gorm:"type:text" json:"shaders"`

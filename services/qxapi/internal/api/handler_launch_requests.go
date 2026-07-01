@@ -19,9 +19,11 @@ type LaunchRequestsHandler struct {
 }
 
 type createLaunchRequestBody struct {
-	InstanceID       string `json:"instance_id" binding:"required"`
-	OfflineProfileID string `json:"offline_profile_id"`
-	UseMojangAccount bool   `json:"use_mojang_account"`
+	InstanceID        string `json:"instance_id" binding:"required"`
+	OfflineProfileID  string `json:"offline_profile_id"`
+	UseMojangAccount  bool   `json:"use_mojang_account"`
+	JoinServerAddress string `json:"join_server_address"`
+	JoinServerPort    int    `json:"join_server_port"`
 }
 
 type launchRequestResponse struct {
@@ -75,10 +77,12 @@ func (h *LaunchRequestsHandler) Create(c *gin.Context) {
 	}
 
 	view, err := h.Service.CreateLaunchRequest(c.Request.Context(), owner, launcher.CreateLaunchRequestInput{
-		InstanceID:       req.InstanceID,
-		OfflineProfileID: req.OfflineProfileID,
-		DeviceID:         deviceID,
-		UseMojangAccount: req.UseMojangAccount,
+		InstanceID:        req.InstanceID,
+		OfflineProfileID:  req.OfflineProfileID,
+		DeviceID:          deviceID,
+		UseMojangAccount:  req.UseMojangAccount,
+		JoinServerAddress: req.JoinServerAddress,
+		JoinServerPort:    req.JoinServerPort,
 	})
 	if err != nil {
 		if mapLaunchServiceError(c, err) {

@@ -110,6 +110,6 @@ make e2e-manual     # чеклист manual (все flows ☑ — см. test-mat
 
 ---
 
-*См. [configuration.md](./configuration.md), [mvp.md](./mvp.md), [qa/test-matrix.md](./qa/test-matrix.md)*
+*См. [configuration.md](./configuration.md), [post-mvp.md](./post-mvp.md). Test matrix — `docs/qa/test-matrix.md` в репозитории.*
 
 Последнее обновление: 2026-06-29 (prod platform live)

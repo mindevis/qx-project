@@ -454,7 +454,12 @@ describe('api client', () => {
 
     await api.deleteProfile('p1');
 
-    const launch = await api.createLaunchRequest({ instance_id: 'inst-1', offline_profile_id: 'p1' });
+    const launch = await api.createLaunchRequest({
+      instance_id: 'inst-1',
+      offline_profile_id: 'p1',
+      join_server_address: 'play.example.com',
+      join_server_port: 25565,
+    });
     expect(launch.status).toBe('queued');
 
     const status = await api.getLaunchRequest('lr-1');
@@ -806,6 +811,9 @@ describe('api client', () => {
     await api.listMonitoringServers({ q: 'test', loader: 'forge' });
     await api.likeMonitoringServer('mon-1');
     await api.rateMonitoringServer('mon-1', 5);
+    await api.listMonitoringBindings();
+    await api.setMonitoringBinding('mon-1', 'inst-1');
+    await api.clearMonitoringBinding('mon-1');
     await api.searchMods({ q: 'sodium', loader: 'forge', mc_version: '1.21' });
     await api.listModVersions('modrinth', 'sodium', { loader: 'forge', mc_version: '1.21' });
     await api.syncModToGameServer('srv-1', 'gs-1', {

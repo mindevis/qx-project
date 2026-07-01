@@ -11,6 +11,17 @@ import { useMessage } from '@/hooks/useMessage';
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'expired']);
 const POLL_MS = 1500;
 
+export type ModInstallParams = {
+  source: ModSource;
+  projectId: string;
+  projectName: string;
+  version: ModVersion;
+  resourceType: ModProjectType;
+  iconUrl?: string;
+  downloads?: number;
+  fileSize?: number;
+};
+
 export function useModInstall(instanceId: string) {
   const { t } = useI18n();
   const message = useMessage();
@@ -27,21 +38,44 @@ export function useModInstall(instanceId: string) {
 
   useEffect(() => clearPoll, [clearPoll]);
 
-  const installVersion = useCallback(
-    async (params: {
-      source: ModSource;
-      projectId: string;
-      projectName: string;
-      version: ModVersion;
-      resourceType: ModProjectType;
-    }) => {
+  const waitForInstall = useCallback(
+    (requestId: string, versionId: string) =>
+      new Promise<boolean>((resolve) => {
+        const finish = (ok: boolean) => {
+          clearPoll();
+          resolve(ok);
+        };
+
+        const poll = async () => {
+          try {
+            const req = await api.getModInstallRequest(requestId);
+            if (!TERMINAL_STATUSES.has(req.status)) {
+              return;
+            }
+            if (req.status === 'completed') {
+              setInstalledVersionId(versionId);
+              finish(true);
+              return;
+            }
+            finish(false);
+          } catch {
+            finish(false);
+          }
+        };
+
+        void poll();
+        pollRef.current = setInterval(() => void poll(), POLL_MS);
+      }),
+    [clearPoll],
+  );
+
+  const installOne = useCallback(
+    async (params: ModInstallParams): Promise<boolean> => {
       const file = params.version.files[0];
       if (!file) {
         message.error(t('qxmods.install.noFile'));
         return false;
       }
-      setInstallingVersionId(params.version.id);
-      setInstalledVersionId(undefined);
       try {
         const created = await api.createModInstallRequest({
           instance_id: instanceId,
@@ -53,42 +87,11 @@ export function useModInstall(instanceId: string) {
           filename: file.filename,
           download_url: file.url,
           resource_type: params.resourceType,
+          icon_url: params.iconUrl,
+          downloads: params.downloads,
+          file_size: params.fileSize ?? file.size,
         });
-
-        return await new Promise<boolean>((resolve) => {
-          const finish = (ok: boolean) => {
-            clearPoll();
-            setInstallingVersionId(undefined);
-            resolve(ok);
-          };
-
-          const poll = async () => {
-            try {
-              const req = await api.getModInstallRequest(created.id);
-              if (!TERMINAL_STATUSES.has(req.status)) {
-                return;
-              }
-              if (req.status === 'completed') {
-                setInstalledVersionId(params.version.id);
-                message.success(t('qxmods.install.completed'));
-                finish(true);
-                return;
-              }
-              message.error(
-                req.error_code === 'INSTALL_FAILED'
-                  ? t('qxmods.install.failed')
-                  : t('qxmods.install.deviceRequired'),
-              );
-              finish(false);
-            } catch (e) {
-              message.error(e instanceof Error ? e.message : t('qxmods.install.failed'));
-              finish(false);
-            }
-          };
-
-          void poll();
-          pollRef.current = setInterval(() => void poll(), POLL_MS);
-        });
+        return await waitForInstall(created.id, params.version.id);
       } catch (e) {
         const msg = e instanceof Error ? e.message : t('qxmods.install.failed');
         if (msg.includes('device not linked') || msg.includes('FORBIDDEN')) {
@@ -96,17 +99,59 @@ export function useModInstall(instanceId: string) {
         } else {
           message.error(msg);
         }
-        setInstallingVersionId(undefined);
         return false;
       }
     },
-    [clearPoll, instanceId, message, t],
+    [instanceId, message, t, waitForInstall],
+  );
+
+  const installVersion = useCallback(
+    async (params: ModInstallParams) => {
+      setInstallingVersionId(params.version.id);
+      setInstalledVersionId(undefined);
+      const ok = await installOne(params);
+      setInstallingVersionId(undefined);
+      if (ok) {
+        message.success(t('qxmods.install.completed'));
+      } else if (!installingVersionId) {
+        message.error(t('qxmods.install.failed'));
+      }
+      return ok;
+    },
+    [installOne, installingVersionId, message, t],
+  );
+
+  const installBatch = useCallback(
+    async (items: ModInstallParams[]) => {
+      if (items.length === 0) return false;
+      const primary = items[items.length - 1];
+      setInstallingVersionId(primary.version.id);
+      setInstalledVersionId(undefined);
+      let allOk = true;
+      for (const item of items) {
+        const ok = await installOne(item);
+        if (!ok) {
+          allOk = false;
+          break;
+        }
+      }
+      setInstallingVersionId(undefined);
+      if (allOk) {
+        setInstalledVersionId(primary.version.id);
+        message.success(t('qxmods.install.completed'));
+      } else {
+        message.error(t('qxmods.install.failed'));
+      }
+      return allOk;
+    },
+    [installOne, message, t],
   );
 
   return {
     installingVersionId,
     installedVersionId,
     installVersion,
+    installBatch,
     resetInstalled: () => setInstalledVersionId(undefined),
   };
 }
