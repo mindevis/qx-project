@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { message } from 'antd';
@@ -68,6 +68,8 @@ describe('ModDetailPanel', () => {
     vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
     vi.spyOn(api, 'getModProject').mockResolvedValue(project);
     vi.spyOn(api, 'listModVersions').mockResolvedValue({ items: [modVersion] });
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({ ...modVersion, dependencies: [] });
+    vi.spyOn(api, 'listInstanceResources').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'createModInstallRequest').mockResolvedValue({
       id: 'req-1',
       instance_id: 'inst-1',
@@ -105,6 +107,9 @@ describe('ModDetailPanel', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Установить' }));
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Установить' }));
 
     await waitFor(() => expect(api.createModInstallRequest).toHaveBeenCalled());
     await vi.advanceTimersByTimeAsync(1600);
