@@ -27,11 +27,11 @@ func TestHubRegisterAndOnline(t *testing.T) {
 	if h.IsOnline("srv-1") {
 		t.Fatal("expected offline")
 	}
-	h.Register("srv-1", conn)
+	agentConn := h.Register("srv-1", conn)
 	if !h.IsOnline("srv-1") {
 		t.Fatal("expected online")
 	}
-	h.Unregister("srv-1", &Conn{ServerID: "srv-1", Conn: conn})
+	h.Unregister("srv-1", agentConn)
 	if h.IsOnline("srv-1") {
 		t.Fatal("expected offline after unregister")
 	}
