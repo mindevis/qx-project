@@ -41,9 +41,10 @@ type VersionArguments struct {
 	JVM  []json.RawMessage `json:"jvm"`
 }
 
-func (c *Client) BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*InstanceLaunchManifest, error) {
+func (c *Client) BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion, targetOS string) (*InstanceLaunchManifest, error) {
 	loader = NormalizeLoader(loader)
 	loaderVersion = strings.TrimSpace(loaderVersion)
+	targetOS = NormalizeTargetOS(targetOS)
 	if !IsSupportedLoader(loader) {
 		return nil, fmt.Errorf("unsupported loader %q", loader)
 	}
@@ -53,23 +54,23 @@ func (c *Client) BuildInstanceManifest(ctx context.Context, instanceID, name, mc
 
 	switch loader {
 	case LoaderVanilla:
-		return c.buildVanillaManifest(ctx, instanceID, name, mcVersion, loader)
+		return c.buildVanillaManifest(ctx, instanceID, name, mcVersion, loader, targetOS)
 	case LoaderFabric:
 		url := fmt.Sprintf("https://meta.fabricmc.net/v2/versions/loader/%s/%s/profile/json", mcVersion, loaderVersion)
-		return c.buildProfileManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, url)
+		return c.buildProfileManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, url, targetOS)
 	case LoaderQuilt:
 		url := fmt.Sprintf("https://meta.quiltmc.org/v3/versions/loader/%s/%s/profile/json", mcVersion, loaderVersion)
-		return c.buildProfileManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, url)
+		return c.buildProfileManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, url, targetOS)
 	case LoaderForge:
-		return c.buildInstallerManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, forgeInstallerURL(mcVersion, loaderVersion))
+		return c.buildInstallerManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, forgeInstallerURL(mcVersion, loaderVersion), targetOS)
 	case LoaderNeoForge:
-		return c.buildInstallerManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, neoforgeInstallerURL(loaderVersion))
+		return c.buildInstallerManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, neoforgeInstallerURL(loaderVersion), targetOS)
 	default:
 		return nil, fmt.Errorf("unsupported loader %q", loader)
 	}
 }
 
-func (c *Client) buildVanillaManifest(ctx context.Context, instanceID, name, mcVersion, loader string) (*InstanceLaunchManifest, error) {
+func (c *Client) buildVanillaManifest(ctx context.Context, instanceID, name, mcVersion, loader, targetOS string) (*InstanceLaunchManifest, error) {
 	versionURL, err := c.ResolveVersionURL(ctx, mcVersion)
 	if err != nil {
 		return nil, err
@@ -78,10 +79,10 @@ func (c *Client) buildVanillaManifest(ctx context.Context, instanceID, name, mcV
 	if err != nil {
 		return nil, err
 	}
-	return launchManifestFromMeta(instanceID, name, mcVersion, loader, "", versionURL, meta), nil
+	return launchManifestFromMeta(instanceID, name, mcVersion, loader, "", versionURL, meta, targetOS), nil
 }
 
-func (c *Client) buildProfileManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion, profileURL string) (*InstanceLaunchManifest, error) {
+func (c *Client) buildProfileManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion, profileURL, targetOS string) (*InstanceLaunchManifest, error) {
 	meta, err := c.FetchVersionMeta(ctx, profileURL)
 	if err != nil {
 		return nil, err
@@ -90,7 +91,7 @@ func (c *Client) buildProfileManifest(ctx context.Context, instanceID, name, mcV
 	if err != nil {
 		return nil, err
 	}
-	return launchManifestFromMeta(instanceID, name, mcVersion, loader, loaderVersion, profileURL, meta), nil
+	return launchManifestFromMeta(instanceID, name, mcVersion, loader, loaderVersion, profileURL, meta, targetOS), nil
 }
 
 func (c *Client) resolveInheritedMeta(ctx context.Context, meta *VersionMeta) (*VersionMeta, error) {
@@ -236,8 +237,8 @@ func mavenArtifactURL(repo, name string) string {
 	return strings.TrimSuffix(repo, "/") + "/" + groupPath + "/" + artifact + "/" + version + "/" + file
 }
 
-func launchManifestFromMeta(instanceID, name, mcVersion, loader, loaderVersion, versionURL string, meta *VersionMeta) *InstanceLaunchManifest {
-	gameArgs, jvmArgs := extractLaunchArguments(meta)
+func launchManifestFromMeta(instanceID, name, mcVersion, loader, loaderVersion, versionURL string, meta *VersionMeta, targetOS string) *InstanceLaunchManifest {
+	gameArgs, jvmArgs := extractLaunchArguments(meta, targetOS)
 	return &InstanceLaunchManifest{
 		InstanceID:    instanceID,
 		Name:          name,
@@ -249,7 +250,7 @@ func launchManifestFromMeta(instanceID, name, mcVersion, loader, loaderVersion, 
 		MainClass:     meta.MainClass,
 		AssetIndex:    meta.AssetIndex,
 		ClientJar:     meta.Downloads.Client,
-		Libraries:     filterLibraries(normalizeLibraries(meta.Libraries)),
+		Libraries:     filterLibraries(normalizeLibraries(meta.Libraries), targetOS),
 		JavaMajor:     meta.JavaVersion.MajorVersion,
 		JavaComponent: meta.JavaVersion.Component,
 		GameArguments: gameArgs,
@@ -257,25 +258,25 @@ func launchManifestFromMeta(instanceID, name, mcVersion, loader, loaderVersion, 
 	}
 }
 
-func extractLaunchArguments(meta *VersionMeta) (game []string, jvm []string) {
+func extractLaunchArguments(meta *VersionMeta, targetOS string) (game []string, jvm []string) {
 	if meta == nil || meta.Arguments == nil {
 		return nil, nil
 	}
-	return flattenArgumentList(meta.Arguments.Game), flattenArgumentList(meta.Arguments.JVM)
+	return flattenArgumentList(meta.Arguments.Game, targetOS), flattenArgumentList(meta.Arguments.JVM, targetOS)
 }
 
-func flattenArgumentList(items []json.RawMessage) []string {
+func flattenArgumentList(items []json.RawMessage, targetOS string) []string {
 	if len(items) == 0 {
 		return nil
 	}
 	out := make([]string, 0, len(items))
 	for _, raw := range items {
-		out = append(out, parseArgumentEntry(raw)...)
+		out = append(out, parseArgumentEntry(raw, targetOS)...)
 	}
 	return out
 }
 
-func parseArgumentEntry(raw json.RawMessage) []string {
+func parseArgumentEntry(raw json.RawMessage, targetOS string) []string {
 	if len(raw) == 0 {
 		return nil
 	}
@@ -290,7 +291,7 @@ func parseArgumentEntry(raw json.RawMessage) []string {
 	if err := json.Unmarshal(raw, &withRules); err != nil || len(withRules.Value) == 0 {
 		return nil
 	}
-	if !rulesAllow(withRules.Rules) {
+	if !rulesAllow(withRules.Rules, targetOS) {
 		return nil
 	}
 	var valueString string

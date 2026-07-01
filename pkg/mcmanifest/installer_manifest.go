@@ -24,7 +24,7 @@ func neoforgeInstallerURL(loaderVersion string) string {
 	return fmt.Sprintf("%s/%s/neoforge-%s-installer.jar", neoforgeMavenBase, loaderVersion, loaderVersion)
 }
 
-func (c *Client) buildInstallerManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion, installerURL string) (*InstanceLaunchManifest, error) {
+func (c *Client) buildInstallerManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion, installerURL, targetOS string) (*InstanceLaunchManifest, error) {
 	body, err := c.get(ctx, installerURL)
 	if err != nil {
 		return nil, fmt.Errorf("download forge installer: %w", err)
@@ -37,7 +37,7 @@ func (c *Client) buildInstallerManifest(ctx context.Context, instanceID, name, m
 	if err != nil {
 		return nil, err
 	}
-	out := launchManifestFromMeta(instanceID, name, mcVersion, loader, loaderVersion, installerURL, meta)
+	out := launchManifestFromMeta(instanceID, name, mcVersion, loader, loaderVersion, installerURL, meta, targetOS)
 	if artifact, err := clientArtifactFromInstaller(body); err == nil {
 		out.LoaderClientJar = artifact
 	}

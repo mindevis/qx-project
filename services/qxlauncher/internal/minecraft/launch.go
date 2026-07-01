@@ -21,6 +21,7 @@ type Downloader struct {
 	AssetsCDN        string
 	HTTPClient       *http.Client
 	OnProgress       ProgressFunc
+	ManifestBuilder  ManifestBuilder
 }
 
 func NewDownloader(root string) *Downloader {
@@ -91,7 +92,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 		args = []string{"-Xmx2G"}
 	}
 	if nativesDir != "" && !containsArgPrefix(args, "-Djava.library.path=") {
-		args = append(args, "-Djava.library.path="+nativesDir)
+		args = append(args, "-Djava.library.path="+filepath.ToSlash(nativesDir))
 	}
 
 	if !usesModulePathLaunch(manifest) {

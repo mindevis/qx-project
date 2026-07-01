@@ -59,7 +59,6 @@ func TestProfileValidation(t *testing.T) {
 
 func TestLaunchRequestFlow(t *testing.T) {
 	svc, _, tokens := newLauncherService(t)
-	svc.withStubManifest(t, nil)
 	ctx := context.Background()
 
 	reg, err := svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-launch"})
@@ -97,6 +96,9 @@ func TestLaunchRequestFlow(t *testing.T) {
 	pending, err := svc.FetchPendingLaunch(ctx, "dev-launch")
 	if err != nil || pending == nil || pending.Status != models.LaunchStatusDispatched {
 		t.Fatalf("pending: err=%v view=%+v", err, pending)
+	}
+	if pending.Instance == nil || pending.Instance.MCVersion != "1.21" {
+		t.Fatalf("expected instance metadata in pending view, got %+v", pending.Instance)
 	}
 
 	updated, err := svc.UpdateLaunchRequest(ctx, "dev-launch", created.ID, UpdateLaunchRequestInput{
@@ -152,7 +154,6 @@ func TestFetchPendingLaunchEmpty(t *testing.T) {
 
 func TestGetLaunchRequestPollDoesNotEnrich(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
-	svc.SetManifestProvider(stubManifestProvider{err: fmt.Errorf("version not found")})
 	ctx := context.Background()
 
 	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-manifest"})
@@ -174,41 +175,8 @@ func TestGetLaunchRequestPollDoesNotEnrich(t *testing.T) {
 	}
 }
 
-func TestFetchPendingLaunchManifestFailureMarksFailed(t *testing.T) {
-	svc, _, _ := newLauncherService(t)
-	svc.SetManifestProvider(stubManifestProvider{err: fmt.Errorf("version not found")})
-	ctx := context.Background()
-
-	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-pending-manifest"})
-	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-pending-manifest", UserID: "user-pending-manifest"})
-	owner := Owner{UserID: "user-pending-manifest"}
-	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
-		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
-	})
-	created, _ := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
-		InstanceID: inst.ID, DeviceID: "dev-pending-manifest",
-	})
-
-	pending, err := svc.FetchPendingLaunch(ctx, "dev-pending-manifest")
-	if err != nil {
-		t.Fatalf("fetch pending: %v", err)
-	}
-	if pending != nil {
-		t.Fatalf("expected nil pending after manifest failure, got %+v", pending)
-	}
-
-	got, err := svc.GetLaunchRequest(ctx, owner, created.ID)
-	if err != nil {
-		t.Fatalf("get: %v", err)
-	}
-	if got.Status != models.LaunchStatusFailed || got.ErrorCode == nil || *got.ErrorCode != "MANIFEST_UNAVAILABLE" {
-		t.Fatalf("expected failed manifest view, got status=%q error=%v", got.Status, got.ErrorCode)
-	}
-}
-
 func TestLicensedLaunchSkipsMojangRefreshAfterDispatch(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
-	svc.withStubManifest(t, nil)
 	stub := &stubMojangLauncher{
 		linked: true,
 		session: &mojang.SessionView{
@@ -270,7 +238,6 @@ func TestLicensedLaunchSkipsMojangRefreshAfterDispatch(t *testing.T) {
 
 func TestLicensedLaunchMojangRevokedMarksFailed(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
-	svc.withStubManifest(t, nil)
 	svc.SetMojang(&stubMojangLauncher{
 		linked:     true,
 		sessionErr: fmt.Errorf("%w: invalid_grant", mojang.ErrSessionRevoked),
@@ -308,7 +275,6 @@ func TestLicensedLaunchMojangRevokedMarksFailed(t *testing.T) {
 
 func TestLicensedLaunchMojangUnavailableDoesNotFail(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
-	svc.withStubManifest(t, nil)
 	svc.SetMojang(&stubMojangLauncher{
 		linked:     true,
 		sessionErr: fmt.Errorf("%w: timeout", mojang.ErrSessionUnavailable),

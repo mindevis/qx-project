@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/qxproject/qx/pkg/mcmanifest"
 	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
 	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
@@ -29,20 +28,28 @@ type MojangSessionView struct {
 	AccessToken string `json:"access_token"`
 }
 
+type LaunchInstanceView struct {
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	MCVersion     string  `json:"mc_version"`
+	Loader        string  `json:"loader"`
+	LoaderVersion *string `json:"loader_version,omitempty"`
+}
+
 type LaunchRequestView struct {
-	ID               string                           `json:"id"`
-	Status           string                           `json:"status"`
-	InstanceID       string                           `json:"instance_id"`
-	OfflineProfileID *string                          `json:"offline_profile_id,omitempty"`
-	UseMojangAccount bool                             `json:"use_mojang_account,omitempty"`
-	ExpiresAt        time.Time                        `json:"expires_at"`
-	Manifest         *mcmanifest.InstanceLaunchManifest `json:"manifest,omitempty"`
-	Profile          *models.OfflineProfile           `json:"profile,omitempty"`
-	MojangSession    *MojangSessionView               `json:"mojang_session,omitempty"`
-	Cosmetics        *cosmetics.LaunchView            `json:"cosmetics,omitempty"`
-	PID              *int                             `json:"pid,omitempty"`
-	ExitCode         *int                             `json:"exit_code,omitempty"`
-	ErrorCode        *string                          `json:"error_code,omitempty"`
+	ID               string                 `json:"id"`
+	Status           string                 `json:"status"`
+	InstanceID       string                 `json:"instance_id"`
+	OfflineProfileID *string                `json:"offline_profile_id,omitempty"`
+	UseMojangAccount bool                   `json:"use_mojang_account,omitempty"`
+	ExpiresAt        time.Time              `json:"expires_at"`
+	Instance         *LaunchInstanceView    `json:"instance,omitempty"`
+	Profile          *models.OfflineProfile `json:"profile,omitempty"`
+	MojangSession    *MojangSessionView     `json:"mojang_session,omitempty"`
+	Cosmetics        *cosmetics.LaunchView  `json:"cosmetics,omitempty"`
+	PID              *int                   `json:"pid,omitempty"`
+	ExitCode         *int                   `json:"exit_code,omitempty"`
+	ErrorCode        *string                `json:"error_code,omitempty"`
 }
 
 type UpdateLaunchRequestInput struct {
@@ -207,8 +214,6 @@ func (s *Service) failLaunchRequestOnEnrichError(ctx context.Context, requestID 
 	switch {
 	case errors.Is(err, ErrMojangSession), errors.Is(err, ErrValidation):
 		errorCode = "MOJANG_SESSION"
-	case errors.Is(err, ErrManifest):
-		errorCode = "MANIFEST_UNAVAILABLE"
 	default:
 		return nil, err
 	}
@@ -238,15 +243,22 @@ func launchNeedsMojangSession(status string) bool {
 	return status == models.LaunchStatusQueued || status == models.LaunchStatusDispatched
 }
 
+func launchInstanceFromModel(inst models.LauncherInstance) *LaunchInstanceView {
+	return &LaunchInstanceView{
+		ID:            inst.ID,
+		Name:          inst.Name,
+		MCVersion:     inst.MCVersion,
+		Loader:        inst.Loader,
+		LoaderVersion: inst.LoaderVersion,
+	}
+}
+
 func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest) (*LaunchRequestView, error) {
 	var inst models.LauncherInstance
 	if err := s.db.WithContext(ctx).Where("id = ?", req.InstanceID).First(&inst).Error; err != nil {
 		return nil, err
 	}
-	manifest, err := s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, instanceLoaderVersion(inst))
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrManifest, err)
-	}
+	instanceView := launchInstanceFromModel(inst)
 	var profile *models.OfflineProfile
 	if req.OfflineProfileID != nil {
 		var p models.OfflineProfile
@@ -288,10 +300,10 @@ func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest
 			cosmeticsView = view
 		}
 	}
-	return launchViewFromModel(req, manifest, profile, mojangSession, cosmeticsView), nil
+	return launchViewFromModel(req, instanceView, profile, mojangSession, cosmeticsView), nil
 }
 
-func launchViewFromModel(req models.LaunchRequest, manifest *mcmanifest.InstanceLaunchManifest, profile *models.OfflineProfile, mojangSession *MojangSessionView, cosmeticsView *cosmetics.LaunchView) *LaunchRequestView {
+func launchViewFromModel(req models.LaunchRequest, instance *LaunchInstanceView, profile *models.OfflineProfile, mojangSession *MojangSessionView, cosmeticsView *cosmetics.LaunchView) *LaunchRequestView {
 	return &LaunchRequestView{
 		ID:               req.ID,
 		Status:           req.Status,
@@ -299,7 +311,7 @@ func launchViewFromModel(req models.LaunchRequest, manifest *mcmanifest.Instance
 		OfflineProfileID: req.OfflineProfileID,
 		UseMojangAccount: req.UseMojangAccount,
 		ExpiresAt:        req.ExpiresAt,
-		Manifest:         manifest,
+		Instance:         instance,
 		Profile:          profile,
 		MojangSession:    mojangSession,
 		Cosmetics:        cosmeticsView,

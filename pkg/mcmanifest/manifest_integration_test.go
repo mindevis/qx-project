@@ -14,7 +14,7 @@ func TestIntegrationMojangManifest1_21(t *testing.T) {
 
 	ctx := context.Background()
 	client := NewClient()
-	manifest, err := client.BuildInstanceManifest(ctx, "inst-e2e", "E2E", "1.21", "vanilla", "")
+	manifest, err := client.BuildInstanceManifest(ctx, "inst-e2e", "E2E", "1.21", "vanilla", "", "")
 	if err != nil {
 		t.Fatalf("build manifest: %v", err)
 	}

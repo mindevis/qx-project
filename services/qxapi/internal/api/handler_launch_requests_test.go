@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,7 +20,7 @@ import (
 
 type testManifestProvider struct{}
 
-func (testManifestProvider) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error) {
+func (testManifestProvider) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader, loaderVersion, _ string) (*mcmanifest.InstanceLaunchManifest, error) {
 	return &mcmanifest.InstanceLaunchManifest{
 		InstanceID: instanceID,
 		Name:       name,
@@ -29,12 +28,6 @@ func (testManifestProvider) BuildInstanceManifest(_ context.Context, instanceID,
 		Loader:     loader,
 		MainClass:  "net.minecraft.client.main.Main",
 	}, nil
-}
-
-type failingManifestProvider struct{ err error }
-
-func (p failingManifestProvider) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error) {
-	return nil, p.err
 }
 
 func newLaunchHandler(t *testing.T) (*LaunchRequestsHandler, *launcher.Service, *auth.TokenService) {
@@ -127,6 +120,19 @@ func TestLaunchRequestsHandlerPending(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("pending: %d %s", w.Code, w.Body.String())
 	}
+	var pendingBody struct {
+		Item *struct {
+			Instance *struct {
+				MCVersion string `json:"mc_version"`
+			} `json:"instance"`
+		} `json:"item"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &pendingBody); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	if pendingBody.Item == nil || pendingBody.Item.Instance == nil || pendingBody.Item.Instance.MCVersion != "1.21" {
+		t.Fatalf("expected instance metadata in pending response, got %+v", pendingBody.Item)
+	}
 }
 
 func TestLaunchRequestsHandlerGet(t *testing.T) {
@@ -198,8 +204,6 @@ func TestLaunchRequestsHandlerGetPollDoesNotEnrich(t *testing.T) {
 	created, _ := svc.CreateLaunchRequest(ctx, owner, launcher.CreateLaunchRequestInput{
 		InstanceID: inst.ID, DeviceID: "dev-manifest-h",
 	})
-
-	svc.SetManifestProvider(failingManifestProvider{err: fmt.Errorf("upstream unavailable")})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

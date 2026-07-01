@@ -193,10 +193,24 @@ func (c *Client) FetchVersionMeta(ctx context.Context, versionURL string) (*Vers
 	return &meta, nil
 }
 
-func filterLibraries(libs []Library) []Library {
+// NormalizeTargetOS maps launcher/device OS names to rule OS names used in Mojang metadata.
+func NormalizeTargetOS(os string) string {
+	switch strings.ToLower(strings.TrimSpace(os)) {
+	case "windows", "win32":
+		return "windows"
+	case "darwin", "osx", "macos":
+		return "darwin"
+	case "linux":
+		return "linux"
+	default:
+		return runtime.GOOS
+	}
+}
+
+func filterLibraries(libs []Library, targetOS string) []Library {
 	out := make([]Library, 0, len(libs))
 	for _, lib := range libs {
-		if !libraryAllowed(lib) {
+		if !libraryAllowed(lib, targetOS) {
 			continue
 		}
 		out = append(out, lib)
@@ -204,8 +218,8 @@ func filterLibraries(libs []Library) []Library {
 	return out
 }
 
-func libraryAllowed(lib Library) bool {
-	return rulesAllow(lib.Rules)
+func libraryAllowed(lib Library, targetOS string) bool {
+	return rulesAllow(lib.Rules, targetOS)
 }
 
 // defaultRuleFeatures drives Mojang argument/library rule evaluation for our launcher.
@@ -215,8 +229,8 @@ var defaultRuleFeatures = map[string]bool{
 	"has_quick_plays_support": false,
 }
 
-func ruleMatches(rule Rule) bool {
-	if rule.OS != nil && !osMatches(rule.OS.Name) {
+func ruleMatches(rule Rule, targetOS string) bool {
+	if rule.OS != nil && !osMatches(rule.OS.Name, targetOS) {
 		return false
 	}
 	for name, raw := range rule.Features {
@@ -235,13 +249,13 @@ func ruleMatches(rule Rule) bool {
 	return true
 }
 
-func rulesAllow(rules []Rule) bool {
+func rulesAllow(rules []Rule, targetOS string) bool {
 	if len(rules) == 0 {
 		return true
 	}
 	allowed := false
 	for _, rule := range rules {
-		if !ruleMatches(rule) {
+		if !ruleMatches(rule, targetOS) {
 			continue
 		}
 		switch rule.Action {
@@ -254,18 +268,15 @@ func rulesAllow(rules []Rule) bool {
 	return allowed
 }
 
-var currentOSName = func() string {
-	return runtime.GOOS
-}
-
-func osMatches(name string) bool {
+func osMatches(name, targetOS string) bool {
+	targetOS = NormalizeTargetOS(targetOS)
 	switch strings.ToLower(name) {
 	case "windows":
-		return currentOSName() == "windows"
+		return targetOS == "windows"
 	case "osx", "macos":
-		return currentOSName() == "darwin"
+		return targetOS == "darwin"
 	case "linux":
-		return currentOSName() == "linux"
+		return targetOS == "linux"
 	default:
 		return false
 	}

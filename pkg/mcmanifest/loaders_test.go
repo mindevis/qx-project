@@ -36,6 +36,7 @@ func TestBuildProfileManifestFromURL(t *testing.T) {
 		LoaderFabric,
 		"0.16.14",
 		srv.URL,
+		"windows",
 	)
 	if err != nil {
 		t.Fatalf("build: %v", err)
@@ -53,7 +54,7 @@ func TestBuildProfileManifestFromURL(t *testing.T) {
 
 func TestBuildInstanceManifestRequiresLoaderVersion(t *testing.T) {
 	client := NewClient()
-	_, err := client.BuildInstanceManifest(context.Background(), "i", "n", "1.20.1", LoaderForge, "")
+	_, err := client.BuildInstanceManifest(context.Background(), "i", "n", "1.20.1", LoaderForge, "", "")
 	if err == nil {
 		t.Fatal("expected loader version error")
 	}
@@ -61,7 +62,7 @@ func TestBuildInstanceManifestRequiresLoaderVersion(t *testing.T) {
 
 func TestUnsupportedLoader(t *testing.T) {
 	client := NewClient()
-	_, err := client.BuildInstanceManifest(context.Background(), "i", "n", "1.20.1", "paper", "1")
+	_, err := client.BuildInstanceManifest(context.Background(), "i", "n", "1.20.1", "paper", "1", "")
 	if err == nil {
 		t.Fatal("expected unsupported loader error")
 	}
@@ -87,11 +88,7 @@ func TestNormalizeFabricLibrary(t *testing.T) {
 
 func TestFlattenArgumentList(t *testing.T) {
 	raw := json.RawMessage(`{"rules":[{"action":"allow","os":{"name":"windows"}}],"value":["--foo","bar"]}`)
-	old := currentOSName
-	currentOSName = func() string { return "windows" }
-	t.Cleanup(func() { currentOSName = old })
-
-	args := flattenArgumentList([]json.RawMessage{json.RawMessage(`"--username"`), raw})
+	args := flattenArgumentList([]json.RawMessage{json.RawMessage(`"--username"`), raw}, "windows")
 	if len(args) != 3 || args[0] != "--username" || args[1] != "--foo" {
 		t.Fatalf("args: %+v", args)
 	}

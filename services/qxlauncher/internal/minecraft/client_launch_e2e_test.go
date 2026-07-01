@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +74,7 @@ func runClientLaunchE2E(t *testing.T, opts clientLaunchE2EOptions) {
 		mcVersion,
 		opts.Loader,
 		loaderVersion,
+		runtime.GOOS,
 	)
 	if err != nil {
 		t.Fatalf("build manifest: %v", err)

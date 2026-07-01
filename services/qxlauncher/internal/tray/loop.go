@@ -20,16 +20,17 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
 type Config struct {
-	APIBase          string
-	DeviceToken      string
-	TokenPath        string
-	DeviceClient     *device.Client
-	DataDir          string
-	LaunchDryRun     bool
-	JavaPath         string
-	SkipJavaDownload bool
-	LaunchPoll       time.Duration
-	InstancePoll     time.Duration
+	APIBase           string
+	DeviceToken       string
+	TokenPath         string
+	DeviceClient      *device.Client
+	DataDir           string
+	LaunchDryRun      bool
+	JavaPath          string
+	SkipJavaDownload  bool
+	LaunchPoll        time.Duration
+	InstancePoll      time.Duration
+	ManifestBuilder   minecraft.ManifestBuilder
 	OnInstancesSynced func([]apiclient.InstanceItem)
 }
 
@@ -52,6 +53,7 @@ func RunLoop(ctx context.Context, cfg Config) {
 	downloader := minecraft.NewDownloader(cfg.DataDir)
 	downloader.JavaPath = cfg.JavaPath
 	downloader.SkipJavaDownload = cfg.SkipJavaDownload
+	downloader.ManifestBuilder = cfg.ManifestBuilder
 
 	launchTicker := time.NewTicker(cfg.LaunchPoll)
 	defer launchTicker.Stop()
@@ -90,7 +92,7 @@ func RunLoop(ctx context.Context, cfg Config) {
 					logAPIFailure("launch poll failed", err)
 				}
 			}
-			if err == nil && item != nil && item.Manifest != nil {
+			if err == nil && item != nil && item.Instance != nil {
 				if _, loaded := activeLaunches.LoadOrStore(item.ID, true); !loaded {
 					go func(launchID string, launchItem *apiclient.LaunchRequestItem) {
 						defer activeLaunches.Delete(launchID)
@@ -176,12 +178,33 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		notify.Show("QXLauncher", title)
 	}
 
+	if item.Instance == nil {
+		slog.Error("launch missing instance metadata")
+		reportLaunchStatus("failed", map[string]any{"error_code": "INSTANCE_MISSING"})
+		notifyLaunchStep("Не удалось подготовить запуск")
+		return
+	}
+
 	reportLaunchStatus("preparing", nil)
 	notifyLaunchStep("Подготовка к запуску…")
 
+	manifest, err := dl.BuildLaunchManifest(ctx, minecraft.LaunchInstance{
+		ID:            item.Instance.ID,
+		Name:          item.Instance.Name,
+		MCVersion:     item.Instance.MCVersion,
+		Loader:        item.Instance.Loader,
+		LoaderVersion: item.Instance.LoaderVersion,
+	})
+	if err != nil {
+		slog.Error("launch manifest build failed", "err", err)
+		reportLaunchStatus("failed", map[string]any{"error_code": "MANIFEST_UNAVAILABLE"})
+		notifyLaunchStep("Не удалось подготовить запуск")
+		return
+	}
+
 	dl.OnProgress = func(phase, message string) {
 		fields := []any{"phase", phase, "message", message}
-		fields = append(fields, minecraft.FormatLaunchLogFields(item.Manifest)...)
+		fields = append(fields, minecraft.FormatLaunchLogFields(manifest)...)
 		slog.Info("launch prepare", fields...)
 
 		switch phase {
@@ -200,7 +223,7 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 	}
 
 	ready, err := dl.PrepareClientLaunch(ctx, minecraft.ClientLaunchInput{
-		Manifest:    item.Manifest,
+		Manifest:    manifest,
 		Username:    username,
 		OfflineUUID: offlineUUID,
 		SkinModel:   skinModel,
@@ -235,7 +258,7 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 	}
 	plan := ready.Plan
 
-	label := minecraft.FormatLaunchLabel(item.Manifest, username)
+	label := minecraft.FormatLaunchLabel(manifest, username)
 	reportLaunchStatus("launching", nil)
 	notifyLaunchStep("Запуск Minecraft: " + label)
 
@@ -247,7 +270,7 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 				"game_dir", ready.GameDir,
 				"natives_dir", filepath.Join(ready.GameDir, "natives"),
 				"log_path", ready.LogPath,
-			}, minecraft.FormatLaunchLogFields(item.Manifest)...)...)
+			}, minecraft.FormatLaunchLogFields(manifest)...)...)
 		reportLaunchStatus("completed", map[string]any{"exit_code": 0})
 		return
 	}
@@ -259,7 +282,7 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 			"game_dir", ready.GameDir,
 			"log_path", ready.LogPath,
 			"cmd_file", filepath.Join(ready.GameDir, "launch.cmd.txt"),
-		}, minecraft.FormatLaunchLogFields(item.Manifest)...)...)
+		}, minecraft.FormatLaunchLogFields(manifest)...)...)
 
 	cmd, err := minecraft.StartClientProcess(context.Background(), plan, ready.LogPath)
 	if err != nil {

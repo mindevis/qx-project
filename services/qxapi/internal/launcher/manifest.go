@@ -14,15 +14,15 @@ var (
 )
 
 type ManifestProvider interface {
-	BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error)
+	BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion, targetOS string) (*mcmanifest.InstanceLaunchManifest, error)
 }
 
 type mcManifestProvider struct {
 	client *mcmanifest.Client
 }
 
-func (p *mcManifestProvider) BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion string) (*mcmanifest.InstanceLaunchManifest, error) {
-	return p.client.BuildInstanceManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion)
+func (p *mcManifestProvider) BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion, targetOS string) (*mcmanifest.InstanceLaunchManifest, error) {
+	return p.client.BuildInstanceManifest(ctx, instanceID, name, mcVersion, loader, loaderVersion, targetOS)
 }
 
 func defaultManifestProvider() ManifestProvider {
@@ -58,7 +58,7 @@ func (s *Service) InstanceManifest(ctx context.Context, owner Owner, instanceID 
 	if err != nil {
 		return nil, err
 	}
-	return s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, instanceLoaderVersion(*inst))
+	return s.manifestProvider().BuildInstanceManifest(ctx, inst.ID, inst.Name, inst.MCVersion, inst.Loader, instanceLoaderVersion(*inst), "")
 }
 
 func (s *Service) FindLinkedDevice(ctx context.Context, owner Owner) (string, error) {

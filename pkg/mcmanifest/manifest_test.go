@@ -48,7 +48,7 @@ func TestResolveVersionAndBuildManifest(t *testing.T) {
 		t.Fatalf("meta: %v %+v", err, meta)
 	}
 
-	launch, err := client.BuildInstanceManifest(context.Background(), "inst-1", "Test", "1.21", "vanilla", "")
+	launch, err := client.BuildInstanceManifest(context.Background(), "inst-1", "Test", "1.21", "vanilla", "", "")
 	if err != nil || launch.ClientJar.URL == "" {
 		t.Fatalf("launch manifest: %v %+v", err, launch)
 	}
@@ -58,10 +58,6 @@ func TestResolveVersionAndBuildManifest(t *testing.T) {
 }
 
 func TestFilterLibrariesDisallow(t *testing.T) {
-	old := currentOSName
-	currentOSName = func() string { return "windows" }
-	t.Cleanup(func() { currentOSName = old })
-
 	libs := filterLibraries([]Library{
 		{Name: "allowed", Downloads: &LibraryDownloads{Artifact: &DownloadFile{URL: "u"}}},
 		{
@@ -69,9 +65,27 @@ func TestFilterLibrariesDisallow(t *testing.T) {
 			Rules:     []Rule{{Action: "allow", OS: &RuleOS{Name: "linux"}}},
 			Downloads: &LibraryDownloads{Artifact: &DownloadFile{URL: "u"}},
 		},
-	})
+	}, "windows")
 	if len(libs) != 1 || libs[0].Name != "allowed" {
 		t.Fatalf("filter: %+v", libs)
+	}
+}
+
+func TestFilterLibrariesWindowsNativesForWindowsTarget(t *testing.T) {
+	libs := filterLibraries([]Library{
+		{
+			Name:      "org.lwjgl:lwjgl:3.3.1:natives-windows",
+			Rules:     []Rule{{Action: "allow", OS: &RuleOS{Name: "windows"}}},
+			Downloads: &LibraryDownloads{Artifact: &DownloadFile{URL: "u"}},
+		},
+		{
+			Name:      "org.lwjgl:lwjgl:3.3.1:natives-linux",
+			Rules:     []Rule{{Action: "allow", OS: &RuleOS{Name: "linux"}}},
+			Downloads: &LibraryDownloads{Artifact: &DownloadFile{URL: "u"}},
+		},
+	}, "windows")
+	if len(libs) != 1 || libs[0].Name != "org.lwjgl:lwjgl:3.3.1:natives-windows" {
+		t.Fatalf("expected windows natives only: %+v", libs)
 	}
 }
 

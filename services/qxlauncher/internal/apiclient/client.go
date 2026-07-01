@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/qxproject/qx/pkg/mcmanifest"
 )
 
 type Client struct {
@@ -43,14 +41,22 @@ type LaunchCosmetics struct {
 	GameUUID       string `json:"game_uuid,omitempty"`
 }
 
+type LaunchInstance struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	MCVersion     string `json:"mc_version"`
+	Loader        string `json:"loader"`
+	LoaderVersion string `json:"loader_version,omitempty"`
+}
+
 type LaunchRequestItem struct {
-	ID         string                           `json:"id"`
-	Status     string                           `json:"status"`
-	InstanceID string                           `json:"instance_id"`
-	Manifest   *mcmanifest.InstanceLaunchManifest `json:"manifest"`
-	Profile    *OfflineProfile                  `json:"profile"`
-	Mojang     *MojangSession                   `json:"mojang_session"`
-	Cosmetics  *LaunchCosmetics                 `json:"cosmetics"`
+	ID         string           `json:"id"`
+	Status     string           `json:"status"`
+	InstanceID string           `json:"instance_id"`
+	Instance   *LaunchInstance  `json:"instance"`
+	Profile    *OfflineProfile  `json:"profile"`
+	Mojang     *MojangSession   `json:"mojang_session"`
+	Cosmetics  *LaunchCosmetics `json:"cosmetics"`
 }
 
 type OfflineProfile struct {

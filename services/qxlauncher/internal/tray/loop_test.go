@@ -16,6 +16,25 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/minecraft"
 )
 
+type stubManifestBuilder struct {
+	manifest *mcmanifest.InstanceLaunchManifest
+}
+
+func (s stubManifestBuilder) BuildInstanceManifest(_ context.Context, instanceID, name, mcVersion, loader, loaderVersion, targetOS string) (*mcmanifest.InstanceLaunchManifest, error) {
+	if s.manifest != nil {
+		m := *s.manifest
+		if m.InstanceID == "" {
+			m.InstanceID = instanceID
+		}
+		return &m, nil
+	}
+	return &mcmanifest.InstanceLaunchManifest{
+		InstanceID: instanceID,
+		MCVersion:  mcVersion,
+		MainClass:  "Main",
+	}, nil
+}
+
 func TestExecuteLaunchDryRun(t *testing.T) {
 	jarSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("jar-bytes"))
@@ -49,6 +68,13 @@ func TestExecuteLaunchDryRun(t *testing.T) {
 	api := apiclient.New(apiSrv.URL, "token")
 	dl := minecraft.NewDownloader(filepath.Join(t.TempDir(), "data"))
 	dl.SkipJavaDownload = true
+	dl.ManifestBuilder = stubManifestBuilder{manifest: &mcmanifest.InstanceLaunchManifest{
+		InstanceID: "inst-1",
+		MCVersion:  "1.21",
+		MainClass:  "Main",
+		AssetIndex: mcmanifest.AssetIndexRef{ID: "1.21", URL: indexSrv.URL},
+		ClientJar:  mcmanifest.DownloadFile{URL: jarSrv.URL, Sha1: ""},
+	}}
 
 	executeLaunch(context.Background(), api, dl, Config{LaunchDryRun: true}, &apiclient.LaunchRequestItem{
 		ID: "req-1",
@@ -56,12 +82,11 @@ func TestExecuteLaunchDryRun(t *testing.T) {
 			Username:    "Steve",
 			OfflineUUID: "00000000-0000-0000-0000-000000000001",
 		},
-		Manifest: &mcmanifest.InstanceLaunchManifest{
-			InstanceID: "inst-1",
-			MCVersion:  "1.21",
-			MainClass:  "Main",
-			AssetIndex: mcmanifest.AssetIndexRef{ID: "1.21", URL: indexSrv.URL},
-			ClientJar:  mcmanifest.DownloadFile{URL: jarSrv.URL, Sha1: ""},
+		Instance: &apiclient.LaunchInstance{
+			ID:        "inst-1",
+			Name:      "Survival",
+			MCVersion: "1.21",
+			Loader:    mcmanifest.LoaderVanilla,
 		},
 	})
 
@@ -114,6 +139,25 @@ func TestExecuteLaunchDryRunNeoForge(t *testing.T) {
 	api := apiclient.New(apiSrv.URL, "token")
 	dl := minecraft.NewDownloader(dataDir)
 	dl.SkipJavaDownload = true
+	dl.ManifestBuilder = stubManifestBuilder{manifest: &mcmanifest.InstanceLaunchManifest{
+		InstanceID:    "inst-neoforge",
+		MCVersion:     "1.21.1",
+		Loader:        mcmanifest.LoaderNeoForge,
+		LoaderVersion: "21.1.234",
+		VersionID:     "1.21.1-neoforge-21.1.234",
+		MainClass:     "cpw.mods.bootstraplauncher.BootstrapLauncher",
+		AssetIndex:    mcmanifest.AssetIndexRef{ID: "1.21.1", URL: indexSrv.URL},
+		ClientJar:     mcmanifest.DownloadFile{URL: jarSrv.URL, Sha1: ""},
+		LoaderClientJar: clientJar,
+		JVMArguments: []string{
+			"-DlibraryDirectory=${library_directory}",
+			"-p", "${library_directory}/cpw/mods/bootstraplauncher/2.0.2/bootstraplauncher-2.0.2.jar",
+		},
+		GameArguments: []string{
+			"--username", "${auth_player_name}",
+			"--launchTarget", "forgeclient",
+		},
+	}}
 
 	executeLaunch(context.Background(), api, dl, Config{LaunchDryRun: true}, &apiclient.LaunchRequestItem{
 		ID: "req-neoforge",
@@ -121,24 +165,12 @@ func TestExecuteLaunchDryRunNeoForge(t *testing.T) {
 			Username:    "NeoForgeTest",
 			OfflineUUID: "00000000-0000-0000-0000-000000000001",
 		},
-		Manifest: &mcmanifest.InstanceLaunchManifest{
-			InstanceID:    "inst-neoforge",
+		Instance: &apiclient.LaunchInstance{
+			ID:            "inst-neoforge",
+			Name:          "NeoForge",
 			MCVersion:     "1.21.1",
 			Loader:        mcmanifest.LoaderNeoForge,
 			LoaderVersion: "21.1.234",
-			VersionID:     "1.21.1-neoforge-21.1.234",
-			MainClass:     "cpw.mods.bootstraplauncher.BootstrapLauncher",
-			AssetIndex:    mcmanifest.AssetIndexRef{ID: "1.21.1", URL: indexSrv.URL},
-			ClientJar:     mcmanifest.DownloadFile{URL: jarSrv.URL, Sha1: ""},
-			LoaderClientJar: clientJar,
-			JVMArguments: []string{
-				"-DlibraryDirectory=${library_directory}",
-				"-p", "${library_directory}/cpw/mods/bootstraplauncher/2.0.2/bootstraplauncher-2.0.2.jar",
-			},
-			GameArguments: []string{
-				"--username", "${auth_player_name}",
-				"--launchTarget", "forgeclient",
-			},
 		},
 	})
 
@@ -210,12 +242,11 @@ func TestRunLoop_DryLaunchOnce(t *testing.T) {
 						"username":     "Steve",
 						"offline_uuid": "00000000-0000-0000-0000-000000000001",
 					},
-					"manifest": map[string]any{
-						"instance_id": "inst-1",
-						"mc_version":  "1.21",
-						"main_class":  "Main",
-						"asset_index": map[string]any{"id": "1.21", "url": indexSrv.URL},
-						"client_jar":  map[string]any{"url": jarSrv.URL},
+					"instance": map[string]any{
+						"id":         "inst-1",
+						"name":       "Survival",
+						"mc_version": "1.21",
+						"loader":     "vanilla",
 					},
 				},
 			})
@@ -246,6 +277,13 @@ func TestRunLoop_DryLaunchOnce(t *testing.T) {
 		SkipJavaDownload: true,
 		LaunchPoll:       20 * time.Millisecond,
 		InstancePoll:     time.Hour,
+		ManifestBuilder: stubManifestBuilder{manifest: &mcmanifest.InstanceLaunchManifest{
+			InstanceID: "inst-1",
+			MCVersion:  "1.21",
+			MainClass:  "Main",
+			AssetIndex: mcmanifest.AssetIndexRef{ID: "1.21", URL: indexSrv.URL},
+			ClientJar:  mcmanifest.DownloadFile{URL: jarSrv.URL, Sha1: ""},
+		}},
 	})
 
 	deadline := time.Now().Add(1500 * time.Millisecond)

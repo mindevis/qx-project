@@ -53,10 +53,11 @@ func newDryRunHarness(t *testing.T) *dryRunHarness {
 	return h
 }
 
-func (h *dryRunHarness) run(t *testing.T, item *apiclient.LaunchRequestItem) {
+func (h *dryRunHarness) run(t *testing.T, item *apiclient.LaunchRequestItem, manifest *mcmanifest.InstanceLaunchManifest) {
 	t.Helper()
 	dl := minecraft.NewDownloader(filepath.Join(t.TempDir(), "data"))
 	dl.SkipJavaDownload = true
+	dl.ManifestBuilder = stubManifestBuilder{manifest: manifest}
 	executeLaunch(context.Background(), h.api, dl, Config{LaunchDryRun: true}, item)
 	if h.lastStatus != "completed" {
 		t.Fatalf("expected completed, got %q", h.lastStatus)
@@ -71,20 +72,26 @@ func TestExecuteLaunchDryRunFabric(t *testing.T) {
 			Username:    "FabricTest",
 			OfflineUUID: "00000000-0000-0000-0000-000000000001",
 		},
-		Manifest: &mcmanifest.InstanceLaunchManifest{
-			InstanceID:    "inst-fabric",
+		Instance: &apiclient.LaunchInstance{
+			ID:            "inst-fabric",
+			Name:          "Fabric",
 			MCVersion:     "1.21.1",
 			Loader:        mcmanifest.LoaderFabric,
 			LoaderVersion: "0.19.3",
-			VersionID:     "fabric-loader-0.19.3-1.21.1",
-			MainClass:     "net.fabricmc.loader.impl.launch.knot.KnotClient",
-			AssetIndex:    mcmanifest.AssetIndexRef{ID: "1.21.1", URL: h.indexURL},
-			ClientJar:     mcmanifest.DownloadFile{URL: h.jarURL, Sha1: ""},
-			JVMArguments:  []string{"-Xmx2G"},
-			GameArguments: []string{
-				"--username", "${auth_player_name}",
-				"--gameDir", "${game_directory}",
-			},
+		},
+	}, &mcmanifest.InstanceLaunchManifest{
+		InstanceID:    "inst-fabric",
+		MCVersion:     "1.21.1",
+		Loader:        mcmanifest.LoaderFabric,
+		LoaderVersion: "0.19.3",
+		VersionID:     "fabric-loader-0.19.3-1.21.1",
+		MainClass:     "net.fabricmc.loader.impl.launch.knot.KnotClient",
+		AssetIndex:    mcmanifest.AssetIndexRef{ID: "1.21.1", URL: h.indexURL},
+		ClientJar:     mcmanifest.DownloadFile{URL: h.jarURL, Sha1: ""},
+		JVMArguments:  []string{"-Xmx2G"},
+		GameArguments: []string{
+			"--username", "${auth_player_name}",
+			"--gameDir", "${game_directory}",
 		},
 	})
 }
@@ -97,20 +104,26 @@ func TestExecuteLaunchDryRunQuilt(t *testing.T) {
 			Username:    "QuiltTest",
 			OfflineUUID: "00000000-0000-0000-0000-000000000001",
 		},
-		Manifest: &mcmanifest.InstanceLaunchManifest{
-			InstanceID:    "inst-quilt",
+		Instance: &apiclient.LaunchInstance{
+			ID:            "inst-quilt",
+			Name:          "Quilt",
 			MCVersion:     "1.21.1",
 			Loader:        mcmanifest.LoaderQuilt,
 			LoaderVersion: "0.28.1",
-			VersionID:     "quilt-loader-0.28.1-1.21.1",
-			MainClass:     "org.quiltmc.loader.impl.launch.knot.KnotClient",
-			AssetIndex:    mcmanifest.AssetIndexRef{ID: "1.21.1", URL: h.indexURL},
-			ClientJar:     mcmanifest.DownloadFile{URL: h.jarURL, Sha1: ""},
-			JVMArguments:  []string{"-Xmx2G"},
-			GameArguments: []string{
-				"--username", "${auth_player_name}",
-				"--gameDir", "${game_directory}",
-			},
+		},
+	}, &mcmanifest.InstanceLaunchManifest{
+		InstanceID:    "inst-quilt",
+		MCVersion:     "1.21.1",
+		Loader:        mcmanifest.LoaderQuilt,
+		LoaderVersion: "0.28.1",
+		VersionID:     "quilt-loader-0.28.1-1.21.1",
+		MainClass:     "org.quiltmc.loader.impl.launch.knot.KnotClient",
+		AssetIndex:    mcmanifest.AssetIndexRef{ID: "1.21.1", URL: h.indexURL},
+		ClientJar:     mcmanifest.DownloadFile{URL: h.jarURL, Sha1: ""},
+		JVMArguments:  []string{"-Xmx2G"},
+		GameArguments: []string{
+			"--username", "${auth_player_name}",
+			"--gameDir", "${game_directory}",
 		},
 	})
 }
