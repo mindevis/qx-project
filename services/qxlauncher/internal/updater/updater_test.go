@@ -27,9 +27,10 @@ func TestBackupPath(t *testing.T) {
 }
 
 func TestStagingDirUsesLocalAppData(t *testing.T) {
-	t.Setenv("LOCALAPPDATA", `C:\Users\test\AppData\Local`)
+	local := `C:\Users\test\AppData\Local`
+	t.Setenv("LOCALAPPDATA", local)
 	got := stagingDir()
-	want := `C:\Users\test\AppData\Local\QXLauncher\updates`
+	want := filepath.Join(local, "QXLauncher", "updates")
 	if got != want {
 		t.Fatalf("stagingDir: got %q want %q", got, want)
 	}
