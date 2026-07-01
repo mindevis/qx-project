@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Check [FAQ](https://mindevis.github.io/qx-project/faq/) and [production-deploy troubleshooting](https://mindevis.github.io/qx-project/production-deploy/#5-troubleshooting) first.
+        Check [FAQ](https://docs.qx-dev.ru/faq/) and [production-deploy troubleshooting](https://docs.qx-dev.ru/production-deploy/#5-troubleshooting) first.
 
   - type: dropdown
     id: component
