@@ -28,6 +28,7 @@ import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { isModdedLauncherLoader } from '@/lib/isModdedLoader';
 import { modSupportsServerSync } from '@/lib/modSync';
+import { formatModCatalogError } from '@/lib/modCatalogError';
 import './InstanceResourcesPanel.css';
 
 const { Text, Paragraph, Title } = Typography;
@@ -83,6 +84,13 @@ export function InstanceResourcesPanel({
       setLoading(true);
       setLoadingMore(false);
       try {
+        if (!appliedSearch.trim() && sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled) {
+          setItems([]);
+          setHasMore(false);
+          setOffset(0);
+          return;
+        }
+
         if (appliedSearch.trim()) {
           const res = await api.searchMods({
             q: appliedSearch.trim(),
@@ -117,11 +125,11 @@ export function InstanceResourcesPanel({
       } catch (e) {
         if (cancelled) return;
         message.error(
-          e instanceof Error
-            ? e.message
-            : appliedSearch.trim()
-              ? t('qxmods.searchFailed')
-              : t('qxmods.browseFailed'),
+          formatModCatalogError(
+            e,
+            t,
+            appliedSearch.trim() ? 'qxmods.searchFailed' : 'qxmods.browseFailed',
+          ),
         );
         setItems([]);
         setHasMore(false);
@@ -158,7 +166,7 @@ export function InstanceResourcesPanel({
       setOffset((prev) => prev + nextItems.length);
       setCurseforgeEnabled(res.curseforge_enabled ?? false);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('qxmods.browseFailed'));
+      message.error(formatModCatalogError(e, t, 'qxmods.browseFailed'));
     } finally {
       setLoadingMore(false);
     }
@@ -188,7 +196,7 @@ export function InstanceResourcesPanel({
       setVersions(list);
       setSelectedVersionId(list[0]?.id);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('qxmods.versionsFailed'));
+      message.error(formatModCatalogError(e, t, 'qxmods.versionsFailed'));
     } finally {
       setVersionsLoading(false);
     }

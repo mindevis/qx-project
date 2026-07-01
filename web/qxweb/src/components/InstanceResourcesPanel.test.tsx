@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
-import { api } from '@/api/client';
+import { api, ApiRequestError } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { InstanceResourcesPanel } from './InstanceResourcesPanel';
 
@@ -150,6 +150,47 @@ describe('InstanceResourcesPanel', () => {
     vi.mocked(api.browseMods).mockRejectedValueOnce(new Error('browse failed'));
     renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
     await waitFor(() => expect(message.error).toHaveBeenCalledWith('browse failed'));
+  });
+
+  it('shows CurseForge upstream error instead of backend unavailable', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(api.browseMods).mockResolvedValueOnce({
+      items: [sodiumItem],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+
+    vi.mocked(api.browseMods).mockRejectedValueOnce(
+      new ApiRequestError('curseforge: status 403: forbidden', undefined, 'CURSEFORGE_UNAVAILABLE'),
+    );
+    await user.click(screen.getAllByRole('combobox')[0]);
+    await user.click(screen.getByText('CurseForge'));
+
+    await waitFor(() =>
+      expect(message.error).toHaveBeenCalledWith('curseforge: status 403: forbidden'),
+    );
+  });
+
+  it('skips browse request when curseforge is known disabled', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(api.browseMods).mockResolvedValue({
+      items: [],
+      has_more: false,
+      curseforge_enabled: false,
+    });
+    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
+    await waitFor(() => expect(api.browseMods).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getAllByRole('combobox')[0]);
+    await user.click(screen.getByText('CurseForge'));
+
+    await waitFor(() =>
+      expect(screen.getAllByText(/CurseForge отключён/).length).toBeGreaterThan(0),
+    );
+    expect(api.browseMods).toHaveBeenCalledTimes(1);
+    expect(message.error).not.toHaveBeenCalled();
   });
 
   it('shows empty catalog state', async () => {

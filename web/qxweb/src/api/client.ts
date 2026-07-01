@@ -29,12 +29,24 @@ export function isBackendUnavailableError(error: unknown): boolean {
 
 const BACKEND_UNAVAILABLE_HTTP_STATUSES = new Set([502, 503, 504]);
 
+/** Structured API errors that must not be collapsed into backend-down. */
+const UPSTREAM_API_ERROR_CODES = new Set([
+  'SOURCE_UNAVAILABLE',
+  'UPSTREAM_UNAVAILABLE',
+  'CURSEFORGE_UNAVAILABLE',
+  'MODS_UNAVAILABLE',
+]);
+
 function throwBackendUnavailable(): never {
   throw new ApiRequestError('Backend unavailable', API_ERROR_BACKEND_UNAVAILABLE);
 }
 
 function isBackendUnavailableStatus(status: number): boolean {
   return BACKEND_UNAVAILABLE_HTTP_STATUSES.has(status);
+}
+
+function isUpstreamApiError(apiCode: string | undefined): boolean {
+  return apiCode != null && UPSTREAM_API_ERROR_CODES.has(apiCode);
 }
 
 export type TokenResponse = {
@@ -463,7 +475,7 @@ async function request<T>(
     } else {
       logger.warn('API request failed', details);
     }
-    if (isBackendUnavailableStatus(res.status) && apiCode !== 'SOURCE_UNAVAILABLE') {
+    if (isBackendUnavailableStatus(res.status) && !isUpstreamApiError(apiCode)) {
       throwBackendUnavailable();
     }
     throw new ApiRequestError(message, undefined, apiCode);

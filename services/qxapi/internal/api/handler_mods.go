@@ -34,7 +34,7 @@ func (h *ModsHandler) Search(c *gin.Context) {
 		limit,
 	)
 	if err != nil {
-		JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", err.Error())
+		writeModsUpstreamError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -61,11 +61,7 @@ func (h *ModsHandler) Browse(c *gin.Context) {
 		offset,
 	)
 	if err != nil {
-		if strings.Contains(err.Error(), "not configured") {
-			JSONError(c, http.StatusServiceUnavailable, "SOURCE_UNAVAILABLE", err.Error())
-			return
-		}
-		JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", err.Error())
+		writeModsUpstreamError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -82,11 +78,7 @@ func (h *ModsHandler) GetProject(c *gin.Context) {
 	}
 	project, err := h.Service.GetProject(c.Request.Context(), c.Param("source"), c.Param("projectId"))
 	if err != nil {
-		if strings.Contains(err.Error(), "not configured") {
-			JSONError(c, http.StatusServiceUnavailable, "SOURCE_UNAVAILABLE", err.Error())
-			return
-		}
-		JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", err.Error())
+		writeModsUpstreamError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, project)
@@ -105,7 +97,7 @@ func (h *ModsHandler) ListVersions(c *gin.Context) {
 		c.Query("mc_version"),
 	)
 	if err != nil {
-		JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", err.Error())
+		writeModsUpstreamError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": versions})
@@ -175,6 +167,19 @@ func (h *GameServersHandler) SyncMod(c *gin.Context) {
 			"version_number": body.VersionNumber,
 		},
 	})
+}
+
+func writeModsUpstreamError(c *gin.Context, err error) {
+	msg := err.Error()
+	if strings.Contains(msg, "not configured") {
+		JSONError(c, http.StatusServiceUnavailable, "SOURCE_UNAVAILABLE", msg)
+		return
+	}
+	if strings.HasPrefix(msg, "curseforge:") {
+		JSONError(c, http.StatusBadGateway, "CURSEFORGE_UNAVAILABLE", msg)
+		return
+	}
+	JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", msg)
 }
 
 func gameServerSupportsMods(serverType string) bool {

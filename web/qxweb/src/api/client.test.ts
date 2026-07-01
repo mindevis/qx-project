@@ -206,6 +206,54 @@ describe('api client', () => {
     });
   });
 
+  it('preserves CurseForge upstream errors instead of backend unavailable', async () => {
+    saveTokens(tokens);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 'CURSEFORGE_UNAVAILABLE',
+            message: 'curseforge: status 403: invalid api key',
+          },
+        }),
+        { status: 502, statusText: 'Bad Gateway' },
+      ),
+    );
+
+    await expect(
+      api.browseMods({ source: 'curseforge', loader: 'forge', mc_version: '1.21' }),
+    ).rejects.toMatchObject({
+      message: 'curseforge: status 403: invalid api key',
+      apiCode: 'CURSEFORGE_UNAVAILABLE',
+      code: undefined,
+    });
+  });
+
+  it('preserves SOURCE_UNAVAILABLE on 503', async () => {
+    saveTokens(tokens);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 'SOURCE_UNAVAILABLE',
+            message: 'curseforge api key not configured',
+          },
+        }),
+        { status: 503, statusText: 'Service Unavailable' },
+      ),
+    );
+
+    await expect(
+      api.browseMods({ source: 'curseforge', loader: 'forge', mc_version: '1.21' }),
+    ).rejects.toMatchObject({
+      message: 'curseforge api key not configured',
+      apiCode: 'SOURCE_UNAVAILABLE',
+      code: undefined,
+    });
+  });
+
   it('throws api error message when present', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(

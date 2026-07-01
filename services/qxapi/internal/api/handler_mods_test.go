@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -49,6 +50,19 @@ func TestModsHandlerBrowseCurseForgeUnavailable(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "SOURCE_UNAVAILABLE") {
 		t.Fatalf("expected SOURCE_UNAVAILABLE: %s", w.Body.String())
+	}
+}
+
+func TestModsHandlerBrowseCurseForgeUpstreamError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	writeModsUpstreamError(c, fmt.Errorf("curseforge: status 403: forbidden"))
+	if w.Code != http.StatusBadGateway {
+		t.Fatalf("expected 502, got %d %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "CURSEFORGE_UNAVAILABLE") {
+		t.Fatalf("expected CURSEFORGE_UNAVAILABLE: %s", w.Body.String())
 	}
 }
 
