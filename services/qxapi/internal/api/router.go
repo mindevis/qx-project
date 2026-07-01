@@ -91,6 +91,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	instancesH := &InstancesHandler{Service: launcherSvc}
 	profilesH := &ProfilesHandler{Service: launcherSvc}
 	launchH := &LaunchRequestsHandler{Service: launcherSvc, Tokens: tokens}
+	modInstallH := &ModInstallRequestsHandler{Service: launcherSvc, Tokens: tokens}
 	updateH := &UpdateRequestsHandler{Service: launcherSvc}
 	releaseH := &ReleaseHandler{Service: launcherSvc}
 	mcVersionsH := &McVersionsHandler{}
@@ -202,6 +203,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			launcherOwner.GET("/instances", instancesH.List)
 			launcherOwner.POST("/instances", instancesH.Create)
 			launcherOwner.GET("/instances/:id", instancesH.Get)
+			launcherOwner.GET("/instances/:id/resources", instancesH.ListResources)
 			launcherOwner.GET("/instances/:id/manifest", instancesH.Manifest)
 			launcherOwner.DELETE("/instances/:id", instancesH.Delete)
 
@@ -211,6 +213,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 
 			launcherOwner.POST("/launcher/launch-requests", launchH.Create)
 			launcherOwner.GET("/launcher/launch-requests/:id", launchH.Get)
+			launcherOwner.POST("/launcher/mod-install-requests", modInstallH.Create)
+			launcherOwner.GET("/launcher/mod-install-requests/:id", modInstallH.Get)
 		}
 
 		deviceLauncher := v1.Group("")
@@ -226,6 +230,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			deviceAuth.GET("/launcher/devices/me/instances", devicesH.MeInstances)
 			deviceAuth.GET("/launcher/launch-requests/pending", launchH.Pending)
 			deviceAuth.PATCH("/launcher/launch-requests/:id", launchH.Update)
+			deviceAuth.GET("/launcher/mod-install-requests/pending", modInstallH.Pending)
+			deviceAuth.PATCH("/launcher/mod-install-requests/:id", modInstallH.Update)
 			deviceAuth.GET("/launcher/update-requests/pending", updateH.Pending)
 			deviceAuth.PATCH("/launcher/update-requests/:id", updateH.Complete)
 		}

@@ -36,6 +36,7 @@ type Config struct {
 
 var activeLaunches sync.Map
 var activeUpdates sync.Map
+var activeModInstalls sync.Map
 
 func RunLoop(ctx context.Context, cfg Config) {
 	if cfg.LaunchPoll <= 0 {
@@ -119,6 +120,25 @@ func RunLoop(ctx context.Context, cfg Config) {
 					}(updateItem)
 				}
 			}
+
+			modItem, modErr := api.FetchPendingModInstall(ctx)
+			if modErr != nil {
+				if apiclient.IsUnauthorized(modErr) {
+					tryRefreshDeviceToken(ctx, api, cfg, modErr)
+					modItem, modErr = api.FetchPendingModInstall(ctx)
+				}
+				if modErr != nil {
+					logAPIFailure("mod install poll failed", modErr)
+				}
+			}
+			if modErr == nil && modItem != nil {
+				if _, loaded := activeModInstalls.LoadOrStore(modItem.ID, true); !loaded {
+					go func(item *apiclient.ModInstallRequestItem) {
+						defer activeModInstalls.Delete(item.ID)
+						executeModInstall(context.Background(), api, downloader, item)
+					}(modItem)
+				}
+			}
 		}
 	}
 }
@@ -131,6 +151,33 @@ func executeUpdate(ctx context.Context, api *apiclient.Client, item *apiclient.U
 		return
 	}
 	_ = api.CompleteUpdate(ctx, item.ID, "completed", version.Version, "")
+}
+
+func modInstallFolder(resourceType string) string {
+	switch resourceType {
+	case "resourcepack":
+		return "resourcepacks"
+	case "shader":
+		return "shaderpacks"
+	default:
+		return "mods"
+	}
+}
+
+func executeModInstall(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.ModInstallRequestItem) {
+	label := item.ProjectName
+	if label == "" {
+		label = item.Filename
+	}
+	notify.Show("QXLauncher", "Установка "+label+"…")
+	_ = api.CompleteModInstall(ctx, item.ID, "downloading", "")
+	folder := modInstallFolder(item.ResourceType)
+	if err := dl.InstallResource(ctx, item.InstanceID, folder, item.Filename, item.DownloadURL); err != nil {
+		slog.Error("mod install failed", "project", item.ProjectID, "err", err)
+		_ = api.CompleteModInstall(ctx, item.ID, "failed", "INSTALL_FAILED")
+		return
+	}
+	_ = api.CompleteModInstall(ctx, item.ID, "completed", "")
 }
 
 func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, cfg Config, item *apiclient.LaunchRequestItem) {

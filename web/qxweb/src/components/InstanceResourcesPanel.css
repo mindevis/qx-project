@@ -167,3 +167,55 @@ html[data-theme='dark'] .instance-resources-panel {
   display: block;
   font-size: 12px;
 }
+
+.qxmods-installed-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.qxmods-type-segmented {
+  margin-bottom: 16px;
+}
+
+.qxmods-catalog-table {
+  margin-bottom: 12px;
+}
+
+.qxmods-catalog-link {
+  font-weight: 500;
+}
+
+.qxmods-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.qxmods-detail-page .qxmods-detail-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.qxmods-detail-title {
+  margin-top: 0 !important;
+}
+
+.qxmods-detail-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.qxmods-version-row {
+  align-items: center !important;
+}

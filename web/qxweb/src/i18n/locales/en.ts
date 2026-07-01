@@ -760,6 +760,7 @@ export const en: Messages = {
     sync: {
       title: 'Sync to server',
       action: 'Synchronize',
+      withServer: 'Sync with server',
       hint: 'Pick a game server to install this mod on.',
       noServers: 'No servers with an online agent that support mods',
       loadFailed: 'Failed to load servers',
@@ -767,6 +768,31 @@ export const en: Messages = {
       queued: 'Sync queued',
       failed: 'Sync failed',
       noFile: 'Selected version has no installable file',
+    },
+    install: {
+      action: 'Install',
+      completed: 'Installed on this PC via QXLauncher',
+      failed: 'Install failed',
+      noFile: 'Selected version has no installable file',
+      deviceRequired: 'Link QXLauncher on this PC to install mods',
+    },
+    installed: {
+      intro: 'Resources installed in this instance.',
+      add: 'Add',
+      empty: 'No resources installed yet',
+      loadFailed: 'Failed to load installed resources',
+    },
+    catalog: {
+      title: 'Catalog',
+      name: 'Name',
+      summary: 'Description',
+      backToInstalled: 'Back to installed',
+    },
+    detail: {
+      backToCatalog: 'Back to catalog',
+      notFound: 'Mod not found',
+      mcVersion: 'Minecraft version',
+      loader: 'Loader',
     },
   },
 };

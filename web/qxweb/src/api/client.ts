@@ -251,6 +251,32 @@ export type ModSyncResult = {
   message?: string;
 };
 
+export type InstanceResource = {
+  source: ModSource;
+  project_id?: string;
+  project_name: string;
+  version_id?: string;
+  version_number?: string;
+  filename: string;
+  resource_type: ModProjectType;
+  installed_at: string;
+};
+
+export type ModInstallRequest = {
+  id: string;
+  status: string;
+  instance_id: string;
+  source: ModSource;
+  project_id: string;
+  project_name: string;
+  version_id: string;
+  version_number?: string;
+  filename: string;
+  resource_type: ModProjectType;
+  error_code?: string;
+  expires_at: string;
+};
+
 export type LinkDeviceResult = {
   status: string;
   owner_type: string;
@@ -602,6 +628,33 @@ export const api = {
 
   deleteInstance: (id: string) =>
     request<void>(`/instances/${id}`, { method: 'DELETE' }, 'launcher'),
+
+  listInstanceResources: (instanceId: string) =>
+    request<{ items: InstanceResource[] }>(
+      `/instances/${encodeURIComponent(instanceId)}/resources`,
+      { method: 'GET' },
+      'launcher',
+    ),
+
+  createModInstallRequest: (body: {
+    instance_id: string;
+    source: ModSource;
+    project_id: string;
+    project_name: string;
+    version_id: string;
+    version_number?: string;
+    filename: string;
+    download_url: string;
+    resource_type?: ModProjectType;
+  }) =>
+    request<ModInstallRequest>(
+      '/launcher/mod-install-requests',
+      { method: 'POST', body: JSON.stringify(body) },
+      'launcher',
+    ),
+
+  getModInstallRequest: (id: string) =>
+    request<ModInstallRequest>(`/launcher/mod-install-requests/${id}`, { method: 'GET' }, 'launcher'),
 
   listProfiles: () =>
     request<{ items: OfflineProfile[] }>('/launcher/profiles', { method: 'GET' }, 'launcher'),

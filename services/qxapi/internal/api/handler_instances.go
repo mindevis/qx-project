@@ -108,6 +108,24 @@ func (h *InstancesHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, instanceFromModel(*inst))
 }
 
+func (h *InstancesHandler) ListResources(c *gin.Context) {
+	owner, ok := ownerFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	items, err := h.Service.ListInstanceResources(c.Request.Context(), owner, c.Param("id"))
+	if err != nil {
+		if errors.Is(err, launcher.ErrNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "instance not found")
+			return
+		}
+		JSONInternal(c)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
 func (h *InstancesHandler) Delete(c *gin.Context) {
 	owner, ok := ownerFromContext(c)
 	if !ok {

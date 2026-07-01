@@ -69,6 +69,7 @@ var migrateUsers = func(db *gorm.DB) error {
 		&models.OfflineProfile{},
 		&models.MojangLink{},
 		&models.LaunchRequest{},
+		&models.ModInstallRequest{},
 		&models.UserCosmetics{},
 		&models.Server{},
 		&models.SSHCredential{},

@@ -88,7 +88,7 @@ export function LauncherPage() {
   return (
     <Routes>
       <Route index element={<LauncherHome />} />
-      <Route path="instances/:instanceId/resources" element={<LauncherInstanceResourcesPage />} />
+      <Route path="instances/:instanceId/resources/*" element={<LauncherInstanceResourcesPage />} />
       <Route path="*" element={<Navigate to="/launcher" replace />} />
     </Routes>
   );

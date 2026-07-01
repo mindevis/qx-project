@@ -19,7 +19,7 @@ const forgeInstance = {
 function renderResources(route = '/launcher/instances/inst-1/resources') {
   return renderWithProviders(
     <Routes>
-      <Route path="/launcher/instances/:instanceId/resources" element={<LauncherInstanceResourcesPage />} />
+      <Route path="/launcher/instances/:instanceId/resources/*" element={<LauncherInstanceResourcesPage />} />
       <Route path="/launcher" element={<div>Launcher home</div>} />
     </Routes>,
     route,
@@ -30,6 +30,7 @@ describe('LauncherInstanceResourcesPage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     vi.spyOn(api, 'listInstances').mockResolvedValue({ items: [forgeInstance] });
+    vi.spyOn(api, 'listInstanceResources').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'browseMods').mockResolvedValue({
       items: [
         {
@@ -40,6 +41,7 @@ describe('LauncherInstanceResourcesPage', () => {
           external_url: 'https://modrinth.com/mod/sodium',
           client_side: 'unsupported',
           server_side: 'required',
+          project_type: 'mod',
         },
       ],
       has_more: false,
@@ -53,11 +55,12 @@ describe('LauncherInstanceResourcesPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders resources panel for modded instance', async () => {
+  it('renders installed resources view for modded instance', async () => {
     renderResources();
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Forge'));
     expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument();
     expect(screen.getByText('Назад к лаунчеру')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('link', { name: /Добавить/ })).toBeInTheDocument());
   });
 
   it('redirects when instance is not found', async () => {
@@ -74,35 +77,14 @@ describe('LauncherInstanceResourcesPage', () => {
     await waitFor(() => expect(screen.getByText('Launcher home')).toBeInTheDocument());
   });
 
-  it('loads mod catalog on the resources page', async () => {
+  it('opens catalog table from add button', async () => {
+    const user = userEvent.setup({ delay: null });
     renderResources();
-    await waitFor(() => expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('link', { name: /Добавить/ })).toBeInTheDocument());
+
+    await user.click(screen.getByRole('link', { name: /Добавить/ }));
+    await waitFor(() => expect(screen.getByText('Каталог')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
     expect(api.browseMods).toHaveBeenCalled();
-  });
-
-  it('supports optional name filter on the resources page', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.spyOn(api, 'searchMods').mockResolvedValueOnce({
-      items: [
-        {
-          source: 'modrinth',
-          id: 'sodium',
-          name: 'Sodium',
-          summary: 'Performance mod',
-          external_url: 'https://modrinth.com/mod/sodium',
-          client_side: 'unsupported',
-          server_side: 'required',
-        },
-      ],
-      curseforge_enabled: true,
-    });
-
-    renderResources();
-    await waitFor(() => expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument());
-
-    await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'sodium');
-    await user.click(screen.getByRole('button', { name: 'Найти' }));
-    await waitFor(() => expect(api.searchMods).toHaveBeenCalled());
   });
 });

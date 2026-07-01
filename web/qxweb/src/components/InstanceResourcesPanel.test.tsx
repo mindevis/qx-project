@@ -1,9 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
-import { api, ApiRequestError } from '@/api/client';
-import { renderWithTheme } from '@/test/test-utils';
+import { api } from '@/api/client';
+import { renderWithProviders } from '@/test/test-utils';
 import { InstanceResourcesPanel } from './InstanceResourcesPanel';
 
 const forgeInstance = {
@@ -16,39 +15,20 @@ const forgeInstance = {
   updated_at: 'now',
 };
 
-const sodiumItem = {
+const installed = {
   source: 'modrinth' as const,
-  id: 'sodium',
-  name: 'Sodium',
-  summary: 'Performance mod',
-  external_url: 'https://modrinth.com/mod/sodium',
-  client_side: 'unsupported',
-  server_side: 'required',
+  project_id: 'sodium',
+  project_name: 'Sodium',
+  version_number: '0.5.0',
+  filename: 'sodium.jar',
+  resource_type: 'mod' as const,
+  installed_at: '2026-01-01T00:00:00Z',
 };
 
 describe('InstanceResourcesPanel', () => {
   beforeEach(() => {
     vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
-    vi.spyOn(api, 'browseMods').mockResolvedValue({
-      items: [sodiumItem],
-      has_more: false,
-      curseforge_enabled: true,
-    });
-    vi.spyOn(api, 'searchMods').mockResolvedValue({
-      items: [sodiumItem],
-      curseforge_enabled: true,
-    });
-    vi.spyOn(api, 'listModVersions').mockResolvedValue({
-      items: [
-        {
-          id: 'ver-1',
-          version_number: '0.5.0',
-          game_versions: ['1.21'],
-          files: [{ filename: 'sodium.jar', url: 'https://example/sodium.jar' }],
-        },
-      ],
-    });
-    vi.spyOn(api, 'listServers').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listInstanceResources').mockResolvedValue({ items: [installed] });
   });
 
   afterEach(() => {
@@ -56,7 +36,7 @@ describe('InstanceResourcesPanel', () => {
   });
 
   it('returns null for vanilla instances', () => {
-    renderWithTheme(
+    renderWithProviders(
       <InstanceResourcesPanel
         instance={{ ...forgeInstance, loader: 'vanilla' }}
         canSync={false}
@@ -65,243 +45,25 @@ describe('InstanceResourcesPanel', () => {
     expect(screen.queryByLabelText('Ресурсы')).not.toBeInTheDocument();
   });
 
-  it('loads catalog on mount and opens detail drawer', async () => {
-    const user = userEvent.setup({ delay: null });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
+  it('shows installed resources and add button', async () => {
+    renderWithProviders(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
 
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
-    expect(api.browseMods).toHaveBeenCalledWith({
-      type: 'mod',
-      loader: 'forge',
-      mc_version: '1.21',
-      source: 'all',
-      sort: 'downloads',
-      limit: 20,
-      offset: 0,
-    });
-
-    await user.click(screen.getByRole('button', { name: 'Открыть' }));
-    await waitFor(() => expect(screen.getByText('0.5.0')).toBeInTheDocument());
-    expect(api.listModVersions).toHaveBeenCalled();
+    expect(api.listInstanceResources).toHaveBeenCalledWith('inst-1');
+    expect(screen.getByRole('link', { name: /Добавить/ })).toBeInTheDocument();
   });
 
-  it('shows curseforge disabled notice when api key missing', async () => {
-    vi.mocked(api.browseMods).mockResolvedValueOnce({
-      items: [],
-      has_more: false,
-      curseforge_enabled: false,
-    });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-
+  it('shows empty state when nothing installed', async () => {
+    vi.mocked(api.listInstanceResources).mockResolvedValueOnce({ items: [] });
+    renderWithProviders(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
     await waitFor(() =>
-      expect(screen.getByText(/CurseForge отключён/)).toBeInTheDocument(),
+      expect(screen.getByText('Пока ничего не установлено')).toBeInTheDocument(),
     );
   });
 
-  it('shows curseforge warning when curseforge source selected without api key', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.mocked(api.browseMods).mockResolvedValue({
-      items: [],
-      has_more: false,
-      curseforge_enabled: false,
-    });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(api.browseMods).toHaveBeenCalled());
-
-    await user.click(screen.getAllByRole('combobox')[0]);
-    await user.click(screen.getByText('CurseForge'));
-
-    await waitFor(() =>
-      expect(screen.getAllByText(/CurseForge отключён/).length).toBeGreaterThan(0),
-    );
-    expect(screen.queryByText('В каталоге нет элементов для выбранных фильтров')).not.toBeInTheDocument();
-  });
-
-  it('shows instance loader and mc version filter context', async () => {
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() =>
-      expect(
-        screen.getByText('Каталог отфильтрован для Minecraft 1.21 · forge'),
-      ).toBeInTheDocument(),
-    );
-  });
-
-  it('uses search api when optional name filter is applied', async () => {
-    const user = userEvent.setup({ delay: null });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-
-    await waitFor(() => expect(api.browseMods).toHaveBeenCalled());
-
-    await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'sodium');
-    await user.click(screen.getByRole('button', { name: 'Найти' }));
-
-    await waitFor(() =>
-      expect(api.searchMods).toHaveBeenCalledWith({
-        q: 'sodium',
-        type: 'mod',
-        loader: 'forge',
-        mc_version: '1.21',
-        limit: 20,
-      }),
-    );
-  });
-
-  it('shows browse error from api', async () => {
-    vi.mocked(api.browseMods).mockRejectedValueOnce(new Error('browse failed'));
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('browse failed'));
-  });
-
-  it('shows CurseForge upstream error instead of backend unavailable', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.mocked(api.browseMods).mockResolvedValueOnce({
-      items: [sodiumItem],
-      has_more: false,
-      curseforge_enabled: true,
-    });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
-
-    vi.mocked(api.browseMods).mockRejectedValueOnce(
-      new ApiRequestError('curseforge: status 403: forbidden', undefined, 'CURSEFORGE_UNAVAILABLE'),
-    );
-    await user.click(screen.getAllByRole('combobox')[0]);
-    await user.click(screen.getByText('CurseForge'));
-
-    await waitFor(() =>
-      expect(message.error).toHaveBeenCalledWith('curseforge: status 403: forbidden'),
-    );
-  });
-
-  it('skips browse request when curseforge is known disabled', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.mocked(api.browseMods).mockResolvedValue({
-      items: [],
-      has_more: false,
-      curseforge_enabled: false,
-    });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(api.browseMods).toHaveBeenCalledTimes(1));
-
-    await user.click(screen.getAllByRole('combobox')[0]);
-    await user.click(screen.getByText('CurseForge'));
-
-    await waitFor(() =>
-      expect(screen.getAllByText(/CurseForge отключён/).length).toBeGreaterThan(0),
-    );
-    expect(api.browseMods).toHaveBeenCalledTimes(1);
-    expect(message.error).not.toHaveBeenCalled();
-  });
-
-  it('shows empty catalog state', async () => {
-    vi.mocked(api.browseMods).mockResolvedValueOnce({
-      items: [],
-      has_more: false,
-      curseforge_enabled: true,
-    });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() =>
-      expect(screen.getByText('В каталоге нет элементов для выбранных фильтров')).toBeInTheDocument(),
-    );
-  });
-
-  it('loads more catalog items when available', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.mocked(api.browseMods)
-      .mockResolvedValueOnce({
-        items: [sodiumItem],
-        has_more: true,
-        curseforge_enabled: true,
-      })
-      .mockResolvedValueOnce({
-        items: [{ ...sodiumItem, id: 'lithium', name: 'Lithium' }],
-        has_more: false,
-        curseforge_enabled: true,
-      });
-
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
-
-    await user.click(screen.getByRole('button', { name: 'Загрузить ещё' }));
-    await waitFor(() => expect(screen.getByText('Lithium')).toBeInTheDocument());
-    expect(api.browseMods).toHaveBeenLastCalledWith({
-      type: 'mod',
-      loader: 'forge',
-      mc_version: '1.21',
-      source: 'all',
-      sort: 'downloads',
-      limit: 20,
-      offset: 1,
-    });
-  });
-
-  it('switches resource tabs and reloads catalog', async () => {
-    const user = userEvent.setup({ delay: null });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(api.browseMods).toHaveBeenCalled());
-
-    await user.click(screen.getByRole('tab', { name: 'Модпаки' }));
-    await waitFor(() =>
-      expect(api.browseMods).toHaveBeenCalledWith({
-        type: 'modpack',
-        loader: 'forge',
-        mc_version: '1.21',
-        source: 'all',
-        sort: 'downloads',
-        limit: 20,
-        offset: 0,
-      }),
-    );
-  });
-
-  it('clears applied search filter', async () => {
-    const user = userEvent.setup({ delay: null });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(api.browseMods).toHaveBeenCalled());
-
-    await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'sodium');
-    await user.click(screen.getByRole('button', { name: 'Найти' }));
-    await waitFor(() => expect(api.searchMods).toHaveBeenCalled());
-
-    await user.click(screen.getByRole('button', { name: 'Сбросить поиск' }));
-    await waitFor(() => expect(api.browseMods.mock.calls.length).toBeGreaterThan(1));
-  });
-
-  it('reports version load failures in detail drawer', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.mocked(api.browseMods)
-      .mockResolvedValueOnce({
-        items: [sodiumItem],
-        has_more: true,
-        curseforge_enabled: true,
-      })
-      .mockRejectedValueOnce(new Error('load more failed'));
-
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'Загрузить ещё' }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('load more failed'));
-  });
-
-  it('reports version load failures in detail drawer', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.mocked(api.listModVersions).mockRejectedValueOnce(new Error('versions failed'));
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
-
-    await user.click(screen.getByRole('button', { name: 'Открыть' }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('versions failed'));
-  });
-
-  it('shows empty versions state in detail drawer', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.mocked(api.listModVersions).mockResolvedValueOnce({ items: [] });
-    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
-
-    await user.click(screen.getByRole('button', { name: 'Открыть' }));
-    await waitFor(() =>
-      expect(screen.getByText('Нет подходящих версий')).toBeInTheDocument(),
-    );
+  it('reports load failures', async () => {
+    vi.mocked(api.listInstanceResources).mockRejectedValueOnce(new Error('load failed'));
+    renderWithProviders(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
+    await waitFor(() => expect(message.error).toHaveBeenCalledWith('load failed'));
   });
 });

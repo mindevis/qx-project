@@ -86,6 +86,20 @@ type UpdateRequestItem struct {
 	Filename    string `json:"filename"`
 }
 
+type ModInstallRequestItem struct {
+	ID            string `json:"id"`
+	Status        string `json:"status"`
+	InstanceID    string `json:"instance_id"`
+	Source        string `json:"source"`
+	ProjectID     string `json:"project_id"`
+	ProjectName   string `json:"project_name"`
+	VersionID     string `json:"version_id"`
+	VersionNumber string `json:"version_number"`
+	Filename      string `json:"filename"`
+	DownloadURL   string `json:"download_url"`
+	ResourceType  string `json:"resource_type"`
+}
+
 func (c *Client) FetchPendingLaunch(ctx context.Context) (*LaunchRequestItem, error) {
 	body, err := c.request(ctx, http.MethodGet, "/launcher/launch-requests/pending", nil, true)
 	if err != nil {
@@ -130,6 +144,30 @@ func (c *Client) CompleteUpdate(ctx context.Context, id, status, launcherVersion
 	}
 	b, _ := json.Marshal(payload)
 	_, err := c.request(ctx, http.MethodPatch, "/launcher/update-requests/"+id, b, true)
+	return err
+}
+
+func (c *Client) FetchPendingModInstall(ctx context.Context) (*ModInstallRequestItem, error) {
+	body, err := c.request(ctx, http.MethodGet, "/launcher/mod-install-requests/pending", nil, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Item *ModInstallRequestItem `json:"item"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Item, nil
+}
+
+func (c *Client) CompleteModInstall(ctx context.Context, id, status, errorCode string) error {
+	payload := map[string]any{"status": status}
+	if errorCode != "" {
+		payload["error_code"] = errorCode
+	}
+	b, _ := json.Marshal(payload)
+	_, err := c.request(ctx, http.MethodPatch, "/launcher/mod-install-requests/"+id, b, true)
 	return err
 }
 

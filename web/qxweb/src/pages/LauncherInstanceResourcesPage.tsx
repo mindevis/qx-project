@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { Spin, Tag, Typography } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { api, type LauncherInstance } from '@/api/client';
-import { InstanceResourcesPanel } from '@/components/InstanceResourcesPanel';
+import { InstanceModsProvider } from '@/components/InstanceModsContext';
+import { InstanceInstalledResources } from '@/components/InstanceInstalledResources';
+import { ModsCatalogPanel } from '@/components/ModsCatalogPanel';
+import { ModDetailPanel } from '@/components/ModDetailPanel';
 import { useAuth } from '@/auth/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -14,23 +17,28 @@ import './LauncherPage.css';
 
 const { Title, Paragraph } = Typography;
 
+function InstanceModsShell({ instance }: { instance: LauncherInstance }) {
+  const { isAuthenticated } = useAuth();
+  return (
+    <InstanceModsProvider instance={instance} canSync={isAuthenticated}>
+      <Outlet />
+    </InstanceModsProvider>
+  );
+}
+
 export function LauncherInstanceResourcesPage() {
   const { t } = useI18n();
   const message = useMessage();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
   const { instanceId } = useParams<{ instanceId: string }>();
   const [instance, setInstance] = useState<LauncherInstance | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loaderLabel = useCallback(
-    (loader: LauncherLoader) => {
-      const key = `servers.gameServerType.${loader}`;
-      const label = t(key);
-      return label === key ? loader : label;
-    },
-    [t],
-  );
+  const loaderLabel = (loader: LauncherLoader) => {
+    const key = `servers.gameServerType.${loader}`;
+    const label = t(key);
+    return label === key ? loader : label;
+  };
 
   useEffect(() => {
     if (!instanceId) return;
@@ -72,7 +80,7 @@ export function LauncherInstanceResourcesPage() {
 
   if (loading || !instance) {
     return (
-      <div className="launcher-page">
+      <div className="launcher-page launcher-page--qxmods">
         <div className="launcher-panel-loading">
           <Spin size="large" />
         </div>
@@ -81,9 +89,9 @@ export function LauncherInstanceResourcesPage() {
   }
 
   return (
-    <div className="launcher-page launcher-page--instance-detail">
-      <section className="launcher-section launcher-section--hero">
-        <div className="launcher-hero-inner">
+    <div className="launcher-page launcher-page--instance-detail launcher-page--qxmods">
+      <section className="launcher-section launcher-section--hero launcher-section--qxmods-compact">
+        <div className="launcher-hero-inner launcher-hero-inner--qxmods">
           <div className="launcher-hero-content">
             <Link to="/launcher" className="launcher-instance-detail-back">
               <ArrowLeftOutlined /> {t('launcherInstanceResources.backToLauncher')}
@@ -111,12 +119,15 @@ export function LauncherInstanceResourcesPage() {
       </section>
 
       <section className="launcher-section launcher-section--instance-resources">
-        <div className="launcher-panel launcher-panel--resources">
-          <InstanceResourcesPanel
-            instance={instance}
-            canSync={isAuthenticated}
-            layout="standalone"
-          />
+        <div className="launcher-panel launcher-panel--resources launcher-panel--qxmods-full">
+          <Routes>
+            <Route element={<InstanceModsShell instance={instance} />}>
+              <Route index element={<InstanceInstalledResources />} />
+              <Route path="catalog" element={<ModsCatalogPanel />} />
+              <Route path="catalog/:source/:projectId" element={<ModDetailPanel />} />
+              <Route path="*" element={<Navigate to="." replace />} />
+            </Route>
+          </Routes>
         </div>
       </section>
     </div>

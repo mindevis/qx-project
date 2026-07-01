@@ -1006,6 +1006,18 @@ html[data-theme='dark'] .launcher-instance-detail-back {
   margin: 0 auto;
 }
 
+.launcher-panel--qxmods-full {
+  max-width: 1120px;
+}
+
+.launcher-page--qxmods .launcher-hero-inner--qxmods {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.launcher-section--qxmods-compact {
+  padding-bottom: 32px;
+}
+
 .launcher-section--instance-resources {
   padding-top: 0;
 }
