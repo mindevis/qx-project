@@ -14,7 +14,11 @@ require (
 	golang.org/x/sys v0.46.0
 )
 
-require github.com/godbus/dbus/v5 v5.1.0 // indirect
+require (
+	git.sr.ht/~jackmordaunt/go-toast v0.3.0 // indirect
+	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
+)
 
 replace github.com/qxproject/qx/pkg/reporoot => ../../pkg/reporoot
 

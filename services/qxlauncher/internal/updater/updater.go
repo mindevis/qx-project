@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
+	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
 
 const backupSuffix = ".prev"
@@ -51,6 +52,7 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", "QXLauncher/"+version.Version)
 	res, err := client.Do(req)
 	if err != nil {
 		return err
@@ -71,6 +73,10 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return err
 	}
 	if err := out.Close(); err != nil {
+		_ = os.Remove(staging)
+		return err
+	}
+	if err := validateWindowsExecutable(staging); err != nil {
 		_ = os.Remove(staging)
 		return err
 	}

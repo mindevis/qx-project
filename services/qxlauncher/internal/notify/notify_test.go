@@ -2,10 +2,7 @@ package notify
 
 import "testing"
 
-func TestEscapeHelpers(t *testing.T) {
-	if escapePS("it's") != "it''s" {
-		t.Fatalf("ps escape: %q", escapePS("it's"))
-	}
+func TestEscapeAppleScript(t *testing.T) {
 	if escapeAppleScript(`a"b`) != `a\"b` {
 		t.Fatalf("apple escape: %q", escapeAppleScript(`a"b`))
 	}

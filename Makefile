@@ -139,10 +139,10 @@ gen-launcher-win-resources:
 
 ifeq ($(OS),Windows_NT)
 build-launcher-win: gen-launcher-win-resources
-	cd services/qxlauncher && go build -ldflags "$(LAUNCHER_PROD_LDFLAGS)" -o ../../bin/qx-launcher.exe ./cmd
+	cd services/qxlauncher && go build -trimpath -ldflags "$(LAUNCHER_PROD_LDFLAGS)" -o ../../bin/qx-launcher.exe ./cmd
 else
 build-launcher-win: gen-launcher-win-resources
-	cd services/qxlauncher && GOOS=windows GOARCH=amd64 go build -ldflags "$(LAUNCHER_PROD_LDFLAGS)" -o ../../bin/qx-launcher.exe ./cmd
+	cd services/qxlauncher && GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$(LAUNCHER_PROD_LDFLAGS)" -o ../../bin/qx-launcher.exe ./cmd
 endif
 
 ifeq ($(OS),Windows_NT)
