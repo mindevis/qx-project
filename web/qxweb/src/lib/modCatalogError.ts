@@ -15,6 +15,9 @@ export function formatModCatalogError(
     if (error.apiCode === 'SOURCE_UNAVAILABLE') {
       return t('qxmods.curseforgeDisabled');
     }
+    if (error.apiCode === 'CURSEFORGE_INVALID_KEY') {
+      return t('qxmods.curseforgeInvalidKey');
+    }
     if (error.apiCode === 'UPSTREAM_UNAVAILABLE' || error.apiCode === 'CURSEFORGE_UNAVAILABLE') {
       if (error.message.toLowerCase().includes('curseforge')) {
         return error.message;

@@ -10,6 +10,11 @@ describe('formatModCatalogError', () => {
     expect(formatModCatalogError(err, t, 'qxmods.browseFailed')).toBe('qxmods.curseforgeDisabled');
   });
 
+  it('maps CURSEFORGE_INVALID_KEY to invalid key message', () => {
+    const err = new ApiRequestError('curseforge: status 403: forbidden', undefined, 'CURSEFORGE_INVALID_KEY');
+    expect(formatModCatalogError(err, t, 'qxmods.browseFailed')).toBe('qxmods.curseforgeInvalidKey');
+  });
+
   it('passes through CurseForge upstream API details', () => {
     const err = new ApiRequestError('curseforge: status 403: forbidden', undefined, 'CURSEFORGE_UNAVAILABLE');
     expect(formatModCatalogError(err, t, 'qxmods.browseFailed')).toBe('curseforge: status 403: forbidden');

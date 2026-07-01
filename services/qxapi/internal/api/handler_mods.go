@@ -176,7 +176,11 @@ func writeModsUpstreamError(c *gin.Context, err error) {
 		return
 	}
 	if strings.HasPrefix(msg, "curseforge:") {
-		JSONError(c, http.StatusBadGateway, "CURSEFORGE_UNAVAILABLE", msg)
+		code := "CURSEFORGE_UNAVAILABLE"
+		if strings.Contains(msg, "status 403") {
+			code = "CURSEFORGE_INVALID_KEY"
+		}
+		JSONError(c, http.StatusBadGateway, code, msg)
 		return
 	}
 	JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", msg)

@@ -745,6 +745,8 @@ export const en: Messages = {
       'QXMods loads metadata from official CurseForge and Modrinth APIs. Files are downloaded from the catalog providers.',
     curseforgeDisabled:
       'CurseForge is disabled — set CURSEFORGE_API_KEY (or curseforge_api_key in qxapi.toml).',
+    curseforgeInvalidKey:
+      'CurseForge API key rejected (403). Use an API key from the CurseForge for Studios console, set GitHub secret CURSEFORGE_API_KEY (production environment), then re-run Prod release.',
     filterContext: 'Catalog filtered for Minecraft {{mcVersion}} · {{loader}}',
     detailTitle: 'Details',
     detailAttribution: 'Source and license are shown on the provider project page.',

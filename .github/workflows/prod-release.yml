@@ -192,6 +192,11 @@ jobs:
           cp infra/scripts/prod-merge-compose-env.sh .deploy/merge-compose-env.sh
           chmod +x .deploy/up.sh .deploy/merge-compose-env.sh .deploy/certbot-cloudflare.sh
           bash infra/scripts/prod-render-env.sh .deploy/.env.prod
+          if [[ -z "${CURSEFORGE_API_KEY:-}" ]]; then
+            echo "::warning::CURSEFORGE_API_KEY is empty — CurseForge catalog will be disabled on prod"
+          else
+            echo "CURSEFORGE_API_KEY is set (length ${#CURSEFORGE_API_KEY})"
+          fi
           printf '%s\n' \
             "QX_API_IMAGE=ghcr.io/${IMAGE_OWNER}/qx-api:${IMAGE_TAG}" \
             "QX_WEB_IMAGE=ghcr.io/${IMAGE_OWNER}/qx-web:${IMAGE_TAG}" \

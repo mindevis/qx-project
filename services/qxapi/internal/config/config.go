@@ -131,7 +131,7 @@ func (c *Config) applyEnv() {
 		c.AgentBinaryPath = v
 	}
 	if v := os.Getenv("CURSEFORGE_API_KEY"); v != "" {
-		c.CurseForgeAPIKey = v
+		c.CurseForgeAPIKey = sanitizeSecret(v)
 	}
 	if v := os.Getenv("MODRINTH_USER_AGENT"); v != "" {
 		c.ModrinthUserAgent = v
@@ -209,7 +209,7 @@ func (c *Config) applyFile(f file) {
 		c.MojangRedirectURI = f.MojangRedirectURI
 	}
 	if f.CurseForgeAPIKey != "" {
-		c.CurseForgeAPIKey = f.CurseForgeAPIKey
+		c.CurseForgeAPIKey = sanitizeSecret(f.CurseForgeAPIKey)
 	}
 	if f.ModrinthUserAgent != "" {
 		c.ModrinthUserAgent = f.ModrinthUserAgent
@@ -281,4 +281,19 @@ func (c Config) ResolvedLauncherDownloadURL() string {
 		return "/downloads/qx-launcher.exe"
 	}
 	return origin + "/downloads/qx-launcher.exe"
+}
+
+// sanitizeSecret trims whitespace and optional surrounding quotes from secret values
+// pasted from consoles or GitHub Secrets UI.
+func sanitizeSecret(v string) string {
+	v = strings.TrimSpace(v)
+	v = strings.TrimPrefix(v, "\ufeff")
+	for len(v) >= 2 {
+		if (v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'') {
+			v = strings.TrimSpace(v[1 : len(v)-1])
+			continue
+		}
+		break
+	}
+	return strings.TrimSpace(v)
 }

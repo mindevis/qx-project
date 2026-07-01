@@ -61,8 +61,8 @@ func TestModsHandlerBrowseCurseForgeUpstreamError(t *testing.T) {
 	if w.Code != http.StatusBadGateway {
 		t.Fatalf("expected 502, got %d %s", w.Code, w.Body.String())
 	}
-	if !strings.Contains(w.Body.String(), "CURSEFORGE_UNAVAILABLE") {
-		t.Fatalf("expected CURSEFORGE_UNAVAILABLE: %s", w.Body.String())
+	if !strings.Contains(w.Body.String(), "CURSEFORGE_INVALID_KEY") {
+		t.Fatalf("expected CURSEFORGE_INVALID_KEY: %s", w.Body.String())
 	}
 }
 

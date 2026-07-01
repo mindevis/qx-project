@@ -61,7 +61,8 @@ A-запись `mc.qx-dev.ru` → IP Platform host (`178.172.136.26`).
 | `PROD_MYSQL_ROOT_PASSWORD` | Пароль root MySQL |
 | `PROD_MYSQL_PASSWORD` | Пароль пользователя `qx` |
 | `PROD_MINIO_PASSWORD` | Пароль MinIO |
-| `CORS_ORIGIN` | *(опционально)* origin для API — можно secret или variable |
+| `CURSEFORGE_API_KEY` | *(опционально)* API key из [CurseForge for Studios](https://console.curseforge.com/) → **API Keys** (не OAuth и не GitHub PAT). После добавления/смены — **Actions → Prod release → Run workflow** |
+| `PROD_MOJANG_CLIENT_SECRET` | *(опционально)* Secret Value Azure AD app для Mojang OAuth |
 | `QX_PUBLIC_API_URL` | *(опционально)* публичный URL API для agent deploy |
 | `VITE_API_BASE_URL` | *(опционально)* base URL в **сборке** QXWeb; по умолчанию `/api/v1` (same-origin) |
 | `PROD_CLOUDFLARE_API_TOKEN` | *(опционально)* Cloudflare API token с **Zone → DNS → Edit** для зоны `qx-dev.ru` — выпуск LE через DNS-01 |
@@ -110,6 +111,8 @@ Workflow: [`.github/workflows/prod-release.yml`](https://github.com/mindevis/qx-
 | ------- | -------- |
 | Push в `main` после **успешного CI** | build → GHCR → deploy (только если менялись `services/`, `web/`, `infra/docker/`, `pkg/` и т.п.) |
 | Actions → **Prod release** → Run | то же (ручной запуск, без ожидания CI) |
+
+> **Смена секретов** (например `CURSEFORGE_API_KEY`, `PROD_MOJANG_CLIENT_SECRET`) не попадает в path filter — после добавления ключа в GitHub обязательно запустите **Prod release** вручную, иначе `.env.prod` на сервере не обновится.
 
 На dedicated server после deploy:
 

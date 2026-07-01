@@ -743,6 +743,8 @@ export const ru = {
       'Каталог QXMods загружает метаданные из официальных API CurseForge и Modrinth. Файлы скачиваются через API поставщиков каталога.',
     curseforgeDisabled:
       'CurseForge отключён — укажите CURSEFORGE_API_KEY (или curseforge_api_key в qxapi.toml).',
+    curseforgeInvalidKey:
+      'Ключ CurseForge отклонён (403). Проверьте API Key в консоли CurseForge for Studios, секрет CURSEFORGE_API_KEY в GitHub (environment production) и перезапустите Prod release.',
     filterContext: 'Каталог отфильтрован для Minecraft {{mcVersion}} · {{loader}}',
     detailTitle: 'Детали',
     detailAttribution: 'Источник и лицензия указаны на странице проекта у поставщика каталога.',

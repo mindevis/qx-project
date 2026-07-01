@@ -167,6 +167,17 @@ func TestLoadCurseForgeFromEnv(t *testing.T) {
 	}
 }
 
+func TestLoadCurseForgeFromEnvStripsQuotes(t *testing.T) {
+	root := t.TempDir()
+	writeRepo(t, root)
+	t.Setenv("CURSEFORGE_API_KEY", "\" $2a$10$example-key \"\r\n")
+
+	cfg := config.Load()
+	if cfg.CurseForgeAPIKey != "$2a$10$example-key" {
+		t.Fatalf("expected sanitized key, got %q", cfg.CurseForgeAPIKey)
+	}
+}
+
 func TestLoadInvalidDurationFallback(t *testing.T) {
 	root := t.TempDir()
 	writeRepo(t, root)
