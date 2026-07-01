@@ -922,7 +922,7 @@ describe('pages', { timeout: 30_000 }, () => {
         }
         if (url.includes('/launcher/launch-requests/lr-1')) {
           polls += 1;
-          const status = polls < 3 ? 'running' : 'completed';
+          const status = polls < 2 ? 'preparing' : polls < 3 ? 'downloading' : 'completed';
           return new Response(
             JSON.stringify({
               id: 'lr-1',
@@ -949,6 +949,7 @@ describe('pages', { timeout: 30_000 }, () => {
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(screen.getByText('Запуск…')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Подготовка файлов/)).toBeInTheDocument());
   });
 
   it('shows linked device without download prompt', async () => {
@@ -2089,7 +2090,19 @@ describe('pages', { timeout: 30_000 }, () => {
         if (url.includes('/launcher/launch-requests/lr-run')) {
           poll += 1;
           const status =
-            poll === 1 ? 'queued' : poll === 2 ? 'dispatched' : poll === 3 ? 'running' : 'completed';
+            poll === 1
+              ? 'queued'
+              : poll === 2
+                ? 'dispatched'
+                : poll === 3
+                  ? 'preparing'
+                  : poll === 4
+                    ? 'downloading'
+                    : poll === 5
+                      ? 'launching'
+                      : poll === 6
+                        ? 'running'
+                        : 'completed';
           return new Response(
             JSON.stringify({
               id: 'lr-run',
@@ -2116,11 +2129,13 @@ describe('pages', { timeout: 30_000 }, () => {
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(
-      () => expect(infoSpy).toHaveBeenCalledWith('Minecraft запускается…', 2),
+      () => expect(infoSpy).toHaveBeenCalledWith('Minecraft запущен', 2),
       { timeout: 8000 },
     );
-    expect(infoSpy).toHaveBeenCalledWith('Запрос в очереди…', 2);
-    expect(infoSpy).toHaveBeenCalledWith('QXLauncher получил запрос…', 2);
+    expect(infoSpy).toHaveBeenCalledWith('Ожидание QXLauncher…', 2);
+    expect(infoSpy).toHaveBeenCalledWith('QXLauncher принял запрос…', 2);
+    expect(infoSpy).toHaveBeenCalledWith('Подготовка файлов…', 2);
+    expect(infoSpy).toHaveBeenCalledWith('Скачивание ресурсов…', 2);
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'), {
       timeout: 8000,
     });

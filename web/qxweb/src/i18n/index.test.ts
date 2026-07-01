@@ -41,6 +41,8 @@ describe('i18n translate', () => {
 
   it('builds status keys', () => {
     expect(getLaunchStatusKey('queued')).toBe('launcher.launchStatus.queued');
+    expect(getLaunchStatusKey('preparing')).toBe('launcher.launchStatus.preparing');
+    expect(translate('ru', 'launcher.launchStatus.downloading')).toContain('Скачивание');
     expect(getServerStatusKey('online')).toBe('servers.status.online');
   });
 });

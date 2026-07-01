@@ -56,6 +56,7 @@ import {
   api,
   clearLinkedDevice,
   saveLinkedDevice,
+  ApiRequestError,
   type LauncherInstance,
   type MojangLinkStatus,
   type OfflineProfile,
@@ -69,13 +70,17 @@ import { logger } from '@/lib/logger';
 import { isUpdateAvailable } from '@/lib/launcherVersion';
 import { openLauncherDownload, resolveLauncherDownloadUrl, type LauncherRelease } from '@/lib/launcherDownload';
 import { isModdedLauncherLoader } from '@/lib/isModdedLoader';
+import {
+  getLaunchErrorKey,
+  isLaunchTerminal,
+  type LaunchProgressState,
+} from '@/lib/launchProgress';
 import { LauncherInstanceResourcesPage } from '@/pages/LauncherInstanceResourcesPage';
 import './LauncherPage.css';
 
 const { Title, Paragraph, Text } = Typography;
 
 const LAUNCH_POLL_MS = 1500;
-const LAUNCH_TERMINAL = new Set(['completed', 'failed', 'expired']);
 
 type LaunchAccountMode = 'offline' | 'licensed';
 
@@ -117,7 +122,7 @@ function LauncherHome() {
   const [createLoaderOptions, setCreateLoaderOptions] = useState<VersionOption[]>([]);
   const [createMcOptionsLoading, setCreateMcOptionsLoading] = useState(false);
   const [createLoaderOptionsLoading, setCreateLoaderOptionsLoading] = useState(false);
-  const [launchingId, setLaunchingId] = useState<string | null>(null);
+  const [launchProgress, setLaunchProgress] = useState<LaunchProgressState | null>(null);
   const [linkedDevice, setLinkedDevice] = useState<{
     device_id: string;
     status: string;
@@ -311,6 +316,21 @@ function LauncherHome() {
     { icon: <LoginOutlined />, body: t('launcher.linkStep3') },
     { icon: <CheckCircleOutlined />, body: t('launcher.linkStep4') },
   ];
+
+  const launchErrorMessage = useCallback(
+    (errorCode?: string) => {
+      if (!errorCode) {
+        return t('launcher.launchError');
+      }
+      const key = getLaunchErrorKey(errorCode);
+      if (!key) {
+        return errorCode;
+      }
+      const msg = t(key);
+      return msg === key ? errorCode : msg;
+    },
+    [t],
+  );
 
   const launchStatusMessage = (status: string) => {
     const key = getLaunchStatusKey(status);
@@ -526,37 +546,66 @@ function LauncherHome() {
     }
   };
 
-  const pollLaunchRequest = async (requestId: string) => {
+  const pollLaunchRequest = async (requestId: string, instanceId: string) => {
     const started = Date.now();
     const timeoutMs = 30 * 60 * 1000;
     let lastStatus: string | undefined;
     while (Date.now() - started < timeoutMs) {
-      const req = await api.getLaunchRequest(requestId);
-      if (req.status !== lastStatus) {
-        lastStatus = req.status;
-        message.info(launchStatusMessage(req.status), 2);
-      }
-      if (LAUNCH_TERMINAL.has(req.status)) {
-        if (req.status === 'completed') {
-          message.success(t('launcher.gameLaunched'));
-        } else if (req.status === 'failed') {
-          const errorKey =
-            req.error_code === 'LOADER_INSTALL_FAILED'
-              ? 'launcher.launchErrorLoaderInstall'
-              : req.error_code === 'JAVA_FAILED' || req.error_code === 'JAVA_START_FAILED'
-                ? 'launcher.launchErrorJava'
-                : undefined;
-          message.error(errorKey ? t(errorKey) : (req.error_code ?? t('launcher.launchError')));
-        } else {
-          message.warning(launchStatusMessage(req.status));
+      try {
+        const req = await api.getLaunchRequest(requestId);
+        setLaunchProgress({
+          instanceId,
+          requestId,
+          status: req.status,
+          errorCode: req.error_code,
+          needsMojangRelink: req.error_code === 'MOJANG_SESSION',
+        });
+        if (req.status !== lastStatus) {
+          lastStatus = req.status;
+          if (!isLaunchTerminal(req.status)) {
+            message.info(launchStatusMessage(req.status), 2);
+          }
         }
-        return;
+        if (isLaunchTerminal(req.status)) {
+          if (req.status === 'completed') {
+            message.success(t('launcher.gameLaunched'));
+          } else if (req.status === 'failed') {
+            message.error(launchErrorMessage(req.error_code));
+          } else {
+            message.warning(launchStatusMessage(req.status));
+          }
+          setLaunchProgress((prev) =>
+            prev?.requestId === requestId
+              ? {
+                  ...prev,
+                  status: req.status,
+                  errorCode: req.error_code,
+                  needsMojangRelink: req.error_code === 'MOJANG_SESSION',
+                }
+              : prev,
+          );
+          return;
+        }
+      } catch (e) {
+        if (e instanceof ApiRequestError && e.apiCode === 'MOJANG_SESSION') {
+          setLaunchProgress({
+            instanceId,
+            requestId,
+            status: 'failed',
+            errorCode: 'MOJANG_SESSION',
+            needsMojangRelink: true,
+          });
+          message.error(launchErrorMessage('MOJANG_SESSION'));
+          return;
+        }
+        throw e;
       }
       /* v8 ignore next 3 -- @preserve */
       await new Promise((r) => setTimeout(r, LAUNCH_POLL_MS));
     }
     /* v8 ignore next -- @preserve */
     message.warning(t('launcher.launchTimeout'));
+    setLaunchProgress(null);
   };
 
   const handleRequestLauncherUpdate = async () => {
@@ -587,7 +636,11 @@ function LauncherHome() {
       message.warning(t('launcher.licensedLaunchFailed'));
       return;
     }
-    setLaunchingId(instance.id);
+    setLaunchProgress({
+      instanceId: instance.id,
+      requestId: '',
+      status: 'queued',
+    });
     try {
       if (accountMode === 'offline' && !selectedProfileId) {
         message.info(t('launcher.defaultPlayerHint'));
@@ -597,16 +650,26 @@ function LauncherHome() {
         offline_profile_id: accountMode === 'offline' ? selectedProfileId : undefined,
         use_mojang_account: accountMode === 'licensed',
       });
+      setLaunchProgress({
+        instanceId: instance.id,
+        requestId: req.id,
+        status: req.status,
+      });
       message.info(t('launcher.launchSent'));
-      await pollLaunchRequest(req.id);
+      await pollLaunchRequest(req.id, instance.id);
     } catch (e) {
+      setLaunchProgress(null);
       if (e instanceof Error) {
         message.error(e.message);
       } else {
         message.error(t('launcher.launchGameFailed'));
       }
     } finally {
-      setLaunchingId(null);
+      window.setTimeout(() => {
+        setLaunchProgress((prev) =>
+          prev?.instanceId === instance.id && isLaunchTerminal(prev.status) ? null : prev,
+        );
+      }, 8000);
     }
   };
 
@@ -1009,6 +1072,35 @@ function LauncherHome() {
               />
             ) : null}
 
+            {launchProgress && !isLaunchTerminal(launchProgress.status) ? (
+              <Alert
+                type="info"
+                showIcon
+                className="launcher-launch-progress-alert"
+                title={t('launcher.launchProgressTitle')}
+                description={launchStatusMessage(launchProgress.status)}
+              />
+            ) : null}
+
+            {launchProgress && launchProgress.status === 'failed' ? (
+              <Alert
+                type="error"
+                showIcon
+                className="launcher-launch-progress-alert"
+                title={t('launcher.launchFailedTitle')}
+                description={launchErrorMessage(launchProgress.errorCode)}
+                action={
+                  launchProgress.needsMojangRelink ? (
+                    <Link to="/profile">
+                      <Button size="small" type="primary" icon={<LinkOutlined />}>
+                        {t('launcher.launchRelinkMicrosoft')}
+                      </Button>
+                    </Link>
+                  ) : undefined
+                }
+              />
+            ) : null}
+
             {authLoading ? (
               <div className="launcher-panel-loading">
                 <Spin />
@@ -1038,21 +1130,37 @@ function LauncherHome() {
             ) : (
               <div className="launcher-instance-list">
                 {sortedInstances.map((item) => {
-                  const isLaunching = launchingId === item.id;
+                  const progress =
+                    launchProgress?.instanceId === item.id ? launchProgress : null;
+                  const isLaunching = progress != null && !isLaunchTerminal(progress.status);
+                  const launchFailed = progress?.status === 'failed';
                   const isModded = isModdedLauncherLoader(item.loader);
                   return (
                     <div
                       key={item.id}
-                      className={`launcher-instance-card${isLaunching ? ' launcher-instance-card--launching' : ''}`}
+                      className={`launcher-instance-card${isLaunching ? ' launcher-instance-card--launching' : ''}${launchFailed ? ' launcher-instance-card--failed' : ''}`}
                     >
                       <div className="launcher-instance-info">
                         <div className="launcher-instance-name-row">
                           <Text strong className="launcher-instance-name">
                             {item.name}
                           </Text>
-                          {isLaunching ? (
-                            <span className="launcher-instance-status launcher-instance-status--active">
-                              {t('launcher.launching')}
+                          {progress ? (
+                            <span
+                              className={`launcher-instance-status${isLaunching ? ' launcher-instance-status--active' : ''}${launchFailed ? ' launcher-instance-status--failed' : ''}`}
+                            >
+                              {isLaunching ? (
+                                <>
+                                  <span>{t('launcher.launching')}</span>
+                                  <span className="launcher-instance-status-step">
+                                    {launchStatusMessage(progress.status)}
+                                  </span>
+                                </>
+                              ) : launchFailed ? (
+                                <span className="launcher-instance-status-step">
+                                  {launchErrorMessage(progress.errorCode)}
+                                </span>
+                              ) : null}
                             </span>
                           ) : null}
                         </div>
@@ -1067,6 +1175,11 @@ function LauncherHome() {
                             <span className="launcher-tag">{item.loader_version}</span>
                           ) : null}
                         </div>
+                        {launchFailed ? (
+                          <Paragraph type="danger" className="launcher-instance-launch-error">
+                            {launchErrorMessage(progress?.errorCode)}
+                          </Paragraph>
+                        ) : null}
                       </div>
                       <Space wrap className="launcher-instance-actions">
                         <Button
@@ -1074,11 +1187,23 @@ function LauncherHome() {
                           size="large"
                           icon={<RocketOutlined />}
                           loading={isLaunching}
-                          disabled={launchBlocked || (launchingId !== null && !isLaunching)}
+                          disabled={
+                            launchBlocked ||
+                            (launchProgress != null &&
+                              launchProgress.instanceId !== item.id &&
+                              !isLaunchTerminal(launchProgress.status))
+                          }
                           onClick={() => handlePlay(item)}
                         >
                           {t('launcher.play')}
                         </Button>
+                        {launchFailed && progress?.needsMojangRelink ? (
+                          <Link to="/profile">
+                            <Button size="large" icon={<LinkOutlined />}>
+                              {t('launcher.launchRelinkMicrosoft')}
+                            </Button>
+                          </Link>
+                        ) : null}
                         {isModded ? (
                           <Link to={`/launcher/instances/${item.id}/resources`}>
                             <Button size="large" icon={<AppstoreOutlined />}>

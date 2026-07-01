@@ -163,12 +163,40 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		}
 	}
 
+	reportLaunchStatus := func(status string, extra map[string]any) {
+		payload := map[string]any{"status": status}
+		for k, v := range extra {
+			payload[k] = v
+		}
+		_ = api.UpdateLaunch(ctx, item.ID, payload)
+	}
+
+	notifyLaunchStep := func(title string) {
+		notify.Show("QXLauncher", title)
+	}
+
+	reportLaunchStatus("preparing", nil)
+	notifyLaunchStep("Подготовка к запуску…")
+
 	dl.OnProgress = func(phase, message string) {
 		fields := []any{"phase", phase, "message", message}
 		fields = append(fields, minecraft.FormatLaunchLogFields(item.Manifest)...)
 		slog.Info("launch prepare", fields...)
+
+		switch phase {
+		case "loader-install", "prepare":
+			switch message {
+			case "java runtime":
+				reportLaunchStatus("preparing", nil)
+			case "client jar", "libraries", "natives", "assets":
+				reportLaunchStatus("downloading", nil)
+			default:
+				if strings.Contains(message, "installer") {
+					reportLaunchStatus("preparing", nil)
+				}
+			}
+		}
 	}
-	_ = api.UpdateLaunch(ctx, item.ID, map[string]any{"status": "running", "pid": 0})
 
 	ready, err := dl.PrepareClientLaunch(ctx, minecraft.ClientLaunchInput{
 		Manifest:    item.Manifest,
@@ -194,35 +222,32 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 			code = "LOADER_INSTALL_FAILED"
 		}
 		slog.Error("launch prepare failed", "err", err)
-		_ = api.UpdateLaunch(ctx, item.ID, map[string]any{
-			"status":     "failed",
-			"error_code": code,
-		})
+		reportLaunchStatus("failed", map[string]any{"error_code": code})
+		notifyLaunchStep("Не удалось подготовить запуск")
 		return
 	}
 	plan := ready.Plan
 
 	label := minecraft.FormatLaunchLabel(item.Manifest, username)
-	notify.Show("QXLauncher", "Запуск Minecraft: "+label)
+	reportLaunchStatus("launching", nil)
+	notifyLaunchStep("Запуск Minecraft: " + label)
 
 	if cfg.LaunchDryRun {
 		slog.Info("launch dry-run",
 			append([]any{"main", plan.MainClass, "user", username, "game_dir", ready.GameDir}, minecraft.FormatLaunchLogFields(item.Manifest)...)...)
-		_ = api.UpdateLaunch(ctx, item.ID, map[string]any{"status": "completed", "exit_code": 0})
+		reportLaunchStatus("completed", map[string]any{"exit_code": 0})
 		return
 	}
 
 	cmd, err := minecraft.StartClientProcess(context.Background(), plan, ready.LogPath)
 	if err != nil {
 		slog.Error("java start failed", "err", err)
-		_ = api.UpdateLaunch(ctx, item.ID, map[string]any{
-			"status":     "failed",
-			"error_code": "JAVA_START_FAILED",
-		})
+		reportLaunchStatus("failed", map[string]any{"error_code": "JAVA_START_FAILED"})
+		notifyLaunchStep("Не удалось запустить Java")
 		return
 	}
 	pid := cmd.Process.Pid
-	_ = api.UpdateLaunch(ctx, item.ID, map[string]any{"status": "running", "pid": pid})
+	reportLaunchStatus("running", map[string]any{"pid": pid})
 
 	err = cmd.Wait()
 	exitCode := 0
@@ -233,10 +258,7 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 	if exitCode != 0 {
 		status = "failed"
 	}
-	_ = api.UpdateLaunch(ctx, item.ID, map[string]any{
-		"status":    status,
-		"exit_code": exitCode,
-	})
+	reportLaunchStatus(status, map[string]any{"exit_code": exitCode})
 	slog.Info("launch finished", "pid", strconv.Itoa(pid), "exit", exitCode)
 }
 

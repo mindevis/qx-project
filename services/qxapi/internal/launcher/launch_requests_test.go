@@ -80,6 +80,27 @@ func TestLaunchRequestFlow(t *testing.T) {
 	}
 
 	updated, err := svc.UpdateLaunchRequest(ctx, "dev-launch", created.ID, UpdateLaunchRequestInput{
+		Status: models.LaunchStatusPreparing,
+	})
+	if err != nil || updated.Status != models.LaunchStatusPreparing {
+		t.Fatalf("update preparing: err=%v view=%+v", err, updated)
+	}
+
+	updated, err = svc.UpdateLaunchRequest(ctx, "dev-launch", created.ID, UpdateLaunchRequestInput{
+		Status: models.LaunchStatusDownloading,
+	})
+	if err != nil || updated.Status != models.LaunchStatusDownloading {
+		t.Fatalf("update downloading: err=%v view=%+v", err, updated)
+	}
+
+	updated, err = svc.UpdateLaunchRequest(ctx, "dev-launch", created.ID, UpdateLaunchRequestInput{
+		Status: models.LaunchStatusLaunching,
+	})
+	if err != nil || updated.Status != models.LaunchStatusLaunching {
+		t.Fatalf("update launching: err=%v view=%+v", err, updated)
+	}
+
+	updated, err = svc.UpdateLaunchRequest(ctx, "dev-launch", created.ID, UpdateLaunchRequestInput{
 		Status: models.LaunchStatusRunning,
 		PID:    intPtr(1234),
 	})
@@ -124,9 +145,44 @@ func TestGetLaunchRequestManifestFailure(t *testing.T) {
 		InstanceID: inst.ID, DeviceID: "dev-manifest",
 	})
 
-	_, err := svc.GetLaunchRequest(ctx, owner, created.ID)
-	if !errors.Is(err, ErrManifest) {
-		t.Fatalf("expected ErrManifest, got %v", err)
+	got, err := svc.GetLaunchRequest(ctx, owner, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Status != models.LaunchStatusFailed || got.ErrorCode == nil || *got.ErrorCode != "MANIFEST_UNAVAILABLE" {
+		t.Fatalf("expected failed manifest view, got status=%q error=%v", got.Status, got.ErrorCode)
+	}
+}
+
+func TestFetchPendingLaunchManifestFailureMarksFailed(t *testing.T) {
+	svc, _, _ := newLauncherService(t)
+	svc.SetManifestProvider(stubManifestProvider{err: fmt.Errorf("version not found")})
+	ctx := context.Background()
+
+	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-pending-manifest"})
+	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-pending-manifest", UserID: "user-pending-manifest"})
+	owner := Owner{UserID: "user-pending-manifest"}
+	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
+	})
+	created, _ := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
+		InstanceID: inst.ID, DeviceID: "dev-pending-manifest",
+	})
+
+	pending, err := svc.FetchPendingLaunch(ctx, "dev-pending-manifest")
+	if err != nil {
+		t.Fatalf("fetch pending: %v", err)
+	}
+	if pending != nil {
+		t.Fatalf("expected nil pending after manifest failure, got %+v", pending)
+	}
+
+	got, err := svc.GetLaunchRequest(ctx, owner, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Status != models.LaunchStatusFailed || got.ErrorCode == nil || *got.ErrorCode != "MANIFEST_UNAVAILABLE" {
+		t.Fatalf("expected failed manifest view, got status=%q error=%v", got.Status, got.ErrorCode)
 	}
 }
 

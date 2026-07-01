@@ -13,11 +13,13 @@ export const API_ERROR_BACKEND_UNAVAILABLE = 'BACKEND_UNAVAILABLE' as const;
 
 export class ApiRequestError extends Error {
   readonly code?: typeof API_ERROR_BACKEND_UNAVAILABLE;
+  readonly apiCode?: string;
 
-  constructor(message: string, code?: typeof API_ERROR_BACKEND_UNAVAILABLE) {
+  constructor(message: string, code?: typeof API_ERROR_BACKEND_UNAVAILABLE, apiCode?: string) {
     super(message);
     this.name = 'ApiRequestError';
     this.code = code;
+    this.apiCode = apiCode;
   }
 }
 
@@ -446,9 +448,11 @@ async function request<T>(
     }
 
     let message = res.statusText;
+    let apiCode: string | undefined;
     try {
       const body = (await res.json()) as ApiError;
       message = body.error?.message ?? message;
+      apiCode = body.error?.code;
     } catch {
       /* ignore */
     }
@@ -461,7 +465,7 @@ async function request<T>(
     if (isBackendUnavailableStatus(res.status)) {
       throwBackendUnavailable();
     }
-    throw new ApiRequestError(message);
+    throw new ApiRequestError(message, undefined, apiCode);
   }
 
   if (res.status === 204) {

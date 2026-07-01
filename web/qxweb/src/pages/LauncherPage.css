@@ -636,6 +636,7 @@ html[data-theme='dark'] .launcher-panel--player {
 .launcher-instance-status {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   padding: 2px 10px;
   font-size: 12px;
   font-weight: 600;
@@ -643,6 +644,37 @@ html[data-theme='dark'] .launcher-panel--player {
   color: #722ed1;
   background: rgba(114, 46, 209, 0.12);
   border: 1px solid rgba(114, 46, 209, 0.2);
+}
+
+.launcher-instance-status-step {
+  font-weight: 500;
+  opacity: 0.92;
+}
+
+.launcher-instance-status--active .launcher-instance-status-step::before {
+  content: '·';
+  margin-right: 6px;
+  opacity: 0.65;
+}
+
+.launcher-instance-status--failed {
+  color: #cf1322;
+  background: rgba(255, 77, 79, 0.1);
+  border-color: rgba(255, 77, 79, 0.28);
+  animation: none;
+}
+
+.launcher-instance-card--failed {
+  border-color: rgba(255, 77, 79, 0.28);
+}
+
+.launcher-instance-launch-error {
+  margin: 8px 0 0 !important;
+  font-size: 13px;
+}
+
+.launcher-launch-progress-alert {
+  margin-bottom: 16px;
 }
 
 .launcher-instance-status--active {

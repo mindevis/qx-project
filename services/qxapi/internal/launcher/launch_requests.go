@@ -138,7 +138,14 @@ func (s *Service) FetchPendingLaunch(ctx context.Context, deviceID string) (*Lau
 	req.Status = models.LaunchStatusDispatched
 	req.DispatchedAt = &dispatched
 
-	return s.enrichLaunchView(ctx, req)
+	view, err := s.enrichLaunchView(ctx, req)
+	if err != nil {
+		if failed, failErr := s.failLaunchRequestOnEnrichError(ctx, req.ID, err); failErr == nil && failed != nil {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return view, nil
 }
 
 func (s *Service) UpdateLaunchRequest(ctx context.Context, deviceID, requestID string, in UpdateLaunchRequestInput) (*LaunchRequestView, error) {
@@ -184,7 +191,40 @@ func (s *Service) GetLaunchRequest(ctx context.Context, owner Owner, requestID s
 	if _, err := s.GetInstance(ctx, owner, req.InstanceID); err != nil {
 		return nil, err
 	}
-	return s.enrichLaunchView(ctx, req)
+	view, err := s.enrichLaunchView(ctx, req)
+	if err != nil {
+		if failed, failErr := s.failLaunchRequestOnEnrichError(ctx, req.ID, err); failErr == nil && failed != nil {
+			return launchViewFromModel(*failed, nil, nil, nil, nil), nil
+		}
+		return nil, err
+	}
+	return view, nil
+}
+
+func (s *Service) failLaunchRequestOnEnrichError(ctx context.Context, requestID string, err error) (*models.LaunchRequest, error) {
+	errorCode := ""
+	switch {
+	case errors.Is(err, ErrMojangSession):
+		errorCode = "MOJANG_SESSION"
+	case errors.Is(err, ErrManifest):
+		errorCode = "MANIFEST_UNAVAILABLE"
+	default:
+		return nil, err
+	}
+	now := time.Now().UTC()
+	updates := map[string]any{
+		"status":       models.LaunchStatusFailed,
+		"error_code":   errorCode,
+		"completed_at": now,
+	}
+	if err := s.db.WithContext(ctx).Model(&models.LaunchRequest{}).Where("id = ?", requestID).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+	var req models.LaunchRequest
+	if err := s.db.WithContext(ctx).Where("id = ?", requestID).First(&req).Error; err != nil {
+		return nil, err
+	}
+	return &req, nil
 }
 
 func (s *Service) expireStaleRequests(ctx context.Context, deviceID string, now time.Time) {

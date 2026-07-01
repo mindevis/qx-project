@@ -3,12 +3,15 @@ package models
 import "time"
 
 const (
-	LaunchStatusQueued     = "queued"
-	LaunchStatusDispatched = "dispatched"
-	LaunchStatusRunning    = "running"
-	LaunchStatusCompleted  = "completed"
-	LaunchStatusFailed     = "failed"
-	LaunchStatusExpired    = "expired"
+	LaunchStatusQueued       = "queued"
+	LaunchStatusDispatched   = "dispatched"
+	LaunchStatusPreparing    = "preparing"
+	LaunchStatusDownloading  = "downloading"
+	LaunchStatusLaunching    = "launching"
+	LaunchStatusRunning      = "running"
+	LaunchStatusCompleted    = "completed"
+	LaunchStatusFailed       = "failed"
+	LaunchStatusExpired      = "expired"
 )
 
 type LaunchRequest struct {

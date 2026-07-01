@@ -207,19 +207,18 @@ func TestLaunchRequestsHandlerGetManifestFailure(t *testing.T) {
 	c.Params = gin.Params{{Key: "id", Value: created.ID}}
 	c.Set(UserIDKey, claims.UserID)
 	h.Get(c)
-	if w.Code != http.StatusBadGateway {
+	if w.Code != http.StatusOK {
 		t.Fatalf("get manifest failure: %d %s", w.Code, w.Body.String())
 	}
 	var body struct {
-		Error struct {
-			Code string `json:"code"`
-		} `json:"error"`
+		Status    string  `json:"status"`
+		ErrorCode *string `json:"error_code"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json: %v", err)
 	}
-	if body.Error.Code != "MANIFEST_UNAVAILABLE" {
-		t.Fatalf("error code: %q", body.Error.Code)
+	if body.Status != models.LaunchStatusFailed || body.ErrorCode == nil || *body.ErrorCode != "MANIFEST_UNAVAILABLE" {
+		t.Fatalf("response: %+v", body)
 	}
 }
 
