@@ -121,6 +121,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 		v1.GET("/health/ready", health.Readiness)
 		v1.GET("/cosmetics/skins/:userId", cosmeticsH.ServeSkin)
 		v1.GET("/cosmetics/capes/:userId", cosmeticsH.ServeCape)
+		v1.GET("/cosmetics/skin-catalog", cosmeticsH.ListSkinCatalog)
 
 		v1.POST("/auth/register", authH.Register)
 		v1.POST("/auth/login", authH.Login)
@@ -158,6 +159,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.GET("/users/me/cosmetics", cosmeticsH.GetMine)
 			authed.PUT("/users/me/cosmetics", cosmeticsH.Equip)
 			authed.POST("/users/me/cosmetics/skin", cosmeticsH.UploadSkin)
+			authed.POST("/users/me/cosmetics/skin/apply", cosmeticsH.ApplySkin)
 			authed.DELETE("/users/me/cosmetics/skin", cosmeticsH.DeleteSkin)
 			authed.POST("/users/me/cosmetics/cape", cosmeticsH.UploadCape)
 			authed.DELETE("/users/me/cosmetics/cape", cosmeticsH.DeleteCape)
@@ -191,6 +193,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.POST("/monitoring/servers/:id/like", monitoringH.Like)
 			authed.POST("/monitoring/servers/:id/rate", monitoringH.Rate)
 			authed.GET("/monitoring/bindings", monitoringH.ListBindings)
+			authed.GET("/monitoring/bindable-servers", monitoringH.ListBindable)
 			authed.PUT("/monitoring/servers/:id/binding", monitoringH.SetBinding)
 			authed.DELETE("/monitoring/servers/:id/binding", monitoringH.ClearBinding)
 

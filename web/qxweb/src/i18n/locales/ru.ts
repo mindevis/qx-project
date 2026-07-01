@@ -19,6 +19,7 @@ export const ru = {
     agent: 'Agent',
     accountMenu: 'Меню аккаунта',
     cancel: 'Отмена',
+    megabytes: 'МБ',
   },
   language: {
     label: 'Язык',
@@ -34,7 +35,7 @@ export const ru = {
     navHome: 'Главная',
     navLauncher: 'Лаунчер',
     navMonitoring: 'Мониторинг',
-    navSkins: 'Скины',
+    navSkins: 'QXSkins',
     navServers: 'Серверы',
     footer: 'QXSystem — экосистема Minecraft',
   },
@@ -72,9 +73,9 @@ export const ru = {
         description: 'Настройки аккаунта QXSystem, email, пароль и привязка Minecraft (Microsoft).',
       },
       skins: {
-        title: 'Скины',
+        title: 'QXSkins',
         description:
-          'Загрузите свой скин и плащ Minecraft для QXLauncher — как Ely.by, без модов.',
+          'Выберите скин из каталога Mojang или загрузите свой — QXLauncher применит его без модов.',
       },
       auth: {
         title: 'Вход',
@@ -108,6 +109,7 @@ export const ru = {
     ctaServers: 'Управление серверами',
     heroTagLauncher: 'Лаунчер',
     heroTagAgent: 'Агент',
+    heroTagSkins: 'QXSkins',
     featuresTitle: 'Всё в одной платформе',
     featuresSubtitle:
       'Лаунчер и серверный агент закрывают полный цикл — от игрока до администратора сервера.',
@@ -120,6 +122,9 @@ export const ru = {
     qxagentTitle: 'QXAgent',
     qxagentBody:
       'Агент на вашем выделенном сервере: установка контента, мониторинг и удалённое управление инстансом Minecraft.',
+    qxskinsTitle: 'QXSkins',
+    qxskinsBody:
+      'Выберите скин из каталога популярных игроков Mojang или загрузите свой — QXLauncher применит его без модов, как Ely.by.',
     benefitAccount: 'Один аккаунт',
     benefitAccountDesc: 'Профиль, инстансы и серверы синхронизируются между вебом и лаунчером.',
     benefitDedicated: 'Выделенный сервер',
@@ -193,9 +198,34 @@ export const ru = {
     goToSkins: 'Управление скинами',
   },
   skins: {
-    title: 'Скины',
+    badge: 'Скины без модов',
+    title: 'QXSkins для Minecraft',
     subtitle:
-      'Загрузите скин и плащ. QXLauncher применяет их как Ely.by — моды Fabric/Forge не нужны.',
+      'Выберите скин из популярных источников или загрузите свой PNG. QXLauncher сохранит выбор и применит его при каждом запуске — моды не нужны.',
+    catalog: {
+      sectionTitle: 'Каталог скинов',
+      sectionLead: 'Скины из профилей Mojang — нажмите «Выбрать», чтобы экипировать. Можно искать по нику Minecraft.',
+      loadFailed: 'Не удалось загрузить каталог скинов',
+      applyFailed: 'Не удалось применить скин',
+      applied: 'Скин применён',
+      select: 'Выбрать',
+      search: 'Поиск',
+      searchPlaceholder: 'Фильтр по названию…',
+      filterPlaceholder: 'Фильтр каталога…',
+      usernamePlaceholder: 'Ник Minecraft',
+      applyUsername: 'Применить по нику',
+      empty: 'Скины не найдены',
+      sourceMojang: 'Mojang',
+      categories: {
+        all: 'Все',
+        popular: 'Популярные',
+        creators: 'Креаторы',
+        classic: 'Классика',
+      },
+    },
+    equip: {
+      sectionTitle: 'Ваш скин и плащ',
+    },
   },
   cosmetics: {
     title: 'QX Skin Server',
@@ -380,6 +410,7 @@ export const ru = {
       JAVA_FAILED: 'Не удалось подготовить Java',
       JAVA_START_FAILED: 'Не удалось запустить Java',
       LOADER_INSTALL_FAILED: 'Не удалось установить модлоадер — смотрите логи QXLauncher',
+      LAUNCH_TIMEOUT: 'Время ожидания истекло',
     },
     launchTimeout: 'Время ожидания истекло',
     launcherUnlinked: 'QXLauncher отвязан',
@@ -406,6 +437,7 @@ export const ru = {
       'Выберите профиль игрока, затем запускайте инстанс через связанный QXLauncher.',
     workspaceRefresh: 'Обновить',
     workspaceRefreshed: 'Данные обновлены',
+    ecosystemNav: 'Экосистема QX',
     playerSectionTitle: 'Игрок',
     playerSectionHint:
       'Привязанный Microsoft-аккаунт используется по умолчанию; для локального ника выберите оффлайн.',
@@ -435,10 +467,23 @@ export const ru = {
     browseResources: 'Ресурсы',
     instanceSettings: 'Настройки инстанса',
     instanceSettingsTitle: 'Настройки — {{name}}',
-    instanceSettingsHint: 'Параметры запуска инстанса. RAM применяется через -Xmx при старте игры в QXLauncher.',
+    instanceSettingsHint: 'Параметры запуска инстанса. Настройки применяются при старте игры через QXLauncher.',
+    instanceSettingsTabLaunch: 'Запуск',
+    instanceSettingsTabMods: 'Моды',
+    minMemoryMb: 'Минимум RAM',
     maxMemoryMb: 'Максимум RAM',
+    extraJvmArgs: 'Дополнительные JVM-аргументы',
+    extraJvmArgsHint: 'По одному аргументу на строку, добавляются после флагов памяти.',
+    windowWidth: 'Ширина окна',
+    windowHeight: 'Высота окна',
+    instanceSettingsModsEmpty: 'На этом инстансе нет установленных модов.',
+    instanceSettingsModsConfigNote: 'Редактирование конфигов модов доступно при привязанном QXLauncher на этом устройстве.',
+    instanceSettingsModsListAria: 'Установленные моды',
     instanceSettingsSaved: 'Настройки инстанса сохранены',
     instanceSettingsFailed: 'Не удалось сохранить настройки инстанса',
+    placeholderInstanceName: 'Выживание',
+    placeholderNickname: 'Steve',
+    minecraftVersionPrefix: 'Minecraft',
   },
   launcherInstanceResources: {
     backToLauncher: 'Назад к лаунчеру',
@@ -595,6 +640,8 @@ export const ru = {
     gameServerRestartStarted: 'Игровой сервер перезапускается…',
     deleteGameServerConfirm: 'Удалить игровой сервер?',
     noGameServers: 'Пока нет игровых серверов',
+    noGameServersHint:
+      'Добавьте игровой сервер Minecraft на этом выделенном хосте — укажите версию, загрузчик и порт, затем управляйте через QXAgent.',
     gameServersAgentRequired: 'Сначала выполните Deploy и дождитесь подключения агента.',
     deployAgent: 'Deploy agent',
     updateAgent: 'Обновить QXAgent',
@@ -654,6 +701,12 @@ export const ru = {
     tabMods: 'Моды',
     tabFiles: 'Файлы',
     consoleUnavailable: 'Консоль доступна после запуска сервера.',
+    bindingTitle: 'Привязка инстанса лаунчера',
+    bindingHint:
+      'Выберите инстанс с той же версией Minecraft и загрузчиком — кнопка «Подключить» в мониторинге запустит игру на этом сервере.',
+    bindingNeedsAddress: 'Укажите IP-адрес и порт сервера в настройках, чтобы привязать инстанс.',
+    bindingNoInstances:
+      'Нет инстансов для MC {{mc}} / {{loader}}. Создайте подходящий инстанс в лаунчере.',
     propertiesLoadFailed: 'Не удалось загрузить server.properties',
     propertiesEmpty: 'Файл server.properties пуст или недоступен.',
     propertySaved: 'Настройка сохранена',
@@ -668,6 +721,7 @@ export const ru = {
     fileSaved: 'Файл сохранён',
     backToFiles: 'К списку файлов',
     crashTitle: 'Сервер неожиданно остановился',
+    summaryAgent: 'QXAgent',
   },
   console: {
     connected: 'Консоль подключена',
@@ -691,6 +745,11 @@ export const ru = {
     search: 'Найти',
     resetFilters: 'Сбросить',
     empty: 'Пока нет серверов в мониторинге',
+    statTotal: '{{count}} серверов',
+    statOnline: '{{count}} онлайн',
+    refresh: 'Обновить',
+    likesCount: '{{count}} лайков',
+    likesBadge: 'Лайки сообщества',
     premium: 'Premium',
     online: 'Онлайн',
     offline: 'Оффлайн',
@@ -718,6 +777,12 @@ export const ru = {
     launchFailed: 'Не удалось запустить через QXLauncher',
     launchTimeout: 'Запуск занимает больше времени, чем ожидалось',
     connectNeedsLauncher: 'Привяжите QXLauncher, чтобы подключаться с выбранным инстансом',
+    connectGuestHint: 'Войдите и привяжите инстанс, чтобы запустить игру через QXLauncher — иначе откроется minecraft://',
+    sortLabel: 'Сортировка',
+    sortOnline: 'Сначала онлайн',
+    sortRating: 'По рейтингу',
+    sortLikes: 'По лайкам',
+    sortName: 'По названию',
   },
   qxmods: {
     brand: 'QXMods',
@@ -781,6 +846,10 @@ export const ru = {
       queued: 'Синхронизация поставлена в очередь',
       failed: 'Не удалось синхронизировать',
       noFile: 'У выбранной версии нет файла для установки',
+      restartTitle: 'Перезапустить сервер?',
+      restartPrompt:
+        'Мод поставлен в очередь на «{{name}}». Перезапустить игровой сервер, чтобы он подхватил изменения?',
+      restartConfirm: 'Перезапустить',
     },
     install: {
       action: 'Установить',
@@ -797,11 +866,13 @@ export const ru = {
       downloads: 'скачиваний',
     },
     binding: {
-      title: 'Сервер мониторинга',
-      hint: 'Привяжите инстанс к публичному серверу для быстрого подключения из Мониторинга.',
+      title: 'Привязка к серверу',
+      hint: 'Выберите свой игровой сервер или сервер из мониторинга — для быстрого подключения из лаунчера и раздела Мониторинг.',
       placeholder: 'Выберите сервер…',
-      signIn: 'Войдите, чтобы привязать инстанс к серверу мониторинга.',
+      signIn: 'Войдите, чтобы привязать инстанс к серверу.',
       loadFailed: 'Не удалось загрузить серверы',
+      empty:
+        'Нет подходящих серверов для MC {{mc}} / {{loader}}. Убедитесь, что у сервера указан IP-адрес и совпадают версия и загрузчик с инстансом. Свои серверы — в разделе «Серверы».',
     },
     deps: {
       title: 'Установка мода',

@@ -32,12 +32,16 @@ type MojangSessionView struct {
 }
 
 type LaunchInstanceView struct {
-	ID            string  `json:"id"`
-	Name          string  `json:"name"`
-	MCVersion     string  `json:"mc_version"`
-	Loader        string  `json:"loader"`
-	LoaderVersion *string `json:"loader_version,omitempty"`
-	MaxMemoryMB   *int    `json:"max_memory_mb,omitempty"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	MCVersion     string   `json:"mc_version"`
+	Loader        string   `json:"loader"`
+	LoaderVersion *string  `json:"loader_version,omitempty"`
+	MaxMemoryMB   *int     `json:"max_memory_mb,omitempty"`
+	MinMemoryMB   *int     `json:"min_memory_mb,omitempty"`
+	ExtraJVMArgs  []string `json:"extra_jvm_args,omitempty"`
+	WindowWidth   *int     `json:"window_width,omitempty"`
+	WindowHeight  *int     `json:"window_height,omitempty"`
 }
 
 type LaunchRequestView struct {
@@ -265,6 +269,10 @@ func launchInstanceFromModel(inst models.LauncherInstance) *LaunchInstanceView {
 		Loader:        inst.Loader,
 		LoaderVersion: inst.LoaderVersion,
 		MaxMemoryMB:   inst.MaxMemoryMB,
+		MinMemoryMB:   inst.MinMemoryMB,
+		ExtraJVMArgs:  []string(inst.ExtraJVMArgs),
+		WindowWidth:   inst.WindowWidth,
+		WindowHeight:  inst.WindowHeight,
 	}
 }
 

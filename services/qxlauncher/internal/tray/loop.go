@@ -241,7 +241,11 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		MCVersion:     item.Instance.MCVersion,
 		Loader:        item.Instance.Loader,
 		LoaderVersion: item.Instance.LoaderVersion,
-		MaxMemoryMB:   maxMemoryMB(item.Instance.MaxMemoryMB),
+		MaxMemoryMB:   optionalInt(item.Instance.MaxMemoryMB),
+		MinMemoryMB:   optionalInt(item.Instance.MinMemoryMB),
+		ExtraJVMArgs:  item.Instance.ExtraJVMArgs,
+		WindowWidth:   item.Instance.WindowWidth,
+		WindowHeight:  item.Instance.WindowHeight,
 	})
 	if err != nil {
 		slog.Error("launch manifest build failed", "err", err)
@@ -379,7 +383,7 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 	slog.Info("launch finished", "pid", strconv.Itoa(pid), "exit", exitCode)
 }
 
-func maxMemoryMB(v *int) int {
+func optionalInt(v *int) int {
 	if v == nil {
 		return 0
 	}

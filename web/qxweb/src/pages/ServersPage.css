@@ -805,20 +805,61 @@ html[data-theme='dark'] .servers-panel {
 }
 
 .servers-game-empty {
-  margin: 12px 0 4px;
+  margin: 20px 0 8px;
+  padding: 28px 20px;
+  border-radius: 16px;
+  border: 1px dashed rgba(22, 119, 255, 0.22);
+  background: rgba(22, 119, 255, 0.03);
+}
+
+.servers-game-empty-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 42ch;
+  margin: 0 auto;
+}
+
+.servers-game-empty-title {
+  font-size: 16px;
+}
+
+.servers-game-empty-hint {
+  margin: 0 !important;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .servers-game-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .servers-game-card {
   border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 12px;
+  border-radius: 14px;
   background: rgba(0, 0, 0, 0.02);
   overflow: hidden;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.servers-game-card--interactive {
+  cursor: pointer;
+}
+
+.servers-game-card--interactive:hover {
+  border-color: rgba(22, 119, 255, 0.28);
+  box-shadow: 0 10px 28px rgba(22, 119, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.servers-game-card--interactive:focus-visible {
+  outline: 2px solid rgba(22, 119, 255, 0.45);
+  outline-offset: 2px;
 }
 
 html[data-theme='dark'] .servers-game-card {
@@ -846,6 +887,23 @@ html[data-theme='dark'] .servers-game-card {
   font-size: 16px !important;
 }
 
+.servers-game-card-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.servers-game-card-title-link:hover {
+  color: #1677ff;
+}
+
+html[data-theme='dark'] .servers-game-card-title-link:hover {
+  color: #69b1ff;
+}
+
+.servers-game-card-status {
+  margin: 0;
+}
+
 .servers-game-card-meta {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -853,6 +911,23 @@ html[data-theme='dark'] .servers-game-card {
   margin: 0;
   padding: 0 16px 16px;
   grid-column: 1 / -1;
+}
+
+.servers-game-card-meta--grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.servers-game-card-port {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.servers-game-card-port-sep {
+  opacity: 0.65;
 }
 
 .servers-game-card-meta-item {
@@ -909,6 +984,10 @@ html[data-theme='dark'] .servers-game-card-meta-item dd {
     grid-column: 1;
     grid-row: auto;
     justify-content: flex-start;
+  }
+
+  .servers-game-card-meta--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1188,6 +1267,79 @@ html[data-theme='dark'] .servers-game-modal-actions {
 
 .game-server-detail-actions {
   margin-bottom: 16px;
+}
+
+.game-server-detail-breadcrumb {
+  margin-bottom: 16px;
+}
+
+.game-server-detail-breadcrumb .ant-breadcrumb-link a {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+html[data-theme='dark'] .game-server-detail-breadcrumb .ant-breadcrumb-link a {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.game-server-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.game-server-detail-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+html[data-theme='dark'] .game-server-detail-summary-item {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.game-server-detail-summary-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme='dark'] .game-server-detail-summary-label {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.game-server-detail-summary-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.game-server-detail-summary-item--agent-online .game-server-detail-summary-value {
+  color: #52c41a;
+}
+
+.game-server-detail-summary-item--agent-offline .game-server-detail-summary-value {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme='dark'] .game-server-detail-summary-item--agent-offline .game-server-detail-summary-value {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.game-server-detail-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-server-detail-hero .servers-intro {
+  margin-bottom: 0 !important;
 }
 
 .game-server-detail-rcon {

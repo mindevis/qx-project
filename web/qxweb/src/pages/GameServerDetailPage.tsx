@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
+  Breadcrumb,
   Button,
   Popconfirm,
   Space,
@@ -11,11 +12,14 @@ import {
   Typography,
 } from 'antd';
 import {
-  ArrowLeftOutlined,
+  AppstoreOutlined,
   BuildOutlined,
+  CodeOutlined,
   DeleteOutlined,
+  FolderOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
+  SettingOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import { api, type GameServer } from '@/api/client';
@@ -23,13 +27,13 @@ import { ServerConsolePanel, shouldShowGameServerConsole } from '@/components/Se
 import { GameServerPropertiesPanel } from '@/components/GameServerPropertiesPanel';
 import { GameServerModsPanel } from '@/components/GameServerModsPanel';
 import { GameServerFilesPanel } from '@/components/GameServerFilesPanel';
+import { GameServerInstanceBinding } from '@/components/GameServerInstanceBinding';
 import {
   gameServerTypeCapabilities,
   gameServerTypeLabelText,
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
 import {
-  formatGameServerLoaderVersionLabel,
   formatGameServerMcVersionLabel,
 } from '@/lib/gameServerVersions';
 import {
@@ -43,6 +47,8 @@ import {
   type VpsGameServer,
 } from '@/lib/vpsGameServers';
 import { useI18n } from '@/i18n/I18nContext';
+import { getAgentConnectionStatusKey } from '@/i18n';
+import { getAgentConnectionStatus } from '@/lib/agentStatus';
 import { useMessage } from '@/hooks/useMessage';
 import { logger } from '@/lib/logger';
 import './ServersPage.css';
@@ -199,11 +205,21 @@ export function GameServerDetailPage() {
   const showConsole = shouldShowGameServerConsole(game, agentOnline);
   const serverType = (game.server_type ?? 'vanilla') as VpsGameServerType;
   const caps = gameServerTypeCapabilities(serverType);
+  const agentConnection = getAgentConnectionStatus(vps);
+  const agentConnectionKey = getAgentConnectionStatusKey(agentConnection);
+  const agentConnectionLabel = t(agentConnectionKey);
+
+  const tabLabel = (icon: ReactNode, label: string) => (
+    <span className="game-server-detail-tab-label">
+      {icon}
+      {label}
+    </span>
+  );
 
   const tabItems = [
     {
       key: 'console',
-      label: t('gameServerDetail.tabConsole'),
+      label: tabLabel(<CodeOutlined aria-hidden />, t('gameServerDetail.tabConsole')),
       children: showConsole ? (
         <ServerConsolePanel serverId={vpsId} gameServerId={game.id} agentOnline={agentOnline} />
       ) : (
@@ -212,7 +228,7 @@ export function GameServerDetailPage() {
     },
     {
       key: 'settings',
-      label: t('gameServerDetail.tabSettings'),
+      label: tabLabel(<SettingOutlined aria-hidden />, t('gameServerDetail.tabSettings')),
       children: (
         <GameServerPropertiesPanel
           vpsId={vpsId}
@@ -225,7 +241,7 @@ export function GameServerDetailPage() {
       ? [
           {
             key: 'mods',
-            label: t('gameServerDetail.tabMods'),
+            label: tabLabel(<AppstoreOutlined aria-hidden />, t('gameServerDetail.tabMods')),
             children: (
               <GameServerModsPanel
                 vpsId={vpsId}
@@ -239,7 +255,7 @@ export function GameServerDetailPage() {
       : []),
     {
       key: 'files',
-      label: t('gameServerDetail.tabFiles'),
+      label: tabLabel(<FolderOutlined aria-hidden />, t('gameServerDetail.tabFiles')),
       children: (
         <GameServerFilesPanel vpsId={vpsId} gameServerId={game.id} agentOnline={agentOnline} />
       ),
@@ -248,7 +264,7 @@ export function GameServerDetailPage() {
 
   return (
     <div className="servers-page servers-page--detail">
-      <section className="servers-hero servers-hero--detail">
+      <section className="servers-hero servers-hero--detail game-server-detail-hero">
         <div className="servers-hero-ambient" aria-hidden>
           <span className="servers-hero-blob servers-hero-blob--1" />
           <span className="servers-hero-blob servers-hero-blob--2" />
@@ -256,28 +272,73 @@ export function GameServerDetailPage() {
         </div>
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
-            <Link to={`/servers/${vpsId}`} className="servers-detail-back">
-              <ArrowLeftOutlined /> {t('gameServerDetail.backToDedicated')}
-            </Link>
+            <Breadcrumb
+              className="game-server-detail-breadcrumb"
+              items={[
+                {
+                  title: <Link to="/servers">{t('layout.navServers')}</Link>,
+                },
+                {
+                  title: <Link to={`/servers/${vpsId}`}>{vps.name}</Link>,
+                },
+                {
+                  title: game.name,
+                },
+              ]}
+            />
             <span className="servers-badge">{t('gameServerDetail.badge')}</span>
             <Title level={1} className="servers-title">
               <span className="servers-title-highlight">{game.name}</span>
             </Title>
-            <div className="servers-card-tags">
-              <Tag color={gameServerStatusColor(game.status)}>{gameStatusLabel(game.status)}</Tag>
-              <Tag>{gameServerTypeLabelText(t, serverType)}</Tag>
-            </div>
-            <Paragraph className="servers-intro">
-              {formatGameServerMcVersionLabel(game.mc_version)} ·{' '}
-              {formatGameServerLoaderVersionLabel(game.loader_version, game.server_type)}
-              {game.address ? ` · ${game.address}:${game.port ?? '—'}` : null}
-            </Paragraph>
           </div>
         </div>
       </section>
 
       <section className="servers-section">
         <div className="servers-panel">
+          <div className="game-server-detail-summary">
+            <div className="game-server-detail-summary-item">
+              <span className="game-server-detail-summary-label">
+                {t('servers.gameServerStatus')}
+              </span>
+              <span className="game-server-detail-summary-value">
+                <Tag color={gameServerStatusColor(game.status)}>{gameStatusLabel(game.status)}</Tag>
+              </span>
+            </div>
+            <div className="game-server-detail-summary-item">
+              <span className="game-server-detail-summary-label">
+                {t('servers.gameServerMcVersion')}
+              </span>
+              <span className="game-server-detail-summary-value">
+                {formatGameServerMcVersionLabel(game.mc_version)}
+              </span>
+            </div>
+            <div className="game-server-detail-summary-item">
+              <span className="game-server-detail-summary-label">
+                {t('servers.gameServerTypeLabel')}
+              </span>
+              <span className="game-server-detail-summary-value">
+                {gameServerTypeLabelText(t, serverType)}
+              </span>
+            </div>
+            <div className="game-server-detail-summary-item">
+              <span className="game-server-detail-summary-label">
+                {t('servers.gameServerPort')}
+              </span>
+              <span className="game-server-detail-summary-value">
+                {game.address ? `${game.address}:${game.port ?? '—'}` : '—'}
+              </span>
+            </div>
+            <div
+              className={`game-server-detail-summary-item game-server-detail-summary-item--agent-${agentOnline ? 'online' : 'offline'}`}
+            >
+              <span className="game-server-detail-summary-label">
+                {t('gameServerDetail.summaryAgent')}
+              </span>
+              <span className="game-server-detail-summary-value">{agentConnectionLabel}</span>
+            </div>
+          </div>
+
           <div className="servers-game-card-actions game-server-detail-actions">
             <Button
               type="default"
@@ -337,7 +398,18 @@ export function GameServerDetailPage() {
             />
           ) : null}
 
-          <Tabs className="game-server-detail-tabs" items={tabItems} />
+          <GameServerInstanceBinding
+            gameServerId={game.id}
+            mcVersion={game.mc_version ?? '1.21'}
+            loader={game.server_type ?? 'vanilla'}
+            hasAddress={Boolean(game.address?.trim())}
+          />
+
+          <Tabs
+            className="game-server-detail-tabs"
+            defaultActiveKey={showConsole ? 'console' : 'settings'}
+            items={tabItems}
+          />
         </div>
       </section>
     </div>

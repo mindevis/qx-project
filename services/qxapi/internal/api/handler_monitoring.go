@@ -67,6 +67,23 @@ func (h *MonitoringHandler) ClearBinding(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *MonitoringHandler) ListBindable(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	items, err := h.Service.ListBindableServers(c.Request.Context(), userID.(string), servers.ListMonitoringInput{
+		MCVersion: c.Query("mc_version"),
+		Loader:    c.Query("loader"),
+	})
+	if err != nil {
+		monitoringError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
 func (h *MonitoringHandler) List(c *gin.Context) {
 	items, err := h.Service.ListMonitoringServers(c.Request.Context(), servers.ListMonitoringInput{
 		MCVersion: c.Query("mc_version"),

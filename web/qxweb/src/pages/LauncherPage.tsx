@@ -3,15 +3,18 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import {
   Alert,
   Button,
+  Empty,
   Form,
   Input,
   InputNumber,
+  List,
   Modal,
   Popconfirm,
   Segmented,
   Select,
   Space,
   Spin,
+  Tabs,
   Typography,
 } from 'antd';
 import type { DefaultOptionType } from 'antd/es/select';
@@ -22,12 +25,15 @@ import {
   DownloadOutlined,
   AppstoreOutlined,
   CloudDownloadOutlined,
+  CloudServerOutlined,
+  GlobalOutlined,
   LinkOutlined,
   LoginOutlined,
   PlusOutlined,
   RocketOutlined,
   ReloadOutlined,
   SettingOutlined,
+  SkinOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { LauncherDownloadButton } from '@/components/LauncherDownloadButton';
@@ -59,6 +65,7 @@ import {
   clearLinkedDevice,
   saveLinkedDevice,
   ApiRequestError,
+  type InstanceResource,
   type LauncherInstance,
   type MojangLinkStatus,
   type OfflineProfile,
@@ -72,6 +79,7 @@ import { logger } from '@/lib/logger';
 import { isUpdateAvailable } from '@/lib/launcherVersion';
 import { openLauncherDownload, resolveLauncherDownloadUrl, type LauncherRelease } from '@/lib/launcherDownload';
 import { isModdedLauncherLoader } from '@/lib/isModdedLoader';
+import { ModSourceBadge } from '@/components/ModSourceBadge';
 import {
   getLaunchErrorKey,
   isLaunchTerminal,
@@ -138,7 +146,14 @@ function LauncherHome() {
   const [mojangLoading, setMojangLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInstance, setSettingsInstance] = useState<LauncherInstance | null>(null);
+  const [settingsTab, setSettingsTab] = useState<'launch' | 'mods'>('launch');
   const [settingsRamMb, setSettingsRamMb] = useState(2048);
+  const [settingsMinRamMb, setSettingsMinRamMb] = useState<number | null>(null);
+  const [settingsExtraJvmArgs, setSettingsExtraJvmArgs] = useState('');
+  const [settingsWindowWidth, setSettingsWindowWidth] = useState<number | null>(null);
+  const [settingsWindowHeight, setSettingsWindowHeight] = useState<number | null>(null);
+  const [settingsMods, setSettingsMods] = useState<InstanceResource[]>([]);
+  const [settingsModsLoading, setSettingsModsLoading] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const userChoseAccountMode = useRef(false);
   const [, setAccessKey] = useState(0);
@@ -565,7 +580,6 @@ function LauncherHome() {
   ) => {
     const started = Date.now();
     const timeoutMs = 30 * 60 * 1000;
-    let lastStatus: string | undefined;
     while (Date.now() - started < timeoutMs) {
       try {
         const req = await api.getLaunchRequest(requestId);
@@ -578,20 +592,7 @@ function LauncherHome() {
           needsMojangRelink:
             launchAccountMode === 'licensed' && req.error_code === 'MOJANG_SESSION',
         });
-        if (req.status !== lastStatus) {
-          lastStatus = req.status;
-          if (!isLaunchTerminal(req.status)) {
-            message.info(launchStatusMessage(req.status), 2);
-          }
-        }
         if (isLaunchTerminal(req.status)) {
-          if (req.status === 'completed') {
-            message.success(t('launcher.gameLaunched'));
-          } else if (req.status === 'failed') {
-            message.error(launchErrorMessage(req.error_code));
-          } else {
-            message.warning(launchStatusMessage(req.status));
-          }
           setLaunchProgress((prev) =>
             prev?.requestId === requestId
               ? {
@@ -607,7 +608,6 @@ function LauncherHome() {
         }
       } catch (e) {
         if (e instanceof ApiRequestError && e.apiCode === 'MOJANG_UNAVAILABLE') {
-          message.warning(launchErrorMessage('MOJANG_UNAVAILABLE'), 3);
           continue;
         }
         if (e instanceof ApiRequestError && e.apiCode === 'MOJANG_SESSION') {
@@ -619,7 +619,6 @@ function LauncherHome() {
             errorCode: 'MOJANG_SESSION',
             needsMojangRelink: launchAccountMode === 'licensed',
           });
-          message.error(launchErrorMessage('MOJANG_SESSION'));
           return;
         }
         throw e;
@@ -628,8 +627,13 @@ function LauncherHome() {
       await new Promise((r) => setTimeout(r, LAUNCH_POLL_MS));
     }
     /* v8 ignore next -- @preserve */
-    message.warning(t('launcher.launchTimeout'));
-    setLaunchProgress(null);
+    setLaunchProgress({
+      instanceId,
+      requestId,
+      status: 'failed',
+      accountMode: launchAccountMode,
+      errorCode: 'LAUNCH_TIMEOUT',
+    });
   };
 
   const handleRequestLauncherUpdate = async () => {
@@ -657,16 +661,49 @@ function LauncherHome() {
 
   const openInstanceSettings = (instance: LauncherInstance) => {
     setSettingsInstance(instance);
+    setSettingsTab('launch');
     setSettingsRamMb(instance.max_memory_mb ?? 2048);
+    setSettingsMinRamMb(instance.min_memory_mb ?? null);
+    setSettingsExtraJvmArgs((instance.extra_jvm_args ?? []).join('\n'));
+    setSettingsWindowWidth(instance.window_width ?? null);
+    setSettingsWindowHeight(instance.window_height ?? null);
+    setSettingsMods([]);
     setSettingsOpen(true);
   };
+
+  const loadSettingsMods = useCallback(async (instanceId: string) => {
+    setSettingsModsLoading(true);
+    try {
+      const res = await api.listInstanceResources(instanceId);
+      setSettingsMods((res.items ?? []).filter((item) => item.resource_type === 'mod'));
+    } catch {
+      setSettingsMods([]);
+    } finally {
+      setSettingsModsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!settingsOpen || settingsTab !== 'mods' || !settingsInstance) {
+      return;
+    }
+    void loadSettingsMods(settingsInstance.id);
+  }, [settingsOpen, settingsTab, settingsInstance, loadSettingsMods]);
 
   const handleSaveInstanceSettings = async () => {
     if (!settingsInstance) return;
     setSavingSettings(true);
     try {
+      const extraJvmArgs = settingsExtraJvmArgs
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
       const updated = await api.updateInstance(settingsInstance.id, {
         max_memory_mb: settingsRamMb,
+        ...(settingsMinRamMb != null ? { min_memory_mb: settingsMinRamMb } : {}),
+        extra_jvm_args: extraJvmArgs,
+        window_width: settingsWindowWidth ?? 0,
+        window_height: settingsWindowHeight ?? 0,
       });
       setInstances((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
       message.success(t('launcher.instanceSettingsSaved'));
@@ -705,7 +742,6 @@ function LauncherHome() {
         status: req.status,
         accountMode: launchAccountMode,
       });
-      message.info(t('launcher.launchSent'));
       await pollLaunchRequest(req.id, instance.id, launchAccountMode);
     } catch (e) {
       setLaunchProgress(null);
@@ -867,6 +903,23 @@ function LauncherHome() {
             </div>
           ) : null}
         </div>
+
+        {isAuthenticated ? (
+          <nav className="launcher-ecosystem-links" aria-label={t('launcher.ecosystemNav')}>
+            <Link to="/monitoring" className="launcher-ecosystem-link">
+              <GlobalOutlined aria-hidden />
+              {t('layout.navMonitoring')}
+            </Link>
+            <Link to="/skins" className="launcher-ecosystem-link">
+              <SkinOutlined aria-hidden />
+              {t('layout.navSkins')}
+            </Link>
+            <Link to="/servers" className="launcher-ecosystem-link">
+              <CloudServerOutlined aria-hidden />
+              {t('layout.navServers')}
+            </Link>
+          </nav>
+        ) : null}
 
         {!linkedDevice && isAuthenticated && (
           <div className="launcher-download-band">
@@ -1226,7 +1279,7 @@ function LauncherHome() {
                         </div>
                         <div className="launcher-instance-tags">
                           <span className="launcher-tag launcher-tag--version">
-                            Minecraft {item.mc_version}
+                            {t('launcher.minecraftVersionPrefix')} {item.mc_version}
                           </span>
                           <span className="launcher-tag">
                             {isLauncherLoader(item.loader) ? loaderLabel(item.loader) : item.loader}
@@ -1316,7 +1369,7 @@ function LauncherHome() {
             label={t('common.name')}
             rules={[{ required: true, message: t('launcher.nameRequired') }]}
           >
-            <Input placeholder="Survival" />
+            <Input placeholder={t('launcher.placeholderInstanceName')} />
           </Form.Item>
           <Form.Item
             name="loader"
@@ -1385,7 +1438,7 @@ function LauncherHome() {
               { max: 16, message: t('launcher.nicknameMax16') },
             ]}
           >
-            <Input placeholder="Steve" maxLength={16} />
+            <Input placeholder={t('launcher.placeholderNickname')} maxLength={16} />
           </Form.Item>
           <Form.Item
             name="model"
@@ -1409,22 +1462,134 @@ function LauncherHome() {
         okText={t('common.save')}
         cancelText={t('common.cancel')}
         destroyOnHidden
+        width={640}
         {...modalMotionProps}
       >
-        <Paragraph type="secondary">{t('launcher.instanceSettingsHint')}</Paragraph>
-        <Form layout="vertical">
-          <Form.Item label={t('launcher.maxMemoryMb')}>
-            <InputNumber
-              min={512}
-              max={65536}
-              step={512}
-              addonAfter="MB"
-              value={settingsRamMb}
-              onChange={(value) => setSettingsRamMb(value ?? 2048)}
-              style={{ width: '100%' }}
-            />
-          </Form.Item>
-        </Form>
+        <Tabs
+          activeKey={settingsTab}
+          onChange={(key) => setSettingsTab(key as 'launch' | 'mods')}
+          items={[
+            {
+              key: 'launch',
+              label: t('launcher.instanceSettingsTabLaunch'),
+              children: (
+                <>
+                  <Paragraph type="secondary">{t('launcher.instanceSettingsHint')}</Paragraph>
+                  <Form layout="vertical">
+                    <Form.Item label={t('launcher.minMemoryMb')}>
+                      <InputNumber
+                        min={512}
+                        max={65536}
+                        step={512}
+                        addonAfter={t('common.megabytes')}
+                        value={settingsMinRamMb}
+                        onChange={(value) => setSettingsMinRamMb(value)}
+                        style={{ width: '100%' }}
+                        placeholder="—"
+                      />
+                    </Form.Item>
+                    <Form.Item label={t('launcher.maxMemoryMb')}>
+                      <InputNumber
+                        min={512}
+                        max={65536}
+                        step={512}
+                        addonAfter={t('common.megabytes')}
+                        value={settingsRamMb}
+                        onChange={(value) => setSettingsRamMb(value ?? 2048)}
+                        style={{ width: '100%' }}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      label={t('launcher.extraJvmArgs')}
+                      extra={t('launcher.extraJvmArgsHint')}
+                    >
+                      <Input.TextArea
+                        rows={4}
+                        value={settingsExtraJvmArgs}
+                        onChange={(e) => setSettingsExtraJvmArgs(e.target.value)}
+                        placeholder="-XX:+UseG1GC"
+                      />
+                    </Form.Item>
+                    <Space size="middle" style={{ width: '100%' }}>
+                      <Form.Item label={t('launcher.windowWidth')} style={{ flex: 1, marginBottom: 0 }}>
+                        <InputNumber
+                          min={320}
+                          max={7680}
+                          value={settingsWindowWidth}
+                          onChange={(value) => setSettingsWindowWidth(value)}
+                          style={{ width: '100%' }}
+                          placeholder="—"
+                        />
+                      </Form.Item>
+                      <Form.Item label={t('launcher.windowHeight')} style={{ flex: 1, marginBottom: 0 }}>
+                        <InputNumber
+                          min={320}
+                          max={7680}
+                          value={settingsWindowHeight}
+                          onChange={(value) => setSettingsWindowHeight(value)}
+                          style={{ width: '100%' }}
+                          placeholder="—"
+                        />
+                      </Form.Item>
+                    </Space>
+                  </Form>
+                </>
+              ),
+            },
+            {
+              key: 'mods',
+              label: t('launcher.instanceSettingsTabMods'),
+              children: (
+                <div className="launcher-instance-settings-mods">
+                  {!linkedDevice ? (
+                    <Alert
+                      type="info"
+                      showIcon
+                      message={t('launcher.instanceSettingsModsConfigNote')}
+                      className="launcher-instance-settings-mods-note"
+                    />
+                  ) : null}
+                  <div className="launcher-instance-settings-mods-body">
+                    {settingsModsLoading ? (
+                      <div className="launcher-instance-settings-mods-loading">
+                        <Spin />
+                      </div>
+                    ) : settingsMods.length === 0 ? (
+                      <Empty description={t('launcher.instanceSettingsModsEmpty')} />
+                    ) : (
+                      <List
+                        aria-label={t('launcher.instanceSettingsModsListAria')}
+                        className="launcher-instance-settings-mods-list"
+                        dataSource={settingsMods}
+                        renderItem={(item) => (
+                          <List.Item
+                            key={`${item.source}:${item.project_id ?? item.filename}`}
+                            className="launcher-instance-settings-mod-item"
+                          >
+                            <List.Item.Meta
+                              title={
+                                <span>
+                                  {item.project_name} <ModSourceBadge source={item.source} />
+                                </span>
+                              }
+                              description={
+                                <Text type="secondary">
+                                  {item.version_number ? item.version_number : ''}
+                                  {item.version_number && item.filename ? ' · ' : ''}
+                                  {item.filename ?? ''}
+                                </Text>
+                              }
+                            />
+                          </List.Item>
+                        )}
+                      />
+                    )}
+                  </div>
+                </div>
+              ),
+            },
+          ]}
+        />
       </Modal>
     </div>
   );

@@ -7,6 +7,7 @@ import {
   LoginOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
+  SkinOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/auth/AuthContext';
@@ -57,11 +58,19 @@ export function HomePage() {
       body: t('home.qxagentBody'),
       href: '/servers',
     },
+    {
+      key: 'qxskins',
+      icon: <SkinOutlined />,
+      title: t('home.qxskinsTitle'),
+      body: t('home.qxskinsBody'),
+      href: '/skins',
+    },
   ] as const;
 
   const heroTags = [
     { key: 'launcher', label: t('home.heroTagLauncher') },
     { key: 'agent', label: t('home.heroTagAgent') },
+    { key: 'skins', label: t('home.heroTagSkins') },
   ];
 
   const benefits = [

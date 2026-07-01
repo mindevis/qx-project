@@ -9,6 +9,7 @@ import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useAuth } from '@/auth/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import './InstanceServerBinding.css';
 
 const { Text } = Typography;
 
@@ -32,7 +33,7 @@ export function InstanceServerBinding() {
     setLoading(true);
     try {
       const [serverRes, bindingRes] = await Promise.all([
-        api.listMonitoringServers({
+        api.listBindableServers({
           mc_version: instance.mc_version,
           loader: instance.loader,
         }),
@@ -107,6 +108,13 @@ export function InstanceServerBinding() {
       </Text>
       {loading ? (
         <Spin size="small" />
+      ) : options.length === 0 ? (
+        <Text type="secondary" className="qxmods-binding-empty">
+          {t('qxmods.binding.empty', {
+            mc: instance.mc_version,
+            loader: instance.loader,
+          })}
+        </Text>
       ) : (
         <Select
           allowClear

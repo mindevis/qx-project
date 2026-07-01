@@ -102,28 +102,26 @@ func TestInstanceBinding_RejectsForeignInstance(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
-func TestInstanceBinding_RejectsHiddenServer(t *testing.T) {
+func TestInstanceBinding_OwnServerWithoutMonitoring(t *testing.T) {
 	db := testutil.OpenSQLiteDB(t)
 	svc := NewService(db, nil, nil, nil, NoopDeployer{})
 	ctx := context.Background()
 
-	ownerID := "binding-user-3"
+	ownerID := "owner-hidden"
 	now := time.Now().UTC()
 	vpsID := "vps-hidden"
 	addr := "hidden.example.com"
 	require.NoError(t, db.Create(&models.User{
-		ID: "owner-hidden", Email: "hidden@example.com", PasswordHash: "x", Tier: "free", CreatedAt: now, UpdatedAt: now,
+		ID: ownerID, Email: "hidden@example.com", PasswordHash: "x", Tier: "free", CreatedAt: now, UpdatedAt: now,
 	}).Error)
 	require.NoError(t, db.Create(&models.Server{
-		ID: vpsID, OwnerID: "owner-hidden", Name: "VPS", Status: models.ServerStatusOnline, CreatedAt: now, UpdatedAt: now,
+		ID: vpsID, OwnerID: ownerID, Name: "VPS", Status: models.ServerStatusOnline, CreatedAt: now, UpdatedAt: now,
 	}).Error)
+	gameServerID := "gs-hidden"
 	require.NoError(t, db.Create(&models.GameServer{
-		ID: "gs-hidden", ServerID: vpsID, Name: "Hidden",
+		ID: gameServerID, ServerID: vpsID, Name: "Hidden",
 		ServerType: models.ServerTypeVanilla, MCVersion: "1.21", Address: &addr, Port: 25565,
 		Status: models.GameServerStatusRunning, ShowInMonitoring: false, CreatedAt: now, UpdatedAt: now,
-	}).Error)
-	require.NoError(t, db.Create(&models.User{
-		ID: ownerID, Email: "binding-user-3@example.com", PasswordHash: "x", Tier: "free", CreatedAt: now, UpdatedAt: now,
 	}).Error)
 	instID := "inst-hidden"
 	require.NoError(t, db.Create(&models.LauncherInstance{
@@ -131,6 +129,46 @@ func TestInstanceBinding_RejectsHiddenServer(t *testing.T) {
 		CreatedAt: now, UpdatedAt: now,
 	}).Error)
 
-	_, err := svc.SetInstanceBinding(ctx, ownerID, "gs-hidden", instID)
+	view, err := svc.SetInstanceBinding(ctx, ownerID, gameServerID, instID)
+	require.NoError(t, err)
+	require.Equal(t, gameServerID, view.GameServerID)
+
+	items, err := svc.ListBindableServers(ctx, ownerID, ListMonitoringInput{MCVersion: "1.21", Loader: "vanilla"})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, gameServerID, items[0].ID)
+}
+
+func TestInstanceBinding_RejectsForeignHiddenServer(t *testing.T) {
+	db := testutil.OpenSQLiteDB(t)
+	svc := NewService(db, nil, nil, nil, NoopDeployer{})
+	ctx := context.Background()
+
+	ownerID := "owner-hidden"
+	now := time.Now().UTC()
+	vpsID := "vps-hidden"
+	addr := "hidden.example.com"
+	require.NoError(t, db.Create(&models.User{
+		ID: ownerID, Email: "hidden@example.com", PasswordHash: "x", Tier: "free", CreatedAt: now, UpdatedAt: now,
+	}).Error)
+	require.NoError(t, db.Create(&models.Server{
+		ID: vpsID, OwnerID: ownerID, Name: "VPS", Status: models.ServerStatusOnline, CreatedAt: now, UpdatedAt: now,
+	}).Error)
+	require.NoError(t, db.Create(&models.GameServer{
+		ID: "gs-hidden", ServerID: vpsID, Name: "Hidden",
+		ServerType: models.ServerTypeVanilla, MCVersion: "1.21", Address: &addr, Port: 25565,
+		Status: models.GameServerStatusRunning, ShowInMonitoring: false, CreatedAt: now, UpdatedAt: now,
+	}).Error)
+	bindingUser := "binding-user-3"
+	require.NoError(t, db.Create(&models.User{
+		ID: bindingUser, Email: "binding-user-3@example.com", PasswordHash: "x", Tier: "free", CreatedAt: now, UpdatedAt: now,
+	}).Error)
+	instID := "inst-hidden"
+	require.NoError(t, db.Create(&models.LauncherInstance{
+		ID: instID, UserID: &bindingUser, Name: "Mine", MCVersion: "1.21", Loader: models.LoaderVanilla,
+		CreatedAt: now, UpdatedAt: now,
+	}).Error)
+
+	_, err := svc.SetInstanceBinding(ctx, bindingUser, "gs-hidden", instID)
 	require.ErrorIs(t, err, ErrNotFound)
 }

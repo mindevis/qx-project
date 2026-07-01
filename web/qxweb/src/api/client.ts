@@ -76,6 +76,10 @@ export type LauncherInstance = {
   loader: string;
   loader_version?: string;
   max_memory_mb?: number;
+  min_memory_mb?: number;
+  extra_jvm_args?: string[];
+  window_width?: number;
+  window_height?: number;
   created_at: string;
   updated_at: string;
 };
@@ -105,6 +109,15 @@ export type UserCosmetics = {
   cape_type?: 'none' | 'qx' | 'custom';
   cape_url?: string;
   updated_at: string;
+};
+
+export type SkinCatalogEntry = {
+  id: string;
+  name: string;
+  source: string;
+  username: string;
+  category: string;
+  preview_url: string;
 };
 
 export type LaunchRequest = {
@@ -602,6 +615,21 @@ export const api = {
   deleteCosmeticsSkin: () =>
     request<UserCosmetics>('/users/me/cosmetics/skin', { method: 'DELETE' }),
 
+  listSkinCatalog: (params?: { category?: string }) => {
+    const search = new URLSearchParams();
+    if (params?.category) search.set('category', params.category);
+    const qs = search.toString();
+    return request<{ items: SkinCatalogEntry[] }>(
+      `/cosmetics/skin-catalog${qs ? `?${qs}` : ''}`,
+    );
+  },
+
+  applyCosmeticsSkin: (body: { catalog_id?: string; username?: string }) =>
+    request<UserCosmetics>('/users/me/cosmetics/skin/apply', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   uploadCosmeticsCape: async (file: File) => {
     await ensureFreshTokens();
     const form = new FormData();
@@ -654,7 +682,16 @@ export const api = {
   deleteInstance: (id: string) =>
     request<void>(`/instances/${id}`, { method: 'DELETE' }, 'launcher'),
 
-  updateInstance: (id: string, body: { max_memory_mb: number }) =>
+  updateInstance: (
+    id: string,
+    body: {
+      max_memory_mb?: number;
+      min_memory_mb?: number;
+      extra_jvm_args?: string[];
+      window_width?: number | null;
+      window_height?: number | null;
+    },
+  ) =>
     request<LauncherInstance>(`/instances/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -881,6 +918,16 @@ export const api = {
       `/monitoring/servers${qs ? `?${qs}` : ''}`,
       {},
       false,
+    );
+  },
+
+  listBindableServers: (params?: { mc_version?: string; loader?: string }) => {
+    const search = new URLSearchParams();
+    if (params?.mc_version) search.set('mc_version', params.mc_version);
+    if (params?.loader) search.set('loader', params.loader);
+    const qs = search.toString();
+    return request<{ items: MonitoringServer[] }>(
+      `/monitoring/bindable-servers${qs ? `?${qs}` : ''}`,
     );
   },
 

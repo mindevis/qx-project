@@ -19,6 +19,23 @@ type LaunchInstance struct {
 	Loader        string
 	LoaderVersion string
 	MaxMemoryMB   int
+	MinMemoryMB   int
+	ExtraJVMArgs  []string
+	WindowWidth   *int
+	WindowHeight  *int
+}
+
+func applyLaunchSettings(manifest *mcmanifest.InstanceLaunchManifest, inst LaunchInstance) {
+	if inst.MinMemoryMB > 0 {
+		mcmanifest.ApplyMinMemoryMB(manifest, inst.MinMemoryMB)
+	}
+	if inst.MaxMemoryMB > 0 {
+		mcmanifest.ApplyMaxMemoryMB(manifest, inst.MaxMemoryMB)
+	}
+	if len(inst.ExtraJVMArgs) > 0 {
+		mcmanifest.ApplyExtraJVMArgs(manifest, inst.ExtraJVMArgs)
+	}
+	mcmanifest.ApplyWindowSize(manifest, inst.WindowWidth, inst.WindowHeight)
 }
 
 func (d *Downloader) BuildLaunchManifest(ctx context.Context, inst LaunchInstance) (*mcmanifest.InstanceLaunchManifest, error) {
@@ -33,8 +50,6 @@ func (d *Downloader) BuildLaunchManifest(ctx context.Context, inst LaunchInstanc
 	if err != nil {
 		return nil, err
 	}
-	if inst.MaxMemoryMB > 0 {
-		mcmanifest.ApplyMaxMemoryMB(manifest, inst.MaxMemoryMB)
-	}
+	applyLaunchSettings(manifest, inst)
 	return manifest, nil
 }

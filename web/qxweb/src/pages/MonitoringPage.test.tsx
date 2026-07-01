@@ -293,4 +293,143 @@ describe('MonitoringPage', () => {
       { timeout: 5000 },
     );
   }, 20000);
+
+  it('shows guest hint for QXLauncher binding on server cards', async () => {
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    expect(document.querySelector('.monitoring-connect-guest-hint')).toBeTruthy();
+  });
+
+  it('debounces search input before refetching servers', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(<MonitoringPage />, '/monitoring');
+      await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+      const callsBefore = vi.mocked(api.listMonitoringServers).mock.calls.length;
+      const search = screen.getByPlaceholderText(/\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044e/i);
+      await user.type(search, 'survival');
+      await vi.advanceTimersByTimeAsync(399);
+      expect(vi.mocked(api.listMonitoringServers).mock.calls.length).toBe(callsBefore);
+      await vi.advanceTimersByTimeAsync(1);
+      await waitFor(() =>
+        expect(api.listMonitoringServers).toHaveBeenCalledWith(
+          expect.objectContaining({ q: 'survival' }),
+        ),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sorts servers by name when sort option changes', async () => {
+    vi.mocked(api.listMonitoringServers).mockResolvedValue({
+      items: [
+        { ...sampleServer, id: 'mon-2', name: 'Zeta Realm' },
+        { ...sampleServer, id: 'mon-3', name: 'Alpha Realm' },
+      ],
+    });
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Zeta Realm')).toBeInTheDocument());
+
+    const comboboxes = screen.getAllByRole('combobox');
+    await user.click(comboboxes[4]);
+    await user.click(await screen.findByText(/\u041f\u043e \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044e/i));
+
+    const cards = screen.getAllByText(/Realm$/).map((el) => el.textContent);
+    expect(cards.indexOf('Alpha Realm')).toBeLessThan(cards.indexOf('Zeta Realm'));
+  });
+
+  it('opens minecraft link when launch request fails without error toast', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+      saved_at: Date.now(),
+    });
+    vi.mocked(fetch).mockImplementation(mockAuthedFetch());
+    vi.spyOn(api, 'listInstances').mockResolvedValue({
+      items: [
+        {
+          id: 'inst-1',
+          name: 'Forge Client',
+          mc_version: '1.21',
+          loader: 'forge',
+          created_at: 'now',
+          updated_at: 'now',
+        },
+      ],
+    });
+    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
+      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client' }],
+    });
+    vi.spyOn(api, 'myLauncherDevice').mockResolvedValue({
+      device_id: 'dev-1',
+      owner_type: 'user',
+    });
+    vi.spyOn(api, 'listProfiles').mockResolvedValue({
+      items: [{ id: 'prof-1', username: 'Steve', offline_uuid: 'uuid', model: 'steve', created_at: 'now' }],
+    });
+    vi.spyOn(api, 'createLaunchRequest').mockRejectedValue(new Error('launch failed'));
+    const hrefSetter = vi.fn();
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        ...originalLocation,
+        assign: hrefSetter,
+        get href() {
+          return '';
+        },
+        set href(value) {
+          hrefSetter(value);
+        },
+      },
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await waitFor(() => expect(api.myLauncherDevice).toHaveBeenCalled());
+
+    await user.click(screen.getByRole('button', { name: /\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f/i }));
+
+    await waitFor(() => expect(hrefSetter).toHaveBeenCalled());
+    expect(message.error).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+  });
+
+  it('refreshes server list from hero button', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    vi.mocked(api.listMonitoringServers).mockClear();
+    await user.click(screen.getByRole('button', { name: /\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c/i }));
+    await waitFor(() => expect(api.listMonitoringServers).toHaveBeenCalled());
+  });
+
+  it('rates a server when authenticated', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+      saved_at: Date.now(),
+    });
+    vi.mocked(fetch).mockImplementation(mockAuthedFetch());
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+
+    const card = screen.getByText('Survival World').closest('article');
+    expect(card).not.toBeNull();
+    const stars = within(card!).getAllByRole('radio');
+    await user.click(stars[4]);
+    await waitFor(() => expect(api.rateMonitoringServer).toHaveBeenCalledWith('mon-1', 5));
+    expect(message.success).toHaveBeenCalled();
+  });
+
 });

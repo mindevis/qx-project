@@ -430,7 +430,7 @@ describe('ServersPage', () => {
     expect(screen.getByText('Paper')).toBeInTheDocument();
     expect(screen.getAllByText('1.21').length).toBeGreaterThan(0);
     expect(screen.getByText('456')).toBeInTheDocument();
-    expect(screen.getByText('1.2.3.4:25565')).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.textContent === '1.2.3.4:25565')).toBeInTheDocument();
   });
 
   it('shows offline agent hint on detail page', async () => {

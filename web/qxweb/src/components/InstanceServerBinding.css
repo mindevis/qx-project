@@ -1,0 +1,22 @@
+.game-server-binding {
+  margin: 20px 0 0;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-bg-container);
+}
+
+.game-server-binding-title {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.game-server-binding-hint {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.game-server-binding-select {
+  width: 100%;
+  max-width: 420px;
+}

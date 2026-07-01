@@ -56,8 +56,7 @@ test.describe('launcher registered flow (Flow A web)', () => {
     await expect(page.getByText('Мои инстансы')).toBeVisible();
     await expect(page.getByText('Registered Play')).toBeVisible();
     await page.getByRole('button', { name: 'Играть' }).click();
-    await expect(page.getByText('Игра запущена')).toBeVisible({ timeout: 15_000 });
-    expect(state.launchRequests.size).toBe(1);
+    await expect.poll(() => state.launchRequests.size).toBe(1);
     const launch = [...state.launchRequests.values()][0];
     expect(launch.offline_profile_id).toBe('prof-1');
   });

@@ -12,7 +12,7 @@ import { useMessage } from '@/hooks/useMessage';
 import { gameServerSupportsMods, isKnownGameServerType } from '@/lib/gameServerTypes';
 import { isModOnServer } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
-import { listVpsGameServers, type VpsGameServer } from '@/lib/vpsGameServers';
+import { listVpsGameServers, restartVpsGameServer, type VpsGameServer } from '@/lib/vpsGameServers';
 
 const { Text } = Typography;
 
@@ -108,6 +108,24 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
     return isModOnServer(selectedTarget.serverMods, selection.version);
   }, [selectedTarget, selection]);
 
+  const promptServerRestart = (target: SyncTarget) => {
+    Modal.confirm({
+      title: t('qxmods.sync.restartTitle'),
+      content: t('qxmods.sync.restartPrompt', { name: target.gameServer.name }),
+      okText: t('qxmods.sync.restartConfirm'),
+      cancelText: t('common.cancel'),
+      onOk: async () => {
+        try {
+          await restartVpsGameServer(target.vpsId, target.gameServer.id);
+          message.success(t('servers.gameServerRestartStarted'));
+        } catch (e) {
+          message.error(e instanceof Error ? e.message : t('common.error'));
+          throw e;
+        }
+      },
+    });
+  };
+
   const handleSync = async () => {
     if (!selection || !selectedTarget) return;
     const file = selection.version.files[0];
@@ -115,9 +133,10 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
       message.error(t('qxmods.sync.noFile'));
       return;
     }
+    const target = selectedTarget;
     setSyncing(true);
     try {
-      const res = await api.syncModToGameServer(selectedTarget.vpsId, selectedTarget.gameServer.id, {
+      const res = await api.syncModToGameServer(target.vpsId, target.gameServer.id, {
         source: selection.source,
         project_id: selection.projectId,
         version_id: selection.version.id,
@@ -128,10 +147,12 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
       });
       if (res.status === 'already_installed') {
         message.info(t('qxmods.sync.alreadyOnServer'));
-      } else {
-        message.success(t('qxmods.sync.queued'));
+        onClose();
+        return;
       }
+      message.success(t('qxmods.sync.queued'));
       onClose();
+      promptServerRestart(target);
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('qxmods.sync.failed'));
     } finally {

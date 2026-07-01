@@ -43,6 +43,11 @@ function mockSkinsFetch() {
         ),
       );
     }
+    if (url.includes('/cosmetics/skin-catalog')) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ items: [] }), { status: 200 }),
+      );
+    }
     if (url.includes('/users/me')) {
       return Promise.resolve(
         new Response(
@@ -80,8 +85,10 @@ describe('SkinsPage', () => {
   it('renders skins management for authenticated users', async () => {
     renderWithProviders(<SkinsPage />, '/skins');
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Скины' })).toBeInTheDocument());
-    expect(screen.getByText(/QXLauncher применяет их как Ely.by/i)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /QXSkins для Minecraft/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/популярных источников/i)).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Загрузить скин/i })).toBeInTheDocument(),
     );
@@ -90,7 +97,7 @@ describe('SkinsPage', () => {
   it('redirects unauthenticated users to home', async () => {
     clearTokens();
     renderWithProviders(<SkinsPage />, '/skins');
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Скины' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('heading', { name: /QXSkins/i })).not.toBeInTheDocument());
   });
 
   it('shows spinner while auth is loading', () => {

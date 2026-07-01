@@ -16,14 +16,18 @@ type InstancesHandler struct {
 }
 
 type instanceResponse struct {
-	ID            string  `json:"id"`
-	Name          string  `json:"name"`
-	MCVersion     string  `json:"mc_version"`
-	Loader        string  `json:"loader"`
-	LoaderVersion *string `json:"loader_version,omitempty"`
-	MaxMemoryMB   *int    `json:"max_memory_mb,omitempty"`
-	CreatedAt     string  `json:"created_at"`
-	UpdatedAt     string  `json:"updated_at"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	MCVersion     string   `json:"mc_version"`
+	Loader        string   `json:"loader"`
+	LoaderVersion *string  `json:"loader_version,omitempty"`
+	MaxMemoryMB   *int     `json:"max_memory_mb,omitempty"`
+	MinMemoryMB   *int     `json:"min_memory_mb,omitempty"`
+	ExtraJVMArgs  []string `json:"extra_jvm_args,omitempty"`
+	WindowWidth   *int     `json:"window_width,omitempty"`
+	WindowHeight  *int     `json:"window_height,omitempty"`
+	CreatedAt     string   `json:"created_at"`
+	UpdatedAt     string   `json:"updated_at"`
 }
 
 func instanceFromModel(inst models.LauncherInstance) instanceResponse {
@@ -34,6 +38,10 @@ func instanceFromModel(inst models.LauncherInstance) instanceResponse {
 		Loader:        inst.Loader,
 		LoaderVersion: inst.LoaderVersion,
 		MaxMemoryMB:   inst.MaxMemoryMB,
+		MinMemoryMB:   inst.MinMemoryMB,
+		ExtraJVMArgs:  []string(inst.ExtraJVMArgs),
+		WindowWidth:   inst.WindowWidth,
+		WindowHeight:  inst.WindowHeight,
 		CreatedAt:     inst.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:     inst.UpdatedAt.UTC().Format(time.RFC3339),
 	}
@@ -47,7 +55,16 @@ type createInstanceRequest struct {
 }
 
 type updateInstanceRequest struct {
-	MaxMemoryMB *int `json:"max_memory_mb"`
+	MaxMemoryMB  *int      `json:"max_memory_mb"`
+	MinMemoryMB  *int      `json:"min_memory_mb"`
+	ExtraJVMArgs *[]string `json:"extra_jvm_args"`
+	WindowWidth  *int      `json:"window_width"`
+	WindowHeight *int      `json:"window_height"`
+}
+
+func hasInstanceUpdateFields(req updateInstanceRequest) bool {
+	return req.MaxMemoryMB != nil || req.MinMemoryMB != nil || req.ExtraJVMArgs != nil ||
+		req.WindowWidth != nil || req.WindowHeight != nil
 }
 
 func (h *InstancesHandler) List(c *gin.Context) {
@@ -125,12 +142,16 @@ func (h *InstancesHandler) Update(c *gin.Context) {
 		JSONValidation(c, err.Error())
 		return
 	}
-	if req.MaxMemoryMB == nil {
-		JSONValidation(c, "max_memory_mb required")
+	if !hasInstanceUpdateFields(req) {
+		JSONValidation(c, "at least one instance setting required")
 		return
 	}
 	inst, err := h.Service.UpdateInstance(c.Request.Context(), owner, c.Param("id"), launcher.UpdateInstanceInput{
-		MaxMemoryMB: req.MaxMemoryMB,
+		MaxMemoryMB:  req.MaxMemoryMB,
+		MinMemoryMB:  req.MinMemoryMB,
+		ExtraJVMArgs: req.ExtraJVMArgs,
+		WindowWidth:  req.WindowWidth,
+		WindowHeight: req.WindowHeight,
 	})
 	if err != nil {
 		if errors.Is(err, launcher.ErrValidation) {

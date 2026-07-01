@@ -102,7 +102,7 @@ describe('AppLayout', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
-    expect(screen.getByText('Скины')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'QXSkins' })).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: 'Светлая тема' }));
     expect(window.localStorage.getItem('qxweb-theme')).toBe('light');
   });
@@ -193,6 +193,29 @@ describe('AppLayout', () => {
           : input instanceof URL
             ? input.href
             : input.url;
+      if (url.includes('/health')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+        );
+      }
+      if (url.includes('/auth/refresh')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              access_token: 'a',
+              refresh_token: 'r',
+              token_type: 'Bearer',
+              expires_in: 3600,
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/cosmetics/skin-catalog')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ items: [] }), { status: 200 }),
+        );
+      }
       if (url.includes('/users/me/cosmetics')) {
         return Promise.resolve(
           new Response(
@@ -232,8 +255,10 @@ describe('AppLayout', () => {
       '/',
     );
 
-    await waitFor(() => expect(screen.getByText('Скины')).toBeInTheDocument());
-    await user.click(screen.getByText('Скины'));
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Скины' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
+    await user.click(screen.getByRole('link', { name: 'QXSkins' }));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /QXSkins для Minecraft/i })).toBeInTheDocument(),
+    );
   });
 });

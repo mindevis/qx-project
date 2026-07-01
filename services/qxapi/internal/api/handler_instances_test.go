@@ -125,6 +125,54 @@ func TestInstancesHandlerDeleteNotFound(t *testing.T) {
 	}
 }
 
+func TestInstancesHandlerUpdate(t *testing.T) {
+	h, tokens := newInstancesHandler(t)
+	pair, _ := tokens.IssueUserTokens("user-1", "u@test.com")
+	claims, _ := tokens.Parse(pair.AccessToken)
+
+	body, _ := json.Marshal(map[string]string{
+		"name":       "Test",
+		"mc_version": "1.21",
+		"loader":     models.LoaderVanilla,
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set(UserIDKey, claims.UserID)
+	h.Create(c)
+	var created instanceResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &created)
+
+	ram := 4096
+	minRAM := 1024
+	updateBody, _ := json.Marshal(map[string]any{
+		"max_memory_mb":   ram,
+		"min_memory_mb":   minRAM,
+		"extra_jvm_args":  []string{"-XX:+UseG1GC"},
+		"window_width":    1280,
+		"window_height":   720,
+	})
+	w = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(updateBody))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: created.ID}}
+	c.Set(UserIDKey, claims.UserID)
+	h.Update(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("update: %d %s", w.Code, w.Body.String())
+	}
+	var updated instanceResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &updated)
+	if updated.MaxMemoryMB == nil || *updated.MaxMemoryMB != 4096 {
+		t.Fatalf("max memory: %+v", updated.MaxMemoryMB)
+	}
+	if len(updated.ExtraJVMArgs) != 1 {
+		t.Fatalf("extra jvm args: %+v", updated.ExtraJVMArgs)
+	}
+}
+
 func TestInstancesHandlerManifest(t *testing.T) {
 	h, tokens := newInstancesHandler(t)
 	ctx := context.Background()

@@ -21,6 +21,7 @@ export const en: Messages = {
     agent: 'Agent',
     accountMenu: 'Account menu',
     cancel: 'Cancel',
+    megabytes: 'MB',
   },
   language: {
     label: 'Language',
@@ -36,7 +37,7 @@ export const en: Messages = {
     navHome: 'Home',
     navLauncher: 'Launcher',
     navMonitoring: 'Monitoring',
-    navSkins: 'Skins',
+    navSkins: 'QXSkins',
     navServers: 'Servers',
     footer: 'QXSystem — Minecraft ecosystem',
   },
@@ -74,9 +75,9 @@ export const en: Messages = {
         description: 'QXSystem account settings, email, password, and Minecraft (Microsoft) linking.',
       },
       skins: {
-        title: 'Skins',
+        title: 'QXSkins',
         description:
-          'Upload a custom Minecraft skin and cape for QXLauncher — applied like Ely.by without mods.',
+          'Browse Mojang skins or upload your own — QXLauncher applies them without mods.',
       },
       auth: {
         title: 'Sign in',
@@ -110,6 +111,7 @@ export const en: Messages = {
     ctaServers: 'Manage servers',
     heroTagLauncher: 'Launcher',
     heroTagAgent: 'Agent',
+    heroTagSkins: 'QXSkins',
     featuresTitle: 'Everything in one platform',
     featuresSubtitle:
       'The launcher and server agent cover the full loop — from player to server administrator.',
@@ -122,6 +124,9 @@ export const en: Messages = {
     qxagentTitle: 'QXAgent',
     qxagentBody:
       'Agent on your dedicatedserver: content install, monitoring, and remote Minecraft instance management.',
+    qxskinsTitle: 'QXSkins',
+    qxskinsBody:
+      'Pick a skin from popular Mojang profiles or upload your own — QXLauncher applies it without mods, Ely.by-style.',
     benefitAccount: 'One account',
     benefitAccountDesc: 'Profile, instances, and servers sync between web and launcher.',
     benefitDedicated: 'Dedicated server',
@@ -195,9 +200,35 @@ export const en: Messages = {
     goToSkins: 'Manage skins',
   },
   skins: {
-    title: 'Skins',
+    badge: 'Skins without mods',
+    title: 'QXSkins for Minecraft',
     subtitle:
-      'Upload a custom skin and cape. QXLauncher applies them like Ely.by — no Fabric/Forge mods required.',
+      'Pick a skin from popular sources or upload your own PNG. QXLauncher keeps your choice and applies it on every launch — no mods required.',
+    catalog: {
+      sectionTitle: 'Skin catalog',
+      sectionLead:
+        'Skins from Mojang player profiles — click Select to equip. You can also search by Minecraft username.',
+      loadFailed: 'Failed to load skin catalog',
+      applyFailed: 'Failed to apply skin',
+      applied: 'Skin applied',
+      select: 'Select',
+      search: 'Search',
+      searchPlaceholder: 'Filter by name…',
+      filterPlaceholder: 'Filter catalog…',
+      usernamePlaceholder: 'Minecraft username',
+      applyUsername: 'Apply by username',
+      empty: 'No skins found',
+      sourceMojang: 'Mojang',
+      categories: {
+        all: 'All',
+        popular: 'Popular',
+        creators: 'Creators',
+        classic: 'Classic',
+      },
+    },
+    equip: {
+      sectionTitle: 'Your skin & cape',
+    },
   },
   cosmetics: {
     title: 'QX Skin Server',
@@ -382,6 +413,7 @@ export const en: Messages = {
       JAVA_FAILED: 'Java runtime is missing or failed to prepare',
       JAVA_START_FAILED: 'Java failed to start',
       LOADER_INSTALL_FAILED: 'Mod loader install failed — check QXLauncher logs',
+      LAUNCH_TIMEOUT: 'Timed out waiting for launch',
     },
     launchTimeout: 'Timed out waiting',
     launcherUnlinked: 'QXLauncher unlinked',
@@ -408,6 +440,7 @@ export const en: Messages = {
       'Pick a player profile, then launch an instance via linked QXLauncher.',
     workspaceRefresh: 'Refresh',
     workspaceRefreshed: 'Data refreshed',
+    ecosystemNav: 'QX ecosystem',
     playerSectionTitle: 'Player',
     playerSectionHint:
       'A linked Microsoft account is used by default; switch to offline for a local nickname.',
@@ -437,10 +470,23 @@ export const en: Messages = {
     browseResources: 'Resources',
     instanceSettings: 'Instance settings',
     instanceSettingsTitle: 'Settings — {{name}}',
-    instanceSettingsHint: 'Configure launch options for this instance. RAM is applied via -Xmx when QXLauncher starts the game.',
+    instanceSettingsHint: 'Configure launch options for this instance. Settings apply when QXLauncher starts the game.',
+    instanceSettingsTabLaunch: 'Launch',
+    instanceSettingsTabMods: 'Mods',
+    minMemoryMb: 'Minimum RAM',
     maxMemoryMb: 'Maximum RAM',
+    extraJvmArgs: 'Extra JVM arguments',
+    extraJvmArgsHint: 'One argument per line, appended after memory flags.',
+    windowWidth: 'Window width',
+    windowHeight: 'Window height',
+    instanceSettingsModsEmpty: 'No mods installed on this instance.',
+    instanceSettingsModsConfigNote: 'Per-mod config editing requires a linked QXLauncher on this device.',
+    instanceSettingsModsListAria: 'Installed mods',
     instanceSettingsSaved: 'Instance settings saved',
     instanceSettingsFailed: 'Failed to save instance settings',
+    placeholderInstanceName: 'Survival',
+    placeholderNickname: 'Steve',
+    minecraftVersionPrefix: 'Minecraft',
   },
   launcherInstanceResources: {
     backToLauncher: 'Back to launcher',
@@ -597,6 +643,8 @@ export const en: Messages = {
     gameServerRestartStarted: 'Game server is restarting…',
     deleteGameServerConfirm: 'Delete this game server?',
     noGameServers: 'No game servers yet',
+    noGameServersHint:
+      'Add a Minecraft game server on this dedicated host — configure version, loader, and port, then manage it via QXAgent.',
     gameServersAgentRequired: 'Deploy the agent and wait for it to connect first.',
     deployAgent: 'Deploy agent',
     updateAgent: 'Update QXAgent',
@@ -656,6 +704,12 @@ export const en: Messages = {
     tabMods: 'Mods',
     tabFiles: 'Files',
     consoleUnavailable: 'Console is available after the server starts.',
+    bindingTitle: 'Launcher instance binding',
+    bindingHint:
+      'Pick an instance with the same Minecraft version and loader — Connect in Monitoring will launch into this server.',
+    bindingNeedsAddress: 'Set the server IP address and port in settings before binding an instance.',
+    bindingNoInstances:
+      'No instances for MC {{mc}} / {{loader}}. Create a matching instance in the launcher.',
     propertiesLoadFailed: 'Failed to load server.properties',
     propertiesEmpty: 'server.properties is empty or unavailable.',
     propertySaved: 'Setting saved',
@@ -670,6 +724,7 @@ export const en: Messages = {
     fileSaved: 'File saved',
     backToFiles: 'Back to file list',
     crashTitle: 'Server stopped unexpectedly',
+    summaryAgent: 'QXAgent',
   },
   console: {
     connected: 'Console connected',
@@ -693,6 +748,11 @@ export const en: Messages = {
     search: 'Search',
     resetFilters: 'Reset',
     empty: 'No servers in monitoring yet',
+    statTotal: '{{count}} servers',
+    statOnline: '{{count}} online',
+    refresh: 'Refresh',
+    likesCount: '{{count}} likes',
+    likesBadge: 'Community likes',
     premium: 'Premium',
     online: 'Online',
     offline: 'Offline',
@@ -720,6 +780,12 @@ export const en: Messages = {
     launchFailed: 'Failed to launch via QXLauncher',
     launchTimeout: 'Launch is taking longer than expected',
     connectNeedsLauncher: 'Link QXLauncher to join with your bound instance',
+    connectGuestHint: 'Sign in and bind an instance to launch via QXLauncher — otherwise minecraft:// will open',
+    sortLabel: 'Sort by',
+    sortOnline: 'Online first',
+    sortRating: 'By rating',
+    sortLikes: 'By likes',
+    sortName: 'By name',
   },
   qxmods: {
     brand: 'QXMods',
@@ -783,6 +849,10 @@ export const en: Messages = {
       queued: 'Sync queued',
       failed: 'Sync failed',
       noFile: 'Selected version has no installable file',
+      restartTitle: 'Restart the server?',
+      restartPrompt:
+        'The mod is queued for «{{name}}». Restart the game server so it picks up the changes?',
+      restartConfirm: 'Restart',
     },
     install: {
       action: 'Install',
@@ -799,11 +869,13 @@ export const en: Messages = {
       downloads: 'downloads',
     },
     binding: {
-      title: 'Monitoring server',
-      hint: 'Bind this instance to a public server for quick connect from Monitoring.',
+      title: 'Server binding',
+      hint: 'Pick your game server or one from Monitoring — for quick connect from the launcher and Monitoring page.',
       placeholder: 'Select a server…',
-      signIn: 'Sign in to bind an instance to a monitoring server.',
+      signIn: 'Sign in to bind an instance to a server.',
       loadFailed: 'Failed to load servers',
+      empty:
+        'No servers match MC {{mc}} / {{loader}}. Ensure the server has an IP address and matches this instance version and loader. Your servers live under Servers.',
     },
     deps: {
       title: 'Install mod',

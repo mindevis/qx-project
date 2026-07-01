@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/qxproject/qx/pkg/mcmanifest"
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
 	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
 	"github.com/qxproject/qx/services/qxapi/internal/mojang"
@@ -357,7 +358,41 @@ func instanceLoaderVersion(inst models.LauncherInstance) string {
 }
 
 type UpdateInstanceInput struct {
-	MaxMemoryMB *int
+	MaxMemoryMB   *int
+	MinMemoryMB   *int
+	ExtraJVMArgs  *[]string
+	WindowWidth   *int
+	WindowHeight  *int
+}
+
+const (
+	minInstanceMemoryMB = 512
+	maxInstanceMemoryMB = 65536
+	minWindowDimension  = 320
+	maxWindowDimension  = 7680
+	maxExtraJVMArgs     = 64
+)
+
+func validateMemoryMB(mb int) error {
+	if mb < minInstanceMemoryMB || mb > maxInstanceMemoryMB {
+		return ErrValidation
+	}
+	return nil
+}
+
+func validateWindowDimension(dim int) error {
+	if dim < minWindowDimension || dim > maxWindowDimension {
+		return ErrValidation
+	}
+	return nil
+}
+
+func sanitizeExtraJVMArgs(args []string) ([]string, error) {
+	clean := mcmanifest.SanitizeJVMArgs(args)
+	if len(clean) > maxExtraJVMArgs {
+		return nil, ErrValidation
+	}
+	return clean, nil
 }
 
 func (s *Service) UpdateInstance(ctx context.Context, owner Owner, instanceID string, in UpdateInstanceInput) (*models.LauncherInstance, error) {
@@ -365,11 +400,53 @@ func (s *Service) UpdateInstance(ctx context.Context, owner Owner, instanceID st
 	if err != nil {
 		return nil, err
 	}
+	if in.MaxMemoryMB == nil && in.MinMemoryMB == nil && in.ExtraJVMArgs == nil && in.WindowWidth == nil && in.WindowHeight == nil {
+		return nil, ErrValidation
+	}
+	if in.MinMemoryMB != nil {
+		if err := validateMemoryMB(*in.MinMemoryMB); err != nil {
+			return nil, err
+		}
+		inst.MinMemoryMB = in.MinMemoryMB
+	}
 	if in.MaxMemoryMB != nil {
-		if *in.MaxMemoryMB < 512 || *in.MaxMemoryMB > 65536 {
-			return nil, ErrValidation
+		if err := validateMemoryMB(*in.MaxMemoryMB); err != nil {
+			return nil, err
 		}
 		inst.MaxMemoryMB = in.MaxMemoryMB
+	}
+	if in.MinMemoryMB != nil && in.MaxMemoryMB != nil && *in.MinMemoryMB > *in.MaxMemoryMB {
+		return nil, ErrValidation
+	}
+	if inst.MinMemoryMB != nil && inst.MaxMemoryMB != nil && *inst.MinMemoryMB > *inst.MaxMemoryMB {
+		return nil, ErrValidation
+	}
+	if in.ExtraJVMArgs != nil {
+		clean, err := sanitizeExtraJVMArgs(*in.ExtraJVMArgs)
+		if err != nil {
+			return nil, err
+		}
+		inst.ExtraJVMArgs = models.StringList(clean)
+	}
+	if in.WindowWidth != nil {
+		if *in.WindowWidth == 0 {
+			inst.WindowWidth = nil
+		} else {
+			if err := validateWindowDimension(*in.WindowWidth); err != nil {
+				return nil, err
+			}
+			inst.WindowWidth = in.WindowWidth
+		}
+	}
+	if in.WindowHeight != nil {
+		if *in.WindowHeight == 0 {
+			inst.WindowHeight = nil
+		} else {
+			if err := validateWindowDimension(*in.WindowHeight); err != nil {
+				return nil, err
+			}
+			inst.WindowHeight = in.WindowHeight
+		}
 	}
 	inst.UpdatedAt = time.Now().UTC()
 	if err := s.db.WithContext(ctx).Save(inst).Error; err != nil {

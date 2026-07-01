@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import { AuthProvider } from '@/auth/AuthContext';
 import { BackendStatusProvider } from '@/backend/BackendStatusContext';
@@ -14,6 +14,7 @@ vi.mock('skinview3d', async () => {
 });
 
 function renderApp(path = '/') {
+  cleanup();
   window.history.pushState({}, '', path);
   return render(
     <I18nProvider>
@@ -123,6 +124,7 @@ describe('App', () => {
       refresh_token: 'r',
       token_type: 'Bearer',
       expires_in: 3600,
+      saved_at: Date.now(),
     });
     vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
       const url =
@@ -134,6 +136,24 @@ describe('App', () => {
       if (url.includes('/health')) {
         return Promise.resolve(
           new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+        );
+      }
+      if (url.includes('/auth/refresh')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              access_token: 'a',
+              refresh_token: 'r',
+              token_type: 'Bearer',
+              expires_in: 3600,
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/cosmetics/skin-catalog')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ items: [] }), { status: 200 }),
         );
       }
       if (url.includes('/users/me/cosmetics')) {
@@ -166,6 +186,8 @@ describe('App', () => {
     });
 
     renderApp('/skins');
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Скины' })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /QXSkins (for|\u0434\u043b\u044f) Minecraft/i })).toBeInTheDocument(),
+    );
   });
 });

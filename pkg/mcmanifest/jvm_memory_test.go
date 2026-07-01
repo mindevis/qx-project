@@ -29,3 +29,31 @@ func TestApplyMaxMemoryMBNonGigabyte(t *testing.T) {
 		t.Fatalf("expected -Xmx1536M, got %q", manifest.JVMArguments[0])
 	}
 }
+
+func TestApplyMinMemoryMBReplacesExisting(t *testing.T) {
+	manifest := &InstanceLaunchManifest{
+		JVMArguments: []string{"-Xms1G", "-Xmx2G"},
+	}
+	ApplyMinMemoryMB(manifest, 2048)
+	if manifest.JVMArguments[0] != "-Xms2G" {
+		t.Fatalf("expected -Xms2G, got %q", manifest.JVMArguments[0])
+	}
+}
+
+func TestApplyMinMemoryMBPrependsWhenMissing(t *testing.T) {
+	manifest := &InstanceLaunchManifest{
+		JVMArguments: []string{"-XX:+UseG1GC"},
+	}
+	ApplyMinMemoryMB(manifest, 1024)
+	if manifest.JVMArguments[0] != "-Xms1G" {
+		t.Fatalf("expected -Xms1G, got %q", manifest.JVMArguments[0])
+	}
+}
+
+func TestApplyMinMemoryMBNonGigabyte(t *testing.T) {
+	manifest := &InstanceLaunchManifest{}
+	ApplyMinMemoryMB(manifest, 1536)
+	if manifest.JVMArguments[0] != "-Xms1536M" {
+		t.Fatalf("expected -Xms1536M, got %q", manifest.JVMArguments[0])
+	}
+}

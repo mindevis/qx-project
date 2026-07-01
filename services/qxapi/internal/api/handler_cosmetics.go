@@ -101,6 +101,58 @@ func (h *CosmeticsHandler) DeleteSkin(c *gin.Context) {
 	c.JSON(http.StatusOK, view)
 }
 
+func (h *CosmeticsHandler) ListSkinCatalog(c *gin.Context) {
+	category := c.Query("category")
+	items := cosmetics.ListSkinCatalog(category)
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+type applySkinBody struct {
+	CatalogID string `json:"catalog_id"`
+	Username  string `json:"username"`
+}
+
+func (h *CosmeticsHandler) ApplySkin(c *gin.Context) {
+	owner, ok := ownerFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req applySkinBody
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	var view *cosmetics.View
+	var err error
+	switch {
+	case strings.TrimSpace(req.CatalogID) != "":
+		view, err = h.Service.ApplySkinFromCatalog(c.Request.Context(), owner.UserID, req.CatalogID)
+	case strings.TrimSpace(req.Username) != "":
+		view, err = h.Service.ApplySkinFromMojang(c.Request.Context(), owner.UserID, req.Username)
+	default:
+		JSONValidation(c, "catalog_id or username required")
+		return
+	}
+	if err != nil {
+		if errors.Is(err, cosmetics.ErrPlayerNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "minecraft player not found")
+			return
+		}
+		if errors.Is(err, cosmetics.ErrNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "catalog entry not found")
+			return
+		}
+		if isCosmeticsValidation(err) {
+			JSONValidation(c, err.Error())
+			return
+		}
+		JSONInternal(c)
+		return
+	}
+	c.JSON(http.StatusOK, view)
+}
+
 func (h *CosmeticsHandler) UploadCape(c *gin.Context) {
 	owner, ok := ownerFromContext(c)
 	if !ok {

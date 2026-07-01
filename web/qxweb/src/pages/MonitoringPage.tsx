@@ -16,10 +16,13 @@ import {
 import {
   CopyOutlined,
   CrownOutlined,
+  GlobalOutlined,
   HeartFilled,
   HeartOutlined,
   PlayCircleOutlined,
+  ReloadOutlined,
   SearchOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import {
   api,
@@ -58,6 +61,10 @@ const EMPTY_FILTERS: Filters = {
   q: '',
 };
 
+type SortBy = 'online' | 'rating' | 'likes' | 'name';
+
+const SEARCH_DEBOUNCE_MS = 400;
+
 function serverEndpoint(server: MonitoringServer): string {
   return `${server.address}:${server.port}`;
 }
@@ -75,6 +82,7 @@ function MonitoringServerCard({
   onBindingChange,
   onConnect,
   connecting,
+  isGuest,
 }: {
   server: MonitoringServer;
   liked: boolean;
@@ -88,6 +96,7 @@ function MonitoringServerCard({
   onBindingChange: (server: MonitoringServer, instanceId: string | null) => void;
   onConnect: (server: MonitoringServer) => void;
   connecting: boolean;
+  isGuest: boolean;
 }) {
   const { t } = useI18n();
   const message = useMessage();
@@ -150,21 +159,29 @@ function MonitoringServerCard({
             {t('monitoring.premium')}
           </span>
         ) : null}
+        <span className="monitoring-card-likes-badge" title={t('monitoring.likesBadge')}>
+          <TeamOutlined aria-hidden />
+          {t('monitoring.likesCount', { count: server.likes_count })}
+        </span>
         <span
           className={[
             'monitoring-card-status',
             server.is_online ? 'monitoring-card-status--online' : 'monitoring-card-status--offline',
           ].join(' ')}
         >
+          <span className="monitoring-card-status-dot" aria-hidden />
           {server.is_online ? t('monitoring.online') : t('monitoring.offline')}
         </span>
       </div>
 
       <div className="monitoring-card-body">
         <div className="monitoring-card-head">
-          <Title level={4} className="monitoring-card-title">
-            {server.name}
-          </Title>
+          <div className="monitoring-card-title-row">
+            <span className="monitoring-card-online-dot" aria-hidden />
+            <Title level={4} className="monitoring-card-title">
+              {server.name}
+            </Title>
+          </div>
           <Space size={4} wrap className="monitoring-card-meta">
             <Tag>{server.mc_version}</Tag>
             <Tag color="blue">{loaderLabel}</Tag>
@@ -251,6 +268,11 @@ function MonitoringServerCard({
               {t('monitoring.connect')}
             </Button>
           </Space>
+          {isGuest ? (
+            <Text type="secondary" className="monitoring-connect-guest-hint">
+              {t('monitoring.connectGuestHint')}
+            </Text>
+          ) : null}
         </div>
       </div>
     </article>
@@ -264,6 +286,7 @@ export function MonitoringPage() {
   const { openAuthModal } = useAuthModal();
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [draftQuery, setDraftQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortBy>('online');
   const [servers, setServers] = useState<MonitoringServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
@@ -273,6 +296,9 @@ export function MonitoringPage() {
   const [linkedDevice, setLinkedDevice] = useState<{ device_id: string } | null>(null);
   const [profiles, setProfiles] = useState<OfflineProfile[]>([]);
   const [connectingServerId, setConnectingServerId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onlineCount = useMemo(() => servers.filter((server) => server.is_online).length, [servers]);
 
   const loaderLabel = useCallback(
     (type: string) => gameServerTypeLabelText(t, type),
@@ -342,6 +368,51 @@ export function MonitoringPage() {
     void loadServers();
   }, [loadServers]);
 
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const q = draftQuery.trim();
+      setFilters((prev) => (prev.q === q ? prev : { ...prev, q }));
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [draftQuery]);
+
+  const sortedServers = useMemo(() => {
+    const list = [...servers];
+    switch (sortBy) {
+      case 'rating':
+        return list.sort(
+          (a, b) =>
+            b.rating_avg - a.rating_avg ||
+            b.rating_count - a.rating_count ||
+            a.name.localeCompare(b.name),
+        );
+      case 'likes':
+        return list.sort(
+          (a, b) => b.likes_count - a.likes_count || a.name.localeCompare(b.name),
+        );
+      case 'name':
+        return list.sort((a, b) => a.name.localeCompare(b.name));
+      case 'online':
+      default:
+        return list.sort(
+          (a, b) =>
+            Number(b.is_online) - Number(a.is_online) ||
+            b.likes_count - a.likes_count ||
+            a.name.localeCompare(b.name),
+        );
+    }
+  }, [servers, sortBy]);
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'online' as const, label: t('monitoring.sortOnline') },
+      { value: 'rating' as const, label: t('monitoring.sortRating') },
+      { value: 'likes' as const, label: t('monitoring.sortLikes') },
+      { value: 'name' as const, label: t('monitoring.sortName') },
+    ],
+    [t],
+  );
+
   const modOptions = useMemo(() => {
     const values = new Set<string>();
     for (const server of servers) {
@@ -408,15 +479,9 @@ export function MonitoringPage() {
       await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
       const req = await api.getLaunchRequest(requestId);
       if (isLaunchTerminal(req.status)) {
-        if (req.status === 'completed') {
-          message.success(t('monitoring.launchCompleted'));
-        } else if (req.status === 'failed') {
-          message.error(t('monitoring.launchFailed'));
-        }
         return;
       }
     }
-    message.warning(t('monitoring.launchTimeout'));
   };
 
   const handleConnect = async (server: MonitoringServer) => {
@@ -437,10 +502,8 @@ export function MonitoringPage() {
         join_server_address: server.address,
         join_server_port: server.port,
       });
-      message.info(t('monitoring.launchSent'));
       await pollLaunchRequest(req.id);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : t('monitoring.launchFailed'));
+    } catch {
       openMinecraftLink(server);
     } finally {
       setConnectingServerId(null);
@@ -451,16 +514,62 @@ export function MonitoringPage() {
     setFilters((prev) => ({ ...prev, q: draftQuery.trim() }));
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadServers();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <div className="monitoring-page">
       <section className="monitoring-hero">
-        <p className="monitoring-hero-badge">{t('monitoring.badge')}</p>
-        <Title level={1} className="monitoring-hero-title">
-          {highlightMinecraft(t('monitoring.title'))}
-        </Title>
-        <Paragraph className="monitoring-hero-subtitle">{t('monitoring.subtitle')}</Paragraph>
+        <div className="monitoring-hero-ambient" aria-hidden>
+          <span className="monitoring-hero-blob monitoring-hero-blob--1" />
+          <span className="monitoring-hero-blob monitoring-hero-blob--2" />
+          <span className="monitoring-hero-blob monitoring-hero-blob--3" />
+          <span className="monitoring-hero-grid-pattern" />
+        </div>
+
+        <div className="monitoring-hero-inner">
+          <div className="monitoring-hero-content">
+            <p className="monitoring-hero-badge">{t('monitoring.badge')}</p>
+            <Title level={1} className="monitoring-hero-title">
+              {highlightMinecraft(t('monitoring.title'))}
+            </Title>
+            <Paragraph className="monitoring-hero-subtitle">{t('monitoring.subtitle')}</Paragraph>
+            <div className="monitoring-hero-stats">
+              <span className="monitoring-stat-pill">
+                {t('monitoring.statTotal', { count: servers.length })}
+              </span>
+              <span className="monitoring-stat-pill monitoring-stat-pill--online">
+                {t('monitoring.statOnline', { count: onlineCount })}
+              </span>
+              <Button
+                icon={<ReloadOutlined spin={refreshing} />}
+                loading={refreshing}
+                onClick={() => void handleRefresh()}
+              >
+                {t('monitoring.refresh')}
+              </Button>
+            </div>
+          </div>
+
+          <div className="monitoring-hero-visual" aria-hidden>
+            <div className="monitoring-orbit">
+              <div className="monitoring-orbit-ring monitoring-orbit-ring--outer" />
+              <div className="monitoring-orbit-ring monitoring-orbit-ring--inner" />
+              <div className="monitoring-orbit-core">
+                <GlobalOutlined />
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
+      <div className="monitoring-body">
       <section className="monitoring-filters">
         <Row gutter={[12, 12]}>
           <Col xs={24} sm={12} md={6}>
@@ -512,6 +621,15 @@ export function MonitoringPage() {
               options={pluginOptions.map((plugin) => ({ value: plugin, label: plugin }))}
             />
           </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Select
+              placeholder={t('monitoring.sortLabel')}
+              className="monitoring-filter-control"
+              value={sortBy}
+              onChange={setSortBy}
+              options={sortOptions}
+            />
+          </Col>
           <Col xs={24} md={16}>
             <Input
               allowClear
@@ -531,6 +649,7 @@ export function MonitoringPage() {
               <Button
                 onClick={() => {
                   setDraftQuery('');
+                  setSortBy('online');
                   setFilters(EMPTY_FILTERS);
                 }}
               >
@@ -546,11 +665,11 @@ export function MonitoringPage() {
           <div className="monitoring-loading">
             <Spin size="large" />
           </div>
-        ) : servers.length === 0 ? (
+        ) : sortedServers.length === 0 ? (
           <Empty description={t('monitoring.empty')} className="monitoring-empty" />
         ) : (
           <div className="monitoring-cards">
-            {servers.map((server) => (
+            {sortedServers.map((server) => (
               <MonitoringServerCard
                 key={server.id}
                 server={server}
@@ -558,6 +677,7 @@ export function MonitoringPage() {
                 onLike={(item) => void handleLike(item)}
                 onRate={(item, rating) => void handleRate(item, rating)}
                 canInteract={isAuthenticated}
+                isGuest={!isAuthenticated}
                 onRequireAuth={() => openAuthModal('login')}
                 loaderLabel={loaderLabel(server.server_type)}
                 instances={instances}
@@ -570,6 +690,7 @@ export function MonitoringPage() {
           </div>
         )}
       </section>
+      </div>
     </div>
   );
 }

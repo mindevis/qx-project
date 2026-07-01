@@ -920,9 +920,9 @@ describe('pages', { timeout: 30_000 }, () => {
             { status: 201 },
           );
         }
-        if (url.includes('/launcher/launch-requests/lr-1')) {
+        if (url.includes('/launcher/launch-requests/lr-1') && init?.method !== 'POST') {
           polls += 1;
-          const status = polls < 2 ? 'preparing' : polls < 3 ? 'downloading' : 'completed';
+          const status = polls < 10 ? 'preparing' : 'completed';
           return new Response(
             JSON.stringify({
               id: 'lr-1',
@@ -948,8 +948,12 @@ describe('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() => expect(screen.getByText('Запуск…')).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText(/Подготовка файлов/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Идёт запуск')).toBeInTheDocument());
+    await waitFor(
+      () => expect(screen.getAllByText(/Подготовка файлов/).length).toBeGreaterThan(0),
+      { timeout: 5000 },
+    );
+    expect(screen.getByText('Запуск…')).toBeInTheDocument();
   });
 
   it('shows linked device without download prompt', async () => {
@@ -1209,7 +1213,6 @@ describe('pages', { timeout: 30_000 }, () => {
 
   it('launches with linked licensed mojang account', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1276,8 +1279,12 @@ describe('pages', { timeout: 30_000 }, () => {
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
     await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'));
-    successSpy.mockRestore();
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        expect.stringContaining('/launcher/launch-requests/lr-lic'),
+        expect.anything(),
+      ),
+    );
   });
 
   it('defaults to linked Mojang account when offline profiles exist', async () => {
@@ -1980,7 +1987,6 @@ describe('pages', { timeout: 30_000 }, () => {
 
   it('reports failed launch and deletes profile', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
     const successSpy = vi.spyOn(message, 'success');
     saveTokens({
       access_token: 'a',
@@ -2062,19 +2068,18 @@ describe('pages', { timeout: 30_000 }, () => {
     await expectLauncherProfileListed('Steve');
 
     await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('JAVA_MISSING'));
+    await waitFor(() => expect(screen.getAllByText('JAVA_MISSING').length).toBeGreaterThan(0));
+    expect(screen.getByText('Ошибка запуска')).toBeInTheDocument();
 
     const deleteButtons = screen.getAllByRole('button', { name: 'Удалить профиль?' });
     await user.click(deleteButtons[0]!);
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Профиль удалён'));
-    errorSpy.mockRestore();
     successSpy.mockRestore();
   });
 
   it('creates profile and launches instance', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2150,11 +2155,15 @@ describe('pages', { timeout: 30_000 }, () => {
     await expectLauncherProfileListed('Steve');
 
     await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'));
-    successSpy.mockRestore();
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        expect.stringContaining('/launcher/launch-requests/lr-1'),
+        expect.anything(),
+      ),
+    );
   });
 
-  it('warns when launch request expires', async () => {
+  it('handles expired launch request without toast', async () => {
     const user = userEvent.setup({ delay: null });
     const warningSpy = vi.spyOn(message, 'warning');
     saveTokens({
@@ -2213,14 +2222,18 @@ describe('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() => expect(warningSpy).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        expect.stringContaining('/launcher/launch-requests/lr-exp'),
+        expect.anything(),
+      ),
+    );
+    expect(warningSpy).not.toHaveBeenCalled();
     warningSpy.mockRestore();
   });
 
-  it('reports intermediate launch statuses while polling', async () => {
+  it('shows launch progress in the instance card while polling', async () => {
     const user = userEvent.setup({ delay: null });
-    const infoSpy = vi.spyOn(message, 'info');
-    const successSpy = vi.spyOn(message, 'success');
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2261,7 +2274,7 @@ describe('pages', { timeout: 30_000 }, () => {
             { status: 201 },
           );
         }
-        if (url.includes('/launcher/launch-requests/lr-run')) {
+        if (url.includes('/launcher/launch-requests/lr-run') && init?.method !== 'POST') {
           poll += 1;
           const status =
             poll === 1
@@ -2276,7 +2289,9 @@ describe('pages', { timeout: 30_000 }, () => {
                       ? 'launching'
                       : poll === 6
                         ? 'running'
-                        : 'completed';
+                        : poll < 10
+                          ? 'running'
+                          : 'completed';
           return new Response(
             JSON.stringify({
               id: 'lr-run',
@@ -2302,19 +2317,11 @@ describe('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
+    await waitFor(() => expect(screen.getByText('Идёт запуск')).toBeInTheDocument());
     await waitFor(
-      () => expect(infoSpy).toHaveBeenCalledWith('Minecraft запущен', 2),
-      { timeout: 8000 },
+      () => expect(screen.getAllByText('Minecraft запущен').length).toBeGreaterThan(0),
+      { timeout: 12000 },
     );
-    expect(infoSpy).toHaveBeenCalledWith('Ожидание QXLauncher…', 2);
-    expect(infoSpy).toHaveBeenCalledWith('QXLauncher принял запрос…', 2);
-    expect(infoSpy).toHaveBeenCalledWith('Подготовка файлов…', 2);
-    expect(infoSpy).toHaveBeenCalledWith('Скачивание ресурсов…', 2);
-    await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'), {
-      timeout: 8000,
-    });
-    infoSpy.mockRestore();
-    successSpy.mockRestore();
   });
 
   it('shows raw message for unknown launch status', async () => {
@@ -2325,8 +2332,6 @@ describe('pages', { timeout: 30_000 }, () => {
       expires_in: 3600,
     });
     const user = userEvent.setup({ delay: null });
-    const infoSpy = vi.spyOn(message, 'info');
-    const successSpy = vi.spyOn(message, 'success');
     const instance = {
       id: 'inst-unknown',
       name: 'Unknown',
@@ -2360,9 +2365,9 @@ describe('pages', { timeout: 30_000 }, () => {
             { status: 201 },
           );
         }
-        if (url.includes('/launcher/launch-requests/lr-unknown')) {
+        if (url.includes('/launcher/launch-requests/lr-unknown') && init?.method !== 'POST') {
           poll += 1;
-          const status = poll === 1 ? 'custom_xyz' : 'completed';
+          const status = poll === 1 ? 'custom_xyz' : poll < 10 ? 'custom_xyz' : 'completed';
           return new Response(
             JSON.stringify({
               id: 'lr-unknown',
@@ -2388,10 +2393,9 @@ describe('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Unknown')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() => expect(infoSpy).toHaveBeenCalledWith('custom_xyz', 2), { timeout: 8000 });
-    await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'), { timeout: 8000 });
-    infoSpy.mockRestore();
-    successSpy.mockRestore();
+    await waitFor(() => expect(screen.getAllByText('custom_xyz').length).toBeGreaterThan(0), {
+      timeout: 8000,
+    });
   });
 
   it('ignores linked device load failures', async () => {
@@ -2681,7 +2685,6 @@ describe('pages', { timeout: 30_000 }, () => {
 
   it('shows generic failed launch error without error code', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2738,35 +2741,31 @@ describe('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Ошибка запуска'));
-    errorSpy.mockRestore();
+    await waitFor(() => expect(screen.getAllByText('Ошибка запуска').length).toBeGreaterThan(0));
   });
 
   it('logs in successfully', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            access_token: 'a',
-            refresh_token: 'r',
-            token_type: 'Bearer',
-            expires_in: 3600,
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id: '1',
-            email: 'u@test.com',
-            tier: 'free',
-            created_at: 'now',
-          }),
-          { status: 200 },
-        ),
-      );
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/auth/login') && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              access_token: 'a',
+              refresh_token: 'r',
+              token_type: 'Bearer',
+              expires_in: 3600,
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/users/me')) {
+        return Promise.resolve(meResponse());
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
 
     renderWithProviders(
       <Routes>

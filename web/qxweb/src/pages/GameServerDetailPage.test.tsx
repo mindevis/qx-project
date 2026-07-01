@@ -143,7 +143,9 @@ describe('GameServerDetailPage', () => {
     });
 
     renderDetail();
-    await waitFor(() => expect(screen.getByText('Forge RPG')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
+    );
     expect(screen.getByText(/play\.example\.com:25565/)).toBeInTheDocument();
     expect(screen.getByText(/secret/)).toBeInTheDocument();
 
@@ -232,7 +234,9 @@ describe('GameServerDetailPage', () => {
     });
 
     renderDetail();
-    await waitFor(() => expect(screen.getByText('Forge RPG')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
+    );
     await user.click(screen.getAllByRole('button', { name: /Запустить/i })[0]!);
     await waitFor(() => expect(message.error).toHaveBeenCalledWith('power failed'));
   });
@@ -273,7 +277,9 @@ describe('GameServerDetailPage', () => {
     });
 
     renderDetail();
-    await waitFor(() => expect(screen.getByText('Forge RPG')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole('button', { name: /Остановить/i }));
     await waitFor(() => expect(message.success).toHaveBeenCalled());
 
@@ -314,7 +320,9 @@ describe('GameServerDetailPage', () => {
     });
 
     renderDetail();
-    await waitFor(() => expect(screen.getByText('Forge RPG')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole('button', { name: /Удалить/ }));
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
     await waitFor(() => expect(message.error).toHaveBeenCalledWith('delete failed'));
@@ -352,5 +360,34 @@ describe('GameServerDetailPage', () => {
     renderDetail();
     await waitFor(() => expect(screen.getByText(/fatal boot error/)).toBeInTheDocument());
     expect(screen.getByText(/Сервер неожиданно остановился/i)).toBeInTheDocument();
+  });
+  it('opens settings tab when console is unavailable', async () => {
+    vi.mocked(fetch).mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes('/users/me')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ id: '1', email: 'u@test.com', tier: 'free', created_at: 'now' }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/servers/srv-1/game-servers')) {
+        return Promise.resolve(new Response(JSON.stringify({ items: [gameServer] }), { status: 200 }));
+      }
+      if (url.includes('/servers/srv-1')) {
+        return Promise.resolve(new Response(JSON.stringify(vpsServer), { status: 200 }));
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    renderDetail();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole('tab', { name: /\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
   });
 });

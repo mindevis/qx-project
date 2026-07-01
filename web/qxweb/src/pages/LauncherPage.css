@@ -260,6 +260,48 @@ html[data-theme='dark'] .launcher-intro {
   gap: 10px;
 }
 
+.launcher-ecosystem-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.launcher-ecosystem-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #722ed1;
+  background: rgba(114, 46, 209, 0.06);
+  border: 1px solid rgba(114, 46, 209, 0.14);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.launcher-ecosystem-link:hover {
+  color: #531dab;
+  background: rgba(114, 46, 209, 0.1);
+  border-color: rgba(114, 46, 209, 0.28);
+  transform: translateY(-1px);
+}
+
+html[data-theme='dark'] .launcher-ecosystem-link {
+  color: #b37feb;
+  background: rgba(114, 46, 209, 0.12);
+  border-color: rgba(179, 127, 235, 0.2);
+}
+
+html[data-theme='dark'] .launcher-ecosystem-link:hover {
+  color: #d3adf7;
+  background: rgba(114, 46, 209, 0.18);
+}
+
 .launcher-stat-pill {
   display: inline-flex;
   align-items: center;
@@ -918,6 +960,23 @@ html[data-theme='dark'] .launcher-profile-selected-icon {
 
 /* Instances */
 
+.launcher-instance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.launcher-instance-actions .ant-btn-lg {
+  min-height: 40px;
+}
+
+.launcher-instance-actions .ant-btn-icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .launcher-instance-list {
   display: flex;
   flex-direction: column;
@@ -1196,4 +1255,28 @@ html[data-theme='dark'] .launcher-tag {
   .launcher-hero-blob {
     animation: none !important;
   }
+}
+
+.launcher-instance-settings-mods {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.launcher-instance-settings-mods-note {
+  margin-bottom: 0;
+}
+
+.launcher-instance-settings-mods-body {
+  min-height: 120px;
+}
+
+.launcher-instance-settings-mods-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.launcher-instance-settings-mod-item {
+  padding-inline: 0;
 }

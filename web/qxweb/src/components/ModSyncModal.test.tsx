@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import * as vpsGameServers from '@/lib/vpsGameServers';
@@ -50,6 +50,21 @@ describe('ModSyncModal', () => {
     ]);
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'syncModToGameServer').mockResolvedValue({ status: 'queued' });
+    vi.spyOn(vpsGameServers, 'restartVpsGameServer').mockResolvedValue({
+      id: 'gs-1',
+      name: 'Forge',
+      server_type: 'forge',
+      mc_version: '1.21',
+      loader_version: '47.0.0',
+      address: '127.0.0.1',
+      port: 25565,
+      status: 'starting',
+      created_at: 'now',
+    });
+    vi.spyOn(Modal, 'confirm').mockImplementation(() => ({
+      destroy: vi.fn(),
+      update: vi.fn(),
+    }));
   });
 
   afterEach(() => {
@@ -78,5 +93,34 @@ describe('ModSyncModal', () => {
     await waitFor(() => expect(api.syncModToGameServer).toHaveBeenCalled());
     expect(message.success).toHaveBeenCalledWith('Синхронизация поставлена в очередь');
     expect(onClose).toHaveBeenCalled();
+    expect(Modal.confirm).toHaveBeenCalled();
+  });
+
+  it('restarts server when user confirms after sync', async () => {
+    vi.mocked(Modal.confirm).mockImplementation((config) => {
+      void config.onOk?.();
+      return { destroy: vi.fn(), update: vi.fn() };
+    });
+    const user = userEvent.setup({ delay: null });
+    renderWithTheme(
+      <ModSyncModal open selection={selection} instanceLoader="forge" onClose={vi.fn()} />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Forge')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Синхронизировать' }));
+    await waitFor(() => expect(vpsGameServers.restartVpsGameServer).toHaveBeenCalledWith('vps-1', 'gs-1'));
+    expect(message.success).toHaveBeenCalledWith('Игровой сервер перезапускается…');
+  });
+
+  it('does not restart when user declines after sync', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderWithTheme(
+      <ModSyncModal open selection={selection} instanceLoader="forge" onClose={vi.fn()} />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Forge')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Синхронизировать' }));
+    await waitFor(() => expect(Modal.confirm).toHaveBeenCalled());
+    expect(vpsGameServers.restartVpsGameServer).not.toHaveBeenCalled();
   });
 });

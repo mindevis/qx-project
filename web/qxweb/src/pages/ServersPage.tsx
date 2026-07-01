@@ -14,7 +14,6 @@ import {
   Select,
   Space,
   Spin,
-  Table,
   Tag,
   Typography,
 } from 'antd';
@@ -1227,7 +1226,7 @@ function EditGameServerModal({
   );
 }
 
-function GameServersTable({
+function GameServersCardList({
   vpsId,
   games,
   agentOnline,
@@ -1256,78 +1255,51 @@ function GameServersTable({
   const navigate = useNavigate();
 
   return (
-    <Table
-      className="servers-game-table"
-      rowKey="id"
-      size="middle"
-      pagination={false}
-      dataSource={games}
-      onRow={(game) => ({
-        onClick: (e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest('button, a, .ant-popover, .ant-dropdown')) return;
-          navigate(`/servers/${vpsId}/game-servers/${game.id}`);
-        },
-        className: 'servers-game-table-row',
-      })}
-      columns={[
-        {
-          title: t('servers.gameServerName'),
-          dataIndex: 'name',
-          key: 'name',
-          render: (name: string, game) => (
-            <Link
-              to={`/servers/${vpsId}/game-servers/${game.id}`}
-              className="servers-game-table-link"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {name}
-            </Link>
-          ),
-        },
-        {
-          title: t('servers.gameServerTypeLabel'),
-          key: 'type',
-          render: (_, game) => gameServerTypeLabel(game.server_type),
-        },
-        {
-          title: t('servers.gameServerMcVersion'),
-          key: 'mc_version',
-          render: (_, game) => formatGameServerMcVersionLabel(game.mc_version),
-        },
-        {
-          title: t('servers.gameServerCoreVersion'),
-          key: 'loader_version',
-          render: (_, game) =>
-            formatGameServerLoaderVersionLabel(game.loader_version, game.server_type),
-        },
-        {
-          title: t('servers.gameServerAddress'),
-          key: 'address',
-          render: (_, game) => `${game.address ?? '—'}:${game.port ?? '—'}`,
-        },
-        {
-          title: t('servers.gameServerStatus'),
-          key: 'status',
-          render: (_, game) => (
-            <Tag color={gameServerStatusColor(game.status)}>{gameStatusLabel(game.status)}</Tag>
-          ),
-        },
-        {
-          title: t('gameServerDetail.actions'),
-          key: 'actions',
-          render: (_, game) => {
-            const rowBusy =
-              isVpsGameServerProvisioning(game.status) ||
-              powerActionId === game.id;
-            const canStart = game.status === 'stopped' || game.status === 'error';
-            const canStop = game.status === 'running' || game.status === 'starting';
-            const canRestart =
-              !isVpsGameServerProvisioning(game.status) &&
-              game.status !== 'installing' &&
-              (canStart || canStop);
-            return (
-              <Space size="small" onClick={(e) => e.stopPropagation()}>
+    <div className="servers-game-list">
+      {games.map((game) => {
+        const rowBusy = isVpsGameServerProvisioning(game.status) || powerActionId === game.id;
+        const canStart = game.status === 'stopped' || game.status === 'error';
+        const canStop = game.status === 'running' || game.status === 'starting';
+        const canRestart =
+          !isVpsGameServerProvisioning(game.status) &&
+          game.status !== 'installing' &&
+          (canStart || canStop);
+        const serverType = game.server_type as VpsGameServerType | undefined;
+
+        return (
+          <article
+            key={game.id}
+            className="servers-game-card servers-game-card--interactive"
+            onClick={() => navigate(`/servers/${vpsId}/game-servers/${game.id}`)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate(`/servers/${vpsId}/game-servers/${game.id}`);
+              }
+            }}
+            role="link"
+            tabIndex={0}
+          >
+            <div className="servers-game-card-header">
+              <div className="servers-game-card-headline">
+                <Link
+                  to={`/servers/${vpsId}/game-servers/${game.id}`}
+                  className="servers-game-card-title-link"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Title level={5} className="servers-game-card-title">
+                    {game.name}
+                  </Title>
+                </Link>
+                <Tag color={gameServerStatusColor(game.status)} className="servers-game-card-status">
+                  {gameStatusLabel(game.status)}
+                </Tag>
+              </div>
+              <div
+                className="servers-game-card-actions"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
                 <Button
                   type="text"
                   size="small"
@@ -1359,12 +1331,35 @@ function GameServersTable({
                 >
                   <Button type="text" size="small" danger icon={<DeleteOutlined />} />
                 </Popconfirm>
-              </Space>
-            );
-          },
-        },
-      ]}
-    />
+              </div>
+            </div>
+
+            <dl className="servers-game-card-meta servers-game-card-meta--grid">
+              <div className="servers-game-card-meta-item">
+                <dt>{t('servers.gameServerMcVersion')}</dt>
+                <dd>{formatGameServerMcVersionLabel(game.mc_version)}</dd>
+              </div>
+              <div className="servers-game-card-meta-item">
+                <dt>{t('servers.gameServerTypeLabel')}</dt>
+                <dd>{gameServerTypeLabel(serverType)}</dd>
+              </div>
+              <div className="servers-game-card-meta-item">
+                <dt>{t('servers.gameServerCoreVersion')}</dt>
+                <dd>{formatGameServerLoaderVersionLabel(game.loader_version, game.server_type)}</dd>
+              </div>
+              <div className="servers-game-card-meta-item">
+                <dt>{t('servers.gameServerPort')}</dt>
+                <dd className="servers-game-card-port">
+                  <span>{game.address ?? '—'}</span>
+                  <span className="servers-game-card-port-sep">:</span>
+                  <span>{game.port ?? '—'}</span>
+                </dd>
+              </div>
+            </dl>
+          </article>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1477,9 +1472,22 @@ function VpsGameServersSection({
           <Spin />
         </div>
       ) : games.length === 0 ? (
-        <Empty description={t('servers.noGameServers')} className="servers-game-empty" />
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          className="servers-game-empty"
+          description={
+            <div className="servers-game-empty-copy">
+              <Text strong className="servers-game-empty-title">
+                {t('servers.noGameServers')}
+              </Text>
+              <Paragraph type="secondary" className="servers-game-empty-hint">
+                {t('servers.noGameServersHint')}
+              </Paragraph>
+            </div>
+          }
+        />
       ) : (
-        <GameServersTable
+        <GameServersCardList
           vpsId={vpsId}
           games={games}
           agentOnline={agentOnline}

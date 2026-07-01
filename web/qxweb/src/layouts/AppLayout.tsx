@@ -32,6 +32,7 @@ export function AppLayout() {
     location.pathname === '/launcher/link' ||
     location.pathname.startsWith('/launcher/instances/') ||
     location.pathname === '/monitoring' ||
+    location.pathname === '/skins' ||
     location.pathname === '/servers' ||
     location.pathname.startsWith('/servers/');
   const footerClassName =
@@ -43,7 +44,9 @@ export function AppLayout() {
         ? 'app-footer app-footer--landing app-footer--landing-launcher'
         : location.pathname === '/monitoring'
           ? 'app-footer app-footer--landing app-footer--landing-monitoring'
-          : location.pathname === '/servers' || location.pathname.startsWith('/servers/')
+          : location.pathname === '/skins'
+            ? 'app-footer app-footer--landing app-footer--landing-skins'
+            : location.pathname === '/servers' || location.pathname.startsWith('/servers/')
             ? 'app-footer app-footer--landing app-footer--landing-servers'
             : 'app-footer';
   const [scrolled, setScrolled] = useState(false);

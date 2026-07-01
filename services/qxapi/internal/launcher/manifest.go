@@ -57,10 +57,17 @@ func (s *Service) InstanceManifest(ctx context.Context, owner Owner, instanceID 
 	return s.InstanceManifestWithMemory(ctx, owner, instanceID)
 }
 
-func applyInstanceMemory(manifest *mcmanifest.InstanceLaunchManifest, inst *models.LauncherInstance) {
+func applyInstanceLaunchSettings(manifest *mcmanifest.InstanceLaunchManifest, inst *models.LauncherInstance) {
+	if inst.MinMemoryMB != nil {
+		mcmanifest.ApplyMinMemoryMB(manifest, *inst.MinMemoryMB)
+	}
 	if inst.MaxMemoryMB != nil {
 		mcmanifest.ApplyMaxMemoryMB(manifest, *inst.MaxMemoryMB)
 	}
+	if len(inst.ExtraJVMArgs) > 0 {
+		mcmanifest.ApplyExtraJVMArgs(manifest, inst.ExtraJVMArgs)
+	}
+	mcmanifest.ApplyWindowSize(manifest, inst.WindowWidth, inst.WindowHeight)
 }
 
 func (s *Service) InstanceManifestWithMemory(ctx context.Context, owner Owner, instanceID string) (*mcmanifest.InstanceLaunchManifest, error) {
@@ -72,7 +79,7 @@ func (s *Service) InstanceManifestWithMemory(ctx context.Context, owner Owner, i
 	if err != nil {
 		return nil, err
 	}
-	applyInstanceMemory(manifest, inst)
+	applyInstanceLaunchSettings(manifest, inst)
 	return manifest, nil
 }
 

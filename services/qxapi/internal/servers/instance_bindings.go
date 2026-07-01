@@ -59,7 +59,7 @@ func (s *Service) SetInstanceBinding(ctx context.Context, userID, gameServerID, 
 	if userID == "" || gameServerID == "" || instanceID == "" {
 		return nil, ErrValidation
 	}
-	if _, _, err := s.getListedMonitoringServer(ctx, gameServerID); err != nil {
+	if err := s.assertBindableGameServer(ctx, userID, gameServerID); err != nil {
 		return nil, err
 	}
 	var inst models.LauncherInstance
@@ -122,6 +122,83 @@ func (s *Service) ClearInstanceBinding(ctx context.Context, userID, gameServerID
 		return ErrNotFound
 	}
 	return nil
+}
+
+// ListBindableServers returns game servers the user may bind a launcher instance to:
+// the user's own servers with a public address, plus public monitoring listings.
+func (s *Service) ListBindableServers(ctx context.Context, userID string, in ListMonitoringInput) ([]MonitoringServerView, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, ErrValidation
+	}
+	seen := make(map[string]struct{})
+	out := make([]MonitoringServerView, 0)
+
+	ownQuery := s.db.WithContext(ctx).
+		Table("game_servers").
+		Select("game_servers.*, users.tier AS owner_tier").
+		Joins(monitoringJoinServers(s.db)).
+		Joins(monitoringJoinUsers(s.db)).
+		Where("servers.owner_id = ?", userID).
+		Where("game_servers.address IS NOT NULL AND game_servers.address <> ''")
+
+	mcVersion := strings.TrimSpace(in.MCVersion)
+	if mcVersion != "" {
+		ownQuery = ownQuery.Where("game_servers.mc_version = ?", mcVersion)
+	}
+	loader := strings.TrimSpace(in.Loader)
+	if loader != "" {
+		ownQuery = ownQuery.Where("game_servers.server_type = ?", loader)
+	}
+
+	var ownRows []monitoringRow
+	if err := ownQuery.Order("game_servers.name ASC").Find(&ownRows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range ownRows {
+		view := monitoringViewFromRow(&row)
+		out = append(out, view)
+		seen[view.ID] = struct{}{}
+	}
+
+	public, err := s.ListMonitoringServers(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	for _, view := range public {
+		if _, ok := seen[view.ID]; ok {
+			continue
+		}
+		out = append(out, view)
+	}
+	return out, nil
+}
+
+func (s *Service) assertBindableGameServer(ctx context.Context, userID, gameServerID string) error {
+	if _, _, err := s.getListedMonitoringServer(ctx, gameServerID); err == nil {
+		return nil
+	}
+	_, err := s.getOwnedGameServerWithAddress(ctx, userID, gameServerID)
+	return err
+}
+
+func (s *Service) getOwnedGameServerWithAddress(ctx context.Context, ownerID, gameServerID string) (*models.GameServer, error) {
+	var row models.GameServer
+	err := s.db.WithContext(ctx).
+		Table("game_servers").
+		Select("game_servers.*").
+		Joins(monitoringJoinServers(s.db)).
+		Where("game_servers.id = ?", gameServerID).
+		Where("servers.owner_id = ?", ownerID).
+		Where("game_servers.address IS NOT NULL AND game_servers.address <> ''").
+		First(&row).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &row, nil
 }
 
 func bindingViewFromRow(row *bindingRow) InstanceBindingView {

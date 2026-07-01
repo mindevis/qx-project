@@ -3,6 +3,7 @@ package cosmetics
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -27,10 +28,11 @@ type Config struct {
 }
 
 type Service struct {
-	db              *gorm.DB
-	dataDir         string
-	apiURL          string
-	skinServerURL   string
+	db            *gorm.DB
+	dataDir       string
+	apiURL        string
+	skinServerURL string
+	httpClient    *http.Client
 }
 
 type View struct {
@@ -67,6 +69,7 @@ func NewService(db *gorm.DB, cfg Config) *Service {
 		dataDir:       strings.TrimSpace(cfg.DataDir),
 		apiURL:        apiURL,
 		skinServerURL: skinServer,
+		httpClient:    &http.Client{Timeout: 15 * time.Second},
 	}
 }
 
@@ -145,6 +148,30 @@ func (s *Service) UploadSkin(ctx context.Context, userID string, png []byte) (*V
 	row.HasSkin = true
 	row.UpdatedAt = now
 	return s.viewFromRow(row, ""), nil
+}
+
+// ApplySkinFromMojang fetches a player's Mojang skin and equips it for the QX user.
+func (s *Service) ApplySkinFromMojang(ctx context.Context, userID, username string) (*View, error) {
+	result, err := FetchMojangSkin(ctx, s.httpClient, username)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.UploadSkin(ctx, userID, result.PNG); err != nil {
+		return nil, err
+	}
+	if result.SkinModel != "" {
+		return s.Equip(ctx, userID, EquipInput{SkinModel: &result.SkinModel})
+	}
+	return s.Get(ctx, userID)
+}
+
+// ApplySkinFromCatalog applies a curated catalog skin by id.
+func (s *Service) ApplySkinFromCatalog(ctx context.Context, userID, catalogID string) (*View, error) {
+	entry, ok := CatalogEntryByID(catalogID)
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return s.ApplySkinFromMojang(ctx, userID, entry.Username)
 }
 
 func (s *Service) DeleteSkin(ctx context.Context, userID string) (*View, error) {
