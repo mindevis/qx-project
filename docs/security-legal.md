@@ -240,6 +240,16 @@ No Cloudflare — all security on dedicated server:
 
 ---
 
+## 10. Windows Defender & launcher reputation
+
+QX Launcher is an unsigned (alpha) Go tray application that self-updates and spawns Minecraft/Java. Microsoft Defender ML may flag it as `Program:Win32/Wacapew.A!ml` or similar **false positives**.
+
+**Mitigations in tree:** in-place rename updater (no batch script), PE version resources, `asInvoker` manifest, ShellExecute for URLs. **Production:** Authenticode signing required for stable reputation.
+
+Full details, signing steps, and Microsoft submission: **[launcher-windows-defender.md](./launcher-windows-defender.md)**.
+
+---
+
 *См. [ssh-deploy.md](./ssh-deploy.md), [launch-bridge.md](./launch-bridge.md), [server-content-install.md](./server-content-install.md), [configuration.md](./configuration.md)*
 
-Последнее обновление: 2026-06-21 (HWID device link)
+Последнее обновление: 2026-07-01 (Defender / launcher signing)

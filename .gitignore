@@ -10,6 +10,7 @@ authcov
 *_cov
 **/coverage/
 **/cov
+services/qxlauncher/cmd/rsrc_windows_*.syso
 services/qxapi/api
 services/qxapi/auth
 services/qxapi/launcher

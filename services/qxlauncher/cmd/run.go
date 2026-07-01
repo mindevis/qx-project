@@ -13,9 +13,12 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
 	"github.com/qxproject/qx/services/qxlauncher/internal/tray"
+	"github.com/qxproject/qx/services/qxlauncher/internal/updater"
 )
 
 func run() {
+	updater.CleanupPreviousBackup()
+
 	cfg := config.Load()
 	qxlog.Setup(qxlog.Options{Level: cfg.LogLevel, Format: cfg.LogFormat})
 

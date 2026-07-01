@@ -52,7 +52,7 @@ flowchart TD
 
 | OS | Method |
 | ---- | -------- |
-| **Windows** | Download to `%TEMP%`, verify, spawn updater `.exe` that replaces and relaunches |
+| **Windows** | Download to `%LOCALAPPDATA%\QXLauncher\updates`, verify, rename running EXE to `.prev`, copy new binary, restart (no helper script) |
 | **Linux** | Download to `/tmp`, verify, `atomic replace` + systemd user service restart |
 | **macOS** | Replace `.app` bundle in `/Applications/QX Launcher.app` (post-MVP signing) |
 

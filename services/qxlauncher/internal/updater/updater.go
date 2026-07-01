@@ -6,14 +6,18 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
 )
 
-// Apply downloads the launcher binary and schedules replacement of the running executable.
-// On Windows the current process exits after spawning a helper batch script.
+const backupSuffix = ".prev"
+
+// Apply downloads the launcher binary and replaces the running executable.
+// On Windows the running binary is renamed in place (no helper script), a new
+// copy is written to the original path, and the updated binary is started.
 func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.Client) error {
 	if runtime.GOOS != "windows" {
 		return fmt.Errorf("self-update is only supported on Windows")
@@ -33,6 +37,12 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return err
 	}
 
+	stagingDir := stagingDir()
+	if err := os.MkdirAll(stagingDir, 0o700); err != nil {
+		return err
+	}
+	staging := filepath.Join(stagingDir, filename+".staging")
+
 	client := httpClient
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Minute}
@@ -51,9 +61,7 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return fmt.Errorf("download failed: %d %s", res.StatusCode, string(b))
 	}
 
-	dir := filepath.Dir(current)
-	staging := filepath.Join(dir, ".qxlauncher-update-"+filename)
-	out, err := os.Create(staging)
+	out, err := os.OpenFile(staging, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
@@ -67,25 +75,62 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return err
 	}
 
-	scriptPath := filepath.Join(os.TempDir(), "qxlauncher-update.cmd")
-	script := fmt.Sprintf(`@echo off
-timeout /t 2 /nobreak >nul
-move /y "%s" "%s" >nul
-start "" "%s"
-del "%%~f0"
-`, staging, current, current)
-	if err := os.WriteFile(scriptPath, []byte(script), 0o600); err != nil {
+	if err := replaceExecutable(current, staging); err != nil {
 		_ = os.Remove(staging)
 		return err
 	}
-	cmd := exec.Command("cmd", "/C", scriptPath)
+	_ = os.Remove(staging)
+
+	cmd := proc.Command(current)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Start(); err != nil {
-		_ = os.Remove(staging)
-		_ = os.Remove(scriptPath)
 		return err
 	}
 	os.Exit(0)
 	return nil
+}
+
+func stagingDir() string {
+	if local := os.Getenv("LOCALAPPDATA"); local != "" {
+		return filepath.Join(local, "QXLauncher", "updates")
+	}
+	return filepath.Join(os.TempDir(), "QXLauncher", "updates")
+}
+
+func backupPath(exe string) string {
+	return exe + backupSuffix
+}
+
+func replaceExecutable(current, staging string) error {
+	backup := backupPath(current)
+	_ = os.Remove(backup)
+
+	if err := os.Rename(current, backup); err != nil {
+		return fmt.Errorf("rename running executable: %w", err)
+	}
+	if err := copyFile(staging, current); err != nil {
+		_ = os.Rename(backup, current)
+		return fmt.Errorf("install update: %w", err)
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		_ = os.Remove(dst)
+		return err
+	}
+	return out.Close()
 }
