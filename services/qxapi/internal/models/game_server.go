@@ -35,6 +35,7 @@ type GameServer struct {
 	LikesCount            int     `gorm:"not null;default:0" json:"likes_count"`
 	RatingSum             int     `gorm:"not null;default:0" json:"-"`
 	RatingCount           int     `gorm:"not null;default:0" json:"rating_count"`
+	LastError             string  `gorm:"type:text" json:"last_error,omitempty"`
 
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`

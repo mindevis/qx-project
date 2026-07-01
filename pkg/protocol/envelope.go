@@ -22,6 +22,7 @@ const (
 
 	TypeEvtAgentHeartbeat = "evt.agent.heartbeat"
 	TypeEvtConsoleOutput  = "evt.console.output"
+	TypeEvtServerStatus   = "evt.server.status"
 
 	TypeResServerInstall          = "res.server.install"
 	TypeResServerConfigure        = "res.server.configure"
@@ -97,6 +98,20 @@ type ServerStartResult struct {
 
 type ServerStopResult struct {
 	ExitCode int `json:"exit_code"`
+}
+
+const (
+	ServerStatusRunning = "running"
+	ServerStatusStopped = "stopped"
+	ServerStatusCrashed = "crashed"
+)
+
+type ServerStatusPayload struct {
+	GameServerID string `json:"game_server_id,omitempty"`
+	Status       string `json:"status"`
+	PID          int    `json:"pid,omitempty"`
+	ExitCode     *int   `json:"exit_code,omitempty"`
+	Message      string `json:"message,omitempty"`
 }
 
 type HeartbeatPayload struct {

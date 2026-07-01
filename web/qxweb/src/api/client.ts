@@ -148,6 +148,7 @@ export type VpsGameServerInstance = {
   monitoring_description?: string;
   banner_url?: string;
   monitoring_tags?: string[];
+  last_error?: string;
   created_at: string;
 };
 

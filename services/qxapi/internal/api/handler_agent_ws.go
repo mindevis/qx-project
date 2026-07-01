@@ -49,7 +49,9 @@ func (h *AgentWSHandler) Connect(c *gin.Context) {
 	version := c.GetHeader("X-Agent-Version")
 	_ = h.Servers.AgentConnected(c.Request.Context(), claims.ServerID, hostname, version)
 	defer func() {
-		_ = h.Servers.AgentDisconnected(c.Request.Context(), claims.ServerID)
+		if !h.Hub.IsOnline(claims.ServerID) {
+			_ = h.Servers.AgentDisconnected(c.Request.Context(), claims.ServerID)
+		}
 		_ = conn.Close()
 	}()
 	h.Hub.ReadLoop(agentConn)

@@ -114,6 +114,10 @@ func (c *Client) connectOnce(ctx context.Context) error {
 	c.runner.SetOutputHandler(func(stream, line string) {
 		c.emitConsoleStream(conn, c.runner.ConsoleGameServerID(), stream, line)
 	})
+	c.runner.SetStatusHandler(func(payload protocol.ServerStatusPayload) {
+		c.emitServerStatus(conn, payload)
+	})
+	c.reportServerStatus(conn)
 
 	heartbeat := time.NewTicker(30 * time.Second)
 	defer heartbeat.Stop()
@@ -203,6 +207,20 @@ func (c *Client) emitConsoleStream(conn *websocket.Conn, gameServerID, stream, l
 		TS:      time.Now().UTC().Format(time.RFC3339),
 		Payload: payload,
 	})
+}
+
+func (c *Client) emitServerStatus(conn *websocket.Conn, status protocol.ServerStatusPayload) {
+	payload, _ := json.Marshal(status)
+	_ = c.writeEnvelope(conn, protocol.Envelope{
+		V:       protocol.Version,
+		Type:    protocol.TypeEvtServerStatus,
+		TS:      time.Now().UTC().Format(time.RFC3339),
+		Payload: payload,
+	})
+}
+
+func (c *Client) reportServerStatus(conn *websocket.Conn) {
+	c.emitServerStatus(conn, c.runner.CurrentStatus())
 }
 
 func (c *Client) runInstallAsync(conn *websocket.Conn, cache *requestCache, env protocol.Envelope) {
@@ -489,15 +507,18 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 }
 
 type ProcessRunner struct {
-	DryRun          bool
-	mu              sync.Mutex
-	cmd             *exec.Cmd
-	dryPID          int
-	stdin           io.WriteCloser
-	pipeClosers     []io.Closer
-	onOutput        func(stream, line string)
-	gameServerID    string
-	logFollowCancel context.CancelFunc
+	DryRun             bool
+	mu                 sync.Mutex
+	cmd                *exec.Cmd
+	dryPID             int
+	stdin              io.WriteCloser
+	pipeClosers        []io.Closer
+	onOutput           func(stream, line string)
+	onStatus           func(protocol.ServerStatusPayload)
+	gameServerID       string
+	logFollowCancel    context.CancelFunc
+	stoppingGracefully bool
+	managedWorkDir     string
 }
 
 func (r *ProcessRunner) ConsoleGameServerID() string {
@@ -543,6 +564,7 @@ func (r *ProcessRunner) startLogFollowLocked(workDir string) {
 func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.cleanupDeadProcessLocked()
 	if r.cmd != nil && r.cmd.Process != nil {
 		if payload.WorkDir != "" {
 			r.startLogFollowLocked(payload.WorkDir)
@@ -613,9 +635,12 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 	r.cmd = cmd
 	r.stdin = stdinW
 	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
+	r.stoppingGracefully = false
+	r.managedWorkDir = start.WorkDir
 	go streamLines("stdout", stdoutR, r.emit)
 	go streamLines("stderr", stderrR, r.emit)
 	r.startLogFollowLocked(start.WorkDir)
+	go r.watchManagedProcess(cmd, start.WorkDir)
 	return cmd.Process.Pid, nil
 }
 
@@ -650,9 +675,12 @@ func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
 	r.cmd = cmd
 	r.stdin = stdinW
 	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
+	r.stoppingGracefully = false
+	r.managedWorkDir = start.WorkDir
 	go streamLines("stdout", stdoutR, r.emit)
 	go streamLines("stderr", stderrR, r.emit)
 	r.startLogFollowLocked(start.WorkDir)
+	go r.watchManagedProcess(cmd, start.WorkDir)
 	return cmd.Process.Pid, nil
 }
 
@@ -673,6 +701,7 @@ func (r *ProcessRunner) Stop(graceful bool, timeout time.Duration) (int, error) 
 		return 0, nil
 	}
 	cmd := r.cmd
+	r.stoppingGracefully = true
 	r.cmd = nil
 	r.gameServerID = ""
 	r.stopLogFollowLocked()

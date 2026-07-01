@@ -658,6 +658,7 @@ export const ru = {
     fileReadFailed: 'Не удалось прочитать файл',
     fileSaved: 'Файл сохранён',
     backToFiles: 'К списку файлов',
+    crashTitle: 'Сервер неожиданно остановился',
   },
   console: {
     connected: 'Консоль подключена',

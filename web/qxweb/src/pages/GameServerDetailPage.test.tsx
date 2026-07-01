@@ -323,4 +323,34 @@ describe('GameServerDetailPage', () => {
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
     await waitFor(() => expect(message.error).toHaveBeenCalledWith('reinstall failed'));
   });
+
+  it('shows crash details when server is in error state', async () => {
+    const crashedGame = {
+      ...gameServer,
+      status: 'error',
+      last_error: 'minecraft server exited unexpectedly (code 1)\nfatal boot error',
+    };
+    vi.mocked(fetch).mockImplementation((input) => {
+      const url = requestUrl(input);
+      if (url.includes('/users/me')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ id: '1', email: 'u@test.com', tier: 'free', created_at: 'now' }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/servers/srv-1/game-servers')) {
+        return Promise.resolve(new Response(JSON.stringify({ items: [crashedGame] }), { status: 200 }));
+      }
+      if (url.includes('/servers/srv-1')) {
+        return Promise.resolve(new Response(JSON.stringify(vpsServer), { status: 200 }));
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    renderDetail();
+    await waitFor(() => expect(screen.getByText(/fatal boot error/)).toBeInTheDocument());
+    expect(screen.getByText(/Сервер неожиданно остановился/i)).toBeInTheDocument();
+  });
 });

@@ -30,6 +30,7 @@ export type VpsGameServer = {
   monitoring_description?: string;
   banner_url?: string;
   monitoring_tags?: string[];
+  last_error?: string;
   created_at: string;
 };
 
@@ -71,6 +72,7 @@ function mapGameServer(item: {
   monitoring_description?: string;
   banner_url?: string;
   monitoring_tags?: string[];
+  last_error?: string;
   created_at: string;
 }): VpsGameServer {
   return {
@@ -88,6 +90,7 @@ function mapGameServer(item: {
     monitoring_description: item.monitoring_description,
     banner_url: item.banner_url,
     monitoring_tags: item.monitoring_tags,
+    last_error: item.last_error,
     created_at: item.created_at,
   };
 }

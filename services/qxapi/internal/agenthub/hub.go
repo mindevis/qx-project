@@ -61,10 +61,12 @@ func (h *Hub) Register(serverID string, conn *websocket.Conn) *Conn {
 	return c
 }
 
-func (h *Hub) Unregister(serverID string) {
+func (h *Hub) Unregister(serverID string, conn *Conn) {
 	h.mu.Lock()
-	delete(h.agents, serverID)
-	h.mu.Unlock()
+	defer h.mu.Unlock()
+	if current, ok := h.agents[serverID]; ok && current == conn {
+		delete(h.agents, serverID)
+	}
 }
 
 func (h *Hub) IsOnline(serverID string) bool {
@@ -114,7 +116,7 @@ func (h *Hub) SendCommand(ctx context.Context, serverID string, env protocol.Env
 }
 
 func (h *Hub) ReadLoop(c *Conn) {
-	defer h.Unregister(c.ServerID)
+	defer h.Unregister(c.ServerID, c)
 	for {
 		_, data, err := c.Conn.ReadMessage()
 		if err != nil {

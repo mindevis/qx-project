@@ -31,7 +31,7 @@ func TestHubRegisterAndOnline(t *testing.T) {
 	if !h.IsOnline("srv-1") {
 		t.Fatal("expected online")
 	}
-	h.Unregister("srv-1")
+	h.Unregister("srv-1", &Conn{ServerID: "srv-1", Conn: conn})
 	if h.IsOnline("srv-1") {
 		t.Fatal("expected offline after unregister")
 	}
@@ -173,6 +173,46 @@ func TestHubReconnectReplacesConnection(t *testing.T) {
 	_ = conn1.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
 	if _, _, err := conn1.ReadMessage(); err == nil {
 		t.Fatal("expected old connection to be closed")
+	}
+	_ = conn2.Close()
+}
+
+func TestReadLoopUnregisterDoesNotDropReplacementConnection(t *testing.T) {
+	h := New(nil)
+	server := wsTestServer(t, func(c *websocket.Conn) {
+		for {
+			if _, _, err := c.ReadMessage(); err != nil {
+				return
+			}
+		}
+	})
+	defer server.Close()
+
+	conn1, _, err := websocket.DefaultDialer.Dial(wsURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial1: %v", err)
+	}
+	agentConn1 := h.Register("srv-1", conn1)
+	done := make(chan struct{})
+	go func() {
+		h.ReadLoop(agentConn1)
+		close(done)
+	}()
+
+	conn2, _, err := websocket.DefaultDialer.Dial(wsURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial2: %v", err)
+	}
+	h.Register("srv-1", conn2)
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for first read loop to exit")
+	}
+
+	if !h.IsOnline("srv-1") {
+		t.Fatal("replacement connection should stay registered")
 	}
 	_ = conn2.Close()
 }

@@ -129,7 +129,10 @@ export function shouldShowGameServerConsole(
 ): boolean {
   return (
     agentOnline &&
-    (game.status === 'running' || game.status === 'starting' || game.status === 'installing')
+    (game.status === 'running' ||
+      game.status === 'starting' ||
+      game.status === 'installing' ||
+      game.status === 'error')
   );
 }
 

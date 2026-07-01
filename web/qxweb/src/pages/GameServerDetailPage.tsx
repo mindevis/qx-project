@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
+  Alert,
   Button,
   Popconfirm,
   Space,
@@ -116,7 +117,8 @@ export function GameServerDetailPage() {
     const needsPoll =
       isVpsGameServerProvisioning(game.status) ||
       game.status === 'running' ||
-      game.status === 'starting';
+      game.status === 'starting' ||
+      game.status === 'error';
     if (!needsPoll) return undefined;
     const timer = window.setInterval(() => void load(), 3000);
     return () => window.clearInterval(timer);
@@ -321,6 +323,18 @@ export function GameServerDetailPage() {
                 </Text>
               ) : null}
             </Space>
+          ) : null}
+
+          {game.status === 'error' && game.last_error ? (
+            <Alert
+              className="game-server-detail-crash"
+              type="error"
+              showIcon
+              message={t('gameServerDetail.crashTitle')}
+              description={
+                <pre className="game-server-detail-crash-log">{game.last_error}</pre>
+              }
+            />
           ) : null}
 
           <Tabs className="game-server-detail-tabs" items={tabItems} />

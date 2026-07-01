@@ -53,6 +53,7 @@ describe('shouldShowGameServerConsole', () => {
     expect(shouldShowGameServerConsole({ status: 'installing' }, true)).toBe(true);
     expect(shouldShowGameServerConsole({ status: 'starting' }, true)).toBe(true);
     expect(shouldShowGameServerConsole({ status: 'running' }, true)).toBe(true);
+    expect(shouldShowGameServerConsole({ status: 'error' }, true)).toBe(true);
   });
 });
 

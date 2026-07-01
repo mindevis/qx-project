@@ -660,6 +660,7 @@ export const en: Messages = {
     fileReadFailed: 'Failed to read file',
     fileSaved: 'File saved',
     backToFiles: 'Back to file list',
+    crashTitle: 'Server stopped unexpectedly',
   },
   console: {
     connected: 'Console connected',

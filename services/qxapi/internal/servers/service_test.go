@@ -211,13 +211,25 @@ func TestAgentConnectDisconnect(t *testing.T) {
 		t.Fatalf("expected agent_version 0.1.0, got %v", got.AgentVersion)
 	}
 
-	_ = svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Update("status", models.ServerStatusOnline).Error
+	_ = svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Updates(map[string]any{
+		"status": models.ServerStatusOnline,
+		"config_json": `{"mc_pid":4242,"active_game_server_id":"gs-1"}`,
+	}).Error
 	if err := svc.AgentConnected(ctx, view.ID, "dedicated server-1", "0.1.0"); err != nil {
 		t.Fatalf("reconnect: %v", err)
 	}
 	got, err = svc.Get(ctx, "owner-1", view.ID)
-	if err != nil || got.Status != models.ServerStatusOffline {
-		t.Fatalf("agent reconnect should clear stale mc online: status=%s", got.Status)
+	if err != nil || got.Status != models.ServerStatusOnline || !got.MinecraftRunning {
+		t.Fatalf("agent reconnect should keep running mc until status event: status=%s mc=%v", got.Status, got.MinecraftRunning)
+	}
+
+	svc.OnAgentEvent(view.ID, protocol.Envelope{
+		Type:    protocol.TypeEvtServerStatus,
+		Payload: []byte(`{"status":"stopped","game_server_id":"gs-1"}`),
+	})
+	got, err = svc.Get(ctx, "owner-1", view.ID)
+	if err != nil || got.Status != models.ServerStatusOffline || got.MinecraftRunning {
+		t.Fatalf("stopped status event should clear mc online: status=%s mc=%v", got.Status, got.MinecraftRunning)
 	}
 
 	if err := svc.AgentDisconnected(ctx, view.ID); err != nil {
@@ -268,6 +280,46 @@ func TestOnAgentEvent(t *testing.T) {
 	}
 
 	svc.OnAgentEvent(view.ID, protocol.Envelope{Type: protocol.TypeEvtConsoleOutput})
+}
+
+func TestApplyServerStatusEventCrash(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+	now := time.Now().UTC()
+	gameServerID := "gs-crash"
+	if err := svc.db.WithContext(ctx).Create(&models.GameServer{
+		ID:         gameServerID,
+		ServerID:   view.ID,
+		Name:       "Crash Test",
+		ServerType: "forge",
+		MCVersion:  "1.20.1",
+		Status:     models.GameServerStatusRunning,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	svc.OnAgentEvent(view.ID, protocol.Envelope{
+		Type: protocol.TypeEvtServerStatus,
+		Payload: []byte(`{
+			"status":"crashed",
+			"game_server_id":"gs-crash",
+			"message":"minecraft server exited unexpectedly (code 1)\nfatal boot error"
+		}`),
+	})
+
+	var item models.GameServer
+	if err := svc.db.WithContext(ctx).Where("id = ?", gameServerID).First(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	if item.Status != models.GameServerStatusError {
+		t.Fatalf("status: %s", item.Status)
+	}
+	if item.LastError == "" {
+		t.Fatal("expected last_error")
+	}
 }
 
 func TestStaleOnlineWithoutMcPID(t *testing.T) {

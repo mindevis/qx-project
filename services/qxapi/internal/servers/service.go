@@ -81,6 +81,8 @@ func (s *Service) OnAgentEvent(serverID string, env protocol.Envelope) {
 		s.applyServerStartResult(ctx, serverID, env.RequestID, env.Payload)
 	case protocol.TypeResServerStop:
 		s.applyServerStopResult(ctx, serverID, env.RequestID, env.Payload)
+	case protocol.TypeEvtServerStatus:
+		s.applyServerStatusEvent(ctx, serverID, env.Payload)
 	default:
 		if isRPCResponseType(env.Type) {
 			s.deliverRPCResponse(env.RequestID, env.Payload)
@@ -367,7 +369,7 @@ func (s *Service) markMinecraftStopped(ctx context.Context, serverID string) err
 		return err
 	}
 	if activeGameServerID != "" {
-		s.setGameServerStatus(ctx, activeGameServerID, models.GameServerStatusStopped)
+		s.setGameServerStatus(ctx, activeGameServerID, models.GameServerStatusStopped, "")
 	}
 	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
 }
@@ -395,14 +397,6 @@ func (s *Service) saveConfig(ctx context.Context, serverID string, cfg ServerCon
 
 func (s *Service) AgentConnected(ctx context.Context, serverID, hostname, version string) error {
 	now := time.Now().UTC()
-	server, err := s.getByID(ctx, serverID)
-	if err != nil {
-		return err
-	}
-	// Agent (re)connect clears in-memory MC process — do not keep stale "online".
-	if server.Status == models.ServerStatusOnline || server.Status == models.ServerStatusStarting {
-		_ = s.markMinecraftStopped(ctx, serverID)
-	}
 	if err := s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("last_seen_at", now).Error; err != nil {
 		return err
 	}
@@ -414,6 +408,44 @@ func (s *Service) AgentConnected(ctx context.Context, serverID, hostname, versio
 		agentUpdates["agent_version"] = version
 	}
 	return s.db.WithContext(ctx).Model(&models.Agent{}).Where("server_id = ?", serverID).Updates(agentUpdates).Error
+}
+
+func (s *Service) applyServerStatusEvent(ctx context.Context, serverID string, payload []byte) {
+	var status protocol.ServerStatusPayload
+	if err := json.Unmarshal(payload, &status); err != nil {
+		return
+	}
+	switch status.Status {
+	case protocol.ServerStatusRunning:
+		if status.PID > 0 {
+			pid := status.PID
+			_ = s.setMcPID(ctx, serverID, &pid)
+			_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOnline).Error
+		}
+		if id := strings.TrimSpace(status.GameServerID); id != "" {
+			s.setGameServerStatus(ctx, id, models.GameServerStatusRunning, "")
+		}
+	case protocol.ServerStatusStopped:
+		if id := strings.TrimSpace(status.GameServerID); id != "" {
+			s.setGameServerStatus(ctx, id, models.GameServerStatusStopped, "")
+		}
+		_ = s.setMcPID(ctx, serverID, nil)
+		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
+	case protocol.ServerStatusCrashed:
+		message := strings.TrimSpace(status.Message)
+		if id := strings.TrimSpace(status.GameServerID); id != "" {
+			s.setGameServerStatus(ctx, id, models.GameServerStatusError, message)
+		}
+		_ = s.setMcPID(ctx, serverID, nil)
+		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
+		if s.hub != nil && message != "" {
+			s.hub.BroadcastConsole(serverID, protocol.ConsoleOutputPayload{
+				Stream:       "stderr",
+				Line:         message,
+				GameServerID: status.GameServerID,
+			})
+		}
+	}
 }
 
 func (s *Service) AgentDisconnected(ctx context.Context, serverID string) error {

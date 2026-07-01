@@ -36,6 +36,7 @@ type GameServerView struct {
 	MonitoringDescription string    `json:"monitoring_description,omitempty"`
 	BannerURL             string    `json:"banner_url,omitempty"`
 	MonitoringTags        []string  `json:"monitoring_tags"`
+	LastError             string    `json:"last_error,omitempty"`
 	CreatedAt             time.Time `json:"created_at"`
 }
 
@@ -523,7 +524,7 @@ func (s *Service) applyServerInstallResult(ctx context.Context, vpsID, requestID
 		Error string `json:"error"`
 	}
 	if json.Unmarshal(payload, &errPayload) == nil && strings.TrimSpace(errPayload.Error) != "" {
-		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError)
+		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, "")
 		if s.hub != nil {
 		s.hub.BroadcastConsole(vpsID, protocol.ConsoleOutputPayload{
 			Stream:       "stderr",
@@ -536,7 +537,7 @@ func (s *Service) applyServerInstallResult(ctx context.Context, vpsID, requestID
 
 	var result protocol.ServerInstallResult
 	if err := json.Unmarshal(payload, &result); err != nil {
-		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError)
+		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, "")
 		return
 	}
 
@@ -630,7 +631,7 @@ func (s *Service) applyServerStopResult(ctx context.Context, serverID, requestID
 		return
 	}
 	if err := s.startGameServerProcess(ctx, serverID, &item); err != nil {
-		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError)
+		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, "")
 	}
 }
 
@@ -643,7 +644,7 @@ func (s *Service) markPendingGameServerRunning(ctx context.Context, requestID st
 	if op.phase != "start" {
 		return
 	}
-	s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusRunning)
+	s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusRunning, "")
 }
 
 func (s *Service) markPendingGameServerError(ctx context.Context, requestID, message string) {
@@ -655,7 +656,7 @@ func (s *Service) markPendingGameServerError(ctx context.Context, requestID, mes
 	if op.phase != "start" {
 		return
 	}
-	s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError)
+	s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, message)
 	if s.hub != nil && message != "" {
 		s.hub.BroadcastConsole(op.vpsServerID, protocol.ConsoleOutputPayload{
 			Stream:       "stderr",
@@ -665,11 +666,17 @@ func (s *Service) markPendingGameServerError(ctx context.Context, requestID, mes
 	}
 }
 
-func (s *Service) setGameServerStatus(ctx context.Context, gameServerID, status string) {
-	_ = s.db.WithContext(ctx).Model(&models.GameServer{}).Where("id = ?", gameServerID).Updates(map[string]any{
+func (s *Service) setGameServerStatus(ctx context.Context, gameServerID, status, lastError string) {
+	updates := map[string]any{
 		"status":     status,
 		"updated_at": time.Now().UTC(),
-	}).Error
+	}
+	if lastError != "" {
+		updates["last_error"] = lastError
+	} else if status == models.GameServerStatusRunning || status == models.GameServerStatusStopped {
+		updates["last_error"] = ""
+	}
+	_ = s.db.WithContext(ctx).Model(&models.GameServer{}).Where("id = ?", gameServerID).Updates(updates).Error
 }
 
 func (s *Service) expireStaleGameServerProvisions(ctx context.Context, vpsID string) {
@@ -701,6 +708,7 @@ func gameServerViewFromModel(item *models.GameServer) GameServerView {
 		MonitoringDescription: strings.TrimSpace(item.MonitoringDescription),
 		BannerURL:             strings.TrimSpace(item.BannerURL),
 		MonitoringTags:        decodeStringListJSON(item.MonitoringTagsJSON),
+		LastError:             strings.TrimSpace(item.LastError),
 		CreatedAt:             item.CreatedAt,
 	}
 }
