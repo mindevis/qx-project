@@ -23,6 +23,7 @@ describe('launchProgress', () => {
 
   it('maps launch error codes to i18n keys', () => {
     expect(getLaunchErrorKey('MOJANG_SESSION')).toBe('launcher.launchErrorCodes.MOJANG_SESSION');
+    expect(getLaunchErrorKey('MOJANG_UNAVAILABLE')).toBe('launcher.launchErrorCodes.MOJANG_UNAVAILABLE');
     expect(getLaunchErrorKey(undefined)).toBeUndefined();
   });
 });

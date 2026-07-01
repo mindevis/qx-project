@@ -6,8 +6,28 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 )
+
+type stubMojangLauncher struct {
+	linked       bool
+	sessionErr   error
+	session      *mojang.SessionView
+	sessionCalls int
+}
+
+func (s *stubMojangLauncher) GetStatus(ctx context.Context, userID string) (*mojang.LinkStatus, error) {
+	return &mojang.LinkStatus{Linked: s.linked}, nil
+}
+
+func (s *stubMojangLauncher) SessionForLaunch(ctx context.Context, userID string) (*mojang.SessionView, error) {
+	s.sessionCalls++
+	if s.sessionErr != nil {
+		return nil, s.sessionErr
+	}
+	return s.session, nil
+}
 
 func TestProfilesCRUD(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
@@ -130,7 +150,7 @@ func TestFetchPendingLaunchEmpty(t *testing.T) {
 	}
 }
 
-func TestGetLaunchRequestManifestFailure(t *testing.T) {
+func TestGetLaunchRequestPollDoesNotEnrich(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
 	svc.SetManifestProvider(stubManifestProvider{err: fmt.Errorf("version not found")})
 	ctx := context.Background()
@@ -149,8 +169,8 @@ func TestGetLaunchRequestManifestFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if got.Status != models.LaunchStatusFailed || got.ErrorCode == nil || *got.ErrorCode != "MANIFEST_UNAVAILABLE" {
-		t.Fatalf("expected failed manifest view, got status=%q error=%v", got.Status, got.ErrorCode)
+	if got.Status != models.LaunchStatusQueued {
+		t.Fatalf("expected queued without side effects, got status=%q error=%v", got.Status, got.ErrorCode)
 	}
 }
 
@@ -183,6 +203,141 @@ func TestFetchPendingLaunchManifestFailureMarksFailed(t *testing.T) {
 	}
 	if got.Status != models.LaunchStatusFailed || got.ErrorCode == nil || *got.ErrorCode != "MANIFEST_UNAVAILABLE" {
 		t.Fatalf("expected failed manifest view, got status=%q error=%v", got.Status, got.ErrorCode)
+	}
+}
+
+func TestLicensedLaunchSkipsMojangRefreshAfterDispatch(t *testing.T) {
+	svc, _, _ := newLauncherService(t)
+	svc.withStubManifest(t, nil)
+	stub := &stubMojangLauncher{
+		linked: true,
+		session: &mojang.SessionView{
+			Username:    "Notch",
+			UUID:        "uuid",
+			AccessToken: "token",
+		},
+	}
+	svc.SetMojang(stub)
+	ctx := context.Background()
+
+	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-mojang-skip"})
+	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-mojang-skip", UserID: "user-mojang-skip"})
+	owner := Owner{UserID: "user-mojang-skip"}
+	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
+	})
+	created, err := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
+		InstanceID:       inst.ID,
+		DeviceID:         "dev-mojang-skip",
+		UseMojangAccount: true,
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if _, err := svc.FetchPendingLaunch(ctx, "dev-mojang-skip"); err != nil {
+		t.Fatalf("fetch pending: %v", err)
+	}
+	if stub.sessionCalls != 1 {
+		t.Fatalf("expected one session refresh on dispatch, got %d", stub.sessionCalls)
+	}
+
+	updated, err := svc.UpdateLaunchRequest(ctx, "dev-mojang-skip", created.ID, UpdateLaunchRequestInput{
+		Status: models.LaunchStatusRunning,
+		PID:    intPtr(4242),
+	})
+	if err != nil {
+		t.Fatalf("update running: %v", err)
+	}
+	if updated.Status != models.LaunchStatusRunning {
+		t.Fatalf("status: %+v", updated)
+	}
+	if stub.sessionCalls != 1 {
+		t.Fatalf("running poll must not refresh mojang session, calls=%d", stub.sessionCalls)
+	}
+
+	got, err := svc.GetLaunchRequest(ctx, owner, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Status != models.LaunchStatusRunning {
+		t.Fatalf("expected running, got %+v", got)
+	}
+	if stub.sessionCalls != 1 {
+		t.Fatalf("get running must not refresh mojang session, calls=%d", stub.sessionCalls)
+	}
+}
+
+func TestLicensedLaunchMojangRevokedMarksFailed(t *testing.T) {
+	svc, _, _ := newLauncherService(t)
+	svc.withStubManifest(t, nil)
+	svc.SetMojang(&stubMojangLauncher{
+		linked:     true,
+		sessionErr: fmt.Errorf("%w: invalid_grant", mojang.ErrSessionRevoked),
+	})
+	ctx := context.Background()
+
+	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-mojang-revoked"})
+	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-mojang-revoked", UserID: "user-mojang-revoked"})
+	owner := Owner{UserID: "user-mojang-revoked"}
+	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
+	})
+	created, _ := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
+		InstanceID:       inst.ID,
+		DeviceID:         "dev-mojang-revoked",
+		UseMojangAccount: true,
+	})
+
+	pending, err := svc.FetchPendingLaunch(ctx, "dev-mojang-revoked")
+	if err != nil {
+		t.Fatalf("fetch pending: %v", err)
+	}
+	if pending != nil {
+		t.Fatalf("expected nil pending after revoked session, got %+v", pending)
+	}
+
+	got, err := svc.GetLaunchRequest(ctx, owner, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Status != models.LaunchStatusFailed || got.ErrorCode == nil || *got.ErrorCode != "MOJANG_SESSION" {
+		t.Fatalf("expected MOJANG_SESSION failure, got status=%q error=%v", got.Status, got.ErrorCode)
+	}
+}
+
+func TestLicensedLaunchMojangUnavailableDoesNotFail(t *testing.T) {
+	svc, _, _ := newLauncherService(t)
+	svc.withStubManifest(t, nil)
+	svc.SetMojang(&stubMojangLauncher{
+		linked:     true,
+		sessionErr: fmt.Errorf("%w: timeout", mojang.ErrSessionUnavailable),
+	})
+	ctx := context.Background()
+
+	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-mojang-up"})
+	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-mojang-up", UserID: "user-mojang-up"})
+	owner := Owner{UserID: "user-mojang-up"}
+	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
+	})
+	created, _ := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
+		InstanceID:       inst.ID,
+		DeviceID:         "dev-mojang-up",
+		UseMojangAccount: true,
+	})
+
+	_, err := svc.FetchPendingLaunch(ctx, "dev-mojang-up")
+	if !errors.Is(err, ErrMojangUnavailable) {
+		t.Fatalf("expected unavailable error, got %v", err)
+	}
+
+	got, err := svc.GetLaunchRequest(ctx, owner, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Status != models.LaunchStatusQueued {
+		t.Fatalf("transient mojang failure must revert to queued, got status=%q", got.Status)
 	}
 }
 

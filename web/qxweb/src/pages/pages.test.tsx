@@ -1166,7 +1166,6 @@ describe('pages', { timeout: 30_000 }, () => {
   });
 
   it('shows linked Microsoft account in licensed player section', async () => {
-    const user = userEvent.setup({ delay: null });
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1202,9 +1201,9 @@ describe('pages', { timeout: 30_000 }, () => {
     );
 
     await waitFor(() => expect(screen.getByText('Игрок')).toBeInTheDocument());
-    await user.click(screen.getByText('Лицензия (Microsoft)'));
     await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
     expect(screen.getByText('uuid-notchy')).toBeInTheDocument();
+    expect(screen.getByText(/Используется привязанный Microsoft-аккаунт/)).toBeInTheDocument();
     expect(screen.queryByText(/Привяжите Microsoft в профиле/)).not.toBeInTheDocument();
   });
 
@@ -1275,11 +1274,186 @@ describe('pages', { timeout: 30_000 }, () => {
     );
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    await user.click(screen.getByText('Лицензия (Microsoft)'));
     await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Игра запущена'));
     successSpy.mockRestore();
+  });
+
+  it('defaults to linked Mojang account when offline profiles exist', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    const instance = {
+      id: 'inst-1',
+      name: 'Survival',
+      mc_version: '1.21',
+      loader: 'vanilla',
+      created_at: 't',
+      updated_at: 't',
+    };
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/users/me/mojang')) {
+          return new Response(
+            JSON.stringify({ linked: true, username: 'Notch', minecraft_uuid: 'uuid' }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/launcher/profiles')) {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'prof-1',
+                  username: 'Steve',
+                  model: 'steve',
+                  created_at: 't',
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
+          const body = JSON.parse(String(init.body));
+          expect(body.use_mojang_account).toBe(true);
+          expect(body.offline_profile_id).toBeUndefined();
+          return new Response(
+            JSON.stringify({
+              id: 'lr-lic',
+              status: 'queued',
+              instance_id: instance.id,
+              expires_at: new Date().toISOString(),
+            }),
+            { status: 201 },
+          );
+        }
+        if (url.includes('/launcher/launch-requests/lr-lic')) {
+          return new Response(
+            JSON.stringify({
+              id: 'lr-lic',
+              status: 'completed',
+              instance_id: instance.id,
+              expires_at: new Date().toISOString(),
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
+    expect(screen.queryByText('Steve')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Играть/ }));
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+  });
+
+  it('launches offline profile after switching from linked Mojang default', async () => {
+    const user = userEvent.setup({ delay: null });
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    const instance = {
+      id: 'inst-1',
+      name: 'Survival',
+      mc_version: '1.21',
+      loader: 'vanilla',
+      created_at: 't',
+      updated_at: 't',
+    };
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url, init) => {
+        if (url.includes('/users/me/mojang')) {
+          return new Response(
+            JSON.stringify({ linked: true, username: 'Notch', minecraft_uuid: 'uuid' }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/launcher/profiles')) {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'prof-1',
+                  username: 'Steve',
+                  model: 'steve',
+                  offline_uuid: 'u1',
+                  created_at: 't',
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
+          const body = JSON.parse(String(init.body));
+          expect(body.use_mojang_account).toBe(false);
+          expect(body.offline_profile_id).toBe('prof-1');
+          return new Response(
+            JSON.stringify({
+              id: 'lr-off',
+              status: 'queued',
+              instance_id: instance.id,
+              expires_at: new Date().toISOString(),
+            }),
+            { status: 201 },
+          );
+        }
+        if (url.includes('/launcher/launch-requests/lr-off')) {
+          return new Response(
+            JSON.stringify({
+              id: 'lr-off',
+              status: 'completed',
+              instance_id: instance.id,
+              expires_at: new Date().toISOString(),
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
+    await user.click(screen.getByText('Оффлайн'));
+    await waitFor(() => expect(screen.getAllByText('Steve').length).toBeGreaterThan(0));
+    await user.click(screen.getByRole('button', { name: /Играть/ }));
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
   });
 
   it('unlinks launcher device from alert', async () => {

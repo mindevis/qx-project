@@ -9,10 +9,13 @@ export const LAUNCH_ACTIVE_STATUSES = new Set([
   'running',
 ]);
 
+export type LaunchAccountMode = 'offline' | 'licensed';
+
 export type LaunchProgressState = {
   instanceId: string;
   requestId: string;
   status: string;
+  accountMode: LaunchAccountMode;
   errorCode?: string;
   needsMojangRelink?: boolean;
 };

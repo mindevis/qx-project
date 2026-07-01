@@ -183,7 +183,7 @@ func TestLaunchRequestsHandlerUpdate(t *testing.T) {
 	}
 }
 
-func TestLaunchRequestsHandlerGetManifestFailure(t *testing.T) {
+func TestLaunchRequestsHandlerGetPollDoesNotEnrich(t *testing.T) {
 	h, svc, tokens := newLaunchHandler(t)
 	ctx := context.Background()
 
@@ -217,8 +217,8 @@ func TestLaunchRequestsHandlerGetManifestFailure(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatalf("json: %v", err)
 	}
-	if body.Status != models.LaunchStatusFailed || body.ErrorCode == nil || *body.ErrorCode != "MANIFEST_UNAVAILABLE" {
-		t.Fatalf("response: %+v", body)
+	if body.Status != models.LaunchStatusQueued || body.ErrorCode != nil {
+		t.Fatalf("poll should return stored status without enrich side effects: %+v", body)
 	}
 }
 

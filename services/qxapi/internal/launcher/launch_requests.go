@@ -140,6 +140,13 @@ func (s *Service) FetchPendingLaunch(ctx context.Context, deviceID string) (*Lau
 
 	view, err := s.enrichLaunchView(ctx, req)
 	if err != nil {
+		if errors.Is(err, ErrMojangUnavailable) {
+			_ = s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
+				"status":        models.LaunchStatusQueued,
+				"dispatched_at": nil,
+			}).Error
+			return nil, err
+		}
 		if failed, failErr := s.failLaunchRequestOnEnrichError(ctx, req.ID, err); failErr == nil && failed != nil {
 			return nil, nil
 		}
@@ -177,7 +184,7 @@ func (s *Service) UpdateLaunchRequest(ctx context.Context, deviceID, requestID s
 	if err := s.db.WithContext(ctx).Where("id = ?", requestID).First(&req).Error; err != nil {
 		return nil, err
 	}
-	return s.enrichLaunchView(ctx, req)
+	return launchViewFromModel(req, nil, nil, nil, nil), nil
 }
 
 func (s *Service) GetLaunchRequest(ctx context.Context, owner Owner, requestID string) (*LaunchRequestView, error) {
@@ -191,20 +198,14 @@ func (s *Service) GetLaunchRequest(ctx context.Context, owner Owner, requestID s
 	if _, err := s.GetInstance(ctx, owner, req.InstanceID); err != nil {
 		return nil, err
 	}
-	view, err := s.enrichLaunchView(ctx, req)
-	if err != nil {
-		if failed, failErr := s.failLaunchRequestOnEnrichError(ctx, req.ID, err); failErr == nil && failed != nil {
-			return launchViewFromModel(*failed, nil, nil, nil, nil), nil
-		}
-		return nil, err
-	}
-	return view, nil
+	// Web status polling must not enrich — manifest/Mojang enrichment runs when the launcher fetches a pending job.
+	return launchViewFromModel(req, nil, nil, nil, nil), nil
 }
 
 func (s *Service) failLaunchRequestOnEnrichError(ctx context.Context, requestID string, err error) (*models.LaunchRequest, error) {
 	errorCode := ""
 	switch {
-	case errors.Is(err, ErrMojangSession):
+	case errors.Is(err, ErrMojangSession), errors.Is(err, ErrValidation):
 		errorCode = "MOJANG_SESSION"
 	case errors.Is(err, ErrManifest):
 		errorCode = "MANIFEST_UNAVAILABLE"
@@ -233,6 +234,10 @@ func (s *Service) expireStaleRequests(ctx context.Context, deviceID string, now 
 		Update("status", models.LaunchStatusExpired).Error
 }
 
+func launchNeedsMojangSession(status string) bool {
+	return status == models.LaunchStatusQueued || status == models.LaunchStatusDispatched
+}
+
 func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest) (*LaunchRequestView, error) {
 	var inst models.LauncherInstance
 	if err := s.db.WithContext(ctx).Where("id = ?", req.InstanceID).First(&inst).Error; err != nil {
@@ -250,13 +255,19 @@ func (s *Service) enrichLaunchView(ctx context.Context, req models.LaunchRequest
 		}
 	}
 	var mojangSession *MojangSessionView
-	if req.UseMojangAccount && s.mojang != nil && inst.UserID != nil {
+	if req.UseMojangAccount && s.mojang != nil && inst.UserID != nil && launchNeedsMojangSession(req.Status) {
 		session, err := s.mojang.SessionForLaunch(ctx, *inst.UserID)
 		if err != nil {
-			if errors.Is(err, mojang.ErrNotLinked) {
+			switch {
+			case errors.Is(err, mojang.ErrNotLinked):
 				return nil, ErrValidation
+			case errors.Is(err, mojang.ErrSessionRevoked):
+				return nil, fmt.Errorf("%w: %v", ErrMojangSession, err)
+			case errors.Is(err, mojang.ErrNotConfigured), errors.Is(err, mojang.ErrSessionUnavailable):
+				return nil, fmt.Errorf("%w: %v", ErrMojangUnavailable, err)
+			default:
+				return nil, err
 			}
-			return nil, fmt.Errorf("%w: %v", ErrMojangSession, err)
 		}
 		mojangSession = &MojangSessionView{
 			Username:    session.Username,

@@ -107,6 +107,9 @@ func mapLaunchServiceError(c *gin.Context, err error) bool {
 	case errors.Is(err, launcher.ErrMojangSession):
 		JSONError(c, http.StatusUnauthorized, "MOJANG_SESSION", "mojang session expired or unavailable")
 		return true
+	case errors.Is(err, launcher.ErrMojangUnavailable):
+		JSONError(c, http.StatusBadGateway, "MOJANG_UNAVAILABLE", "microsoft authentication is temporarily unavailable")
+		return true
 	default:
 		return false
 	}

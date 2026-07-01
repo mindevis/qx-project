@@ -370,7 +370,8 @@ export const ru = {
     launchErrorManifest: 'Не удалось подготовить манифест запуска — попробуйте позже',
     launchErrorDownload: 'Не удалось скачать файлы игры — проверьте соединение',
     launchErrorCodes: {
-      MOJANG_SESSION: 'Сессия Microsoft истекла или недоступна — привяжите аккаунт заново',
+      MOJANG_SESSION: 'Сессия Microsoft истекла — привяжите аккаунт заново в профиле',
+      MOJANG_UNAVAILABLE: 'Сервис Microsoft временно недоступен — попробуйте ещё раз',
       MANIFEST_UNAVAILABLE: 'Не удалось подготовить манифест запуска — попробуйте позже',
       PREPARE_FAILED: 'Не удалось подготовить игру к запуску',
       DOWNLOAD_FAILED: 'Не удалось скачать клиент',
@@ -406,7 +407,9 @@ export const ru = {
     workspaceRefresh: 'Обновить',
     workspaceRefreshed: 'Данные обновлены',
     playerSectionTitle: 'Игрок',
-    playerSectionHint: 'Режим аккаунта и ник перед запуском',
+    playerSectionHint:
+      'Привязанный Microsoft-аккаунт используется по умолчанию; для локального ника выберите оффлайн.',
+    accountModeLicensedDefault: 'Используется привязанный Microsoft-аккаунт',
     noInstancesHint: 'Vanilla, Forge, Fabric и другие сборки — синхронизируются с QXLauncher на ПК.',
     noProfilesHint: 'Offline-ники для игры без аккаунта Microsoft.',
     instancesSorted: '{{count}} инстансов · по алфавиту',
@@ -721,6 +724,7 @@ export const ru = {
     searchPrompt: 'Введите запрос и нажмите «Найти»',
     searchFailed: 'Не удалось выполнить поиск',
     browseFailed: 'Не удалось загрузить каталог',
+    upstreamFailed: 'Каталог временно недоступен',
     catalogIntro: 'Ниже — каталог ресурсов для вашего инстанса. Список учитывает версию Minecraft и загрузчик.',
     catalogEmpty: 'В каталоге нет элементов для выбранных фильтров',
     loadMore: 'Загрузить ещё',

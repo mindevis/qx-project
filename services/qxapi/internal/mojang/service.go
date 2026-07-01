@@ -155,7 +155,7 @@ func (s *Service) SessionForLaunch(ctx context.Context, userID string) (*Session
 	}
 	session, tokens, err := s.ms.LoginFromRefresh(ctx, refresh)
 	if err != nil {
-		return nil, err
+		return nil, ClassifyAuthError(err)
 	}
 	if tokens.RefreshToken != "" && tokens.RefreshToken != refresh {
 		enc, err := s.encryptString(tokens.RefreshToken)

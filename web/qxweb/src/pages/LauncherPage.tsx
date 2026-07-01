@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import {
   Alert,
@@ -134,6 +134,7 @@ function LauncherHome() {
   const [accountMode, setAccountMode] = useState<LaunchAccountMode>('offline');
   const [mojangStatus, setMojangStatus] = useState<MojangLinkStatus | null>(null);
   const [mojangLoading, setMojangLoading] = useState(false);
+  const userChoseAccountMode = useRef(false);
   const [, setAccessKey] = useState(0);
   const refreshAccess = useCallback(() => setAccessKey((k) => k + 1), []);
   const canManage = !authLoading && isAuthenticated;
@@ -388,6 +389,11 @@ function LauncherHome() {
     try {
       const status = await api.mojangStatus();
       setMojangStatus(status);
+      if (!userChoseAccountMode.current) {
+        setAccountMode(status.linked ? 'licensed' : 'offline');
+      } else if (!status.linked) {
+        setAccountMode('offline');
+      }
     } catch (e) {
       /* v8 ignore next 3 -- @preserve mojang status is optional for offline play */
       logger.warn('failed to load mojang status', { error: String(e) });
@@ -546,7 +552,11 @@ function LauncherHome() {
     }
   };
 
-  const pollLaunchRequest = async (requestId: string, instanceId: string) => {
+  const pollLaunchRequest = async (
+    requestId: string,
+    instanceId: string,
+    launchAccountMode: LaunchAccountMode,
+  ) => {
     const started = Date.now();
     const timeoutMs = 30 * 60 * 1000;
     let lastStatus: string | undefined;
@@ -557,8 +567,10 @@ function LauncherHome() {
           instanceId,
           requestId,
           status: req.status,
+          accountMode: launchAccountMode,
           errorCode: req.error_code,
-          needsMojangRelink: req.error_code === 'MOJANG_SESSION',
+          needsMojangRelink:
+            launchAccountMode === 'licensed' && req.error_code === 'MOJANG_SESSION',
         });
         if (req.status !== lastStatus) {
           lastStatus = req.status;
@@ -580,20 +592,26 @@ function LauncherHome() {
                   ...prev,
                   status: req.status,
                   errorCode: req.error_code,
-                  needsMojangRelink: req.error_code === 'MOJANG_SESSION',
+                  needsMojangRelink:
+                    launchAccountMode === 'licensed' && req.error_code === 'MOJANG_SESSION',
                 }
               : prev,
           );
           return;
         }
       } catch (e) {
+        if (e instanceof ApiRequestError && e.apiCode === 'MOJANG_UNAVAILABLE') {
+          message.warning(launchErrorMessage('MOJANG_UNAVAILABLE'), 3);
+          continue;
+        }
         if (e instanceof ApiRequestError && e.apiCode === 'MOJANG_SESSION') {
           setLaunchProgress({
             instanceId,
             requestId,
             status: 'failed',
+            accountMode: launchAccountMode,
             errorCode: 'MOJANG_SESSION',
-            needsMojangRelink: true,
+            needsMojangRelink: launchAccountMode === 'licensed',
           });
           message.error(launchErrorMessage('MOJANG_SESSION'));
           return;
@@ -636,27 +654,30 @@ function LauncherHome() {
       message.warning(t('launcher.licensedLaunchFailed'));
       return;
     }
+    const launchAccountMode = accountMode;
     setLaunchProgress({
       instanceId: instance.id,
       requestId: '',
       status: 'queued',
+      accountMode: launchAccountMode,
     });
     try {
-      if (accountMode === 'offline' && !selectedProfileId) {
+      if (launchAccountMode === 'offline' && !selectedProfileId) {
         message.info(t('launcher.defaultPlayerHint'));
       }
       const req = await api.createLaunchRequest({
         instance_id: instance.id,
-        offline_profile_id: accountMode === 'offline' ? selectedProfileId : undefined,
-        use_mojang_account: accountMode === 'licensed',
+        offline_profile_id: launchAccountMode === 'offline' ? selectedProfileId : undefined,
+        use_mojang_account: launchAccountMode === 'licensed',
       });
       setLaunchProgress({
         instanceId: instance.id,
         requestId: req.id,
         status: req.status,
+        accountMode: launchAccountMode,
       });
       message.info(t('launcher.launchSent'));
-      await pollLaunchRequest(req.id, instance.id);
+      await pollLaunchRequest(req.id, instance.id, launchAccountMode);
     } catch (e) {
       setLaunchProgress(null);
       if (e instanceof Error) {
@@ -923,7 +944,10 @@ function LauncherHome() {
                   <Segmented<LaunchAccountMode>
                     options={accountModeOptions}
                     value={accountMode}
-                    onChange={(value) => setAccountMode(value)}
+                    onChange={(value) => {
+                      userChoseAccountMode.current = true;
+                      setAccountMode(value);
+                    }}
                   />
                 </div>
                 <div className="launcher-launch-bar">
@@ -944,6 +968,9 @@ function LauncherHome() {
                   </div>
                 ) : mojangStatus?.linked ? (
                   <div className="launcher-licensed-account-card">
+                    <Text type="secondary" className="launcher-panel-hint">
+                      {t('launcher.accountModeLicensedDefault')}
+                    </Text>
                     <Text strong>{mojangStatus.username}</Text>
                     {mojangStatus.minecraft_uuid ? (
                       <Text type="secondary" className="launcher-licensed-account-uuid">
@@ -993,7 +1020,11 @@ function LauncherHome() {
                           <button
                             type="button"
                             className="launcher-profile-chip-main"
-                            onClick={() => setSelectedProfileId(profile.id)}
+                            onClick={() => {
+                              userChoseAccountMode.current = true;
+                              setAccountMode('offline');
+                              setSelectedProfileId(profile.id);
+                            }}
                           >
                             <span className="profile-model-chip-avatar" aria-hidden>
                               <ProfileModelAvatar model={profile.model ?? 'steve'} size="sm" />

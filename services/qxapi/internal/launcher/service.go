@@ -24,9 +24,15 @@ var (
 	ErrLinkExpired      = errors.New("link expired")
 	ErrAuthRequired     = errors.New("authentication required")
 	ErrDeviceNotPending = errors.New("device is not pending link")
-	ErrManifest         = errors.New("manifest build failed")
-	ErrMojangSession    = errors.New("mojang session failed")
+	ErrManifest            = errors.New("manifest build failed")
+	ErrMojangSession       = errors.New("mojang session failed")
+	ErrMojangUnavailable   = errors.New("mojang auth unavailable")
 )
+
+type mojangLauncher interface {
+	GetStatus(ctx context.Context, userID string) (*mojang.LinkStatus, error)
+	SessionForLaunch(ctx context.Context, userID string) (*mojang.SessionView, error)
+}
 
 const (
 	linkTTL         = 15 * time.Minute
@@ -41,7 +47,7 @@ type Service struct {
 	launcherVersion     string
 	launcherDownloadURL string
 	manifest            ManifestProvider
-	mojang              *mojang.Service
+	mojang              mojangLauncher
 	cosmetics           *cosmetics.Service
 }
 
@@ -54,7 +60,7 @@ func (s *Service) SetRelease(version, downloadURL string) {
 	s.launcherDownloadURL = strings.TrimSpace(downloadURL)
 }
 
-func (s *Service) SetMojang(m *mojang.Service) {
+func (s *Service) SetMojang(m mojangLauncher) {
 	s.mojang = m
 }
 

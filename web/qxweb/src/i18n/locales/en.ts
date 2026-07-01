@@ -409,7 +409,9 @@ export const en: Messages = {
     workspaceRefresh: 'Refresh',
     workspaceRefreshed: 'Data refreshed',
     playerSectionTitle: 'Player',
-    playerSectionHint: 'Choose account mode and nickname before launch',
+    playerSectionHint:
+      'A linked Microsoft account is used by default; switch to offline for a local nickname.',
+    accountModeLicensedDefault: 'Using your linked Microsoft account',
     noInstancesHint: 'Vanilla, Forge, Fabric, and other loaders — synced with QXLauncher on your PC.',
     noProfilesHint: 'Offline nicknames for launch without a Microsoft account.',
     instancesSorted: '{{count}} instances · sorted A–Z',
@@ -724,6 +726,7 @@ export const en: Messages = {
     searchPrompt: 'Enter a query and press Search',
     searchFailed: 'Search failed',
     browseFailed: 'Failed to load catalog',
+    upstreamFailed: 'Catalog provider is temporarily unavailable',
     catalogIntro: 'Browse the catalog below. Results match your instance Minecraft version and loader.',
     catalogEmpty: 'No items in the catalog for these filters',
     loadMore: 'Load more',
