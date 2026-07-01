@@ -50,7 +50,10 @@ func setupRouterWithDeploy(t *testing.T, deploy DeploySettings) *gin.Engine {
 		RedirectURI: "http://localhost:3000/api/v1/mojang/oauth/callback",
 		WebBaseURL:  "http://localhost:5173",
 		JWTSecret:   "test-secret",
-	}, ModsSettings{}, CosmeticsSettings{DataDir: t.TempDir(), PublicAPIURL: "http://localhost:3000"})
+	}, ModsSettings{}, CosmeticsSettings{DataDir: t.TempDir(), PublicAPIURL: "http://localhost:3000"}, LauncherSettings{
+		Version:     "0.1.0-dev",
+		DownloadURL: "http://localhost:5173/downloads/qx-launcher.exe",
+	})
 }
 
 func TestDevSSHMasterKey(t *testing.T) {

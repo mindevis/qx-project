@@ -36,6 +36,8 @@ kv MINIO_ROOT_PASSWORD "$PROD_MINIO_PASSWORD"
 kv LOG_LEVEL "${LOG_LEVEL:-info}"
 kv LOG_FORMAT "${LOG_FORMAT:-json}"
 kv QX_AGENT_BINARY_PATH "/opt/qxsystem/bin/qx-agent-linux"
+kv LAUNCHER_VERSION "${LAUNCHER_VERSION:-0.1.0-dev}"
+kv LAUNCHER_DOWNLOAD_URL "${LAUNCHER_DOWNLOAD_URL:-/downloads/qx-launcher.exe}"
 
 # Optional — Microsoft/Minecraft account linking (custom Azure AD app required in prod).
 if [[ -n "${MOJANG_CLIENT_ID:-}" ]]; then

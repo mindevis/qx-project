@@ -42,7 +42,12 @@ type CosmeticsSettings struct {
 	SkinServerPublicURL string
 }
 
-func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey string, deployCfg DeploySettings, mojangCfg MojangSettings, modsCfg ModsSettings, cosmeticsCfg CosmeticsSettings) *gin.Engine {
+type LauncherSettings struct {
+	Version     string
+	DownloadURL string
+}
+
+func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey string, deployCfg DeploySettings, mojangCfg MojangSettings, modsCfg ModsSettings, cosmeticsCfg CosmeticsSettings, launcherCfg LauncherSettings) *gin.Engine {
 	r := gin.New()
 	r.Use(RecoveryLogger(), RequestLogger(), CORSMiddleware(corsOrigin))
 
@@ -53,6 +58,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 		enc, _ = crypto.NewEncryptor(devSSHMasterKey())
 	}
 	launcherSvc := launcher.NewService(db, tokens, corsOrigin)
+	launcherSvc.SetRelease(launcherCfg.Version, launcherCfg.DownloadURL)
 	mojangSvc := mojang.NewService(db, enc, mojang.Config{
 		ClientID:     mojangCfg.ClientID,
 		ClientSecret: mojangCfg.ClientSecret,
@@ -85,6 +91,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	instancesH := &InstancesHandler{Service: launcherSvc}
 	profilesH := &ProfilesHandler{Service: launcherSvc}
 	launchH := &LaunchRequestsHandler{Service: launcherSvc, Tokens: tokens}
+	updateH := &UpdateRequestsHandler{Service: launcherSvc}
+	releaseH := &ReleaseHandler{Service: launcherSvc}
 	mcVersionsH := &McVersionsHandler{}
 	serversH := &ServersHandler{Service: serversSvc}
 	gameServersH := &GameServersHandler{Service: serversSvc}
@@ -125,6 +133,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 		v1.POST("/launcher/devices/register", devicesH.Register)
 		v1.GET("/launcher/devices/:id/status", devicesH.Status)
 		v1.GET("/launcher/mc-versions", mcVersionsH.List)
+		v1.GET("/launcher/release", releaseH.Get)
 		v1.GET("/monitoring/servers", monitoringH.List)
 
 		link := v1.Group("")
@@ -138,6 +147,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 		{
 			authed.GET("/users/me", usersH.Me)
 			authed.GET("/users/me/launcher-device", devicesH.UserLinkedDevice)
+			authed.POST("/launcher/update-requests", updateH.Create)
 			authed.PATCH("/users/me/password", usersH.ChangePassword)
 			authed.PATCH("/users/me/email", usersH.ChangeEmail)
 			authed.GET("/users/me/mojang", mojangH.Status)
@@ -216,6 +226,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			deviceAuth.GET("/launcher/devices/me/instances", devicesH.MeInstances)
 			deviceAuth.GET("/launcher/launch-requests/pending", launchH.Pending)
 			deviceAuth.PATCH("/launcher/launch-requests/:id", launchH.Update)
+			deviceAuth.GET("/launcher/update-requests/pending", updateH.Pending)
+			deviceAuth.PATCH("/launcher/update-requests/:id", updateH.Complete)
 		}
 	}
 

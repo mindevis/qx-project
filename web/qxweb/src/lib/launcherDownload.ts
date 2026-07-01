@@ -1,8 +1,17 @@
 export const DEFAULT_LAUNCHER_DOWNLOAD_PATH = '/downloads/qx-launcher.exe';
 
-export function resolveLauncherDownloadUrl(): string | null {
+export type LauncherRelease = {
+  version: string;
+  download_url: string;
+  filename: string;
+};
+
+export function resolveLauncherDownloadUrl(release?: Pick<LauncherRelease, 'download_url'> | null): string {
+  const fromRelease = release?.download_url?.trim();
+  if (fromRelease) return fromRelease;
   const configured = import.meta.env.VITE_LAUNCHER_DOWNLOAD_URL?.trim();
-  return configured || null;
+  if (configured) return configured;
+  return DEFAULT_LAUNCHER_DOWNLOAD_PATH;
 }
 
 export function openLauncherDownload(url: string): void {

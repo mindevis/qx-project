@@ -296,6 +296,15 @@ export const en: Messages = {
     desktopTitle: 'QXLauncher for desktop',
     desktopDesc:
       'Install QXLauncher, then choose “Link QXLauncher” in its menu.',
+    updateAvailableTitle: 'QXLauncher update available',
+    updateAvailableDesc:
+      'Installed version {{installed}} — latest is {{latest}}. Click Update to install via linked QXLauncher, or download manually.',
+    updateButton: 'Update',
+    updateRequested: 'Update queued — QXLauncher will download and restart shortly.',
+    updateRequestFailed: 'Failed to queue launcher update',
+    downloadLatest: 'Download latest',
+    installedVersion: 'Installed: {{version}}',
+    latestVersion: 'Latest: {{version}}',
     offlineProfiles: 'Player profiles',
     offlineAfterLink: 'Available after linking QXLauncher — see instructions above.',
     selectNickname: 'Select nickname for launch',

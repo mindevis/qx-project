@@ -200,10 +200,14 @@ func (h *DevicesHandler) UserLinkedDevice(c *gin.Context) {
 		JSONInternal(c)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"linked":     true,
 		"device_id":  info.DeviceID,
 		"status":     info.Status,
 		"owner_type": info.OwnerType,
-	})
+	}
+	if info.LauncherVersion != nil {
+		resp["launcher_version"] = *info.LauncherVersion
+	}
+	c.JSON(http.StatusOK, resp)
 }

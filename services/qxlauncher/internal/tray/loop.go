@@ -15,8 +15,9 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
 	"github.com/qxproject/qx/services/qxlauncher/internal/minecraft"
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
+	"github.com/qxproject/qx/services/qxlauncher/internal/updater"
+	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
-
 type Config struct {
 	APIBase          string
 	DeviceToken      string
@@ -32,6 +33,7 @@ type Config struct {
 }
 
 var activeLaunches sync.Map
+var activeUpdates sync.Map
 
 func RunLoop(ctx context.Context, cfg Config) {
 	if cfg.LaunchPoll <= 0 {
@@ -85,21 +87,47 @@ func RunLoop(ctx context.Context, cfg Config) {
 				}
 				if err != nil {
 					logAPIFailure("launch poll failed", err)
-					continue
 				}
 			}
-			if item == nil || item.Manifest == nil {
-				continue
+			if err == nil && item != nil && item.Manifest != nil {
+				if _, loaded := activeLaunches.LoadOrStore(item.ID, true); !loaded {
+					go func(launchID string, launchItem *apiclient.LaunchRequestItem) {
+						defer activeLaunches.Delete(launchID)
+						executeLaunch(context.Background(), api, downloader, cfg, launchItem)
+					}(item.ID, item)
+				}
 			}
-			if _, loaded := activeLaunches.LoadOrStore(item.ID, true); loaded {
-				continue
+
+			updateItem, updateErr := api.FetchPendingUpdate(ctx)
+			if updateErr != nil {
+				if apiclient.IsUnauthorized(updateErr) {
+					tryRefreshDeviceToken(ctx, api, cfg, updateErr)
+					updateItem, updateErr = api.FetchPendingUpdate(ctx)
+				}
+				if updateErr != nil {
+					logAPIFailure("update poll failed", updateErr)
+				}
 			}
-			go func(launchID string, launchItem *apiclient.LaunchRequestItem) {
-				defer activeLaunches.Delete(launchID)
-				executeLaunch(context.Background(), api, downloader, cfg, launchItem)
-			}(item.ID, item)
+			if updateErr == nil && updateItem != nil {
+				if _, loaded := activeUpdates.LoadOrStore(updateItem.ID, true); !loaded {
+					go func(item *apiclient.UpdateRequestItem) {
+						defer activeUpdates.Delete(item.ID)
+						executeUpdate(context.Background(), api, item)
+					}(updateItem)
+				}
+			}
 		}
 	}
+}
+
+func executeUpdate(ctx context.Context, api *apiclient.Client, item *apiclient.UpdateRequestItem) {
+	notify.Show("QXLauncher", "Загрузка обновления…")
+	if err := updater.Apply(ctx, item.DownloadURL, item.Filename, nil); err != nil {
+		slog.Error("launcher update failed", "err", err)
+		_ = api.CompleteUpdate(ctx, item.ID, "failed", "", "UPDATE_FAILED")
+		return
+	}
+	_ = api.CompleteUpdate(ctx, item.ID, "completed", version.Version, "")
 }
 
 func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, cfg Config, item *apiclient.LaunchRequestItem) {

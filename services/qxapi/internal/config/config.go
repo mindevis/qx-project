@@ -30,6 +30,8 @@ type file struct {
 	ModrinthUserAgent  string `toml:"modrinth_user_agent"`
 	CosmeticsDataDir      string `toml:"cosmetics_data_dir"`
 	SkinServerPublicURL   string `toml:"skin_server_public_url"`
+	LauncherVersion       string `toml:"launcher_version"`
+	LauncherDownloadURL   string `toml:"launcher_download_url"`
 	GinMode          string `toml:"gin_mode"`
 	LogLevel         string `toml:"log_level"`
 	LogFormat        string `toml:"log_format"`
@@ -52,6 +54,8 @@ type Config struct {
 	ModrinthUserAgent  string
 	CosmeticsDataDir      string
 	SkinServerPublicURL   string
+	LauncherVersion       string
+	LauncherDownloadURL   string
 	GinMode            string
 	LogLevel        string
 	LogFormat       string
@@ -138,6 +142,12 @@ func (c *Config) applyEnv() {
 	if v := os.Getenv("SKIN_SERVER_PUBLIC_URL"); v != "" {
 		c.SkinServerPublicURL = v
 	}
+	if v := os.Getenv("LAUNCHER_VERSION"); v != "" {
+		c.LauncherVersion = v
+	}
+	if v := os.Getenv("LAUNCHER_DOWNLOAD_URL"); v != "" {
+		c.LauncherDownloadURL = v
+	}
 }
 
 func defaults() Config {
@@ -210,6 +220,12 @@ func (c *Config) applyFile(f file) {
 	if f.SkinServerPublicURL != "" {
 		c.SkinServerPublicURL = f.SkinServerPublicURL
 	}
+	if f.LauncherVersion != "" {
+		c.LauncherVersion = f.LauncherVersion
+	}
+	if f.LauncherDownloadURL != "" {
+		c.LauncherDownloadURL = f.LauncherDownloadURL
+	}
 	if f.GinMode != "" {
 		c.GinMode = f.GinMode
 	}
@@ -247,4 +263,22 @@ func (c Config) ResolvedSkinServerPublicURL() string {
 		return uri
 	}
 	return strings.TrimSpace(c.PublicAPIURL)
+}
+
+func (c Config) ResolvedLauncherVersion() string {
+	if v := strings.TrimSpace(c.LauncherVersion); v != "" {
+		return v
+	}
+	return "0.1.0-dev"
+}
+
+func (c Config) ResolvedLauncherDownloadURL() string {
+	if uri := strings.TrimSpace(c.LauncherDownloadURL); uri != "" {
+		return uri
+	}
+	origin := strings.TrimRight(strings.TrimSpace(c.CORSOrigin), "/")
+	if origin == "" {
+		return "/downloads/qx-launcher.exe"
+	}
+	return origin + "/downloads/qx-launcher.exe"
 }

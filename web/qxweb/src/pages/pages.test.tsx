@@ -62,6 +62,18 @@ function mockLauncherFetch(
     if (url.includes('/launcher/profiles') && init?.method !== 'POST' && init?.method !== 'DELETE') {
       return Promise.resolve(emptyProfilesResponse());
     }
+    if (url.includes('/launcher/release')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            version: '0.2.0',
+            download_url: '/downloads/qx-launcher.exe',
+            filename: 'qx-launcher.exe',
+          }),
+          { status: 200 },
+        ),
+      );
+    }
     if (url.includes('/launcher/mc-versions')) {
       return Promise.resolve(
         new Response(
@@ -1513,6 +1525,47 @@ describe('pages', { timeout: 30_000 }, () => {
     expect(openSpy).toHaveBeenCalledWith('https://releases.example/qx-launcher.exe');
     openSpy.mockRestore();
     vi.restoreAllMocks();
+  });
+
+  it('shows launcher update banner when linked device is outdated', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockLauncherFetch((url) => {
+        if (url.includes('/users/me/launcher-device')) {
+          return new Response(
+            JSON.stringify({
+              linked: true,
+              device_id: 'dev-update',
+              status: 'linked',
+              launcher_version: '0.1.0',
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/instances')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        return null;
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/launcher/*" element={<LauncherPage />} />
+        </Route>
+      </Routes>,
+      '/launcher',
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Обновить/ })).toBeInTheDocument(),
+    );
   });
 
   it('shows error when profiles fail to load', async () => {

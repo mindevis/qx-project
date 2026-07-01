@@ -87,7 +87,9 @@ jobs:
         run: make build-agent-linux
 
       - name: Build qx-launcher.exe (served from web image)
-        run: make build-launcher-win
+        run: |
+          LAUNCHER_VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)"
+          make build-launcher-win LAUNCHER_VERSION="$LAUNCHER_VERSION"
 
       - uses: docker/setup-buildx-action@v4
 
@@ -174,6 +176,8 @@ jobs:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
         run: |
           set -euo pipefail
+          LAUNCHER_VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)"
+          export LAUNCHER_VERSION
           mkdir -p .deploy/nginx
           cp infra/docker/docker-compose.prod.runtime.yml .deploy/docker-compose.yml
           cp infra/docker/nginx/prod-http.conf .deploy/nginx/

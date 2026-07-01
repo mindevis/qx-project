@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
 import { renderWithTheme } from '@/test/test-utils';
 import { LauncherDownloadButton } from './LauncherDownloadButton';
 import * as launcherDownload from '@/lib/launcherDownload';
@@ -30,15 +29,23 @@ describe('LauncherDownloadButton', () => {
     expect(openSpy).toHaveBeenCalledWith('https://releases.example/qx-launcher.exe');
   });
 
-  it('shows build hint when URL is not configured', async () => {
+  it('uses release info when provided', async () => {
     const user = userEvent.setup({ delay: null });
-    const infoSpy = vi.spyOn(message, 'info');
-    vi.spyOn(launcherDownload, 'resolveLauncherDownloadUrl').mockReturnValue(null);
+    const openSpy = vi.spyOn(launcherDownload, 'openLauncherDownload').mockImplementation(() => {});
+    const resolveSpy = vi.spyOn(launcherDownload, 'resolveLauncherDownloadUrl');
 
-    renderWithTheme(<LauncherDownloadButton />);
+    renderWithTheme(
+      <LauncherDownloadButton
+        release={{
+          version: '2.0.0',
+          download_url: '/downloads/qx-launcher.exe',
+          filename: 'qx-launcher.exe',
+        }}
+      />,
+    );
 
     await user.click(screen.getByRole('button', { name: /Скачать QXLauncher/ }));
-    expect(infoSpy).toHaveBeenCalled();
-    infoSpy.mockRestore();
+    expect(resolveSpy).toHaveBeenCalled();
+    expect(openSpy).toHaveBeenCalled();
   });
 });

@@ -266,6 +266,18 @@ export type UserLauncherDevice = {
   device_id?: string;
   status?: string;
   owner_type?: string;
+  launcher_version?: string;
+};
+
+export type LauncherRelease = {
+  version: string;
+  download_url: string;
+  filename: string;
+};
+
+export type LauncherUpdateRequest = {
+  id: string;
+  status: string;
 };
 
 const STORAGE_KEY = 'qx.auth';
@@ -470,6 +482,11 @@ export const api = {
   me: () => request<UserProfile>('/users/me'),
 
   myLauncherDevice: () => request<UserLauncherDevice>('/users/me/launcher-device'),
+
+  getLauncherRelease: () => request<LauncherRelease>('/launcher/release', {}, false),
+
+  requestLauncherUpdate: () =>
+    request<LauncherUpdateRequest>('/launcher/update-requests', { method: 'POST' }),
 
   changePassword: (body: { current_password: string; new_password: string }) =>
     request<void>('/users/me/password', { method: 'PATCH', body: JSON.stringify(body) }),

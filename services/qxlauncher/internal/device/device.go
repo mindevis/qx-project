@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
 
 type Client struct {
@@ -53,7 +55,7 @@ func (c *Client) Register(ctx context.Context) (*RegisterResult, error) {
 		"device_id":        c.DeviceID,
 		"os":               runtime.GOOS,
 		"hostname":         hostname,
-		"launcher_version": "0.1.0",
+		"launcher_version": version.Version,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/launcher/devices/register", bytes.NewReader(body))
 	if err != nil {

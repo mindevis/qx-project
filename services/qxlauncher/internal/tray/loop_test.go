@@ -225,6 +225,8 @@ func TestRunLoop_DryLaunchOnce(t *testing.T) {
 			}
 			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(map[string]any{"id": "req-loop-1", "status": body["status"]})
+		case r.Method == http.MethodGet && r.URL.Path == "/launcher/update-requests/pending":
+			_ = json.NewEncoder(w).Encode(map[string]any{"item": nil})
 		default:
 			http.NotFound(w, r)
 		}

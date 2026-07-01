@@ -79,7 +79,23 @@ func (s *Service) UserLinkedDevice(ctx context.Context, userID string) (*DeviceM
 	if err != nil {
 		return nil, err
 	}
-	return s.DeviceMe(ctx, deviceID)
+	device, err := s.getDevice(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	out := &DeviceMeResult{
+		DeviceID:        device.DeviceID,
+		Status:          device.Status,
+		LauncherVersion: device.LauncherVersion,
+	}
+	switch {
+	case device.UserID != nil:
+		out.OwnerType = "user"
+		out.UserID = device.UserID
+	default:
+		out.OwnerType = "none"
+	}
+	return out, nil
 }
 
 func (s *Service) ListInstancesForDevice(ctx context.Context, deviceID string) ([]models.LauncherInstance, error) {

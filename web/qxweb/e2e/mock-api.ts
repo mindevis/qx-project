@@ -179,6 +179,14 @@ export async function installLauncherApiMock(page: Page, state: MockApiState) {
       });
     }
 
+    if (path === '/launcher/release' && method === 'GET') {
+      return json(route, 200, {
+        version: '0.2.0',
+        download_url: '/downloads/qx-launcher.exe',
+        filename: 'qx-launcher.exe',
+      });
+    }
+
     if (path === '/launcher/mc-versions' && method === 'GET') {
       return json(route, 200, {
         latest: { release: '1.21' },

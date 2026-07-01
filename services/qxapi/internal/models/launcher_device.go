@@ -22,8 +22,9 @@ type LauncherDevice struct {
 	LauncherVersion *string    `gorm:"type:varchar(32)" json:"launcher_version,omitempty"`
 	LinkExpiresAt   *time.Time `json:"link_expires_at,omitempty"`
 	LinkedAt        *time.Time `json:"linked_at,omitempty"`
-	LastSeenAt      *time.Time `json:"last_seen_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
+	LastSeenAt         *time.Time `json:"last_seen_at,omitempty"`
+	UpdateRequestedAt  *time.Time `json:"update_requested_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
 }
 
 func (LauncherDevice) TableName() string {

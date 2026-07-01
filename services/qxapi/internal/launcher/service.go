@@ -35,16 +35,23 @@ const (
 )
 
 type Service struct {
-	db         *gorm.DB
-	tokens     *auth.TokenService
-	webBaseURL string
-	manifest   ManifestProvider
-	mojang     *mojang.Service
-	cosmetics  *cosmetics.Service
+	db                  *gorm.DB
+	tokens              *auth.TokenService
+	webBaseURL          string
+	launcherVersion     string
+	launcherDownloadURL string
+	manifest            ManifestProvider
+	mojang              *mojang.Service
+	cosmetics           *cosmetics.Service
 }
 
 func NewService(db *gorm.DB, tokens *auth.TokenService, webBaseURL string) *Service {
 	return &Service{db: db, tokens: tokens, webBaseURL: strings.TrimRight(webBaseURL, "/")}
+}
+
+func (s *Service) SetRelease(version, downloadURL string) {
+	s.launcherVersion = strings.TrimSpace(version)
+	s.launcherDownloadURL = strings.TrimSpace(downloadURL)
 }
 
 func (s *Service) SetMojang(m *mojang.Service) {
@@ -368,10 +375,11 @@ func (s *Service) getDevice(ctx context.Context, deviceID string) (*models.Launc
 }
 
 type DeviceMeResult struct {
-	DeviceID  string  `json:"device_id"`
-	Status    string  `json:"status"`
-	OwnerType string  `json:"owner_type"`
-	UserID    *string `json:"user_id,omitempty"`
+	DeviceID        string  `json:"device_id"`
+	Status          string  `json:"status"`
+	OwnerType       string  `json:"owner_type"`
+	UserID          *string `json:"user_id,omitempty"`
+	LauncherVersion *string `json:"launcher_version,omitempty"`
 }
 
 type UnlinkDeviceResult struct {

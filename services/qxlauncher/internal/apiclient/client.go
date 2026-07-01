@@ -73,6 +73,13 @@ type LaunchRequestCreated struct {
 	InstanceID string `json:"instance_id"`
 }
 
+type UpdateRequestItem struct {
+	ID          string `json:"id"`
+	Version     string `json:"version"`
+	DownloadURL string `json:"download_url"`
+	Filename    string `json:"filename"`
+}
+
 func (c *Client) FetchPendingLaunch(ctx context.Context) (*LaunchRequestItem, error) {
 	body, err := c.request(ctx, http.MethodGet, "/launcher/launch-requests/pending", nil, true)
 	if err != nil {
@@ -90,6 +97,33 @@ func (c *Client) FetchPendingLaunch(ctx context.Context) (*LaunchRequestItem, er
 func (c *Client) UpdateLaunch(ctx context.Context, id string, payload map[string]any) error {
 	b, _ := json.Marshal(payload)
 	_, err := c.request(ctx, http.MethodPatch, "/launcher/launch-requests/"+id, b, true)
+	return err
+}
+
+func (c *Client) FetchPendingUpdate(ctx context.Context) (*UpdateRequestItem, error) {
+	body, err := c.request(ctx, http.MethodGet, "/launcher/update-requests/pending", nil, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Item *UpdateRequestItem `json:"item"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Item, nil
+}
+
+func (c *Client) CompleteUpdate(ctx context.Context, id, status, launcherVersion, errorCode string) error {
+	payload := map[string]any{"status": status}
+	if launcherVersion != "" {
+		payload["launcher_version"] = launcherVersion
+	}
+	if errorCode != "" {
+		payload["error_code"] = errorCode
+	}
+	b, _ := json.Marshal(payload)
+	_, err := c.request(ctx, http.MethodPatch, "/launcher/update-requests/"+id, b, true)
 	return err
 }
 

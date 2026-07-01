@@ -294,6 +294,15 @@ export const ru = {
     desktopTitle: 'QXLauncher для ПК',
     desktopDesc:
       'Установите QXLauncher, затем в его меню выберите «Связать QXLauncher».',
+    updateAvailableTitle: 'Доступно обновление QXLauncher',
+    updateAvailableDesc:
+      'Установлена версия {{installed}} — актуальная {{latest}}. Нажмите «Обновить», чтобы установить через связанный QXLauncher, или скачайте вручную.',
+    updateButton: 'Обновить',
+    updateRequested: 'Обновление поставлено в очередь — QXLauncher скоро скачает его и перезапустится.',
+    updateRequestFailed: 'Не удалось запросить обновление лаунчера',
+    downloadLatest: 'Скачать последнюю версию',
+    installedVersion: 'Установлена: {{version}}',
+    latestVersion: 'Актуальная: {{version}}',
     offlineProfiles: 'Профили игрока',
     offlineAfterLink: 'Доступно после связывания QXLauncher — см. инструкцию выше.',
     selectNickname: 'Выберите ник для запуска',

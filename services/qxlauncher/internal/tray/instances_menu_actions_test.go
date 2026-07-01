@@ -71,15 +71,18 @@ func TestInstancesMenuHandleLaunchRequiresUserToken(t *testing.T) {
 
 func TestSyncInstancesCallback(t *testing.T) {
 	apiSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/launcher/devices/me/instances" {
+		switch r.URL.Path {
+		case "/launcher/devices/me/instances":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"items": []map[string]any{
+					{"id": "1", "name": "A", "mc_version": "1.21", "loader": "vanilla"},
+				},
+			})
+		case "/launcher/update-requests/pending":
+			_ = json.NewEncoder(w).Encode(map[string]any{"item": nil})
+		default:
 			http.NotFound(w, r)
-			return
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"items": []map[string]any{
-				{"id": "1", "name": "A", "mc_version": "1.21", "loader": "vanilla"},
-			},
-		})
 	}))
 	t.Cleanup(apiSrv.Close)
 
@@ -102,6 +105,8 @@ func TestSyncInstancesCallback(t *testing.T) {
 	for len(synced) == 0 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
+	cancel()
+	time.Sleep(20 * time.Millisecond)
 	if len(synced) != 1 || synced[0].Name != "A" {
 		t.Fatalf("sync callback: %+v", synced)
 	}

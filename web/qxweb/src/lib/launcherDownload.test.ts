@@ -6,13 +6,23 @@ describe('launcherDownload', () => {
     vi.unstubAllEnvs();
   });
 
+  it('prefers release download URL', () => {
+    expect(
+      resolveLauncherDownloadUrl({
+        version: '1.0.0',
+        download_url: 'https://mc.qx-dev.ru/downloads/qx-launcher.exe',
+        filename: 'qx-launcher.exe',
+      }),
+    ).toBe('https://mc.qx-dev.ru/downloads/qx-launcher.exe');
+  });
+
   it('returns configured download URL', () => {
     vi.stubEnv('VITE_LAUNCHER_DOWNLOAD_URL', '/downloads/qx-launcher.exe');
     expect(resolveLauncherDownloadUrl()).toBe('/downloads/qx-launcher.exe');
   });
 
-  it('returns null when URL is not configured', () => {
-    expect(resolveLauncherDownloadUrl()).toBeNull();
+  it('falls back to default relative path', () => {
+    expect(resolveLauncherDownloadUrl()).toBe('/downloads/qx-launcher.exe');
   });
 
   it('triggers same-origin download with filename', () => {

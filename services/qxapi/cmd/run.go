@@ -38,6 +38,9 @@ func bootstrap(cfg config.Config) (*gin.Engine, error) {
 		DataDir:             cfg.CosmeticsDataDir,
 		PublicAPIURL:        cfg.PublicAPIURL,
 		SkinServerPublicURL: cfg.ResolvedSkinServerPublicURL(),
+	}, api.LauncherSettings{
+		Version:     cfg.ResolvedLauncherVersion(),
+		DownloadURL: cfg.ResolvedLauncherDownloadURL(),
 	}), nil
 }
 

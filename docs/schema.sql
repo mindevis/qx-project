@@ -49,6 +49,7 @@ CREATE TABLE launcher_devices (
     hostname          VARCHAR(255) NULL,
     os                VARCHAR(64) NULL,
     launcher_version  VARCHAR(32) NULL,
+    update_requested_at TIMESTAMP NULL,
     link_expires_at   TIMESTAMP NULL,
     linked_at         TIMESTAMP NULL,
     last_seen_at      TIMESTAMP NULL,

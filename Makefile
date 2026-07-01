@@ -98,9 +98,11 @@ AGENT_LDFLAGS = -X main.agentVersion=$(AGENT_VERSION)
 LAUNCHER_WIN_GUI_LDFLAGS = -H=windowsgui
 LAUNCHER_PROD_API_BASE ?= https://mc.qx-dev.ru/api/v1
 LAUNCHER_PROD_WEB_BASE ?= https://mc.qx-dev.ru
+LAUNCHER_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)
 LAUNCHER_PROD_LDFLAGS = $(LAUNCHER_WIN_GUI_LDFLAGS) \
 	-X github.com/qxproject/qx/services/qxlauncher/internal/config.embeddedAPIBaseURL=$(LAUNCHER_PROD_API_BASE) \
-	-X github.com/qxproject/qx/services/qxlauncher/internal/config.embeddedWebBaseURL=$(LAUNCHER_PROD_WEB_BASE)
+	-X github.com/qxproject/qx/services/qxlauncher/internal/config.embeddedWebBaseURL=$(LAUNCHER_PROD_WEB_BASE) \
+	-X github.com/qxproject/qx/services/qxlauncher/internal/version.Version=$(LAUNCHER_VERSION)
 
 build-api:
 	cd services/qxapi && go build -o ../../bin/qx-api ./cmd

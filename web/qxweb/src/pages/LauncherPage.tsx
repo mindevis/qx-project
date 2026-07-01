@@ -20,6 +20,7 @@ import {
   DesktopOutlined,
   DownloadOutlined,
   AppstoreOutlined,
+  CloudDownloadOutlined,
   LinkOutlined,
   LoginOutlined,
   PlusOutlined,
@@ -65,6 +66,8 @@ import { getLaunchStatusKey } from '@/i18n';
 import { useI18n } from '@/i18n/I18nContext';
 import { modalMotionProps } from '@/lib/modal';
 import { logger } from '@/lib/logger';
+import { isUpdateAvailable } from '@/lib/launcherVersion';
+import { openLauncherDownload, resolveLauncherDownloadUrl, type LauncherRelease } from '@/lib/launcherDownload';
 import { isModdedLauncherLoader } from '@/lib/isModdedLoader';
 import { LauncherInstanceResourcesPage } from '@/pages/LauncherInstanceResourcesPage';
 import './LauncherPage.css';
@@ -115,9 +118,13 @@ function LauncherHome() {
   const [createMcOptionsLoading, setCreateMcOptionsLoading] = useState(false);
   const [createLoaderOptionsLoading, setCreateLoaderOptionsLoading] = useState(false);
   const [launchingId, setLaunchingId] = useState<string | null>(null);
-  const [linkedDevice, setLinkedDevice] = useState<{ device_id: string; status: string } | null>(
-    null,
-  );
+  const [linkedDevice, setLinkedDevice] = useState<{
+    device_id: string;
+    status: string;
+    launcher_version?: string;
+  } | null>(null);
+  const [launcherRelease, setLauncherRelease] = useState<LauncherRelease | null>(null);
+  const [updateRequesting, setUpdateRequesting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [accountMode, setAccountMode] = useState<LaunchAccountMode>('offline');
   const [mojangStatus, setMojangStatus] = useState<MojangLinkStatus | null>(null);
@@ -132,6 +139,11 @@ function LauncherHome() {
     a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
   );
   const launchBlocked = accountMode === 'licensed' && !licensedReady;
+  const updateAvailable =
+    linkedDevice != null &&
+    launcherRelease != null &&
+    isUpdateAvailable(linkedDevice.launcher_version, launcherRelease.version);
+  const downloadUrl = resolveLauncherDownloadUrl(launcherRelease);
   const activePlayerLabel =
     accountMode === 'licensed'
       ? mojangStatus?.linked
@@ -398,6 +410,17 @@ function LauncherHome() {
   }, [refreshAccess]);
 
   useEffect(() => {
+    void (async () => {
+      try {
+        const release = await api.getLauncherRelease();
+        setLauncherRelease(release);
+      } catch (e) {
+        logger.warn('failed to load launcher release', { error: String(e) });
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       setLinkedDevice(null);
       return;
@@ -406,7 +429,11 @@ function LauncherHome() {
       try {
         const res = await api.myLauncherDevice();
         if (res.linked && res.device_id) {
-          setLinkedDevice({ device_id: res.device_id, status: res.status ?? 'linked' });
+          setLinkedDevice({
+            device_id: res.device_id,
+            status: res.status ?? 'linked',
+            launcher_version: res.launcher_version,
+          });
           saveLinkedDevice(res.device_id);
         } else {
           setLinkedDevice(null);
@@ -530,6 +557,18 @@ function LauncherHome() {
     }
     /* v8 ignore next -- @preserve */
     message.warning(t('launcher.launchTimeout'));
+  };
+
+  const handleRequestLauncherUpdate = async () => {
+    setUpdateRequesting(true);
+    try {
+      await api.requestLauncherUpdate();
+      message.success(t('launcher.updateRequested'));
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('launcher.updateRequestFailed'));
+    } finally {
+      setUpdateRequesting(false);
+    }
   };
 
   const handleUnlinkDevice = async () => {
@@ -727,9 +766,58 @@ function LauncherHome() {
               </Title>
               <Paragraph className="launcher-download-band-desc">{t('launcher.desktopDesc')}</Paragraph>
             </div>
-            <LauncherDownloadButton type="primary" />
+            <LauncherDownloadButton type="primary" release={launcherRelease} />
           </div>
         )}
+
+        {linkedDevice && isAuthenticated && updateAvailable && launcherRelease ? (
+          <Alert
+            type="info"
+            showIcon
+            className="launcher-update-alert"
+            title={t('launcher.updateAvailableTitle')}
+            description={t('launcher.updateAvailableDesc', {
+              installed: linkedDevice.launcher_version?.trim() || t('launcherLink.unknown'),
+              latest: launcherRelease.version,
+            })}
+            action={
+              <Space wrap>
+                <Button
+                  type="primary"
+                  icon={<CloudDownloadOutlined />}
+                  loading={updateRequesting}
+                  onClick={() => void handleRequestLauncherUpdate()}
+                >
+                  {t('launcher.updateButton')}
+                </Button>
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={() => openLauncherDownload(downloadUrl)}
+                >
+                  {t('launcher.downloadLatest')}
+                </Button>
+              </Space>
+            }
+          />
+        ) : null}
+
+        {linkedDevice && isAuthenticated && !updateAvailable ? (
+          <div className="launcher-download-band launcher-download-band--compact">
+            <div className="launcher-download-band-text">
+              <Paragraph className="launcher-download-band-desc">
+                {linkedDevice.launcher_version
+                  ? t('launcher.installedVersion', { version: linkedDevice.launcher_version })
+                  : null}
+                {launcherRelease
+                  ? ` · ${t('launcher.latestVersion', { version: launcherRelease.version })}`
+                  : null}
+              </Paragraph>
+            </div>
+            <Button icon={<DownloadOutlined />} onClick={() => openLauncherDownload(downloadUrl)}>
+              {t('launcher.downloadLatest')}
+            </Button>
+          </div>
+        ) : null}
 
         {linkedDevice && isAuthenticated && (
           <div className="launcher-qxmods-promo">
