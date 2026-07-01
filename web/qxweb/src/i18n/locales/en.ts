@@ -372,7 +372,8 @@ export const en: Messages = {
     launchErrorManifest: 'Could not prepare launch manifest — try again later',
     launchErrorDownload: 'Failed to download game files — check your connection',
     launchErrorCodes: {
-      MOJANG_SESSION: 'Microsoft session expired or unavailable — re-link your account',
+      MOJANG_SESSION: 'Microsoft session expired — re-link your account in profile',
+      MOJANG_UNAVAILABLE: 'Microsoft authentication is temporarily unavailable — try again in a moment',
       MANIFEST_UNAVAILABLE: 'Could not prepare launch manifest — try again later',
       PREPARE_FAILED: 'Failed to prepare the game for launch',
       DOWNLOAD_FAILED: 'Failed to download the client',
