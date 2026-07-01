@@ -1,4 +1,4 @@
 name: qx-project-codeql
 disable-default-queries: false
 packs:
-  - safepath-models
+  - qx-project/safepath-models

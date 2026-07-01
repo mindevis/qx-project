@@ -1,4 +1,4 @@
-name: safepath-models
+name: qx-project/safepath-models
 version: 0.0.1
 libraryPathDependencies:
   - codeql/go-all
