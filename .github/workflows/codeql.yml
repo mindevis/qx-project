@@ -24,8 +24,12 @@ jobs:
         with:
           languages: go
           config-file: ./.github/codeql/codeql-config.yml
-          packs: qx-project/safepath-models
 
       - uses: github/codeql-action/autobuild@v4
 
+      # Local model pack: init `packs:` only resolves published GHCR packs. Load from
+      # the repo via --additional-packs + --model-packs at query time (see codeql-workspace.yml).
       - uses: github/codeql-action/analyze@v4
+        env:
+          CODEQL_ACTION_EXTRA_OPTIONS: >-
+            {"database":{"run-queries":["--additional-packs=${{ github.workspace }}/.github/codeql","--model-packs=qx-project/safepath-models"]}}
