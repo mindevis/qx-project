@@ -122,6 +122,13 @@ async function openAuthModal(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 }
 
+async function expectAuthModalError(message: string) {
+  await waitFor(() => {
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(message)).toBeInTheDocument();
+  });
+}
+
 async function expectLauncherProfileListed(username: string) {
   await waitFor(() => {
     const el = document.querySelector('.launcher-profile-name');
@@ -152,7 +159,7 @@ function getProfileDeleteButton() {
   return screen.getByRole('button', { name: 'Удалить профиль?' });
 }
 
-describe('pages', { timeout: 30_000 }, () => {
+describe.sequential('pages', { timeout: 30_000 }, () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     clearTokens();
@@ -2816,7 +2823,13 @@ describe('pages', { timeout: 30_000 }, () => {
 
   it('shows generic login error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/auth/login') && init?.method === 'POST') {
+        return Promise.reject(new TypeError('Failed to fetch'));
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
 
     renderWithProviders(
       <Routes>
@@ -2832,11 +2845,7 @@ describe('pages', { timeout: 30_000 }, () => {
     await user.type(screen.getByLabelText('Пароль'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Войти' }));
 
-    await waitFor(() =>
-      expect(
-        screen.getByText('Сервер недоступен. Не удаётся связаться с API.'),
-      ).toBeInTheDocument(),
-    );
+    await expectAuthModalError('Сервер недоступен. Не удаётся связаться с API.');
   });
 
   it('registers successfully', async () => {
@@ -2918,7 +2927,13 @@ describe('pages', { timeout: 30_000 }, () => {
 
   it('shows generic register error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/auth/register') && init?.method === 'POST') {
+        return Promise.reject(new TypeError('Failed to fetch'));
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
 
     renderWithProviders(
       <Routes>
@@ -2936,11 +2951,7 @@ describe('pages', { timeout: 30_000 }, () => {
     await user.type(screen.getByLabelText('Повтор пароля'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
 
-    await waitFor(() =>
-      expect(
-        screen.getByText('Сервер недоступен. Не удаётся связаться с API.'),
-      ).toBeInTheDocument(),
-    );
+    await expectAuthModalError('Сервер недоступен. Не удаётся связаться с API.');
   });
 
   it('shows profile spinner and content', async () => {

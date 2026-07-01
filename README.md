@@ -1,25 +1,10 @@
 # QXSystem
 
-Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent** — каждый в своей папке.
+Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent**, **QXMods**, **QXSkins**
 
-**Статус:** MVP alpha (dev) ✅ · **Prod platform ✅** ([mc.qx-dev.ru](https://mc.qx-dev.ru)) · docs [GitHub Pages](https://mindevis.github.io/qx-project/)
+**Prod platform ✅** ([mc.qx-dev.ru](https://mc.qx-dev.ru)) · docs [GitHub Pages](https://docs.qx-dev.ru)
 
 [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [License](LICENSE)
-
-Документация: **[mindevis.github.io/qx-project](https://mindevis.github.io/qx-project/)** · [FAQ](docs/faq.md) · [configuration](docs/configuration.md) · [production-deploy](docs/production-deploy.md)
-
-Локальный предпросмотр: `make docs-serve` · сборка: `make docs-build`
-
-| Документ | Содержание |
-| -------- | ------------ |
-| [faq.md](docs/faq.md) | Как играть, привязка лаунчера |
-| [configuration.md](docs/configuration.md) | TOML (dev) и prod `.env` |
-| [production-deploy.md](docs/production-deploy.md) | Деплой `mc.qx-dev.ru` |
-| [api.md](docs/api.md) | REST + WebSocket |
-| [device-linking.md](docs/device-linking.md) · [launch-bridge.md](docs/launch-bridge.md) | Лаунчер |
-| [agent-protocol.md](docs/agent-protocol.md) · [ssh-deploy.md](docs/ssh-deploy.md) | QXAgent |
-| [architecture.md](docs/architecture.md) | Полная архитектура |
-| [adr/](docs/adr/) | ADR |
 
 ## Требования
 
@@ -55,77 +40,6 @@ make launcher
 - Swagger UI: [localhost:3000/swagger/index.html](http://localhost:3000/swagger/index.html)
 - Health: [health](http://localhost:3000/api/v1/health) · Ready: [health/ready](http://localhost:3000/api/v1/health/ready)
 
-### Игра (Flow A)
-
-1. Запустите **QXLauncher** (`make launcher` или `make build-launcher`) — браузер автоматически откроет `/launcher/link?device=<HWID>`.
-2. **Войдите или зарегистрируйтесь** на сайте → на странице привязки нажмите **«Связать устройство»**.
-3. На `/launcher` создайте инстанс (Vanilla, Forge, NeoForge, Fabric или Quilt) и offline-профиль → **Играть** (launch-bridge → QXLauncher → JVM).
-
-> **Guest без регистрации** — запланирован на v2+ (`POST /auth/guest` сейчас не в API). См. [faq.md](docs/faq.md).
-
-Конфигурация dev: TOML в корне репозитория (`qxapi.toml`, `web.toml`, `launcher.toml` — см. `*.toml.example`).
-
-### Сервер (Flow C)
-
-**dev dedicated server (Debian 13 + SSH + systemd):**
-
-```bash
-make dev-vps-up      # контейнер qx-vps-dev, SSH :2222, ключ в infra/docker/vps-dev/keys/
-make dev-vps-rm      # удалить контейнер, тома и образ (чистый dedicated server при следующем up)
-make dev-vps-info    # host/port/user/key + подсказки для qxapi.toml
-```
-
-В `qxapi.toml` для реального SSH deploy (перезапустите API):
-
-```toml
-public_api_url = "http://host.docker.internal:3000"
-```
-
-Agent binary (`bin/qx-agent-linux`) собирается через `make dev-vps-up` и подхватывается API автоматически.
-
-1. **Servers** → Add server: SSH credentials
-2. **Deploy agent** → QXAgent на dedicated server через SSH + systemd
-3. **Add game server** → выбор типа/версии, автоматическая установка
-4. Страница сервера: RCON-консоль, `server.properties`, моды, файлы
-
-**dev dedicated server:** `make dev-vps-up` — контейнер `qx-vps-dev`, SSH `:2222`. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
-
-**Prod:** см. [production-deploy.md](docs/production-deploy.md) §9.
-
-## Отладка (Cursor / VS Code)
-
-1. Скопируйте `*.toml.example` → `*.toml` (см. быстрый старт)
-2. Run and Debug (`F5`) → выбрать конфигурацию из `.vscode/launch.json`:
-
-| Конфигурация | Что делает |
-| --- | --- |
-| **QXApi** | API с breakpoints |
-| **QXLauncher** | Лаунчер с breakpoints |
-| **QXWeb** | Vite dev-server в терминале |
-| **dev dedicated server: up** | Flow C: Debian SSH на `:2222`, сборка `qx-agent-linux` |
-| **dev dedicated server: down** | Остановить контейнер `qx-vps-dev` |
-| **dev dedicated server: info** | SSH host/port и подсказки для `qxapi.toml` |
-| **QX Dev Stack** | QXApi + QXWeb + QXLauncher (compound) |
-| **Go: текущий тест** | Отладка теста в открытом `*_test.go` |
-| **Vitest: текущий файл** | Отладка открытого `*.test.ts(x)` |
-
-Docker (MySQL, Redis, MinIO): **Terminal → Run Task → Docker: dev-up** (перед **QXApi**).
-
-Flow C (серверы): **F5 → dev dedicated server: up**, затем **QXApi**. В `qxapi.toml`: `public_api_url = "http://host.docker.internal:3000"`.
-
-Конфигурация — TOML-файлы, **не** shell и не `.env`. Подробно: [docs/configuration.md](docs/configuration.md).
-
-| Файл | Сервис |
-| ------ | -------- |
-| `qxapi.toml` | QXApi (шаблон `qxapi.toml.example`) |
-| `web.toml` | QXWeb / Vite |
-| `launcher.toml` | QXLauncher (dev: корень; установленный: `~/.qxlauncher/`) |
-| `agent.toml` | QXAgent local dev |
-| `/etc/qxsystem/agent/agent.toml` | QXAgent на dedicated server (deploy) |
-| `infra/docker/.env.prod` | Prod docker-compose only |
-
-Если отладчик Go не стартует (`cannot launch dlv dap`): перезапустите Cursor, затем `Ctrl+Shift+P` → **Go: Install/Update Tools** → отметьте `dlv` и `dlv-dap`. В проекте включён legacy-адаптер Delve для Windows.
-
 ## Тесты
 
 ```bash
@@ -156,22 +70,5 @@ web.toml.example
 launcher.toml.example
 agent.toml.example
 infra/docker/     docker-compose dev stack
-docs/             архитектура & ADR
 go.work           Go workspace
 ```
-
-Код сервиса **не смешивается**: у QXApi свой `internal/`, у QXAgent и QXLauncher — свои (по мере реализации).
-
-## Реализовано (MVP alpha — dev)
-
-- [x] **Phase 0** — auth, profile, CI, 100% unit coverage
-- [x] **Phase 1** — device link, instances, launch-bridge, QXLauncher + Vanilla
-- [x] **Phase 2** — servers CRUD, SSH deploy, agent WSS; Stop/Restart/консоль при `minecraft_running`
-- [x] **Phase 3** — registered user device status, JWT refresh в QXLauncher
-- [x] **Phase Alpha (flows)** — manual Flow A/B/C ☑ ([test matrix](docs/qa/test-matrix.md), [FAQ](docs/faq.md))
-- [ ] **Prod** — TLS, smoke на хосте платформы ([production-deploy.md](docs/production-deploy.md), [mvp §7.1](docs/mvp.md))
-
-### Prod (Tier 0)
-
-Push в `main` → GHCR → автодеплой на `/opt/qxsystem` (Secrets в GitHub, без ручных шагов на хосте платформы).  
-**[docs/production-deploy.md](docs/production-deploy.md)**
