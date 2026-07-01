@@ -1,3 +1,3 @@
 name: qx-project
 provide:
-  - .github/codeql
+  - .github/codeql/qlpack.yml
