@@ -50,11 +50,12 @@ if [[ -n "${GHCR_TOKEN:-}" ]]; then
 fi
 
 $COMPOSE pull api web
-# nginx resolves api/web at config load — need compose network DNS (not isolated docker run).
+# nginx resolves api/web at config load — restart after web/api recreate to pick up new container IPs.
 $COMPOSE up -d api web
 $COMPOSE run --rm --no-deps nginx nginx -t
 
 $COMPOSE up -d --no-build
+$COMPOSE restart nginx
 $COMPOSE ps
 
 echo "Stack up."
