@@ -15,16 +15,19 @@ import {
   AppstoreOutlined,
   BuildOutlined,
   CodeOutlined,
+  DatabaseOutlined,
   DeleteOutlined,
   FolderOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
   SettingOutlined,
   SyncOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { api, type GameServer } from '@/api/client';
 import { ServerConsolePanel, shouldShowGameServerConsole } from '@/components/ServerConsolePanel';
 import { GameServerPropertiesPanel } from '@/components/GameServerPropertiesPanel';
+import { GameServerContentPanel } from '@/components/GameServerContentPanel';
 import { GameServerModsPanel } from '@/components/GameServerModsPanel';
 import { GameServerFilesPanel } from '@/components/GameServerFilesPanel';
 import { GameServerInstanceBinding } from '@/components/GameServerInstanceBinding';
@@ -248,6 +251,46 @@ export function GameServerDetailPage() {
                 gameServerId={game.id}
                 agentOnline={agentOnline}
                 supportsMods={caps.mods}
+                serverType={serverType}
+                mcVersion={game.mc_version ?? '1.21'}
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(caps.datapacks
+      ? [
+          {
+            key: 'datapacks',
+            label: tabLabel(<DatabaseOutlined aria-hidden />, t('gameServerDetail.tabDatapacks')),
+            children: (
+              <GameServerContentPanel
+                kind="datapack"
+                vpsId={vpsId}
+                gameServerId={game.id}
+                agentOnline={agentOnline}
+                supported={caps.datapacks}
+                serverType={serverType}
+                mcVersion={game.mc_version ?? '1.21'}
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(caps.plugins
+      ? [
+          {
+            key: 'plugins',
+            label: tabLabel(<ThunderboltOutlined aria-hidden />, t('gameServerDetail.tabPlugins')),
+            children: (
+              <GameServerContentPanel
+                kind="plugin"
+                vpsId={vpsId}
+                gameServerId={game.id}
+                agentOnline={agentOnline}
+                supported={caps.plugins}
+                serverType={serverType}
+                mcVersion={game.mc_version ?? '1.21'}
               />
             ),
           },
@@ -391,7 +434,7 @@ export function GameServerDetailPage() {
               className="game-server-detail-crash"
               type="error"
               showIcon
-              message={t('gameServerDetail.crashTitle')}
+              title={t('gameServerDetail.crashTitle')}
               description={
                 <pre className="game-server-detail-crash-log">{game.last_error}</pre>
               }

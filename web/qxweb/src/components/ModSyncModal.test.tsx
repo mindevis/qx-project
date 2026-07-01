@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message, Modal } from 'antd';
+import { Modal } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import * as vpsGameServers from '@/lib/vpsGameServers';
@@ -21,9 +22,6 @@ const selection: ModSyncSelection = {
 
 describe('ModSyncModal', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'info').mockImplementation(() => undefined as never);
     vi.spyOn(api, 'listServers').mockResolvedValue({
       items: [
         {
@@ -91,7 +89,7 @@ describe('ModSyncModal', () => {
     await waitFor(() => expect(screen.getByText('Forge')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Синхронизировать' }));
     await waitFor(() => expect(api.syncModToGameServer).toHaveBeenCalled());
-    expect(message.success).toHaveBeenCalledWith('Синхронизация поставлена в очередь');
+    expect(testMessage.success).toHaveBeenCalledWith('Синхронизация поставлена в очередь');
     expect(onClose).toHaveBeenCalled();
     expect(Modal.confirm).toHaveBeenCalled();
   });
@@ -109,7 +107,7 @@ describe('ModSyncModal', () => {
     await waitFor(() => expect(screen.getByText('Forge')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Синхронизировать' }));
     await waitFor(() => expect(vpsGameServers.restartVpsGameServer).toHaveBeenCalledWith('vps-1', 'gs-1'));
-    expect(message.success).toHaveBeenCalledWith('Игровой сервер перезапускается…');
+    expect(testMessage.success).toHaveBeenCalledWith('Игровой сервер перезапускается…');
   });
 
   it('does not restart when user declines after sync', async () => {

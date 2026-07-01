@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { Routes, Route } from 'react-router-dom';
 import { saveTokens, clearTokens } from '@/api/client';
 import { renderWithProviders, waitForNoDialog } from '@/test/test-utils';
@@ -100,8 +100,6 @@ describe('ServersPage', () => {
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('WebSocket', MockWebSocket);
     clearTokens();
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
   });
 
   afterEach(() => {
@@ -248,7 +246,7 @@ describe('ServersPage', () => {
 
     renderServers('/servers');
     await waitFor(() =>
-      expect(message.error).toHaveBeenCalledWith('Не удалось загрузить серверы'),
+      expect(testMessage.error).toHaveBeenCalledWith('Не удалось загрузить серверы'),
     );
   });
 
@@ -425,7 +423,7 @@ describe('ServersPage', () => {
     });
     await user.click(within(dialog).getByRole('button', { name: /Добавить игровой сервер/i }));
 
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
     expect(screen.getByText('Survival MC')).toBeInTheDocument();
     expect(screen.getByText('Paper')).toBeInTheDocument();
     expect(screen.getAllByText('1.21').length).toBeGreaterThan(0);
@@ -491,7 +489,7 @@ describe('ServersPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Deploy agent/i }));
     await waitFor(() =>
-      expect(message.error).toHaveBeenCalledWith('QX agent requires a Linux dedicated server'),
+      expect(testMessage.error).toHaveBeenCalledWith('QX agent requires a Linux dedicated server'),
     );
   });
 
@@ -516,7 +514,7 @@ describe('ServersPage', () => {
 
     renderServers('/servers/missing');
     await waitFor(() =>
-      expect(message.error).toHaveBeenCalledWith('Сервер не найден'),
+      expect(testMessage.error).toHaveBeenCalledWith('Сервер не найден'),
     );
   });
 
@@ -613,7 +611,7 @@ describe('ServersPage', () => {
     await user.click(screen.getByRole('button', { name: /Удалить/i }));
     await user.click(screen.getByRole('button', { name: /^OK$/i }));
 
-    await waitFor(() => expect(message.success).toHaveBeenCalledWith('Сервер удалён'));
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('Сервер удалён'));
     view.unmount();
   });
 
@@ -653,7 +651,7 @@ describe('ServersPage', () => {
     );
     await user.click(screen.getByRole('button', { name: 'OK' }));
 
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('invalid ssh key'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('invalid ssh key'));
   });
 
   it('shows action and delete errors on detail page', async () => {
@@ -694,7 +692,7 @@ describe('ServersPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Удалить/i }));
     await user.click(screen.getByRole('button', { name: /^OK$/i }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('delete failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('delete failed'));
   });
 
   it('shows generic action and delete errors for non-error throws', async () => {
@@ -731,7 +729,7 @@ describe('ServersPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Удалить/i }));
     await user.click(screen.getByRole('button', { name: /^OK$/i }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('Backend unavailable'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('Backend unavailable'));
   });
 
   it('ignores create errors without message', async () => {
@@ -770,7 +768,7 @@ describe('ServersPage', () => {
     );
     await user.click(screen.getByRole('button', { name: 'OK' }));
 
-    await waitFor(() => expect(message.error).not.toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.error).not.toHaveBeenCalled());
   });
 
   it('hides game server console until instance is running', async () => {
@@ -968,7 +966,7 @@ describe('ServersPage', () => {
     renderServers('/servers/srv-1');
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Обновить QXAgent/i }));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
   });
 
   const onlineVps = {
@@ -1117,7 +1115,7 @@ describe('ServersPage', () => {
     renderServers('/servers');
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getAllByRole('button', { name: /Обновить/i })[0]!);
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
   });
 
   it('deploys agent from workflow panel', async () => {
@@ -1151,6 +1149,6 @@ describe('ServersPage', () => {
     renderServers('/servers/srv-1');
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Deploy agent/i }));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Empty, List, Spin, Typography } from 'antd';
+import { Button, Empty, Spin, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { api, type InstanceResource } from '@/api/client';
 import { InstanceServerBinding } from '@/components/InstanceServerBinding';
@@ -70,38 +70,29 @@ export function InstanceInstalledResources({ layout = 'standalone' }: { layout?:
           </Link>
         </Empty>
       ) : (
-        <List
-          className="qxmods-installed-list"
-          dataSource={items}
-          renderItem={(item) => (
-            <List.Item key={`${item.source}:${item.project_id ?? item.filename}`}>
-              <List.Item.Meta
-                avatar={
-                  item.icon_url ? (
-                    <img src={item.icon_url} alt="" className="qxmods-installed-icon" />
-                  ) : (
-                    <span className="qxmods-installed-icon qxmods-installed-icon--placeholder" />
-                  )
-                }
-                title={
-                  <span>
-                    {item.project_name}{' '}
-                    <ModSourceBadge source={item.source} />
-                  </span>
-                }
-                description={
-                  <Text type="secondary">
-                    {t(`qxmods.tabs.${item.resource_type}`)}
-                    {item.version_number ? ` · ${item.version_number}` : ''}
-                    {item.filename ? ` · ${item.filename}` : ''}
-                    {item.file_size ? ` · ${formatFileSize(item.file_size)}` : ''}
-                    {item.downloads ? ` · ${formatDownloadCount(item.downloads)} ${t('qxmods.installed.downloads')}` : ''}
-                  </Text>
-                }
-              />
-            </List.Item>
-          )}
-        />
+        <ul className="qxmods-installed-list">
+          {items.map((item) => (
+            <li key={`${item.source}:${item.project_id ?? item.filename}`} className="qxmods-installed-item">
+              {item.icon_url ? (
+                <img src={item.icon_url} alt="" className="qxmods-installed-icon" />
+              ) : (
+                <span className="qxmods-installed-icon qxmods-installed-icon--placeholder" />
+              )}
+              <div className="qxmods-installed-item-content">
+                <div className="qxmods-installed-item-title">
+                  {item.project_name} <ModSourceBadge source={item.source} />
+                </div>
+                <Text type="secondary">
+                  {t(`qxmods.tabs.${item.resource_type}`)}
+                  {item.version_number ? ` · ${item.version_number}` : ''}
+                  {item.filename ? ` · ${item.filename}` : ''}
+                  {item.file_size ? ` · ${formatFileSize(item.file_size)}` : ''}
+                  {item.downloads ? ` · ${formatDownloadCount(item.downloads)} ${t('qxmods.installed.downloads')}` : ''}
+                </Text>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

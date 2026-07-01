@@ -24,17 +24,21 @@ import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { formatModCatalogError } from '@/lib/modCatalogError';
+import {
+  catalogLoaderForType,
+  launcherCatalogTabs,
+} from '@/lib/launcherInstanceCapabilities';
 import './InstanceResourcesPanel.css';
 
 const { Text, Paragraph } = Typography;
 const PAGE_SIZE = 20;
-const TAB_TYPES: ModProjectType[] = ['mod', 'modpack', 'resourcepack', 'shader'];
 
 export function ModsCatalogPanel() {
   const { t } = useI18n();
   const message = useMessage();
   const { instance, basePath } = useInstanceMods();
-  const [activeTab, setActiveTab] = useState<ModProjectType>('mod');
+  const tabTypes = useMemo(() => launcherCatalogTabs(instance.loader), [instance.loader]);
+  const [activeTab, setActiveTab] = useState<ModProjectType>(() => tabTypes[0] ?? 'mod');
   const [sourceFilter, setSourceFilter] = useState<ModCatalogSourceFilter>('all');
   const [sort, setSort] = useState<ModCatalogSort>('downloads');
   const [searchInput, setSearchInput] = useState('');
@@ -50,6 +54,14 @@ export function ModsCatalogPanel() {
   const isSearchMode = appliedSearch.trim().length > 0;
   const showCurseforgeUnavailable =
     sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled && !isSearchMode;
+
+  const catalogLoader = catalogLoaderForType(instance.loader, activeTab);
+
+  useEffect(() => {
+    if (!tabTypes.includes(activeTab)) {
+      setActiveTab(tabTypes[0] ?? 'mod');
+    }
+  }, [activeTab, tabTypes]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +81,7 @@ export function ModsCatalogPanel() {
           const res = await api.searchMods({
             q: appliedSearch.trim(),
             type: activeTab,
-            loader: instance.loader,
+            loader: catalogLoader,
             mc_version: instance.mc_version,
             limit: PAGE_SIZE,
           });
@@ -83,7 +95,7 @@ export function ModsCatalogPanel() {
 
         const res = await api.browseMods({
           type: activeTab,
-          loader: instance.loader,
+          loader: catalogLoader,
           mc_version: instance.mc_version,
           source: sourceFilter,
           sort,
@@ -118,7 +130,7 @@ export function ModsCatalogPanel() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, appliedSearch, instance.loader, instance.mc_version, sort, sourceFilter, message, t]);
+  }, [activeTab, appliedSearch, catalogLoader, instance.mc_version, sort, sourceFilter, message, t]);
 
   const loadMore = async () => {
     if (appliedSearch.trim()) return;
@@ -126,7 +138,7 @@ export function ModsCatalogPanel() {
     try {
       const res = await api.browseMods({
         type: activeTab,
-        loader: instance.loader,
+        loader: catalogLoader,
         mc_version: instance.mc_version,
         source: sourceFilter,
         sort,
@@ -210,7 +222,7 @@ export function ModsCatalogPanel() {
       <Segmented
         className="qxmods-type-segmented"
         value={activeTab}
-        options={TAB_TYPES.map((type) => ({ value: type, label: t(`qxmods.tabs.${type}`) }))}
+        options={tabTypes.map((type) => ({ value: type, label: t(`qxmods.tabs.${type}`) }))}
         onChange={(value) => setActiveTab(value as ModProjectType)}
       />
       <div className="qxmods-filters">
@@ -286,7 +298,7 @@ export function ModsCatalogPanel() {
           <Spin />
         </div>
       ) : showCurseforgeUnavailable ? (
-        <Alert type="warning" showIcon message={t('qxmods.curseforgeDisabled')} />
+        <Alert type="warning" showIcon title={t('qxmods.curseforgeDisabled')} />
       ) : (
         <>
           <Table

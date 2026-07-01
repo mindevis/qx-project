@@ -69,12 +69,13 @@ describe('LauncherInstanceResourcesPage', () => {
     await waitFor(() => expect(screen.getByText('Launcher home')).toBeInTheDocument());
   });
 
-  it('redirects vanilla instances to launcher home', async () => {
+  it('allows vanilla instances for datapacks', async () => {
     vi.mocked(api.listInstances).mockResolvedValueOnce({
       items: [{ ...forgeInstance, loader: 'vanilla' }],
     });
     renderResources();
-    await waitFor(() => expect(screen.getByText('Launcher home')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Forge'));
+    expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument();
   });
 
   it('opens catalog table from add button', async () => {

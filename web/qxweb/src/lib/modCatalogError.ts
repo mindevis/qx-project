@@ -6,7 +6,7 @@ type ModCatalogErrorT = (key: string) => string;
 export function formatModCatalogError(
   error: unknown,
   t: ModCatalogErrorT,
-  fallbackKey: 'qxmods.browseFailed' | 'qxmods.searchFailed' | 'qxmods.versionsFailed',
+  fallbackKey: string,
 ): string {
   if (isBackendUnavailableError(error)) {
     return t('backend.title');

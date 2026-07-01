@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { renderWithProviders } from '@/test/test-utils';
+import { testNavigation } from '@/test/navigation-mock';
 import { ProfilePage } from './ProfilePage';
 import { saveTokens, api } from '@/api/client';
 
@@ -109,8 +110,6 @@ describe('ProfilePage', () => {
   });
 
   it('starts mojang oauth when link button clicked', async () => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { ...window.location, assign });
     vi.spyOn(api, 'startMojangOAuth').mockResolvedValue({
       authorization_url: 'https://login.microsoftonline.com/oauth',
     });
@@ -120,13 +119,14 @@ describe('ProfilePage', () => {
       expect(screen.getByRole('button', { name: /Привязать Microsoft/i })).toBeInTheDocument(),
     );
     await user.click(screen.getByRole('button', { name: /Привязать Microsoft/i }));
-    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://login.microsoftonline.com/oauth'));
-    vi.unstubAllGlobals();
+    await waitFor(() =>
+      expect(testNavigation.assign).toHaveBeenCalledWith('https://login.microsoftonline.com/oauth'),
+    );
   });
 
   it('shows success message after password change', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
+  const successSpy = testMessage.success;
     vi.mocked(fetch)
       .mockResolvedValueOnce(
         new Response(
@@ -155,7 +155,6 @@ describe('ProfilePage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Пароль изменён'));
-    successSpy.mockRestore();
   });
 
   it('shows link to skins section instead of embedded panel', async () => {

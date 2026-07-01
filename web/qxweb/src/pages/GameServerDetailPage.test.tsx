@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { Routes, Route } from 'react-router-dom';
 import { saveTokens, clearTokens } from '@/api/client';
 import { renderWithProviders } from '@/test/test-utils';
@@ -79,8 +79,6 @@ describe('GameServerDetailPage', () => {
       token_type: 'Bearer',
       expires_in: 3600,
     });
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
   });
 
   afterEach(() => {
@@ -150,10 +148,10 @@ describe('GameServerDetailPage', () => {
     expect(screen.getByText(/secret/)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /Запустить/i })[0]!);
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
 
     await user.click(screen.getByRole('button', { name: /Перезапустить/i }));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
 
     await user.click(screen.getByRole('button', { name: /Удалить/ }));
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
@@ -182,7 +180,7 @@ describe('GameServerDetailPage', () => {
 
     renderDetail();
     await waitFor(() => expect(screen.getByText('Dedicated detail')).toBeInTheDocument());
-    expect(message.error).toHaveBeenCalled();
+    expect(testMessage.error).toHaveBeenCalled();
   });
 
   it('redirects on load failure', async () => {
@@ -204,7 +202,7 @@ describe('GameServerDetailPage', () => {
 
     renderDetail();
     await waitFor(() => expect(screen.getByText('Dedicated detail')).toBeInTheDocument());
-    expect(message.error).toHaveBeenCalled();
+    expect(testMessage.error).toHaveBeenCalled();
   });
 
   it('shows power action errors', async () => {
@@ -238,7 +236,7 @@ describe('GameServerDetailPage', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
     );
     await user.click(screen.getAllByRole('button', { name: /Запустить/i })[0]!);
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('power failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('power failed'));
   });
 
   it('reinstalls game server and stops running instance', async () => {
@@ -281,11 +279,11 @@ describe('GameServerDetailPage', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
     );
     await user.click(screen.getByRole('button', { name: /Остановить/i }));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
 
     await user.click(screen.getByRole('button', { name: /Переустановить/i }));
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
-    await waitFor(() => expect(message.success).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledTimes(2));
   });
 
   it('shows delete and reinstall errors', async () => {
@@ -325,11 +323,11 @@ describe('GameServerDetailPage', () => {
     );
     await user.click(screen.getByRole('button', { name: /Удалить/ }));
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('delete failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('delete failed'));
 
     await user.click(screen.getByRole('button', { name: /Переустановить/i }));
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('reinstall failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('reinstall failed'));
   });
 
   it('shows crash details when server is in error state', async () => {

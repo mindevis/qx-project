@@ -1,14 +1,29 @@
 import '@testing-library/jest-dom/vitest';
-import { afterAll, afterEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, vi } from 'vitest';
 import { act, cleanup, configure } from '@testing-library/react';
 import { message } from 'antd';
 import { clearTokens } from '@/api/client';
+import { __test__ as loggerTest } from '@/lib/logger';
+import { installCanvasMocks } from '@/test/canvas-mock';
+import { installNavigationMock } from '@/test/navigation-mock';
+import { resetTestMessage } from '@/test/test-message';
 
 configure({ asyncUtilTimeout: 5000 });
 
-vi.mock('@/hooks/useMessage', () => ({
-  useMessage: () => message,
-}));
+beforeEach(() => {
+  loggerTest.setMinLevel('error');
+  installNavigationMock();
+});
+
+vi.mock('skinview3d', async () => {
+  const { skinview3dMock } = await import('@/test/skinview3d-mock');
+  return skinview3dMock;
+});
+
+vi.mock('@/hooks/useMessage', async () => {
+  const { testMessage } = await import('@/test/test-message');
+  return { useMessage: () => testMessage };
+});
 
 vi.mock('@/backend/BackendStatusContext', () => ({
   BackendStatusProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -35,6 +50,12 @@ function mockMatchMedia() {
 
 mockMatchMedia();
 
+// jsdom does not implement getComputedStyle(..., '::before'|'::after'); antd/rc-* call it often.
+const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+window.getComputedStyle = (element, _pseudoElement?) => nativeGetComputedStyle(element);
+
+installCanvasMocks();
+
 class ResizeObserverMock {
   observe = vi.fn();
   unobserve = vi.fn();
@@ -58,10 +79,12 @@ afterEach(async () => {
   window.history.pushState({}, '', '/');
   mockMatchMedia();
   message.destroy();
+  resetTestMessage();
   vi.stubGlobal('ResizeObserver', ResizeObserverMock);
   await flushReactWork();
 });
 
 afterAll(async () => {
+  loggerTest.reset();
   await flushReactWork();
 });

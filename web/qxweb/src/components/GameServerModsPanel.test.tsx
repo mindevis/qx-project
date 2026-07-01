@@ -1,13 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { GameServerModsPanel } from './GameServerModsPanel';
 
 describe('GameServerModsPanel', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
   });
 
   afterEach(() => {
@@ -48,6 +47,11 @@ describe('GameServerModsPanel', () => {
         ],
       })
       .mockRejectedValueOnce(new Error('mods failed'));
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [],
+      has_more: false,
+      curseforge_enabled: false,
+    });
 
     renderWithTheme(
       <GameServerModsPanel
@@ -70,11 +74,16 @@ describe('GameServerModsPanel', () => {
         supportsMods={true}
       />,
     );
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('mods failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('mods failed'));
   });
 
   it('shows empty mods list', async () => {
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [],
+      has_more: false,
+      curseforge_enabled: false,
+    });
 
     renderWithTheme(
       <GameServerModsPanel
@@ -90,6 +99,11 @@ describe('GameServerModsPanel', () => {
   it('formats unknown file sizes', async () => {
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
       items: [{ name: 'empty.jar', path: 'mods/empty.jar', dir: false }],
+    });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [],
+      has_more: false,
+      curseforge_enabled: false,
     });
 
     renderWithTheme(

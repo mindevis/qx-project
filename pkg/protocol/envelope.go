@@ -18,7 +18,10 @@ const (
 	TypeCmdServerFilesList       = "cmd.server.files.list"
 	TypeCmdServerFilesRead       = "cmd.server.files.read"
 	TypeCmdServerFilesWrite      = "cmd.server.files.write"
-	TypeCmdServerModsList        = "cmd.server.mods.list"
+	TypeCmdServerModsList           = "cmd.server.mods.list"
+	TypeCmdServerPluginsList        = "cmd.server.plugins.list"
+	TypeCmdServerDatapacksList      = "cmd.server.datapacks.list"
+	TypeCmdServerContentInstall     = "cmd.server.content.install"
 
 	TypeEvtAgentHeartbeat = "evt.agent.heartbeat"
 	TypeEvtConsoleOutput  = "evt.console.output"
@@ -33,7 +36,10 @@ const (
 	TypeResServerFilesList        = "res.server.files.list"
 	TypeResServerFilesRead        = "res.server.files.read"
 	TypeResServerFilesWrite       = "res.server.files.write"
-	TypeResServerModsList         = "res.server.mods.list"
+	TypeResServerModsList           = "res.server.mods.list"
+	TypeResServerPluginsList        = "res.server.plugins.list"
+	TypeResServerDatapacksList      = "res.server.datapacks.list"
+	TypeResServerContentInstall     = "res.server.content.install"
 )
 
 type Envelope struct {
@@ -193,4 +199,19 @@ type ServerFilesReadResult struct {
 
 type ServerModsListResult struct {
 	Entries []FileEntry `json:"entries"`
+}
+
+type ServerContentInstallPayload struct {
+	GameServerID string `json:"game_server_id"`
+	WorkDir      string `json:"work_dir"`
+	ServerType   string `json:"server_type,omitempty"`
+	ContentKind  string `json:"content_kind"`
+	Filename     string `json:"filename"`
+	DownloadURL  string `json:"download_url"`
+}
+
+type ServerContentInstallResult struct {
+	Status   string `json:"status"`
+	RelPath  string `json:"rel_path,omitempty"`
+	Filename string `json:"filename,omitempty"`
 }

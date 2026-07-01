@@ -10,7 +10,7 @@ import { ModDetailPanel } from '@/components/ModDetailPanel';
 import { useAuth } from '@/auth/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
-import { isModdedLauncherLoader } from '@/lib/isModdedLoader';
+import { launcherSupportsResourcesPage } from '@/lib/launcherInstanceCapabilities';
 import { isLauncherLoader, type LauncherLoader } from '@/lib/launcherLoaders';
 import { logger } from '@/lib/logger';
 import './LauncherPage.css';
@@ -57,7 +57,7 @@ export function LauncherInstanceResourcesPage() {
           navigate('/launcher');
           return;
         }
-        if (!isModdedLauncherLoader(found.loader)) {
+        if (!launcherSupportsResourcesPage(found.loader)) {
           navigate('/launcher');
           return;
         }

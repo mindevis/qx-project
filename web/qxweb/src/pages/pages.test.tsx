@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { Routes, Route } from 'react-router-dom';
 import { renderWithProviders, waitForNoDialog } from '@/test/test-utils';
 import { AppLayout } from '@/layouts/AppLayout';
@@ -161,7 +161,10 @@ function getProfileDeleteButton() {
 
 describe.sequential('pages', { timeout: 30_000 }, () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response('{}', { status: 200 }))),
+    );
     clearTokens();
   });
 
@@ -313,7 +316,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('shows launcher instance errors', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -376,12 +379,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('delete failed'));
 
-    errorSpy.mockRestore();
   });
 
   it('shows generic launcher errors for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -433,7 +435,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось удалить'));
     deleteSpy.mockRestore();
-    errorSpy.mockRestore();
   });
 
   it('shows sign-in required when unauthenticated on launcher workspace', async () => {
@@ -460,7 +461,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
   });
 
   it('shows error when instances fail to load', async () => {
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -495,13 +496,12 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() =>
       expect(errorSpy).toHaveBeenCalledWith('Не удалось загрузить инстансы'),
     );
-    errorSpy.mockRestore();
   });
 
   it('creates and deletes launcher instance', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
-    const infoSpy = vi.spyOn(message, 'info');
+  const successSpy = testMessage.success;
+  const infoSpy = testMessage.info;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -571,12 +571,10 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Пока нет инстансов')).toBeInTheDocument());
     expect(successSpy).toHaveBeenCalledWith('Инстанс удалён');
-    successSpy.mockRestore();
-    infoSpy.mockRestore();
   });
 
   it('falls back when mc versions fail to load', async () => {
-    const warnSpy = vi.spyOn(message, 'warning');
+  const warnSpy = testMessage.warning;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -607,7 +605,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() =>
       expect(warnSpy).toHaveBeenCalledWith('Не удалось загрузить список версий'),
     );
-    warnSpy.mockRestore();
   });
 
   it('reloads create form versions when loader type changes', async () => {
@@ -825,7 +822,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('launches with default player when no offline profile', async () => {
     const user = userEvent.setup({ delay: null });
-    const infoSpy = vi.spyOn(message, 'info');
+  const infoSpy = testMessage.info;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -891,7 +888,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         'Ник Player (по умолчанию). Добавьте профиль в разделе «Игрок» для своего ника.',
       ),
     );
-    infoSpy.mockRestore();
   });
 
   it('shows launching status badge while polling launch request', async () => {
@@ -1107,7 +1103,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('refreshes launcher workspace data', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
+  const successSpy = testMessage.success;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1137,7 +1133,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     );
     await user.click(screen.getByRole('button', { name: /Обновить/ }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Данные обновлены'));
-    successSpy.mockRestore();
   });
 
   it('handles mojang status load failure in licensed mode', async () => {
@@ -1472,7 +1467,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('unlinks launcher device from alert', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
+  const successSpy = testMessage.success;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1512,12 +1507,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(screen.getByRole('button', { name: /Отвязать/ }));
     await user.click(screen.getByRole('button', { name: /^OK$/i }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('QXLauncher отвязан'));
-    successSpy.mockRestore();
   });
 
   it('shows unlink error message', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1559,12 +1553,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(screen.getByRole('button', { name: /Отвязать/ }));
     await user.click(screen.getByRole('button', { name: /^OK$/i }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('unlink failed'));
-    errorSpy.mockRestore();
   });
 
   it('shows generic unlink error for non-Error rejection', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     const { api } = await import('@/api/client');
     const unlinkSpy = vi.spyOn(api, 'unlinkDevice').mockRejectedValue('raw');
     saveTokens({
@@ -1605,7 +1598,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() =>
       expect(errorSpy).toHaveBeenCalledWith('Не удалось отвязать устройство'),
     );
-    errorSpy.mockRestore();
     unlinkSpy.mockRestore();
   });
 
@@ -1758,7 +1750,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
   });
 
   it('shows error when profiles fail to load', async () => {
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1792,12 +1784,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() =>
       expect(errorSpy).toHaveBeenCalledWith('Не удалось загрузить профили'),
     );
-    errorSpy.mockRestore();
   });
 
   it('shows generic play error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1836,12 +1827,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Backend unavailable'));
-    errorSpy.mockRestore();
   });
 
   it('shows api error message when launch request fails', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1883,12 +1873,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('launcher offline'));
-    errorSpy.mockRestore();
   });
 
   it('shows api error message when profile create fails', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1933,7 +1922,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('username taken'));
-    errorSpy.mockRestore();
   });
 
   it('skips profile modal after create when profiles exist', async () => {
@@ -1994,7 +1982,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('reports failed launch and deletes profile', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
+  const successSpy = testMessage.success;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2082,7 +2070,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(deleteButtons[0]!);
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Профиль удалён'));
-    successSpy.mockRestore();
   });
 
   it('creates profile and launches instance', async () => {
@@ -2172,7 +2159,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('handles expired launch request without toast', async () => {
     const user = userEvent.setup({ delay: null });
-    const warningSpy = vi.spyOn(message, 'warning');
+  const warningSpy = testMessage.warning;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2236,7 +2223,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       ),
     );
     expect(warningSpy).not.toHaveBeenCalled();
-    warningSpy.mockRestore();
   });
 
   it('shows launch progress in the instance card while polling', async () => {
@@ -2374,7 +2360,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         }
         if (url.includes('/launcher/launch-requests/lr-unknown') && init?.method !== 'POST') {
           poll += 1;
-          const status = poll === 1 ? 'custom_xyz' : poll < 10 ? 'custom_xyz' : 'completed';
+          const status = poll === 1 ? 'custom_xyz' : 'completed';
           return new Response(
             JSON.stringify({
               id: 'lr-unknown',
@@ -2403,6 +2389,8 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() => expect(screen.getAllByText('custom_xyz').length).toBeGreaterThan(0), {
       timeout: 8000,
     });
+    // pollLaunchRequest keeps running after the assertion; wait for the terminal poll cycle.
+    await new Promise((resolve) => setTimeout(resolve, 1700));
   });
 
   it('ignores linked device load failures', async () => {
@@ -2438,7 +2426,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('shows generic profile errors for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     const createSpy = vi.spyOn(api, 'createProfile').mockRejectedValueOnce('profile boom');
     saveTokens({
       access_token: 'a',
@@ -2486,13 +2474,12 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.type(screen.getByLabelText('Никнейм'), 'Alex');
     await user.click(screen.getByRole('button', { name: 'Создать' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось создать профиль'));
-    errorSpy.mockRestore();
     createSpy.mockRestore();
   });
 
   it('shows generic delete profile error for non-error throws', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     const deleteSpy = vi.spyOn(api, 'deleteProfile').mockRejectedValueOnce('delete boom');
     saveTokens({
       access_token: 'a',
@@ -2531,13 +2518,12 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(getProfileDeleteButton());
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось удалить профиль'));
-    errorSpy.mockRestore();
     deleteSpy.mockRestore();
   });
 
   it('shows delete profile api error', async () => {
     const user = userEvent.setup({ delay: null });
-    const errorSpy = vi.spyOn(message, 'error');
+  const errorSpy = testMessage.error;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2581,12 +2567,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(getProfileDeleteButton());
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('delete denied'));
-    errorSpy.mockRestore();
   });
 
   it('clears selected profile after deleting it', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
+  const successSpy = testMessage.success;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2627,12 +2612,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(getProfileDeleteButton());
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Профиль удалён'));
-    successSpy.mockRestore();
   });
 
   it('opens profile modal when profiles response omits items', async () => {
     const user = userEvent.setup({ delay: null });
-    const infoSpy = vi.spyOn(message, 'info');
+  const infoSpy = testMessage.info;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2687,7 +2671,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         'Создайте offline-профиль с ником или играйте с Player по умолчанию',
       ),
     );
-    infoSpy.mockRestore();
   });
 
   it('shows generic failed launch error without error code', async () => {
@@ -2797,12 +2780,18 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('shows login error message', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { code: 'AUTH', message: 'invalid credentials' } }), {
-        status: 401,
-        statusText: 'Unauthorized',
-      }),
-    );
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/auth/login') && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { code: 'AUTH', message: 'invalid credentials' } }), {
+            status: 401,
+            statusText: 'Unauthorized',
+          }),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
 
     renderWithProviders(
       <Routes>
@@ -2818,7 +2807,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.type(screen.getByLabelText('Пароль'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Войти' }));
 
-    await waitFor(() => expect(screen.getByText('invalid credentials')).toBeInTheDocument());
+    await expectAuthModalError('invalid credentials');
   });
 
   it('shows generic login error for non-error throws', async () => {
@@ -2850,29 +2839,36 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('registers successfully', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            access_token: 'a',
-            refresh_token: 'r',
-            token_type: 'Bearer',
-            expires_in: 3600,
-          }),
-          { status: 201 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            id: '1',
-            email: 'new@test.com',
-            tier: 'free',
-            created_at: 'now',
-          }),
-          { status: 200 },
-        ),
-      );
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/auth/register') && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              access_token: 'a',
+              refresh_token: 'r',
+              token_type: 'Bearer',
+              expires_in: 3600,
+            }),
+            { status: 201 },
+          ),
+        );
+      }
+      if (url.includes('/users/me')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: '1',
+              email: 'new@test.com',
+              tier: 'free',
+              created_at: 'now',
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
 
     renderWithProviders(
       <Routes>
@@ -2899,12 +2895,18 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
   it('shows register error message', async () => {
     const user = userEvent.setup({ delay: null });
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { code: 'AUTH', message: 'boom' } }), {
-        status: 400,
-        statusText: 'Bad Request',
-      }),
-    );
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/auth/register') && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { code: 'AUTH', message: 'boom' } }), {
+            status: 400,
+            statusText: 'Bad Request',
+          }),
+        );
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
 
     renderWithProviders(
       <Routes>
@@ -2922,7 +2924,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.type(screen.getByLabelText('Повтор пароля'), 'password123');
     await user.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
 
-    await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());
+    await expectAuthModalError('boom');
   });
 
   it('shows generic register error for non-error throws', async () => {

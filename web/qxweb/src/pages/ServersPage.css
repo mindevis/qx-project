@@ -1389,6 +1389,10 @@ html[data-theme='dark'] .game-server-property-row {
   font-size: 13px;
 }
 
+.game-server-property-label--hint {
+  cursor: help;
+}
+
 .game-server-property-text {
   width: 100%;
 }

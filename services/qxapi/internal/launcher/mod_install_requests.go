@@ -3,6 +3,7 @@ package launcher
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -73,7 +74,7 @@ func modInstallViewFromModel(req models.ModInstallRequest, includeURL bool) *Mod
 
 func normalizeResourceType(resourceType string) string {
 	switch strings.TrimSpace(resourceType) {
-	case "modpack", "resourcepack", "shader":
+	case "modpack", "resourcepack", "shader", "datapack":
 		return strings.TrimSpace(resourceType)
 	default:
 		return "mod"
@@ -218,9 +219,10 @@ func (s *Service) recordInstalledResource(ctx context.Context, req models.ModIns
 	}
 	appendInstanceResource(&inst, entry)
 	return s.db.WithContext(ctx).Model(&inst).Updates(map[string]any{
-		"mods":            inst.Mods,
-		"resource_packs":  inst.ResourcePacks,
-		"shaders":         inst.Shaders,
+		"mods":           inst.Mods,
+		"resource_packs": inst.ResourcePacks,
+		"shaders":        inst.Shaders,
+		"datapacks":      inst.Datapacks,
 	}).Error
 }
 
@@ -252,6 +254,8 @@ func ResourceInstallFolder(resourceType string) string {
 		return "resourcepacks"
 	case "shader":
 		return "shaderpacks"
+	case "datapack":
+		return filepath.Join("saves", "world", "datapacks")
 	default:
 		return "mods"
 	}

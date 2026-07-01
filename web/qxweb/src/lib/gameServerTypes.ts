@@ -45,13 +45,34 @@ export function gameServerSupportsMods(type: VpsGameServerType): boolean {
   return MOD_TYPES.has(type) || HYBRID_TYPES.has(type);
 }
 
+export function gameServerSupportsDatapacks(_type: VpsGameServerType): boolean {
+  return true;
+}
+
+export function pluginLoaderForServerType(type: VpsGameServerType): string {
+  switch (type) {
+    case 'paper':
+    case 'spigot':
+    case 'purpur':
+      return type;
+    case 'mohist':
+    case 'magma':
+    case 'arclight':
+      return 'bukkit';
+    default:
+      return 'paper';
+  }
+}
+
 export function gameServerTypeCapabilities(type: VpsGameServerType): {
   plugins: boolean;
   mods: boolean;
+  datapacks: boolean;
 } {
   return {
     plugins: gameServerSupportsPlugins(type),
     mods: gameServerSupportsMods(type),
+    datapacks: gameServerSupportsDatapacks(type),
   };
 }
 

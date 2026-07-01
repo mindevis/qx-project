@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Input, InputNumber, Space, Spin, Switch, Typography } from 'antd';
+import { Button, Input, InputNumber, Space, Spin, Switch, Tooltip, Typography } from 'antd';
 import { api, type GameServerProperty } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { getServerPropertyHint } from '@/lib/serverPropertyHints';
 
 type GameServerPropertiesPanelProps = {
   vpsId: string;
@@ -15,7 +16,7 @@ export function GameServerPropertiesPanel({
   gameServerId,
   agentOnline,
 }: GameServerPropertiesPanelProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const message = useMessage();
   const [properties, setProperties] = useState<GameServerProperty[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,60 +81,76 @@ export function GameServerPropertiesPanel({
 
   return (
     <div className="game-server-properties">
-      {properties.map((item) => (
-        <div key={item.key} className="game-server-property-row">
-          <label className="game-server-property-label" htmlFor={`prop-${item.key}`}>
-            {item.key}
-          </label>
-          <div className="game-server-property-control">
-            {item.boolean ? (
-              <Switch
-                id={`prop-${item.key}`}
-                checked={item.value.toLowerCase() === 'true'}
-                loading={savingKey === item.key}
-                onChange={(checked) => void save(item.key, checked ? 'true' : 'false')}
-              />
-            ) : /^\d+$/.test(item.value) ? (
-              <InputNumber
-                id={`prop-${item.key}`}
-                value={Number(item.value)}
-                disabled={savingKey === item.key}
-                onChange={(value) => {
-                  if (value != null) {
-                    void save(item.key, String(value));
-                  }
-                }}
-              />
-            ) : (
-              <Space.Compact className="game-server-property-text">
-                <Input
+      {properties.map((item) => {
+        const hint = getServerPropertyHint(locale, item.key);
+        return (
+          <div key={item.key} className="game-server-property-row">
+            <label
+              className={
+                hint
+                  ? 'game-server-property-label game-server-property-label--hint'
+                  : 'game-server-property-label'
+              }
+              htmlFor={`prop-${item.key}`}
+            >
+              {hint ? (
+                <Tooltip title={hint}>
+                  <span>{item.key}</span>
+                </Tooltip>
+              ) : (
+                item.key
+              )}
+            </label>
+            <div className="game-server-property-control">
+              {item.boolean ? (
+                <Switch
                   id={`prop-${item.key}`}
-                  defaultValue={item.value}
+                  checked={item.value.toLowerCase() === 'true'}
+                  loading={savingKey === item.key}
+                  onChange={(checked) => void save(item.key, checked ? 'true' : 'false')}
+                />
+              ) : /^\d+$/.test(item.value) ? (
+                <InputNumber
+                  id={`prop-${item.key}`}
+                  value={Number(item.value)}
                   disabled={savingKey === item.key}
-                  onPressEnter={(e) => {
-                    const target = e.target as HTMLInputElement;
-                    if (target.value !== item.value) {
-                      void save(item.key, target.value);
+                  onChange={(value) => {
+                    if (value != null) {
+                      void save(item.key, String(value));
                     }
                   }}
                 />
-                <Button
-                  loading={savingKey === item.key}
-                  onClick={(e) => {
-                    const row = (e.currentTarget as HTMLElement).closest('.game-server-property-row');
-                    const input = row?.querySelector('input') as HTMLInputElement | null;
-                    if (input && input.value !== item.value) {
-                      void save(item.key, input.value);
-                    }
-                  }}
-                >
-                  {t('common.save')}
-                </Button>
-              </Space.Compact>
-            )}
+              ) : (
+                <Space.Compact className="game-server-property-text">
+                  <Input
+                    id={`prop-${item.key}`}
+                    defaultValue={item.value}
+                    disabled={savingKey === item.key}
+                    onPressEnter={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      if (target.value !== item.value) {
+                        void save(item.key, target.value);
+                      }
+                    }}
+                  />
+                  <Button
+                    loading={savingKey === item.key}
+                    onClick={(e) => {
+                      const row = (e.currentTarget as HTMLElement).closest('.game-server-property-row');
+                      const input = row?.querySelector('input') as HTMLInputElement | null;
+                      if (input && input.value !== item.value) {
+                        void save(item.key, input.value);
+                      }
+                    }}
+                  >
+                    {t('common.save')}
+                  </Button>
+                </Space.Compact>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

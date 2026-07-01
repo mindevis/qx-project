@@ -1,15 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { GameServerFilesPanel } from './GameServerFilesPanel';
 
 describe('GameServerFilesPanel', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
   });
 
   afterEach(() => {
@@ -51,7 +49,7 @@ describe('GameServerFilesPanel', () => {
     await user.click(screen.getByText('server.properties'));
     await waitFor(() => expect(screen.getByDisplayValue('motd=Hello')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
 
     await user.click(screen.getByRole('button', { name: /К списку файлов/i }));
     await waitFor(() => expect(screen.getByText('config')).toBeInTheDocument());
@@ -90,7 +88,7 @@ describe('GameServerFilesPanel', () => {
     );
     await waitFor(() => expect(screen.getByText('bad.txt')).toBeInTheDocument());
     await user.click(screen.getByText('bad.txt'));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('open failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('open failed'));
   });
 
   it('shows list load error', async () => {
@@ -99,7 +97,7 @@ describe('GameServerFilesPanel', () => {
     renderWithTheme(
       <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
     );
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('list failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('list failed'));
   });
 
   it('shows save error', async () => {
@@ -117,6 +115,6 @@ describe('GameServerFilesPanel', () => {
     await user.click(screen.getByText('a.txt'));
     await waitFor(() => expect(screen.getByDisplayValue('x')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('save failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('save failed'));
   });
 });

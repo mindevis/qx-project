@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { InstanceModsProvider } from '@/components/InstanceModsContext';
 import { ModsCatalogPanel } from '@/components/ModsCatalogPanel';
@@ -41,7 +41,6 @@ function renderCatalog() {
 
 describe('ModsCatalogPanel', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
     vi.spyOn(api, 'browseMods').mockResolvedValue({
       items: [catalogItem],
       has_more: true,
@@ -108,6 +107,18 @@ describe('ModsCatalogPanel', () => {
     await waitFor(() =>
       expect(api.browseMods).toHaveBeenLastCalledWith(
         expect.objectContaining({ type: 'modpack' }),
+      ),
+    );
+  });
+
+  it('includes datapack tab for modded instances', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderCatalog();
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    await user.click(screen.getByText('Датапаки'));
+    await waitFor(() =>
+      expect(api.browseMods).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: 'datapack', loader: undefined }),
       ),
     );
   });

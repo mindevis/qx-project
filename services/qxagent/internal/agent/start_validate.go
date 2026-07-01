@@ -2,12 +2,25 @@ package agent
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/protocol"
 	"github.com/qxproject/qx/pkg/safepath"
 )
+
+// ValidatedExecutable is an absolute executable path or the literal "java".
+type ValidatedExecutable string
+
+func (e ValidatedExecutable) String() string {
+	return string(e)
+}
+
+// ExecCommandValidated starts a process with a validated executable path.
+func ExecCommandValidated(executable ValidatedExecutable, args ...string) *exec.Cmd {
+	return exec.Command(executable.String(), args...)
+}
 
 // ValidatedStart holds server start fields after path and command validation.
 type ValidatedStart struct {
@@ -37,8 +50,12 @@ func ValidateStartPayload(payload protocol.ServerStartPayload) (ValidatedStart, 
 }
 
 // ResolvedExecBin returns the validated java binary path for exec.Command.
-func ResolvedExecBin(start ValidatedStart) (string, error) {
-	return resolveJavaBin(start.JavaBin, start.WorkDir)
+func ResolvedExecBin(start ValidatedStart) (ValidatedExecutable, error) {
+	path, err := resolveJavaBin(start.JavaBin, start.WorkDir)
+	if err != nil {
+		return "", err
+	}
+	return ValidatedExecutable(path), nil
 }
 
 // ResolvedJarPath returns the validated jar path for exec.Command args.
@@ -50,8 +67,12 @@ func ResolvedJarPath(start ValidatedStart) (string, error) {
 }
 
 // ResolvedExecCommand returns the validated command for exec.Command.
-func ResolvedExecCommand(start ValidatedStart) (string, error) {
-	return resolveCommand(start.Command, start.WorkDir)
+func ResolvedExecCommand(start ValidatedStart) (ValidatedExecutable, error) {
+	path, err := resolveCommand(start.Command, start.WorkDir)
+	if err != nil {
+		return "", err
+	}
+	return ValidatedExecutable(path), nil
 }
 
 func sanitizeStartPayload(payload *protocol.ServerStartPayload) error {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithProviders } from '@/test/test-utils';
 import { InstanceResourcesPanel } from './InstanceResourcesPanel';
@@ -27,7 +27,6 @@ const installed = {
 
 describe('InstanceResourcesPanel', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
     vi.spyOn(api, 'listInstanceResources').mockResolvedValue({ items: [installed] });
   });
 
@@ -35,14 +34,18 @@ describe('InstanceResourcesPanel', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns null for vanilla instances', () => {
+  it('shows resources panel for vanilla instances (datapacks)', async () => {
+    vi.mocked(api.listInstanceResources).mockResolvedValueOnce({ items: [] });
     renderWithProviders(
       <InstanceResourcesPanel
         instance={{ ...forgeInstance, loader: 'vanilla' }}
         canSync={false}
       />,
     );
-    expect(screen.queryByLabelText('Ресурсы')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Пока ничего не установлено')).toBeInTheDocument(),
+    );
   });
 
   it('shows installed resources and add button', async () => {
@@ -64,6 +67,6 @@ describe('InstanceResourcesPanel', () => {
   it('reports load failures', async () => {
     vi.mocked(api.listInstanceResources).mockRejectedValueOnce(new Error('load failed'));
     renderWithProviders(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('load failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('load failed'));
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Checkbox, List, Modal, Spin, Typography } from 'antd';
+import { Checkbox, Modal, Spin, Typography } from 'antd';
 import {
   api,
   type ModDependency,
@@ -10,6 +10,7 @@ import {
 import { useI18n } from '@/i18n/I18nContext';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { modalMotionProps } from '@/lib/modal';
+import './InstanceResourcesPanel.css';
 
 const { Text, Paragraph } = Typography;
 
@@ -143,15 +144,13 @@ export function ModInstallDepsModal({
           {required.length > 0 ? (
             <>
               <Text strong>{t('qxmods.deps.required')}</Text>
-              <List
-                size="small"
-                dataSource={required}
-                renderItem={(dep) => {
+              <ul className="qxmods-deps-list">
+                {required.map((dep) => {
                   const installed = dep.project_id
                     ? installedProjectIds.has(`${dep.source}:${dep.project_id}`)
                     : false;
                   return (
-                    <List.Item>
+                    <li key={`${dep.source}:${dep.project_id ?? dep.project_name}`} className="qxmods-deps-item">
                       <Text>
                         {dep.project_name ?? dep.project_id}{' '}
                         {installed ? (
@@ -160,10 +159,10 @@ export function ModInstallDepsModal({
                           <Text type="danger">({t('qxmods.deps.unresolved')})</Text>
                         ) : null}
                       </Text>
-                    </List.Item>
+                    </li>
                   );
-                }}
-              />
+                })}
+              </ul>
             </>
           ) : (
             <Text type="secondary">{t('qxmods.deps.noRequired')}</Text>
@@ -173,11 +172,9 @@ export function ModInstallDepsModal({
               <Text strong className="qxmods-deps-optional-title">
                 {t('qxmods.deps.optional')}
               </Text>
-              <List
-                size="small"
-                dataSource={optional}
-                renderItem={(dep) => (
-                  <List.Item>
+              <ul className="qxmods-deps-list">
+                {optional.map((dep) => (
+                  <li key={`${dep.source}:${dep.project_id}`} className="qxmods-deps-item">
                     <Checkbox
                       checked={optionalSelected.has(dep.project_id)}
                       disabled={!dep.download_url || installedProjectIds.has(`${dep.source}:${dep.project_id}`)}
@@ -192,9 +189,9 @@ export function ModInstallDepsModal({
                     >
                       {dep.project_name ?? dep.project_id}
                     </Checkbox>
-                  </List.Item>
-                )}
-              />
+                  </li>
+                ))}
+              </ul>
             </>
           ) : null}
         </>

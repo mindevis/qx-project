@@ -45,7 +45,7 @@ func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVers
 		return nil, fmt.Errorf("query required")
 	}
 	projectType = normalizeProjectType(projectType)
-	if limit <= 0 || limit > 50 {
+	if limit <= 0 || limit > maxSearchItems {
 		limit = 20
 	}
 
@@ -85,7 +85,7 @@ func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVers
 
 func (s *Service) Browse(ctx context.Context, projectType, loader, mcVersion, source, sort string, limit, offset int) ([]SearchItem, bool, error) {
 	projectType = normalizeProjectType(projectType)
-	if limit <= 0 || limit > 50 {
+	if limit <= 0 || limit > maxSearchItems {
 		limit = 20
 	}
 	if offset < 0 {
@@ -215,16 +215,27 @@ func normalizeProjectType(raw string) string {
 		return ProjectTypeResourcePack
 	case ProjectTypeShader, "shaders":
 		return ProjectTypeShader
+	case ProjectTypeDatapack, "data-pack", "data_pack":
+		return ProjectTypeDatapack
+	case ProjectTypePlugin, "plugins":
+		return ProjectTypePlugin
 	default:
 		return ProjectTypeMod
 	}
 }
 
-func interleaveSearch(primary, secondary []SearchItem, limit int) []SearchItem {
-	if limit <= 0 || limit > 50 {
-		limit = 20
+const maxSearchItems = 50
+
+func clampSearchLimit(limit int) int {
+	if limit <= 0 || limit > maxSearchItems {
+		return 20
 	}
-	out := make([]SearchItem, 0, limit)
+	return limit
+}
+
+func interleaveSearch(primary, secondary []SearchItem, limit int) []SearchItem {
+	limit = clampSearchLimit(limit)
+	out := make([]SearchItem, 0, maxSearchItems)
 	i, j := 0, 0
 	for len(out) < limit && (i < len(primary) || j < len(secondary)) {
 		if i < len(primary) {

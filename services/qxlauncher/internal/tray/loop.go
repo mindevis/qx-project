@@ -159,6 +159,8 @@ func modInstallFolder(resourceType string) string {
 		return "resourcepacks"
 	case "shader":
 		return "shaderpacks"
+	case "datapack":
+		return filepath.Join("saves", "world", "datapacks")
 	default:
 		return "mods"
 	}

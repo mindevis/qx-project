@@ -38,10 +38,16 @@ func TestServiceSearchRequiresQuery(t *testing.T) {
 
 func TestNormalizeProjectType(t *testing.T) {
 	svc := mods.NewService(mods.Config{})
-	// exercise via Search validation path
 	_, err := svc.GetProject(context.Background(), "unknown", "id")
 	if err == nil {
 		t.Fatal("expected unknown source error")
+	}
+	items, _, err := svc.Browse(context.Background(), mods.ProjectTypeDatapack, "", "1.21", mods.SourceModrinth, "downloads", 1, 0)
+	if err != nil {
+		t.Fatalf("datapack browse: %v", err)
+	}
+	if len(items) == 0 {
+		t.Fatal("expected datapack browse results from modrinth")
 	}
 }
 

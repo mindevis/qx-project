@@ -7,7 +7,6 @@ import {
   Form,
   Input,
   InputNumber,
-  List,
   Modal,
   Popconfirm,
   Segmented,
@@ -26,6 +25,7 @@ import {
   AppstoreOutlined,
   CloudDownloadOutlined,
   CloudServerOutlined,
+  DatabaseOutlined,
   GlobalOutlined,
   LinkOutlined,
   LoginOutlined,
@@ -78,7 +78,10 @@ import { modalMotionProps } from '@/lib/modal';
 import { logger } from '@/lib/logger';
 import { isUpdateAvailable } from '@/lib/launcherVersion';
 import { openLauncherDownload, resolveLauncherDownloadUrl, type LauncherRelease } from '@/lib/launcherDownload';
-import { isModdedLauncherLoader } from '@/lib/isModdedLoader';
+import {
+  launcherSupportsModsCatalog,
+  launcherSupportsResourcesPage,
+} from '@/lib/launcherInstanceCapabilities';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import {
   getLaunchErrorKey,
@@ -146,7 +149,7 @@ function LauncherHome() {
   const [mojangLoading, setMojangLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInstance, setSettingsInstance] = useState<LauncherInstance | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'launch' | 'mods'>('launch');
+  const [settingsTab, setSettingsTab] = useState<'launch' | 'resources'>('launch');
   const [settingsRamMb, setSettingsRamMb] = useState(2048);
   const [settingsMinRamMb, setSettingsMinRamMb] = useState<number | null>(null);
   const [settingsExtraJvmArgs, setSettingsExtraJvmArgs] = useState('');
@@ -675,7 +678,7 @@ function LauncherHome() {
     setSettingsModsLoading(true);
     try {
       const res = await api.listInstanceResources(instanceId);
-      setSettingsMods((res.items ?? []).filter((item) => item.resource_type === 'mod'));
+      setSettingsMods((res.items ?? []).filter((item) => item.resource_type !== 'plugin'));
     } catch {
       setSettingsMods([]);
     } finally {
@@ -684,7 +687,7 @@ function LauncherHome() {
   }, []);
 
   useEffect(() => {
-    if (!settingsOpen || settingsTab !== 'mods' || !settingsInstance) {
+    if (!settingsOpen || settingsTab !== 'resources' || !settingsInstance) {
       return;
     }
     void loadSettingsMods(settingsInstance.id);
@@ -1247,7 +1250,13 @@ function LauncherHome() {
                     launchProgress?.instanceId === item.id ? launchProgress : null;
                   const isLaunching = progress != null && !isLaunchTerminal(progress.status);
                   const launchFailed = progress?.status === 'failed';
-                  const isModded = isModdedLauncherLoader(item.loader);
+                  const showResources = launcherSupportsResourcesPage(item.loader);
+                  const resourcesLabel = launcherSupportsModsCatalog(item.loader)
+                    ? t('launcher.browseResources')
+                    : t('launcher.browseDatapacks');
+                  const ResourcesIcon = launcherSupportsModsCatalog(item.loader)
+                    ? AppstoreOutlined
+                    : DatabaseOutlined;
                   return (
                     <div
                       key={item.id}
@@ -1317,10 +1326,10 @@ function LauncherHome() {
                             </Button>
                           </Link>
                         ) : null}
-                        {isModded ? (
+                        {showResources ? (
                           <Link to={`/launcher/instances/${item.id}/resources`}>
-                            <Button size="large" icon={<AppstoreOutlined />}>
-                              {t('launcher.browseResources')}
+                            <Button size="large" icon={<ResourcesIcon />}>
+                              {resourcesLabel}
                             </Button>
                           </Link>
                         ) : null}
@@ -1467,7 +1476,7 @@ function LauncherHome() {
       >
         <Tabs
           activeKey={settingsTab}
-          onChange={(key) => setSettingsTab(key as 'launch' | 'mods')}
+          onChange={(key) => setSettingsTab(key as 'launch' | 'resources')}
           items={[
             {
               key: 'launch',
@@ -1537,15 +1546,15 @@ function LauncherHome() {
               ),
             },
             {
-              key: 'mods',
-              label: t('launcher.instanceSettingsTabMods'),
+              key: 'resources',
+              label: t('launcher.instanceSettingsTabResources'),
               children: (
                 <div className="launcher-instance-settings-mods">
                   {!linkedDevice ? (
                     <Alert
                       type="info"
                       showIcon
-                      message={t('launcher.instanceSettingsModsConfigNote')}
+                      title={t('launcher.instanceSettingsModsConfigNote')}
                       className="launcher-instance-settings-mods-note"
                     />
                   ) : null}
@@ -1555,34 +1564,30 @@ function LauncherHome() {
                         <Spin />
                       </div>
                     ) : settingsMods.length === 0 ? (
-                      <Empty description={t('launcher.instanceSettingsModsEmpty')} />
+                      <Empty description={t('launcher.instanceSettingsResourcesEmpty')} />
                     ) : (
-                      <List
-                        aria-label={t('launcher.instanceSettingsModsListAria')}
+                      <ul
+                        aria-label={t('launcher.instanceSettingsResourcesListAria')}
                         className="launcher-instance-settings-mods-list"
-                        dataSource={settingsMods}
-                        renderItem={(item) => (
-                          <List.Item
+                      >
+                        {settingsMods.map((item) => (
+                          <li
                             key={`${item.source}:${item.project_id ?? item.filename}`}
                             className="launcher-instance-settings-mod-item"
                           >
-                            <List.Item.Meta
-                              title={
-                                <span>
-                                  {item.project_name} <ModSourceBadge source={item.source} />
-                                </span>
-                              }
-                              description={
-                                <Text type="secondary">
-                                  {item.version_number ? item.version_number : ''}
-                                  {item.version_number && item.filename ? ' · ' : ''}
-                                  {item.filename ?? ''}
-                                </Text>
-                              }
-                            />
-                          </List.Item>
-                        )}
-                      />
+                            <div className="launcher-instance-settings-mod-body">
+                              <div className="launcher-instance-settings-mod-title">
+                                {item.project_name} <ModSourceBadge source={item.source} />
+                              </div>
+                              <Text type="secondary">
+                                {t(`qxmods.tabs.${item.resource_type}`)}
+                                {item.version_number ? ` · ${item.version_number}` : ''}
+                                {item.filename ? ` · ${item.filename}` : ''}
+                              </Text>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
                 </div>

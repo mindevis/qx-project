@@ -186,6 +186,114 @@ func (s *Service) ListGameServerMods(ctx context.Context, ownerID, vpsID, gameSe
 	return result.Entries, nil
 }
 
+func (s *Service) ListGameServerPlugins(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.GameServerWorkDirPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerPluginsList, protocol.TypeResServerPluginsList, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerModsListResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return result.Entries, nil
+}
+
+func (s *Service) ListGameServerDatapacks(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.GameServerWorkDirPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerDatapacksList, protocol.TypeResServerDatapacksList, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerModsListResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return result.Entries, nil
+}
+
+func (s *Service) InstallGameServerContent(
+	ctx context.Context,
+	ownerID, vpsID, gameServerID, contentKind, filename, downloadURL string,
+) (*protocol.ServerContentInstallResult, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	filename = strings.TrimSpace(filename)
+	downloadURL = strings.TrimSpace(downloadURL)
+	contentKind = strings.ToLower(strings.TrimSpace(contentKind))
+	if filename == "" || downloadURL == "" || contentKind == "" {
+		return nil, ErrValidation
+	}
+	if err := validateGameServerContentKind(item.ServerType, contentKind); err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.ServerContentInstallPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		ServerType:   item.ServerType,
+		ContentKind:  contentKind,
+		Filename:     filename,
+		DownloadURL:  downloadURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerContentInstall, protocol.TypeResServerContentInstall, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerContentInstallResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func validateGameServerContentKind(serverType, contentKind string) error {
+	switch contentKind {
+	case "mod":
+		switch strings.ToLower(strings.TrimSpace(serverType)) {
+		case "forge", "neoforge", "fabric", "quilt", "mohist", "magma", "arclight":
+			return nil
+		default:
+			return ErrValidation
+		}
+	case "plugin":
+		switch strings.ToLower(strings.TrimSpace(serverType)) {
+		case "paper", "spigot", "purpur", "mohist", "magma", "arclight":
+			return nil
+		default:
+			return ErrValidation
+		}
+	case "datapack":
+		return nil
+	default:
+		return ErrValidation
+	}
+}
+
 func (s *Service) requireInstalledGameServer(ctx context.Context, ownerID, vpsID, gameServerID string) (*models.GameServer, error) {
 	item, err := s.getOwnedGameServer(ctx, ownerID, vpsID, gameServerID)
 	if err != nil {
@@ -262,7 +370,10 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerFilesList,
 		protocol.TypeResServerFilesRead,
 		protocol.TypeResServerFilesWrite,
-		protocol.TypeResServerModsList:
+		protocol.TypeResServerModsList,
+		protocol.TypeResServerPluginsList,
+		protocol.TypeResServerDatapacksList,
+		protocol.TypeResServerContentInstall:
 		return true
 	default:
 		return false

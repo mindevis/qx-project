@@ -142,7 +142,7 @@ export function ProfilePage() {
             </Descriptions.Item>
           </Descriptions>
         ) : (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <span>{t('profile.mojangHint')}</span>
             <Button
               type="primary"
@@ -157,7 +157,7 @@ export function ProfilePage() {
       </Card>
 
       <Card title={t('profile.skinsTitle')} style={{ maxWidth: 560 }}>
-        <Space direction="vertical" size="middle">
+        <Space orientation="vertical" size="middle">
           <Typography.Paragraph style={{ marginBottom: 0 }}>
             {t('profile.skinsHint')}
           </Typography.Paragraph>

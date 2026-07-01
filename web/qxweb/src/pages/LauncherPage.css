@@ -1280,3 +1280,17 @@ html[data-theme='dark'] .launcher-tag {
 .launcher-instance-settings-mod-item {
   padding-inline: 0;
 }
+
+.launcher-instance-settings-mods-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.launcher-instance-settings-mod-body {
+  padding: 8px 0;
+}
+
+.launcher-instance-settings-mod-title {
+  margin-bottom: 4px;
+}

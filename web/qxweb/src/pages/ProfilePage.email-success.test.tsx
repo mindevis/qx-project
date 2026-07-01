@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { renderWithProviders } from '@/test/test-utils';
 import { saveTokens } from '@/api/client';
 
@@ -108,13 +108,12 @@ describe('ProfilePage email success', () => {
 
   it('shows email success message after modal completes', async () => {
     const user = userEvent.setup({ delay: null });
-    const successSpy = vi.spyOn(message, 'success');
+  const successSpy = testMessage.success;
 
     renderWithProviders(<ProfilePage />, '/profile');
     await waitFor(() => expect(screen.getByText('user@test.com')).toBeInTheDocument());
 
     await user.click(screen.getByLabelText('Сменить email'));
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Email изменён'));
-    successSpy.mockRestore();
   });
 });

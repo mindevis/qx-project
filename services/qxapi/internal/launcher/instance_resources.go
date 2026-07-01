@@ -42,7 +42,7 @@ func (s *Service) ListInstanceResources(ctx context.Context, owner Owner, instan
 	if err != nil {
 		return nil, err
 	}
-	out := make([]InstanceResourceView, 0, len(inst.Mods)+len(inst.ResourcePacks)+len(inst.Shaders))
+	out := make([]InstanceResourceView, 0, len(inst.Mods)+len(inst.ResourcePacks)+len(inst.Shaders)+len(inst.Datapacks))
 	for _, entry := range inst.Mods {
 		out = append(out, resourceViewFromEntry(entry))
 	}
@@ -50,6 +50,9 @@ func (s *Service) ListInstanceResources(ctx context.Context, owner Owner, instan
 		out = append(out, resourceViewFromEntry(entry))
 	}
 	for _, entry := range inst.Shaders {
+		out = append(out, resourceViewFromEntry(entry))
+	}
+	for _, entry := range inst.Datapacks {
 		out = append(out, resourceViewFromEntry(entry))
 	}
 	return out, nil
@@ -61,6 +64,8 @@ func appendInstanceResource(inst *models.LauncherInstance, entry models.Instance
 		inst.ResourcePacks = appendUniqueResource(inst.ResourcePacks, entry)
 	case "shader":
 		inst.Shaders = appendUniqueResource(inst.Shaders, entry)
+	case "datapack":
+		inst.Datapacks = appendUniqueResource(inst.Datapacks, entry)
 	default:
 		inst.Mods = appendUniqueResource(inst.Mods, entry)
 	}

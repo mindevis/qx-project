@@ -494,6 +494,73 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 			TS:        ts,
 			Payload:   resPayload,
 		}, nil
+	case protocol.TypeCmdServerPluginsList:
+		var payload protocol.GameServerWorkDirPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListPlugins(payload.WorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerModsListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerPluginsList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerDatapacksList:
+		var payload protocol.GameServerWorkDirPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListDatapacks(payload.WorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerModsListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerDatapacksList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerContentInstall:
+		var payload protocol.ServerContentInstallPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		relPath, pathErr := fs.ContentRelPath(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.Filename)
+		var err error
+		if pathErr == nil {
+			err = fs.InstallContentFile(context.Background(), payload.WorkDir, relPath, payload.DownloadURL)
+		} else {
+			err = pathErr
+		}
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerContentInstallResult{
+				Status:   "installed",
+				RelPath:  relPath,
+				Filename: payload.Filename,
+			})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerContentInstall,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
 	case protocol.TypeCmdAgentPing:
 		return &protocol.Envelope{
 			V:         protocol.Version,
@@ -615,7 +682,7 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 
-	cmd := exec.Command(bin, args...)
+	cmd := ExecCommandValidated(bin, args...)
 	cmd.Stdin = stdinR
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
@@ -655,7 +722,7 @@ func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 
-	cmd := exec.Command(cmdName, args...)
+	cmd := ExecCommandValidated(cmdName, args...)
 	if start.WorkDir != "" {
 		cmd.Dir = start.WorkDir
 	}

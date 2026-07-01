@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { InstanceModsProvider } from '@/components/InstanceModsContext';
 import { ModDetailPanel } from '@/components/ModDetailPanel';
@@ -64,8 +64,6 @@ function renderDetail(canSync = true) {
 
 describe('ModDetailPanel', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
     vi.spyOn(api, 'getModProject').mockResolvedValue(project);
     vi.spyOn(api, 'listModVersions').mockResolvedValue({ items: [modVersion] });
     vi.spyOn(api, 'getModVersion').mockResolvedValue({ ...modVersion, dependencies: [] });
@@ -113,14 +111,14 @@ describe('ModDetailPanel', () => {
 
     await waitFor(() => expect(api.createModInstallRequest).toHaveBeenCalled());
     await vi.advanceTimersByTimeAsync(1600);
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
     vi.useRealTimers();
   });
 
   it('shows not found when project missing', async () => {
     vi.mocked(api.getModProject).mockRejectedValueOnce(new Error('not found'));
     renderDetail();
-    await waitFor(() => expect(message.error).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Мод не найден')).toBeInTheDocument());
   });
 

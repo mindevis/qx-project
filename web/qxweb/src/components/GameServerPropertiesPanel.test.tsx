@@ -1,15 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { GameServerPropertiesPanel } from './GameServerPropertiesPanel';
 
 describe('GameServerPropertiesPanel', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
   });
 
   afterEach(() => {
@@ -41,13 +39,13 @@ describe('GameServerPropertiesPanel', () => {
     await waitFor(() => expect(screen.getByText('motd')).toBeInTheDocument());
 
     await user.click(screen.getByRole('switch'));
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
 
     const textInput = screen.getByLabelText('motd');
     await user.clear(textInput);
     await user.type(textInput, 'Updated');
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
-    await waitFor(() => expect(message.success).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledTimes(2));
   });
 
   it('saves numeric and text properties from controls', async () => {
@@ -68,12 +66,12 @@ describe('GameServerPropertiesPanel', () => {
     const playersInput = screen.getByRole('spinbutton', { name: 'max-players' });
     await user.click(playersInput);
     await user.keyboard('{ArrowUp}');
-    await waitFor(() => expect(message.success).toHaveBeenCalled());
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
 
     const textInput = screen.getByLabelText('motd');
     await user.type(textInput, ' world');
     await user.keyboard('{Enter}');
-    await waitFor(() => expect(message.success).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledTimes(2));
   });
 
   it('shows empty state and load errors', async () => {
@@ -91,7 +89,36 @@ describe('GameServerPropertiesPanel', () => {
     renderWithTheme(
       <GameServerPropertiesPanel vpsId="srv-1" gameServerId="gs-2" agentOnline={true} />,
     );
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('props failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('props failed'));
+  });
+
+  it('shows localized hint tooltip on property key hover', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'getVpsGameServerProperties').mockResolvedValue({
+      properties: [
+        { key: 'motd', value: 'Hello', boolean: false },
+        { key: 'custom-unknown-key', value: 'x', boolean: false },
+      ],
+    });
+
+    renderWithTheme(
+      <GameServerPropertiesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+
+    await waitFor(() => expect(screen.getByText('motd')).toBeInTheDocument());
+
+    const motdLabel = screen.getByText('motd').closest('label');
+    expect(motdLabel).toHaveClass('game-server-property-label--hint');
+
+    await user.hover(screen.getByText('motd'));
+    await waitFor(() =>
+      expect(screen.getByRole('tooltip')).toHaveTextContent(
+        /сообщение дня, отображаемое в списке серверов/i,
+      ),
+    );
+
+    const unknownLabel = screen.getByText('custom-unknown-key').closest('label');
+    expect(unknownLabel).not.toHaveClass('game-server-property-label--hint');
   });
 
   it('reloads after save error', async () => {
@@ -114,7 +141,7 @@ describe('GameServerPropertiesPanel', () => {
     await user.clear(input);
     await user.type(input, 'Fail');
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
-    await waitFor(() => expect(message.error).toHaveBeenCalledWith('save failed'));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('save failed'));
     expect(getSpy).toHaveBeenCalledTimes(2);
   });
 });

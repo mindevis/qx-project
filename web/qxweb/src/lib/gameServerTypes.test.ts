@@ -27,13 +27,21 @@ describe('gameServerTypes', () => {
     expect(DEFAULT_GAME_SERVER_TYPE).toBe('vanilla');
   });
 
-  it('reports plugin and mod capabilities', () => {
+  it('reports plugin, mod, and datapack capabilities', () => {
     expect(gameServerSupportsPlugins('paper')).toBe(true);
     expect(gameServerSupportsMods('paper')).toBe(false);
     expect(gameServerSupportsPlugins('forge')).toBe(false);
     expect(gameServerSupportsMods('forge')).toBe(true);
-    expect(gameServerTypeCapabilities('mohist')).toEqual({ plugins: true, mods: true });
-    expect(gameServerTypeCapabilities('vanilla')).toEqual({ plugins: false, mods: false });
+    expect(gameServerTypeCapabilities('mohist')).toEqual({
+      plugins: true,
+      mods: true,
+      datapacks: true,
+    });
+    expect(gameServerTypeCapabilities('vanilla')).toEqual({
+      plugins: false,
+      mods: false,
+      datapacks: true,
+    });
   });
 
   it('formats labels for known and unknown types', () => {

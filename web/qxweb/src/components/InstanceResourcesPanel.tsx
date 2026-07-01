@@ -1,7 +1,7 @@
 import { InstanceInstalledResources } from '@/components/InstanceInstalledResources';
 import { InstanceModsProvider } from '@/components/InstanceModsContext';
 import type { LauncherInstance } from '@/api/client';
-import { isModdedLauncherLoader } from '@/lib/isModdedLoader';
+import { launcherSupportsResourcesPage } from '@/lib/launcherInstanceCapabilities';
 import './InstanceResourcesPanel.css';
 
 type InstanceResourcesPanelProps = {
@@ -16,7 +16,7 @@ export function InstanceResourcesPanel({
   canSync,
   layout = 'embedded',
 }: InstanceResourcesPanelProps) {
-  if (!isModdedLauncherLoader(instance.loader)) {
+  if (!launcherSupportsResourcesPage(instance.loader)) {
     return null;
   }
 

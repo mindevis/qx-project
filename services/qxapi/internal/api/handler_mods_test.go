@@ -147,12 +147,21 @@ func TestModsHandlerSearchCurseForgeEnabledFlag(t *testing.T) {
 	}
 }
 
-func TestGameServerSupportsMods(t *testing.T) {
+func TestGameServerSupportsContent(t *testing.T) {
 	if !gameServerSupportsMods("forge") {
 		t.Fatal("forge should support mods")
 	}
 	if gameServerSupportsMods("paper") {
 		t.Fatal("paper should not support mods")
+	}
+	if !gameServerSupportsPlugins("paper") {
+		t.Fatal("paper should support plugins")
+	}
+	if gameServerSupportsPlugins("vanilla") {
+		t.Fatal("vanilla should not support plugins")
+	}
+	if !gameServerSupportsDatapacks("vanilla") {
+		t.Fatal("vanilla should support datapacks")
 	}
 }
 

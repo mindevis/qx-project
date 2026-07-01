@@ -123,72 +123,6 @@ func (h *ModsHandler) GetVersion(c *gin.Context) {
 	c.JSON(http.StatusOK, version)
 }
 
-type syncModBody struct {
-	mods.SyncModRequest
-}
-
-func (h *GameServersHandler) SyncMod(c *gin.Context) {
-	userID, ok := c.Get(UserIDKey)
-	if !ok {
-		JSONUnauthorized(c)
-		return
-	}
-	var body syncModBody
-	if err := c.ShouldBindJSON(&body); err != nil {
-		JSONValidation(c, err.Error())
-		return
-	}
-	if body.Source == "" || body.ProjectID == "" || body.VersionID == "" || body.Filename == "" || body.DownloadURL == "" {
-		JSONValidation(c, "source, project_id, version_id, filename, and download_url are required")
-		return
-	}
-
-	gs, err := h.Service.GetGameServer(c.Request.Context(), userID.(string), c.Param("id"), c.Param("gameServerId"))
-	if err != nil {
-		gameServerError(c, err)
-		return
-	}
-	if !gameServerSupportsMods(gs.ServerType) {
-		JSONError(c, http.StatusForbidden, "CONTENT_NOT_ALLOWED", "this server type does not support mods")
-		return
-	}
-
-	entries, err := h.Service.ListGameServerMods(
-		c.Request.Context(),
-		userID.(string),
-		c.Param("id"),
-		c.Param("gameServerId"),
-	)
-	if err != nil {
-		gameServerError(c, err)
-		return
-	}
-	for _, entry := range entries {
-		if strings.EqualFold(entry.Name, body.Filename) {
-			c.JSON(http.StatusOK, gin.H{
-				"status":  "already_installed",
-				"message": "mod file already exists on server",
-			})
-			return
-		}
-	}
-
-	// Agent cmd.mods.install is planned (see docs/post-mvp.md#server-content).
-	c.JSON(http.StatusAccepted, gin.H{
-		"status":  "queued",
-		"message": "mod sync queued; agent install pipeline not yet implemented",
-		"item": gin.H{
-			"source":         body.Source,
-			"project_id":     body.ProjectID,
-			"version_id":     body.VersionID,
-			"filename":       body.Filename,
-			"download_url":   body.DownloadURL,
-			"project_name":   body.ProjectName,
-			"version_number": body.VersionNumber,
-		},
-	})
-}
-
 func writeModsUpstreamError(c *gin.Context, err error) {
 	msg := err.Error()
 	if strings.Contains(msg, "not configured") {
@@ -204,13 +138,4 @@ func writeModsUpstreamError(c *gin.Context, err error) {
 		return
 	}
 	JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", msg)
-}
-
-func gameServerSupportsMods(serverType string) bool {
-	switch strings.ToLower(serverType) {
-	case "forge", "neoforge", "fabric", "quilt", "mohist", "magma", "arclight":
-		return true
-	default:
-		return false
-	}
 }

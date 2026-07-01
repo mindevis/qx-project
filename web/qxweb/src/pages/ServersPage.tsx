@@ -1158,7 +1158,7 @@ function EditGameServerModal({
       title={t('servers.editGameServer')}
       onCancel={handleClose}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       className="servers-game-modal"
     >
       <Form form={form} layout="vertical" onFinish={(values) => void onFinish(values)}>

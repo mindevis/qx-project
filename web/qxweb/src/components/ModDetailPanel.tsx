@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Button, Empty, List, Select, Space, Spin, Typography } from 'antd';
+import { Button, Empty, Select, Space, Spin, Typography } from 'antd';
 import { ArrowLeftOutlined, CloudSyncOutlined, LinkOutlined } from '@ant-design/icons';
 import {
   api,
@@ -139,6 +139,22 @@ export function ModDetailPanel() {
     resourceType === 'mod';
 
   const handleInstallClick = (version: ModVersion) => {
+    if (!source || !detail) return;
+    if (resourceType === 'datapack' || resourceType === 'resourcepack' || resourceType === 'shader') {
+      void installBatch([
+        {
+          source,
+          projectId: detail.id,
+          projectName: detail.name,
+          version,
+          resourceType,
+          iconUrl: detail.icon_url,
+          downloads: detail.downloads,
+          fileSize: version.files[0]?.size,
+        },
+      ]);
+      return;
+    }
     setPendingVersion(version);
     setDepsOpen(true);
   };
@@ -216,17 +232,19 @@ export function ModDetailPanel() {
             className="qxmods-filter-select"
           />
         </label>
-        <label className="qxmods-filter-field">
-          <Text type="secondary" className="qxmods-filter-label">
-            {t('qxmods.detail.loader')}
-          </Text>
-          <Select
-            value={loader}
-            options={loaderOptions}
-            onChange={setLoader}
-            className="qxmods-filter-select"
-          />
-        </label>
+        {resourceType !== 'datapack' ? (
+          <label className="qxmods-filter-field">
+            <Text type="secondary" className="qxmods-filter-label">
+              {t('qxmods.detail.loader')}
+            </Text>
+            <Select
+              value={loader}
+              options={loaderOptions}
+              onChange={setLoader}
+              className="qxmods-filter-select"
+            />
+          </label>
+        ) : null}
       </div>
       {versionsLoading ? (
         <Spin />
@@ -235,27 +253,9 @@ export function ModDetailPanel() {
       ) : (
         <>
           <Text strong>{t('qxmods.selectVersion')}</Text>
-          <List
-            size="small"
-            className="qxmods-version-list"
-            dataSource={versions}
-            renderItem={(version) => (
-              <List.Item
-                key={version.id}
-                className="qxmods-version-row"
-                actions={[
-                  <Button
-                    key="install"
-                    type="primary"
-                    size="small"
-                    loading={installingVersionId === version.id}
-                    disabled={installingVersionId != null && installingVersionId !== version.id}
-                    onClick={() => handleInstallClick(version)}
-                  >
-                    {t('qxmods.install.action')}
-                  </Button>,
-                ]}
-              >
+          <ul className="qxmods-version-list">
+            {versions.map((version) => (
+              <li key={version.id} className="qxmods-version-row">
                 <div>
                   <Text>{version.version_number}</Text>
                   {version.game_versions?.length ? (
@@ -265,9 +265,18 @@ export function ModDetailPanel() {
                     </Text>
                   ) : null}
                 </div>
-              </List.Item>
-            )}
-          />
+                <Button
+                  type="primary"
+                  size="small"
+                  loading={installingVersionId === version.id}
+                  disabled={installingVersionId != null && installingVersionId !== version.id}
+                  onClick={() => handleInstallClick(version)}
+                >
+                  {t('qxmods.install.action')}
+                </Button>
+              </li>
+            ))}
+          </ul>
         </>
       )}
       {showSyncButton ? (

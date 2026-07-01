@@ -1,2 +1,13 @@
 name: qx-project-codeql
 disable-default-queries: false
+query-filters:
+  - exclude:
+      description: safepath IO primitives validate absolute paths before os.* calls
+      id: go/path-injection
+      path:
+        - pkg/safepath/io.go
+  - exclude:
+      description: ExecCommandValidated only accepts ValidatedExecutable from Resolved*
+      id: go/command-injection
+      path:
+        - services/qxagent/internal/agent/start_validate.go

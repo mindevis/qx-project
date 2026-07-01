@@ -233,7 +233,9 @@ export type ModCatalogSourceFilter = 'all' | ModSource;
 
 export type ModCatalogSort = 'downloads' | 'newest' | 'updated' | 'relevance';
 
-export type ModProjectType = 'mod' | 'modpack' | 'resourcepack' | 'shader';
+export type ModProjectType = 'mod' | 'modpack' | 'resourcepack' | 'shader' | 'datapack' | 'plugin';
+
+export type GameServerContentKind = 'mod' | 'plugin' | 'datapack';
 
 export type ModCatalogItem = {
   id: string;
@@ -282,8 +284,20 @@ export type ModDependency = {
 };
 
 export type ModSyncResult = {
-  status: 'queued' | 'already_installed';
+  status: 'queued' | 'already_installed' | 'installed';
   message?: string;
+  filename?: string;
+  path?: string;
+};
+
+export type GameServerContentSyncBody = {
+  source: ModSource;
+  project_id: string;
+  version_id: string;
+  filename: string;
+  download_url: string;
+  project_name?: string;
+  version_number?: string;
 };
 
 export type InstanceResource = {
@@ -879,6 +893,16 @@ export const api = {
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods`,
     ),
 
+  listVpsGameServerPlugins: (vpsId: string, gameServerId: string) =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/plugins`,
+    ),
+
+  listVpsGameServerDatapacks: (vpsId: string, gameServerId: string) =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/datapacks`,
+    ),
+
   listVpsGameServerFiles: (vpsId: string, gameServerId: string, path = '') =>
     request<{ items: GameServerFileEntry[] }>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files?path=${encodeURIComponent(path)}`,
@@ -1034,18 +1058,30 @@ export const api = {
   syncModToGameServer: (
     vpsId: string,
     gameServerId: string,
-    body: {
-      source: ModSource;
-      project_id: string;
-      version_id: string;
-      filename: string;
-      download_url: string;
-      project_name?: string;
-      version_number?: string;
-    },
+    body: GameServerContentSyncBody,
   ) =>
     request<ModSyncResult>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods/sync`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
+  syncPluginToGameServer: (
+    vpsId: string,
+    gameServerId: string,
+    body: GameServerContentSyncBody,
+  ) =>
+    request<ModSyncResult>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/plugins/sync`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
+  syncDatapackToGameServer: (
+    vpsId: string,
+    gameServerId: string,
+    body: GameServerContentSyncBody,
+  ) =>
+    request<ModSyncResult>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/datapacks/sync`,
       { method: 'POST', body: JSON.stringify(body) },
     ),
 };

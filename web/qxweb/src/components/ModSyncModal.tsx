@@ -150,7 +150,9 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
         onClose();
         return;
       }
-      message.success(t('qxmods.sync.queued'));
+      message.success(
+        res.status === 'installed' ? t('qxmods.sync.installed') : t('qxmods.sync.queued'),
+      );
       onClose();
       promptServerRestart(target);
     } catch (e) {

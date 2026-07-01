@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { SkinCatalogPanel } from './SkinCatalogPanel';
@@ -25,8 +25,6 @@ const catalogItems = [
 
 describe('SkinCatalogPanel', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
     vi.spyOn(api, 'listSkinCatalog').mockResolvedValue({ items: catalogItems });
     vi.spyOn(api, 'applyCosmeticsSkin').mockResolvedValue(undefined);
   });
@@ -67,7 +65,7 @@ describe('SkinCatalogPanel', () => {
     await waitFor(() =>
       expect(api.applyCosmeticsSkin).toHaveBeenCalledWith({ username: 'Steve' }),
     );
-    expect(message.success).toHaveBeenCalledWith('Скин применён');
+    expect(testMessage.success).toHaveBeenCalledWith('Скин применён');
   });
   it('applies skin from catalog entry', async () => {
     const user = userEvent.setup({ delay: null });

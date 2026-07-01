@@ -184,7 +184,7 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
   const content = loading ? (
     <Spin />
   ) : (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       {!embedded ? <p className="cosmetics-hint">{t('cosmetics.hint')}</p> : null}
       <div className="cosmetics-preview-row">
         <CosmeticsPreview model={model} skinUrl={previewSkinUrl} capeUrl={previewCapeUrl} />

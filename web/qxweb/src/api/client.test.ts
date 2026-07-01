@@ -542,7 +542,6 @@ describe('api client', () => {
     session.close();
     instances[0]?.onerror?.();
     expect(warnSpy).not.toHaveBeenCalled();
-    warnSpy.mockRestore();
   });
 
   it('skips close when websocket is already closed', () => {

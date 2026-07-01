@@ -26,6 +26,7 @@ type LauncherInstance struct {
 	Mods           InstanceResourceList `gorm:"type:text" json:"mods"`
 	ResourcePacks  InstanceResourceList `gorm:"type:text" json:"resource_packs"`
 	Shaders        InstanceResourceList `gorm:"type:text" json:"shaders"`
+	Datapacks      InstanceResourceList `gorm:"type:text" json:"datapacks"`
 	CreatedAt      time.Time            `json:"created_at"`
 	UpdatedAt      time.Time            `json:"updated_at"`
 }

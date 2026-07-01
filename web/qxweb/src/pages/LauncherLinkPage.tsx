@@ -98,7 +98,7 @@ function DeviceInfoPanel({
 
       {loading ? (
         <div className="launcher-link-device-loading">
-          <Spin tip={t('launcherLink.loadingDevice')} />
+          <Spin description={t('launcherLink.loadingDevice')} />
         </div>
       ) : (
         <>

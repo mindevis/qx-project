@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { CosmeticsPanel } from './CosmeticsPanel';
@@ -31,8 +31,6 @@ const cosmetics = {
 
 describe('CosmeticsPanel', () => {
   beforeEach(() => {
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
     vi.spyOn(api, 'getCosmetics').mockResolvedValue(cosmetics);
     vi.spyOn(api, 'updateCosmetics').mockResolvedValue({
       ...cosmetics,
@@ -53,13 +51,13 @@ describe('CosmeticsPanel', () => {
   it('updates skin model on picker change', async () => {
     const user = userEvent.setup({ delay: null });
     renderWithTheme(<CosmeticsPanel />);
-    await waitFor(() => expect(screen.getByText('QX Skin Server')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Alex/i })).toBeInTheDocument());
 
     await user.click(screen.getByRole('radio', { name: /Alex/i }));
     await waitFor(() =>
       expect(api.updateCosmetics).toHaveBeenCalledWith({ skin_model: 'alex' }),
     );
-    expect(message.success).toHaveBeenCalledWith('Настройки скина сохранены');
+    expect(testMessage.success).toHaveBeenCalledWith('Настройки скина сохранены');
   });
 
   it('renders embedded variant without card title', async () => {

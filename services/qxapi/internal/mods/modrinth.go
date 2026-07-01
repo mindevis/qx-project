@@ -70,7 +70,7 @@ type modrinthVersion struct {
 
 func modrinthProjectType(projectType string) string {
 	switch projectType {
-	case ProjectTypeModpack, ProjectTypeResourcePack, ProjectTypeShader:
+	case ProjectTypeModpack, ProjectTypeResourcePack, ProjectTypeShader, ProjectTypeDatapack, ProjectTypePlugin:
 		return projectType
 	default:
 		return ProjectTypeMod
@@ -326,6 +326,10 @@ func modrinthProjectTypeFacet(projectType string) string {
 		return "resourcepack"
 	case ProjectTypeShader:
 		return "shader"
+	case ProjectTypeDatapack:
+		return "datapack"
+	case ProjectTypePlugin:
+		return "plugin"
 	default:
 		return "mod"
 	}
@@ -341,6 +345,10 @@ func loaderFacetModrinth(loader string) string {
 		return "fabric"
 	case "quilt":
 		return "quilt"
+	case "paper", "spigot", "purpur", "bukkit", "folia":
+		return strings.ToLower(loader)
+	case "mohist", "magma", "arclight":
+		return "bukkit"
 	default:
 		return strings.ToLower(loader)
 	}

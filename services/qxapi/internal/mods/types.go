@@ -10,6 +10,8 @@ const (
 	ProjectTypeModpack      = "modpack"
 	ProjectTypeResourcePack = "resourcepack"
 	ProjectTypeShader       = "shader"
+	ProjectTypeDatapack     = "datapack"
+	ProjectTypePlugin       = "plugin"
 )
 
 // SearchItem is a normalized catalog entry from CurseForge or Modrinth.

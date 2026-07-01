@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { message } from 'antd';
+import { testMessage } from '@/test/test-message';
 import { api, saveTokens } from '@/api/client';
 import { renderWithProviders } from '@/test/test-utils';
+import { testNavigation } from '@/test/navigation-mock';
 import { MonitoringPage } from './MonitoringPage';
 
 const sampleServer = {
@@ -55,8 +56,6 @@ function mockAuthedFetch() {
 describe('MonitoringPage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
-    vi.spyOn(message, 'success').mockImplementation(() => undefined as never);
-    vi.spyOn(message, 'error').mockImplementation(() => undefined as never);
     vi.spyOn(api, 'listMcVersions').mockResolvedValue({
       items: [{ id: '1.21', type: 'release' }],
     });
@@ -115,7 +114,7 @@ describe('MonitoringPage', () => {
     await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
     await user.click(document.querySelector('.monitoring-card-like')!);
     await waitFor(() => expect(api.likeMonitoringServer).toHaveBeenCalledWith('mon-1'));
-    expect(message.success).toHaveBeenCalledWith('Лайк добавлен');
+    expect(testMessage.success).toHaveBeenCalledWith('Лайк добавлен');
   });
 
   it('opens auth modal when guest tries to like', async () => {
@@ -180,7 +179,7 @@ describe('MonitoringPage', () => {
     await waitFor(() =>
       expect(api.setMonitoringBinding).toHaveBeenCalledWith('mon-1', 'inst-1'),
     );
-    expect(message.success).toHaveBeenCalledWith('Привязка инстанса сохранена');
+    expect(testMessage.success).toHaveBeenCalledWith('Привязка инстанса сохранена');
   });
 
   it('does not launch via QXLauncher when no binding is set', async () => {
@@ -189,6 +188,7 @@ describe('MonitoringPage', () => {
     renderWithProviders(<MonitoringPage />, '/monitoring');
     await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Подключиться/ }));
+    expect(testNavigation.hrefSet).toHaveBeenCalledWith('minecraft://play.example.com:25565');
     expect(createSpy).not.toHaveBeenCalled();
   });
 
@@ -228,7 +228,7 @@ describe('MonitoringPage', () => {
     await user.click(within(card!).getByRole('img', { name: 'close-circle' }));
 
     await waitFor(() => expect(api.clearMonitoringBinding).toHaveBeenCalledWith('mon-1'));
-    expect(message.success).toHaveBeenCalledWith('Привязка инстанса удалена');
+    expect(testMessage.success).toHaveBeenCalledWith('Привязка инстанса удалена');
   });
 
   it('launches bound instance when launcher is linked', async () => {
@@ -373,21 +373,6 @@ describe('MonitoringPage', () => {
       items: [{ id: 'prof-1', username: 'Steve', offline_uuid: 'uuid', model: 'steve', created_at: 'now' }],
     });
     vi.spyOn(api, 'createLaunchRequest').mockRejectedValue(new Error('launch failed'));
-    const hrefSetter = vi.fn();
-    const originalLocation = window.location;
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: {
-        ...originalLocation,
-        assign: hrefSetter,
-        get href() {
-          return '';
-        },
-        set href(value) {
-          hrefSetter(value);
-        },
-      },
-    });
 
     const user = userEvent.setup({ delay: null });
     renderWithProviders(<MonitoringPage />, '/monitoring');
@@ -396,10 +381,10 @@ describe('MonitoringPage', () => {
 
     await user.click(screen.getByRole('button', { name: /\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f/i }));
 
-    await waitFor(() => expect(hrefSetter).toHaveBeenCalled());
-    expect(message.error).not.toHaveBeenCalled();
-
-    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+    await waitFor(() =>
+      expect(testNavigation.hrefSet).toHaveBeenCalledWith('minecraft://play.example.com:25565'),
+    );
+    expect(testMessage.error).not.toHaveBeenCalled();
   });
 
   it('refreshes server list from hero button', async () => {
@@ -429,7 +414,7 @@ describe('MonitoringPage', () => {
     const stars = within(card!).getAllByRole('radio');
     await user.click(stars[4]);
     await waitFor(() => expect(api.rateMonitoringServer).toHaveBeenCalledWith('mon-1', 5));
-    expect(message.success).toHaveBeenCalled();
+    expect(testMessage.success).toHaveBeenCalled();
   });
 
 });

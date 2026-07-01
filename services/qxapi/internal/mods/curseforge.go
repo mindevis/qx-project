@@ -397,6 +397,10 @@ func curseForgeClassID(projectType string) int {
 		return 12
 	case ProjectTypeShader:
 		return 6552
+	case ProjectTypeDatapack:
+		return 5193
+	case ProjectTypePlugin:
+		return 5
 	default:
 		return 6
 	}
@@ -442,6 +446,10 @@ func curseForgeExternalURL(projectType, slug string) string {
 		segment = "texture-packs"
 	case ProjectTypeShader:
 		segment = "shaders"
+	case ProjectTypeDatapack:
+		segment = "data-packs"
+	case ProjectTypePlugin:
+		segment = "bukkit-plugins"
 	}
 	return "https://www.curseforge.com/minecraft/" + segment + "/" + slug
 }

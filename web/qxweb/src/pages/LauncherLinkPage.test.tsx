@@ -2,7 +2,6 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
-import { message } from 'antd';
 import { renderWithProviders } from '@/test/test-utils';
 import { LauncherLinkPage } from './LauncherLinkPage';
 import { saveTokens, clearTokens } from '@/api/client';
@@ -69,7 +68,7 @@ describe('LauncherLinkPage', () => {
   });
 
   afterEach(async () => {
-    message.destroy();
+    messageMocks.destroy();
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
