@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-rm dev-vps-rm-data dev-vps-info dev-vps-sh api agent launcher web test lint jwt-secret ssh-master-key prod-secrets jwt-secret-config gen-tray-icons prod-build prod-pack prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha test-forge-client test-neoforge-client test-fabric-client test-quilt-client build-launcher build-launcher-win gen-launcher-win-resources build-launcher-win-debug build-agent-linux swagger docs-serve docs-build
+.PHONY: dev-up dev-down dev-vps-up dev-vps-down dev-vps-rm dev-vps-rm-data dev-vps-info dev-vps-sh api agent launcher web test lint ci jwt-secret ssh-master-key prod-secrets jwt-secret-config gen-tray-icons prod-build prod-pack prod-up prod-down e2e-manual e2e-manual-dry-run e2e-api-smoke e2e-dry-run e2e-jvm e2e-web e2e-alpha test-forge-client test-neoforge-client test-fabric-client test-quilt-client build-launcher build-launcher-win gen-launcher-win-resources build-launcher-win-debug build-agent-linux swagger docs-serve docs-build
 
 PROD_ENV_FILE := infra/docker/.env.prod
 PROD_COMPOSE := docker compose -f infra/docker/docker-compose.prod.yml --env-file $(PROD_ENV_FILE)
@@ -92,6 +92,9 @@ lint:
 	cd services/qxlauncher && go vet ./...
 	cd web/qxweb && npm run lint
 
+# Mirrors GitHub Actions CI (go + web lint/coverage + Windows launcher cross-build).
+ci: lint test-coverage build-launcher-win
+
 AGENT_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)
 AGENT_LDFLAGS = -X main.agentVersion=$(AGENT_VERSION)
 # Systray GUI app: release Windows builds use the windowsgui subsystem (no console).
@@ -99,8 +102,6 @@ LAUNCHER_WIN_GUI_LDFLAGS = -H=windowsgui
 LAUNCHER_PROD_API_BASE ?= https://mc.qx-dev.ru/api/v1
 LAUNCHER_PROD_WEB_BASE ?= https://mc.qx-dev.ru
 LAUNCHER_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.1.0-dev)
-# PE FileVersion/ProductVersion: semver prefix from git describe (e.g. 1.2.3).
-LAUNCHER_PE_VERSION ?= $(shell echo "$(LAUNCHER_VERSION)" | sed 's/^v//' | sed 's/-.*//')
 LAUNCHER_PROD_LDFLAGS = $(LAUNCHER_WIN_GUI_LDFLAGS) \
 	-X github.com/qxproject/qx/services/qxlauncher/internal/config.embeddedAPIBaseURL=$(LAUNCHER_PROD_API_BASE) \
 	-X github.com/qxproject/qx/services/qxlauncher/internal/config.embeddedWebBaseURL=$(LAUNCHER_PROD_WEB_BASE) \
@@ -133,16 +134,8 @@ gen-launcher-win-resources:
 		-64 \
 		-manifest cmd/app.manifest \
 		-icon internal/tray/assets/icon.ico \
-		-company "QX Project" \
-		-product-name "QX Launcher" \
-		-description "QX Minecraft Launcher" \
-		-internal-name "qx-launcher" \
-		-original-name "qx-launcher.exe" \
-		-copyright "Copyright (C) QX Project" \
-		-file-version "$(LAUNCHER_PE_VERSION)" \
-		-product-version "$(LAUNCHER_PE_VERSION)" \
-		-propagate-ver-strings \
-		-o cmd/rsrc_windows_amd64.syso
+		-o cmd/rsrc_windows_amd64.syso \
+		versioninfo.json
 
 ifeq ($(OS),Windows_NT)
 build-launcher-win: gen-launcher-win-resources

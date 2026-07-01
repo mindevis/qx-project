@@ -26,3 +26,6 @@ jobs:
       - uses: github/codeql-action/autobuild@v4
 
       - uses: github/codeql-action/analyze@v4
+        env:
+          CODEQL_ACTION_EXTRA_OPTIONS: >-
+            {"database":{"run-queries":["--additional-packs=${{ github.workspace }}/.github/codeql","--model-packs=qx-project/safepath-models"]}}
