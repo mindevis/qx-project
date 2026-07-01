@@ -36,7 +36,6 @@ Copy-Item (Join-Path $ComposeDir "nginx/prod.conf") (Join-Path $Bundle "nginx/")
 Copy-Item (Join-Path $ComposeDir "nginx/spa-security-headers.conf") (Join-Path $Bundle "nginx/")
 Copy-Item (Join-Path $ComposeDir "nginx/gzip.conf") (Join-Path $Bundle "nginx/")
 Copy-Item (Join-Path $ComposeDir "nginx/upstream-proxies.conf") (Join-Path $Bundle "nginx/")
-Copy-Item (Join-Path $Root "docs/schema.sql") $Bundle
 Copy-Item (Join-Path $ComposeDir ".env.prod.example") $Bundle
 "QX_API_IMAGE=qx-api:$Tag" | Set-Content -Path (Join-Path $Bundle "image-tag.env") -Encoding utf8NoBOM
 Add-Content -Path (Join-Path $Bundle "image-tag.env") -Value "QX_WEB_IMAGE=qx-web:$Tag" -Encoding utf8NoBOM

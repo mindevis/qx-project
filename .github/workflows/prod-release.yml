@@ -187,7 +187,6 @@ jobs:
           cp infra/docker/nginx/upstream-proxies.conf .deploy/nginx/
           cp infra/docker/nginx/prod-http.conf .deploy/nginx/active.conf
           cp infra/scripts/prod-certbot-cloudflare.sh .deploy/certbot-cloudflare.sh
-          cp docs/schema.sql .deploy/
           cp infra/scripts/prod-remote-up.sh .deploy/up.sh
           cp infra/scripts/prod-merge-compose-env.sh .deploy/merge-compose-env.sh
           chmod +x .deploy/up.sh .deploy/merge-compose-env.sh .deploy/certbot-cloudflare.sh

@@ -84,7 +84,7 @@ var migrateUsers = func(db *gorm.DB) error {
 	return nil
 }
 
-// fixMonitoringTablesCollation aligns GORM-created tables with docs/schema.sql on MySQL.
+// fixMonitoringTablesCollation aligns monitoring tables on MySQL.
 // GORM AutoMigrate uses utf8mb4_0900_ai_ci by default; monitoring JOINs need utf8mb4_unicode_ci.
 func fixMonitoringTablesCollation(db *gorm.DB) {
 	if db == nil || db.Dialector == nil || db.Dialector.Name() != "mysql" {
@@ -111,7 +111,7 @@ func fixMonitoringTablesCollation(db *gorm.DB) {
 	}
 }
 
-// dropRedundantUsersEmailIndex removes a legacy non-unique index from docs/schema.sql
+// dropRedundantUsersEmailIndex removes a legacy non-unique email index
 // that collided with GORM AutoMigrate (email is already UNIQUE on the column).
 func dropRedundantUsersEmailIndex(db *gorm.DB) {
 	m := db.Migrator()
