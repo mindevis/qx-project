@@ -101,11 +101,13 @@ func TestExecuteLaunchDryRunNeoForge(t *testing.T) {
 	t.Cleanup(apiSrv.Close)
 
 	dataDir := filepath.Join(t.TempDir(), "data")
+	instanceID := "inst-neoforge"
 	clientJar := mcmanifest.DefaultLoaderClientJar(mcmanifest.LoaderNeoForge, "1.21.1", "21.1.234")
-	if err := os.MkdirAll(filepath.Join(dataDir, filepath.Dir(clientJar.RelativePath)), 0o755); err != nil {
+	instanceRoot := filepath.Join(dataDir, "instances", instanceID)
+	if err := os.MkdirAll(filepath.Join(instanceRoot, filepath.Dir(clientJar.RelativePath)), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, clientJar.RelativePath), []byte("neoforge-client"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(instanceRoot, clientJar.RelativePath), []byte("neoforge-client"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

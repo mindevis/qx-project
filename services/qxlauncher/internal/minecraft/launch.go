@@ -40,7 +40,7 @@ func (d *Downloader) EnsureClientJar(ctx context.Context, manifest *mcmanifest.I
 		versionKey = manifest.VersionID
 		jarName = manifest.VersionID + ".jar"
 	}
-	dir := filepath.Join(d.RootDir, "instances", manifest.InstanceID, "versions", versionKey)
+	dir := d.InstanceVersionsDir(manifest.InstanceID, versionKey)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}

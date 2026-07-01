@@ -32,14 +32,14 @@ func MavenRelPath(name string) string {
 	return filepath.Join(elems...)
 }
 
-func (d *Downloader) InstanceGameDir(instanceID string) string {
-	return filepath.Join(d.RootDir, "instances", instanceID)
-}
-
 func (d *Downloader) EnsureLibraries(ctx context.Context, manifest *mcmanifest.InstanceLaunchManifest) ([]string, error) {
 	if manifest == nil {
 		return nil, fmt.Errorf("missing manifest")
 	}
+	if manifest.InstanceID == "" {
+		return nil, fmt.Errorf("missing instance id")
+	}
+	libRoot := d.InstanceLibrariesDir(manifest.InstanceID)
 	paths := make([]string, 0, len(manifest.Libraries))
 	total := 0
 	for _, lib := range manifest.Libraries {
@@ -58,7 +58,8 @@ func (d *Downloader) EnsureLibraries(ctx context.Context, manifest *mcmanifest.I
 		if rel == "" {
 			continue
 		}
-		dest := filepath.Join(d.RootDir, rel)
+		suffix := strings.TrimPrefix(filepath.ToSlash(rel), "libraries/")
+		dest := filepath.Join(libRoot, filepath.FromSlash(suffix))
 		if err := d.downloadIfNeeded(ctx, lib.Downloads.Artifact.URL, dest, lib.Downloads.Artifact.Sha1); err != nil {
 			return nil, fmt.Errorf("library %s: %w", lib.Name, err)
 		}
@@ -88,11 +89,8 @@ func (d *Downloader) EnsureNatives(ctx context.Context, manifest *mcmanifest.Ins
 		if !ok || artifact.URL == "" {
 			continue
 		}
-		rel := MavenRelPath(lib.Name + ":" + classifier)
-		if rel == "" {
-			rel = filepath.Join("natives-cache", strings.ReplaceAll(lib.Name, ":", "_")+"-"+classifier+".jar")
-		}
-		jarPath := filepath.Join(d.RootDir, rel)
+		cacheName := strings.ReplaceAll(lib.Name, ":", "_") + "-" + classifier + ".jar"
+		jarPath := filepath.Join(d.InstanceCacheDir(manifest.InstanceID), "natives", cacheName)
 		if err := d.downloadIfNeeded(ctx, artifact.URL, jarPath, artifact.Sha1); err != nil {
 			return "", err
 		}

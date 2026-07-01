@@ -27,7 +27,10 @@ func (d *Downloader) EnsureLoaderInstalled(ctx context.Context, manifest *mcmani
 	if manifest.LoaderClientJar.RelativePath == "" {
 		return fmt.Errorf("%s manifest missing loader client jar metadata", manifest.Loader)
 	}
-	dest := filepath.Join(d.RootDir, filepath.FromSlash(manifest.LoaderClientJar.RelativePath))
+	if manifest.InstanceID == "" {
+		return fmt.Errorf("missing instance id")
+	}
+	dest := d.loaderClientJarPath(manifest.InstanceID, manifest.LoaderClientJar.RelativePath)
 	if jarMatches(dest, manifest.LoaderClientJar.Sha1) {
 		return nil
 	}
@@ -50,7 +53,8 @@ func jarMatches(path, sha1hex string) bool {
 }
 
 func (d *Downloader) runLoaderInstaller(ctx context.Context, manifest *mcmanifest.InstanceLaunchManifest, javaBin string) error {
-	cacheDir := filepath.Join(d.RootDir, "cache")
+	instanceRoot := d.InstanceRoot(manifest.InstanceID)
+	cacheDir := d.InstanceCacheDir(manifest.InstanceID)
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return err
 	}
@@ -58,12 +62,12 @@ func (d *Downloader) runLoaderInstaller(ctx context.Context, manifest *mcmanifes
 	if err := d.downloadIfNeeded(ctx, manifest.VersionURL, installerPath, ""); err != nil {
 		return fmt.Errorf("download installer: %w", err)
 	}
-	profilesPath := filepath.Join(d.RootDir, "launcher_profiles.json")
+	profilesPath := filepath.Join(instanceRoot, "launcher_profiles.json")
 	if err := os.WriteFile(profilesPath, []byte("{}"), 0o644); err != nil {
 		return fmt.Errorf("write launcher_profiles.json: %w", err)
 	}
-	cmd := proc.CommandContext(ctx, javaBin, "-jar", installerPath, "--installClient", d.RootDir)
-	cmd.Dir = d.RootDir
+	cmd := proc.CommandContext(ctx, javaBin, "-jar", installerPath, "--installClient", instanceRoot)
+	cmd.Dir = instanceRoot
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		tail := string(out)
@@ -72,7 +76,7 @@ func (d *Downloader) runLoaderInstaller(ctx context.Context, manifest *mcmanifes
 		}
 		return fmt.Errorf("installer failed: %w\n%s", err, tail)
 	}
-	dest := filepath.Join(d.RootDir, filepath.FromSlash(manifest.LoaderClientJar.RelativePath))
+	dest := d.loaderClientJarPath(manifest.InstanceID, manifest.LoaderClientJar.RelativePath)
 	if !jarMatches(dest, manifest.LoaderClientJar.Sha1) {
 		return fmt.Errorf("installer finished but %s is missing or corrupt", dest)
 	}

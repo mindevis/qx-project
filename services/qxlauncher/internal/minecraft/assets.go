@@ -30,15 +30,14 @@ type assetJob struct {
 	dest string
 }
 
-func (d *Downloader) AssetsDir() string {
-	return filepath.Join(d.RootDir, "assets")
-}
-
 func (d *Downloader) EnsureAssets(ctx context.Context, manifest *mcmanifest.InstanceLaunchManifest) (string, error) {
 	if manifest == nil || manifest.AssetIndex.ID == "" {
 		return "", fmt.Errorf("missing asset index")
 	}
-	assetsDir := d.AssetsDir()
+	if manifest.InstanceID == "" {
+		return "", fmt.Errorf("missing instance id")
+	}
+	assetsDir := d.InstanceAssetsDir(manifest.InstanceID)
 	indexPath := filepath.Join(assetsDir, "indexes", manifest.AssetIndex.ID+".json")
 	if err := os.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
 		return "", err

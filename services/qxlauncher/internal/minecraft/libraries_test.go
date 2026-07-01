@@ -35,6 +35,10 @@ func TestEnsureLibraries(t *testing.T) {
 	if err != nil || len(paths) != 1 {
 		t.Fatalf("libs: err=%v paths=%v", err, paths)
 	}
+	want := filepath.Join(dir, "instances", "inst-1", "libraries", "com", "test", "demo", "1.0", "demo-1.0.jar")
+	if paths[0] != want {
+		t.Fatalf("lib path = %q, want %q", paths[0], want)
+	}
 }
 
 func TestEnsureNativesExtract(t *testing.T) {

@@ -128,7 +128,7 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		nativesDir,
 		assetsDir,
 		gameDir,
-		filepath.Join(d.RootDir, "libraries"),
+		d.InstanceLibrariesDir(in.Manifest.InstanceID),
 		username,
 		offlineUUID,
 		javaBin,

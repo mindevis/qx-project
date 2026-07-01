@@ -37,6 +37,7 @@ func TestEnsureAssets(t *testing.T) {
 	t.Cleanup(indexSrv.Close)
 
 	manifest := &mcmanifest.InstanceLaunchManifest{
+		InstanceID: "inst-1",
 		AssetIndex: mcmanifest.AssetIndexRef{
 			ID:  "test-index",
 			URL: indexSrv.URL,
@@ -49,8 +50,9 @@ func TestEnsureAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ensure assets: %v", err)
 	}
-	if assetsDir != dl.AssetsDir() {
-		t.Fatalf("assets dir: %s", assetsDir)
+	wantAssets := dl.InstanceAssetsDir("inst-1")
+	if assetsDir != wantAssets {
+		t.Fatalf("assets dir: got %s want %s", assetsDir, wantAssets)
 	}
 	objectPath := filepath.Join(assetsDir, "objects", "01", hash)
 	if b, err := os.ReadFile(objectPath); err != nil || string(b) != string(objectBody) {
@@ -61,6 +63,7 @@ func TestEnsureAssets(t *testing.T) {
 func TestEnsureAssetsMissingIndex(t *testing.T) {
 	dl := NewDownloader(t.TempDir())
 	_, err := dl.EnsureAssets(context.Background(), &mcmanifest.InstanceLaunchManifest{
+		InstanceID: "inst-1",
 		AssetIndex: mcmanifest.AssetIndexRef{ID: "x"},
 	})
 	if err == nil {
