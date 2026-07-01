@@ -15,7 +15,11 @@ mysql_db="${MYSQL_DATABASE:-qx}"
 mysql_user="${MYSQL_USER:-qx}"
 
 : > "$out"
-kv() { printf '%s=%s\n' "$1" "$2" >> "$out"; }
+# Docker Compose treats $ as variable interpolation in .env files; $$ → literal $.
+compose_env_value() {
+  printf '%s' "$1" | sed 's/\$/$$/g'
+}
+kv() { printf '%s=%s\n' "$1" "$(compose_env_value "$2")" >> "$out"; }
 
 kv HTTP_PORT "${HTTP_PORT:-80}"
 kv HTTPS_PORT "${HTTPS_PORT:-443}"
