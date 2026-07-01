@@ -18,6 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+          cache: true
+          cache-dependency-path: go.work.sum
+
       # Advanced setup (this workflow). Do not enable CodeQL default setup in repo
       # settings — GitHub rejects SARIF uploads when both are active.
       - uses: github/codeql-action/init@v4
@@ -25,7 +31,13 @@ jobs:
           languages: go
           config-file: ./.github/codeql/codeql-config.yml
 
-      - uses: github/codeql-action/autobuild@v4
+      # Avoid autobuild: it runs `make dev-up` (first Makefile target) and may pick
+      # an older Go than go.work requires.
+      - name: Build Go modules for CodeQL
+        run: |
+          go build -o /dev/null ./services/qxapi/cmd
+          go build -o /dev/null ./services/qxagent/cmd
+          go build -o /dev/null ./services/qxlauncher/cmd
 
       # Local model pack: init `packs:` only resolves published GHCR packs. Load from
       # the repo via --additional-packs + --model-packs at query time (see codeql-workspace.yml).
