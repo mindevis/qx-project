@@ -135,10 +135,10 @@ gen-launcher-win-resources:
 		-icon internal/tray/assets/icon.ico \
 		-company "QX Project" \
 		-product-name "QX Launcher" \
-		-file-description "QX Minecraft Launcher" \
+		-description "QX Minecraft Launcher" \
 		-internal-name "qx-launcher" \
 		-original-name "qx-launcher.exe" \
-		-legal-copyright "Copyright (C) QX Project" \
+		-copyright "Copyright (C) QX Project" \
 		-file-version "$(LAUNCHER_PE_VERSION)" \
 		-product-version "$(LAUNCHER_PE_VERSION)" \
 		-propagate-ver-strings \
