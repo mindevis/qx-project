@@ -84,7 +84,7 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 	d.progress("prepare", "natives")
 	nativesDir, err := d.EnsureNatives(ctx, in.Manifest)
 	if err != nil {
-		nativesDir = ""
+		return nil, fmt.Errorf("natives: %w", err)
 	}
 	d.progress("prepare", "assets")
 	assetsDir, err := d.EnsureAssets(ctx, in.Manifest)

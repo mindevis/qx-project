@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -212,6 +213,8 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		switch {
 		case strings.Contains(err.Error(), "client jar"):
 			code = "DOWNLOAD_FAILED"
+		case strings.Contains(err.Error(), "natives:"):
+			code = "NATIVES_FAILED"
 		case strings.Contains(err.Error(), "libraries"):
 			code = "LIBRARIES_FAILED"
 		case strings.Contains(err.Error(), "assets"):
@@ -221,9 +224,13 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		case strings.Contains(err.Error(), "loader install"):
 			code = "LOADER_INSTALL_FAILED"
 		}
-		slog.Error("launch prepare failed", "err", err)
+		slog.Error("launch prepare failed", "err", err, "error_code", code)
 		reportLaunchStatus("failed", map[string]any{"error_code": code})
-		notifyLaunchStep("Не удалось подготовить запуск")
+		msg := "Не удалось подготовить запуск"
+		if code == "NATIVES_FAILED" {
+			msg = "Не удалось подготовить LWJGL natives"
+		}
+		notifyLaunchStep(msg)
 		return
 	}
 	plan := ready.Plan
@@ -234,10 +241,25 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 
 	if cfg.LaunchDryRun {
 		slog.Info("launch dry-run",
-			append([]any{"main", plan.MainClass, "user", username, "game_dir", ready.GameDir}, minecraft.FormatLaunchLogFields(item.Manifest)...)...)
+			append([]any{
+				"main", plan.MainClass,
+				"user", username,
+				"game_dir", ready.GameDir,
+				"natives_dir", filepath.Join(ready.GameDir, "natives"),
+				"log_path", ready.LogPath,
+			}, minecraft.FormatLaunchLogFields(item.Manifest)...)...)
 		reportLaunchStatus("completed", map[string]any{"exit_code": 0})
 		return
 	}
+
+	slog.Info("starting minecraft process",
+		append([]any{
+			"java", plan.JavaBin,
+			"main", plan.MainClass,
+			"game_dir", ready.GameDir,
+			"log_path", ready.LogPath,
+			"cmd_file", filepath.Join(ready.GameDir, "launch.cmd.txt"),
+		}, minecraft.FormatLaunchLogFields(item.Manifest)...)...)
 
 	cmd, err := minecraft.StartClientProcess(context.Background(), plan, ready.LogPath)
 	if err != nil {
@@ -255,10 +277,23 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		exitCode = 1
 	}
 	status := "completed"
+	errorCode := ""
 	if exitCode != 0 {
 		status = "failed"
+		errorCode = "GAME_EXIT_" + strconv.Itoa(exitCode)
+		if hint := minecraft.LaunchFailureHint(ready.LogPath, ready.GameDir); hint != "" {
+			slog.Error("launch failed", "exit_code", exitCode, "hint", hint, "log_path", ready.LogPath)
+			notifyLaunchStep("Minecraft завершился с ошибкой: " + hint)
+			if strings.Contains(strings.ToLower(hint), "lwjgl") || strings.Contains(strings.ToLower(hint), "native") {
+				errorCode = "NATIVES_LOAD_FAILED"
+			}
+		}
 	}
-	reportLaunchStatus(status, map[string]any{"exit_code": exitCode})
+	payload := map[string]any{"exit_code": exitCode}
+	if errorCode != "" {
+		payload["error_code"] = errorCode
+	}
+	reportLaunchStatus(status, payload)
 	slog.Info("launch finished", "pid", strconv.Itoa(pid), "exit", exitCode)
 }
 

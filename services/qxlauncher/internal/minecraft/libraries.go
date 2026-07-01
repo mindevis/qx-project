@@ -43,6 +43,9 @@ func (d *Downloader) EnsureLibraries(ctx context.Context, manifest *mcmanifest.I
 	paths := make([]string, 0, len(manifest.Libraries))
 	total := 0
 	for _, lib := range manifest.Libraries {
+		if isNamedNativeLibrary(lib.Name) {
+			continue
+		}
 		if lib.Downloads == nil || lib.Downloads.Artifact == nil || lib.Downloads.Artifact.URL == "" {
 			continue
 		}
@@ -51,6 +54,9 @@ func (d *Downloader) EnsureLibraries(ctx context.Context, manifest *mcmanifest.I
 	d.progressf("libraries", "checking %d libraries …", total)
 	done := 0
 	for _, lib := range manifest.Libraries {
+		if isNamedNativeLibrary(lib.Name) {
+			continue
+		}
 		if lib.Downloads == nil || lib.Downloads.Artifact == nil || lib.Downloads.Artifact.URL == "" {
 			continue
 		}
@@ -81,43 +87,141 @@ func (d *Downloader) EnsureNatives(ctx context.Context, manifest *mcmanifest.Ins
 		return "", err
 	}
 	classifier := nativeClassifier()
+	extracted := 0
 	for _, lib := range manifest.Libraries {
-		if lib.Downloads == nil || lib.Downloads.Classifiers == nil {
-			continue
+		n, err := d.ensureLibraryNatives(ctx, manifest.InstanceID, lib, classifier, nativesDir)
+		if err != nil {
+			return "", fmt.Errorf("library %s: %w", lib.Name, err)
 		}
-		artifact, ok := lib.Downloads.Classifiers[classifier]
-		if !ok || artifact.URL == "" {
-			continue
+		extracted += n
+	}
+	if manifestExpectsNatives(manifest.Libraries, classifier) {
+		if extracted == 0 {
+			return "", fmt.Errorf("no %s native libraries found in manifest", classifier)
 		}
-		cacheName := strings.ReplaceAll(lib.Name, ":", "_") + "-" + classifier + ".jar"
-		jarPath := filepath.Join(d.InstanceCacheDir(manifest.InstanceID), "natives", cacheName)
-		if err := d.downloadIfNeeded(ctx, artifact.URL, jarPath, artifact.Sha1); err != nil {
-			return "", err
-		}
-		if err := extractNativeBinaries(jarPath, nativesDir); err != nil {
+		if err := verifyNativeBinariesPresent(nativesDir); err != nil {
 			return "", err
 		}
 	}
 	return nativesDir, nil
 }
 
+func manifestExpectsNatives(libs []mcmanifest.Library, classifier string) bool {
+	for _, lib := range libs {
+		if isNamedNativeLibraryForClassifier(lib.Name, classifier) {
+			return true
+		}
+		if lib.Downloads != nil && lib.Downloads.Classifiers != nil {
+			if artifact, ok := lib.Downloads.Classifiers[classifier]; ok && artifact.URL != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (d *Downloader) ensureLibraryNatives(ctx context.Context, instanceID string, lib mcmanifest.Library, classifier, nativesDir string) (int, error) {
+	extracted := 0
+	if lib.Downloads != nil && lib.Downloads.Classifiers != nil {
+		if artifact, ok := lib.Downloads.Classifiers[classifier]; ok && artifact.URL != "" {
+			jarPath := filepath.Join(d.InstanceCacheDir(instanceID), "natives", nativeCacheName(lib.Name, classifier)+".jar")
+			if err := d.downloadIfNeeded(ctx, artifact.URL, jarPath, artifact.Sha1); err != nil {
+				return 0, err
+			}
+			n, err := extractNativeBinaries(jarPath, nativesDir)
+			if err != nil {
+				return 0, err
+			}
+			extracted += n
+		}
+	}
+	if isNamedNativeLibraryForClassifier(lib.Name, classifier) {
+		if lib.Downloads == nil || lib.Downloads.Artifact == nil || lib.Downloads.Artifact.URL == "" {
+			return 0, fmt.Errorf("missing native artifact download")
+		}
+		jarPath := filepath.Join(d.InstanceCacheDir(instanceID), "natives", nativeCacheName(lib.Name, "")+".jar")
+		if err := d.downloadIfNeeded(ctx, lib.Downloads.Artifact.URL, jarPath, lib.Downloads.Artifact.Sha1); err != nil {
+			return 0, err
+		}
+		n, err := extractNativeBinaries(jarPath, nativesDir)
+		if err != nil {
+			return 0, err
+		}
+		extracted += n
+	}
+	return extracted, nil
+}
+
+func nativeCacheName(libName, classifier string) string {
+	if classifier != "" {
+		return strings.ReplaceAll(libName, ":", "_") + "-" + classifier
+	}
+	return strings.ReplaceAll(libName, ":", "_")
+}
+
 func nativeClassifier() string {
 	switch runtime.GOOS {
 	case "windows":
-		return "natives-windows"
+		switch runtime.GOARCH {
+		case "arm64":
+			return "natives-windows-arm64"
+		case "386":
+			return "natives-windows-x86"
+		default:
+			return "natives-windows"
+		}
 	case "darwin":
-		return "natives-macos"
+		switch runtime.GOARCH {
+		case "arm64":
+			return "natives-macos-arm64"
+		default:
+			return "natives-macos"
+		}
 	default:
-		return "natives-linux"
+		switch runtime.GOARCH {
+		case "arm64":
+			return "natives-linux-arm64"
+		case "arm":
+			return "natives-linux-arm32"
+		default:
+			return "natives-linux"
+		}
 	}
 }
 
-func extractNativeBinaries(jarPath, destDir string) error {
-	r, err := zip.OpenReader(jarPath)
+func isNamedNativeLibrary(name string) bool {
+	parts := strings.Split(name, ":")
+	return len(parts) >= 4 && strings.HasPrefix(parts[3], "natives-")
+}
+
+func isNamedNativeLibraryForClassifier(name, classifier string) bool {
+	parts := strings.Split(name, ":")
+	return len(parts) >= 4 && parts[3] == classifier
+}
+
+func verifyNativeBinariesPresent(dir string) error {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
 	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if isNativeBinary(e.Name()) {
+			return nil
+		}
+	}
+	return fmt.Errorf("no native binaries extracted to %s", dir)
+}
+
+func extractNativeBinaries(jarPath, destDir string) (int, error) {
+	r, err := zip.OpenReader(jarPath)
+	if err != nil {
+		return 0, err
+	}
 	defer r.Close()
+	extracted := 0
 	for _, f := range r.File {
 		if f.FileInfo().IsDir() {
 			continue
@@ -131,10 +235,11 @@ func extractNativeBinaries(jarPath, destDir string) error {
 		}
 		outPath := filepath.Join(destDir, base)
 		if err := extractZipFile(f, outPath); err != nil {
-			return err
+			return extracted, err
 		}
+		extracted++
 	}
-	return nil
+	return extracted, nil
 }
 
 func isNativeBinary(name string) bool {

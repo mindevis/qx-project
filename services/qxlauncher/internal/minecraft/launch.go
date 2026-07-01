@@ -82,7 +82,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 	if librariesDir == "" {
 		librariesDir = filepath.Join(filepath.Dir(clientJar), "libraries")
 	}
-	subs := launchSubstitutions(manifest, gameDir, assetsDir, librariesDir, username, offlineUUID, licensed)
+	subs := launchSubstitutions(manifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID, licensed)
 
 	var args []string
 	if len(manifest.JVMArguments) > 0 {
@@ -164,7 +164,10 @@ func launchPathSlash(path string) string {
 	return strings.ReplaceAll(path, "\\", "/")
 }
 
-func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, username, offlineUUID string, licensed *LaunchAuth) map[string]string {
+func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID string, licensed *LaunchAuth) map[string]string {
+	if nativesDir == "" {
+		nativesDir = filepath.Join(gameDir, "natives")
+	}
 	versionName := ""
 	assetIndex := ""
 	if manifest != nil {
@@ -203,7 +206,7 @@ func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, a
 		"${auth_xuid}":              "",
 		"${library_directory}":      launchPathSlash(librariesDir),
 		"${classpath_separator}":    sep,
-		"${natives_directory}":      launchPathSlash(filepath.Join(gameDir, "natives")),
+		"${natives_directory}":      launchPathSlash(nativesDir),
 		"${resolution_width}":       "854",
 		"${resolution_height}":      "480",
 		"${quickPlayPath}":          "",

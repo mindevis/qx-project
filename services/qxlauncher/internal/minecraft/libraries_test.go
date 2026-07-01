@@ -93,6 +93,56 @@ func TestEnsureNativesExtract(t *testing.T) {
 	}
 }
 
+func TestEnsureNativesNamedArtifact(t *testing.T) {
+	classifier := nativeClassifier()
+	dir := t.TempDir()
+	nativeJar := filepath.Join(dir, "native.jar")
+	f, err := os.Create(nativeJar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	w, _ := zw.Create("lwjgl.dll")
+	_, _ = w.Write([]byte("native"))
+	_ = zw.Close()
+	_ = f.Close()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := os.ReadFile(nativeJar)
+		_, _ = w.Write(b)
+	}))
+	t.Cleanup(srv.Close)
+
+	manifest := &mcmanifest.InstanceLaunchManifest{
+		InstanceID: "inst-1",
+		Libraries: []mcmanifest.Library{
+			{
+				Name: "org.lwjgl:lwjgl:3.3.1:" + classifier,
+				Downloads: &mcmanifest.LibraryDownloads{
+					Artifact: &mcmanifest.DownloadFile{URL: srv.URL, Sha1: ""},
+				},
+			},
+		},
+	}
+	dl := NewDownloader(dir)
+	nativesDir, err := dl.EnsureNatives(context.Background(), manifest)
+	if err != nil {
+		t.Fatalf("natives: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(nativesDir, "lwjgl.dll")); err != nil {
+		t.Fatalf("missing lwjgl.dll: %v", err)
+	}
+}
+
+func TestIsNamedNativeLibrary(t *testing.T) {
+	if !isNamedNativeLibrary("org.lwjgl:lwjgl:3.3.1:natives-windows") {
+		t.Fatal("expected native library name")
+	}
+	if isNamedNativeLibrary("org.lwjgl:lwjgl:3.3.1") {
+		t.Fatal("expected non-native library name")
+	}
+}
+
 func TestIsNativeBinary(t *testing.T) {
 	if !isNativeBinary("x.dll") || isNativeBinary("readme.txt") {
 		t.Fatal("native binary filter")
