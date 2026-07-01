@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Button,
   Drawer,
   Empty,
@@ -56,6 +57,7 @@ export function InstanceResourcesPanel({
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [curseforgeEnabled, setCurseforgeEnabled] = useState(false);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -68,11 +70,14 @@ export function InstanceResourcesPanel({
 
   const modded = isModdedLauncherLoader(instance.loader);
   const isSearchMode = appliedSearch.trim().length > 0;
+  const showCurseforgeUnavailable =
+    sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled && !isSearchMode;
 
   useEffect(() => {
     if (!modded) return;
 
     let cancelled = false;
+    setCatalogLoaded(false);
 
     void (async () => {
       setLoading(true);
@@ -124,6 +129,7 @@ export function InstanceResourcesPanel({
       } finally {
         if (!cancelled) {
           setLoading(false);
+          setCatalogLoaded(true);
         }
       }
     })();
@@ -240,6 +246,8 @@ export function InstanceResourcesPanel({
         <div className="qxmods-loading">
           <Spin />
         </div>
+      ) : showCurseforgeUnavailable ? (
+        <Alert type="warning" showIcon message={t('qxmods.curseforgeDisabled')} />
       ) : items.length === 0 ? (
         <Empty description={isSearchMode ? t('qxmods.empty') : t('qxmods.catalogEmpty')} />
       ) : (

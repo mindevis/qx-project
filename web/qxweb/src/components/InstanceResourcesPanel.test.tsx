@@ -98,6 +98,25 @@ describe('InstanceResourcesPanel', () => {
     );
   });
 
+  it('shows curseforge warning when curseforge source selected without api key', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(api.browseMods).mockResolvedValue({
+      items: [],
+      has_more: false,
+      curseforge_enabled: false,
+    });
+    renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
+    await waitFor(() => expect(api.browseMods).toHaveBeenCalled());
+
+    await user.click(screen.getAllByRole('combobox')[0]);
+    await user.click(screen.getByText('CurseForge'));
+
+    await waitFor(() =>
+      expect(screen.getAllByText(/CurseForge отключён/).length).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText('В каталоге нет элементов для выбранных фильтров')).not.toBeInTheDocument();
+  });
+
   it('shows instance loader and mc version filter context', async () => {
     renderWithTheme(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
     await waitFor(() =>

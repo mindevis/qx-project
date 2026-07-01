@@ -61,6 +61,10 @@ func (h *ModsHandler) Browse(c *gin.Context) {
 		offset,
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "not configured") {
+			JSONError(c, http.StatusServiceUnavailable, "SOURCE_UNAVAILABLE", err.Error())
+			return
+		}
 		JSONError(c, http.StatusBadGateway, "UPSTREAM_UNAVAILABLE", err.Error())
 		return
 	}

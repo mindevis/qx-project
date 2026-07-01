@@ -463,7 +463,7 @@ async function request<T>(
     } else {
       logger.warn('API request failed', details);
     }
-    if (isBackendUnavailableStatus(res.status)) {
+    if (isBackendUnavailableStatus(res.status) && apiCode !== 'SOURCE_UNAVAILABLE') {
       throwBackendUnavailable();
     }
     throw new ApiRequestError(message, undefined, apiCode);

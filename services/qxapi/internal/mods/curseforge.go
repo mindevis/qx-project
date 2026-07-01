@@ -19,6 +19,14 @@ const (
 type curseForgeClient struct {
 	httpClient *http.Client
 	apiKey     string
+	apiBase    string // test override; empty uses curseForgeAPIBase
+}
+
+func (c *curseForgeClient) baseURL() string {
+	if strings.TrimSpace(c.apiBase) != "" {
+		return strings.TrimRight(c.apiBase, "/")
+	}
+	return curseForgeAPIBase
 }
 
 type curseForgeSearchResponse struct {
@@ -241,7 +249,7 @@ func (c *curseForgeClient) fileDownloadURL(ctx context.Context, projectID, fileI
 }
 
 func (c *curseForgeClient) getJSON(ctx context.Context, path string, dest any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, curseForgeAPIBase+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL()+path, nil)
 	if err != nil {
 		return err
 	}
@@ -262,11 +270,11 @@ func (c *curseForgeClient) getJSON(ctx context.Context, path string, dest any) e
 func curseForgeSortParams(sort string) (field, order string) {
 	switch strings.ToLower(strings.TrimSpace(sort)) {
 	case "newest", "updated":
-		return "3", "2"
+		return "3", "desc"
 	case "relevance":
-		return "2", "2"
+		return "2", "desc"
 	default:
-		return "6", "2"
+		return "6", "desc"
 	}
 }
 
@@ -284,15 +292,16 @@ func curseForgeClassID(projectType string) int {
 }
 
 func curseForgeLoaderType(loader string) string {
+	// CurseForge ModLoaderType enum: 1=Forge, 4=Fabric, 5=Quilt, 6=NeoForge (requires gameVersion).
 	switch strings.ToLower(loader) {
 	case "forge":
-		return "Forge"
+		return "1"
 	case "neoforge":
-		return "NeoForge"
+		return "6"
 	case "fabric":
-		return "Fabric"
+		return "4"
 	case "quilt":
-		return "Quilt"
+		return "5"
 	default:
 		return ""
 	}
@@ -302,11 +311,11 @@ func curseForgeLoaderName(code int) string {
 	switch code {
 	case 1:
 		return "forge"
-	case 2:
-		return "fabric"
-	case 3:
-		return "quilt"
 	case 4:
+		return "fabric"
+	case 5:
+		return "quilt"
+	case 6:
 		return "neoforge"
 	default:
 		return ""

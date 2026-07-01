@@ -36,6 +36,22 @@ func TestModsHandlerSearch(t *testing.T) {
 	}
 }
 
+func TestModsHandlerBrowseCurseForgeUnavailable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := &ModsHandler{Service: mods.NewService(mods.Config{})}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/mods/browse?source=curseforge&type=mod&loader=forge&mc_version=1.20.1", nil)
+	h.Browse(c)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "SOURCE_UNAVAILABLE") {
+		t.Fatalf("expected SOURCE_UNAVAILABLE: %s", w.Body.String())
+	}
+}
+
 func TestModsHandlerBrowseSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := &ModsHandler{

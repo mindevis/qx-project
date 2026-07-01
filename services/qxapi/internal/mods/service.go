@@ -100,6 +100,9 @@ func (s *Service) Browse(ctx context.Context, projectType, loader, mcVersion, so
 	)
 	switch source {
 	case SourceCurseForge:
+		if !s.curseforge.enabled() {
+			return nil, false, fmt.Errorf("curseforge api key not configured")
+		}
 		items, err = s.curseforge.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
 	case SourceModrinth:
 		items, err = s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
