@@ -917,7 +917,8 @@ export const ru = {
     sync: {
       title: 'Синхронизация с сервером',
       action: 'Синхронизировать',
-      withServer: 'Синхронизация с сервером',
+      withServer: 'Синхронизировать с сервером',
+      panelTitle: 'Синхронизация с сервером',
       panelAria: 'Синхронизация модов с игровым сервером',
       panelHint: 'Выберите свой game server и отправьте недостающие моды с этого ПК на сервер.',
       serverPlaceholder: 'Выберите game server…',

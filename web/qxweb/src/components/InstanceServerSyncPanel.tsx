@@ -193,7 +193,7 @@ export function InstanceServerSyncPanel({ items }: InstanceServerSyncPanelProps)
       <div className="instance-server-sync-head">
         <div>
           <Text strong className="instance-server-sync-title">
-            {t('qxmods.sync.withServer')}
+            {t('qxmods.sync.panelTitle')}
           </Text>
           <Text type="secondary" className="instance-server-sync-hint">
             {t('qxmods.sync.panelHint')}

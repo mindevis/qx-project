@@ -919,7 +919,8 @@ export const en: Messages = {
     sync: {
       title: 'Sync to server',
       action: 'Synchronize',
-      withServer: 'Server sync',
+      withServer: 'Sync with server',
+      panelTitle: 'Server sync',
       panelAria: 'Sync mods to a game server',
       panelHint: 'Pick your game server and push missing mods from this PC to the server.',
       serverPlaceholder: 'Select game server…',

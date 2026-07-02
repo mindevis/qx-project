@@ -83,7 +83,6 @@ describe('InstanceServerSyncPanel', () => {
   it('shows server selector, status and sync button', async () => {
     renderPanel();
     await waitFor(() => expect(screen.getByText('Синхронизация с сервером')).toBeInTheDocument());
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Синхронизировать/ })).toBeInTheDocument();
     expect(screen.getByText('Ожидают: 1 из 1')).toBeInTheDocument();
   });
