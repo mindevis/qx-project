@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Modal } from 'antd';
 import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithProviders } from '@/test/test-utils';
@@ -32,6 +33,8 @@ describe('InstanceResourcesPanel', () => {
   });
 
   afterEach(() => {
+    Modal.destroyAll();
+    cleanup();
     vi.restoreAllMocks();
   });
 

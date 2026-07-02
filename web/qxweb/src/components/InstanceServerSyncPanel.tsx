@@ -63,23 +63,33 @@ export function InstanceServerSyncProvider({
     [items],
   );
 
-  const loadTargets = useCallback(async () => {
-    if (!canSync) {
-      setTargets([]);
-      return;
-    }
-    try {
-      const loaded = await loadGameServerSyncTargets(instance.loader, instance.mc_version);
-      setTargets(loaded);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : t('qxmods.sync.loadFailed'));
-      setTargets([]);
-    }
-  }, [canSync, instance.loader, instance.mc_version, message, t]);
-
   useEffect(() => {
-    void loadTargets();
-  }, [loadTargets]);
+    let cancelled = false;
+
+    void (async () => {
+      if (!canSync) {
+        if (!cancelled) {
+          setTargets([]);
+        }
+        return;
+      }
+      try {
+        const loaded = await loadGameServerSyncTargets(instance.loader, instance.mc_version);
+        if (!cancelled) {
+          setTargets(loaded);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          message.error(e instanceof Error ? e.message : t('qxmods.sync.loadFailed'));
+          setTargets([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canSync, instance.loader, instance.mc_version, message, t]);
 
   useEffect(() => {
     if (!canSync || syncableItems.length === 0) {
@@ -133,24 +143,19 @@ export function InstanceServerSyncProvider({
   );
 
   const refreshAllServerMods = useCallback(async () => {
-    setTargets((prev) => {
-      if (prev.length === 0) return prev;
-      void (async () => {
-        const refreshed = await Promise.all(
-          prev.map(async (target) => {
-            try {
-              const modsRes = await api.listVpsGameServerMods(target.vpsId, target.gameServer.id);
-              return { ...target, serverMods: modsRes.items ?? [] };
-            } catch {
-              return target;
-            }
-          }),
-        );
-        setTargets(refreshed);
-      })();
-      return prev;
-    });
-  }, []);
+    if (targets.length === 0) return;
+    const refreshed = await Promise.all(
+      targets.map(async (target) => {
+        try {
+          const modsRes = await api.listVpsGameServerMods(target.vpsId, target.gameServer.id);
+          return { ...target, serverMods: modsRes.items ?? [] };
+        } catch {
+          return target;
+        }
+      }),
+    );
+    setTargets(refreshed);
+  }, [targets]);
 
   const openSingleSync = useCallback(
     async (item: InstanceResource) => {
