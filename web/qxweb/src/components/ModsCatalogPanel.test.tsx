@@ -81,7 +81,10 @@ describe('ModsCatalogPanel', () => {
     );
     const icon = container.querySelector('img.qxmods-catalog-table-icon');
     expect(icon).toHaveAttribute('src', catalogItem.icon_url);
-    expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument();
+    await waitFor(() => expect(api.listModVersions).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument(),
+    );
   });
 
   it('runs search when query submitted', async () => {

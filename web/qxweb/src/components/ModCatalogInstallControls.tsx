@@ -63,7 +63,7 @@ export function ModCatalogInstallControls({
 
   const [versions, setVersions] = useState<ModVersion[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string>();
-  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [loadingVersions, setLoadingVersions] = useState(true);
   const [depsOpen, setDepsOpen] = useState(false);
   const [pendingVersion, setPendingVersion] = useState<ModVersion | null>(null);
   const [uninstalling, setUninstalling] = useState(false);
@@ -82,6 +82,7 @@ export function ModCatalogInstallControls({
     if (cached) {
       setVersions(cached);
       setSelectedVersionId((prev) => prev ?? cached[0]?.id);
+      setLoadingVersions(false);
       return;
     }
     setLoadingVersions(true);
@@ -106,6 +107,7 @@ export function ModCatalogInstallControls({
   useEffect(() => {
     setVersions([]);
     setSelectedVersionId(undefined);
+    setLoadingVersions(true);
     void loadVersions();
   }, [loadVersions, source, projectId, loader, mcVersion]);
 

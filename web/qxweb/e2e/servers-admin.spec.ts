@@ -28,7 +28,7 @@ test.describe('servers admin flow (Flow C web)', () => {
     await expect(page.getByRole('button', { name: 'Deploy agent' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Deploy agent' }).click();
-    await expect(page.getByText(/Deploy выполнен/)).toBeVisible();
+    await expect(agentStats.filter({ hasText: 'Развёрнут' })).toBeVisible({ timeout: 10_000 });
     await expect(agentStats.filter({ hasText: 'Онлайн' })).toBeVisible({ timeout: 10_000 });
 
     await expect(page.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
