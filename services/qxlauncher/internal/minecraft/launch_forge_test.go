@@ -77,8 +77,13 @@ func TestBuildLaunchPlanForgeDirectConnect(t *testing.T) {
 		"mc.example.com:25565",
 	)
 	joined := strings.Join(plan.Args, " ")
-	if !strings.Contains(joined, "--server mc.example.com") || !strings.Contains(joined, "--port 25565") {
-		t.Fatalf("forge direct connect missing: %s", joined)
+	if !strings.Contains(joined, "--quickPlayMultiplayer mc.example.com:25565") {
+		t.Fatalf("forge quick play connect missing: %s", joined)
+	}
+	idxQuick := strings.Index(joined, "--quickPlayMultiplayer")
+	idxLaunch := strings.Index(joined, "--launchTarget")
+	if idxQuick < 0 || idxLaunch < 0 || idxQuick > idxLaunch {
+		t.Fatalf("join args must precede --launchTarget: %s", joined)
 	}
 }
 

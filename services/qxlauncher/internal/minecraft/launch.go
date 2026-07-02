@@ -126,7 +126,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 			"--userType", userType,
 		)
 	}
-	args = appendJoinServerArgs(args, quickPlayMultiplayer, manifest)
+	args = applyJoinServerArgs(args, quickPlayMultiplayer, manifest)
 	if javaBin == "" {
 		javaBin = ResolveJavaBin("")
 	}
@@ -310,13 +310,86 @@ func splitQuickPlayHostPort(addrPort string) (host, port string) {
 	return addrPort, "25565"
 }
 
-func usesLegacyDirectConnect(loader string) bool {
-	switch mcmanifest.NormalizeLoader(loader) {
-	case mcmanifest.LoaderForge, mcmanifest.LoaderNeoForge:
-		return true
-	default:
-		return false
+func buildJoinServerArgPairs(quickPlayMultiplayer string, manifest *mcmanifest.InstanceLaunchManifest) []string {
+	if quickPlayMultiplayer == "" {
+		return nil
 	}
+	mcVersion := ""
+	if manifest != nil {
+		mcVersion = manifest.MCVersion
+	}
+	if mcVersionSupportsQuickPlay(mcVersion) {
+		return []string{"--quickPlayMultiplayer", quickPlayMultiplayer}
+	}
+	host, port := splitQuickPlayHostPort(quickPlayMultiplayer)
+	if port == "" {
+		port = "25565"
+	}
+	return []string{"--server", host, "--port", port}
+}
+
+func applyJoinServerArgs(args []string, quickPlayMultiplayer string, manifest *mcmanifest.InstanceLaunchManifest) []string {
+	if quickPlayMultiplayer == "" || launchArgsContainJoin(args) {
+		return args
+	}
+	join := buildJoinServerArgPairs(quickPlayMultiplayer, manifest)
+	if len(join) == 0 {
+		return args
+	}
+	for i, arg := range args {
+		if arg == "--launchTarget" {
+			out := make([]string, 0, len(args)+len(join))
+			out = append(out, args[:i]...)
+			out = append(out, join...)
+			out = append(out, args[i:]...)
+			return out
+		}
+	}
+	return append(args, join...)
+}
+
+// NormalizeJoinEndpoint splits host:port when address already includes a port.
+func NormalizeJoinEndpoint(address string, port int) (host string, normalizedPort int) {
+	address = strings.TrimSpace(address)
+	if address == "" {
+		if port > 0 {
+			return "", port
+		}
+		return "", 25565
+	}
+	if strings.HasPrefix(address, "[") {
+		if i := strings.LastIndex(address, "]:"); i >= 0 {
+			hostPart := address[:i+1]
+			portPart := strings.TrimSpace(address[i+2:])
+			if p, err := strconv.Atoi(portPart); err == nil && p > 0 {
+				return hostPart, p
+			}
+			return hostPart, defaultJoinPort(port)
+		}
+	}
+	if i := strings.LastIndex(address, ":"); i > 0 {
+		hostPart := address[:i]
+		portPart := strings.TrimSpace(address[i+1:])
+		if p, err := strconv.Atoi(portPart); err == nil && p > 0 {
+			return hostPart, p
+		}
+	}
+	return address, defaultJoinPort(port)
+}
+
+func defaultJoinPort(port int) int {
+	if port > 0 {
+		return port
+	}
+	return 25565
+}
+
+func JoinServerQuickPlayValue(address string, port int) string {
+	host, normalizedPort := NormalizeJoinEndpoint(address, port)
+	if host == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s:%d", host, normalizedPort)
 }
 
 func mcVersionSupportsQuickPlay(mcVersion string) bool {
@@ -334,31 +407,4 @@ func mcVersionSupportsQuickPlay(mcVersion string) bool {
 		return false
 	}
 	return major > 1 || (major == 1 && minor >= 20)
-}
-
-func appendJoinServerArgs(args []string, quickPlayMultiplayer string, manifest *mcmanifest.InstanceLaunchManifest) []string {
-	if quickPlayMultiplayer == "" || launchArgsContainJoin(args) {
-		return args
-	}
-	loader := ""
-	mcVersion := ""
-	if manifest != nil {
-		loader = manifest.Loader
-		mcVersion = manifest.MCVersion
-	}
-	if usesLegacyDirectConnect(loader) {
-		host, port := splitQuickPlayHostPort(quickPlayMultiplayer)
-		if port == "" {
-			port = "25565"
-		}
-		return append(args, "--server", host, "--port", port)
-	}
-	if mcVersionSupportsQuickPlay(mcVersion) {
-		return append(args, "--quickPlayMultiplayer", quickPlayMultiplayer)
-	}
-	host, port := splitQuickPlayHostPort(quickPlayMultiplayer)
-	if port == "" {
-		port = "25565"
-	}
-	return append(args, "--server", host, "--port", port)
 }

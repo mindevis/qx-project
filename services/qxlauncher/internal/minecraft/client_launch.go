@@ -123,14 +123,7 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		return nil, fmt.Errorf("player skin: %w", err)
 	}
 
-	quickPlayMultiplayer := ""
-	if addr := strings.TrimSpace(in.JoinServerAddress); addr != "" {
-		port := in.JoinServerPort
-		if port <= 0 {
-			port = 25565
-		}
-		quickPlayMultiplayer = fmt.Sprintf("%s:%d", addr, port)
-	}
+	quickPlayMultiplayer := JoinServerQuickPlayValue(in.JoinServerAddress, in.JoinServerPort)
 
 	plan := BuildLaunchPlan(
 		in.Manifest,

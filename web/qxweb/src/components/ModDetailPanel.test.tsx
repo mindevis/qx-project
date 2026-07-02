@@ -96,9 +96,11 @@ describe('ModDetailPanel', () => {
     renderDetail();
     await waitFor(() => expect(screen.getByRole('heading', { name: /Sodium/ })).toBeInTheDocument());
     expect(screen.getByText('Performance mod')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument();
+    await waitFor(() => expect(api.listModVersions).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument(),
+    );
     expect(api.getModProject).toHaveBeenCalledWith('modrinth', 'sodium');
-    expect(api.listModVersions).toHaveBeenCalled();
   });
 
   it('installs selected version and opens server sync modal', async () => {

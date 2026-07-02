@@ -284,6 +284,9 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 	if item.JoinServerPort != nil {
 		joinPort = *item.JoinServerPort
 	}
+	if joinAddr != "" {
+		slog.Info("launch join server", "address", joinAddr, "port", joinPort)
+	}
 
 	ready, err := dl.PrepareClientLaunch(ctx, minecraft.ClientLaunchInput{
 		Manifest:          manifest,
