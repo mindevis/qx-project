@@ -55,6 +55,7 @@ type createInstanceRequest struct {
 }
 
 type updateInstanceRequest struct {
+	Name         *string   `json:"name"`
 	MaxMemoryMB  *int      `json:"max_memory_mb"`
 	MinMemoryMB  *int      `json:"min_memory_mb"`
 	ExtraJVMArgs *[]string `json:"extra_jvm_args"`
@@ -63,7 +64,7 @@ type updateInstanceRequest struct {
 }
 
 func hasInstanceUpdateFields(req updateInstanceRequest) bool {
-	return req.MaxMemoryMB != nil || req.MinMemoryMB != nil || req.ExtraJVMArgs != nil ||
+	return req.Name != nil || req.MaxMemoryMB != nil || req.MinMemoryMB != nil || req.ExtraJVMArgs != nil ||
 		req.WindowWidth != nil || req.WindowHeight != nil
 }
 
@@ -147,6 +148,7 @@ func (h *InstancesHandler) Update(c *gin.Context) {
 		return
 	}
 	inst, err := h.Service.UpdateInstance(c.Request.Context(), owner, c.Param("id"), launcher.UpdateInstanceInput{
+		Name:         req.Name,
 		MaxMemoryMB:  req.MaxMemoryMB,
 		MinMemoryMB:  req.MinMemoryMB,
 		ExtraJVMArgs: req.ExtraJVMArgs,
@@ -208,7 +210,7 @@ func (h *InstancesHandler) DeleteResource(c *gin.Context) {
 		JSONValidation(c, "project_id or filename required")
 		return
 	}
-	err := h.Service.DeleteInstanceResource(c.Request.Context(), owner, c.Param("id"), launcher.DeleteInstanceResourceInput{
+	err := h.Service.DeleteInstanceResourceWithBridge(c.Request.Context(), owner, c.Param("id"), launcher.DeleteInstanceResourceInput{
 		Source:       req.Source,
 		ProjectID:    req.ProjectID,
 		Filename:     req.Filename,
@@ -221,6 +223,14 @@ func (h *InstancesHandler) DeleteResource(c *gin.Context) {
 		}
 		if errors.Is(err, launcher.ErrValidation) {
 			JSONValidation(c, "invalid resource data")
+			return
+		}
+		if errors.Is(err, launcher.ErrDeviceNotLinked) {
+			JSONError(c, http.StatusForbidden, "FORBIDDEN", "device not linked to account")
+			return
+		}
+		if errors.Is(err, launcher.ErrBridgeTimeout) {
+			JSONError(c, http.StatusGatewayTimeout, "LAUNCHER_TIMEOUT", "launcher did not respond in time")
 			return
 		}
 		JSONInternal(c)

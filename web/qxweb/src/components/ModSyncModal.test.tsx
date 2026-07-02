@@ -79,7 +79,7 @@ describe('ModSyncModal', () => {
     );
   });
 
-  it('queues sync to selected game server and shows inline feedback', async () => {
+  it('queues sync to selected game server and closes modal', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup({ delay: null });
     renderWithTheme(
@@ -88,12 +88,65 @@ describe('ModSyncModal', () => {
 
     await waitFor(() => expect(screen.getByText('Forge')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Синхронизировать' }));
-    await waitFor(() => expect(api.syncModToGameServer).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(screen.getByText('Синхронизация поставлена в очередь')).toBeInTheDocument(),
-    );
-    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => expect(api.syncModToGameServer).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(Modal.confirm).toHaveBeenCalled();
+  });
+
+  it('syncs installed required dependencies with the main mod', async () => {
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({
+      id: 'ver-1',
+      version_number: '0.5.0',
+      files: [{ filename: 'sodium-0.5.0.jar', url: 'https://example/mod.jar' }],
+      dependencies: [
+        {
+          source: 'modrinth',
+          project_id: 'dep-1',
+          project_name: 'Fabric API',
+          dependency_type: 'required',
+          version_id: 'dep-ver',
+          filename: 'fabric-api.jar',
+          download_url: 'https://example/dep.jar',
+        },
+      ],
+    });
+    const onClose = vi.fn();
+    const user = userEvent.setup({ delay: null });
+    renderWithTheme(
+      <ModSyncModal
+        open
+        selection={selection}
+        instanceLoader="forge"
+        installedResources={[
+          {
+            source: 'modrinth',
+            project_id: 'dep-1',
+            project_name: 'Fabric API',
+            version_id: 'dep-ver',
+            filename: 'fabric-api.jar',
+            resource_type: 'mod',
+            installed_at: 'now',
+          },
+        ]}
+        onClose={onClose}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Forge')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Синхронизировать' }));
+    await waitFor(() => expect(api.syncModToGameServer).toHaveBeenCalledTimes(2));
+    expect(api.syncModToGameServer).toHaveBeenNthCalledWith(
+      1,
+      'vps-1',
+      'gs-1',
+      expect.objectContaining({ project_id: 'dep-1' }),
+    );
+    expect(api.syncModToGameServer).toHaveBeenNthCalledWith(
+      2,
+      'vps-1',
+      'gs-1',
+      expect.objectContaining({ project_id: 'proj-1' }),
+    );
   });
 
   it('restarts server when user confirms after sync', async () => {

@@ -168,10 +168,23 @@ html[data-theme='dark'] .instance-resources-panel {
   min-width: 120px;
 }
 
+.launcher-resources-page--catalog .launcher-resources-hero-inner,
+.launcher-resources-body--catalog {
+  max-width: 1280px;
+}
+
+.qxmods-catalog-page .qxmods-catalog-table {
+  width: 100%;
+}
+
+.qxmods-catalog-page .qxmods-catalog-table .ant-table {
+  width: 100%;
+}
+
 .qxmods-install-version-select--table {
-  flex: 1 1 120px;
+  flex: 1 1 140px;
   min-width: 110px;
-  max-width: 160px;
+  max-width: 220px;
 }
 
 .qxmods-install-version-select--detail {

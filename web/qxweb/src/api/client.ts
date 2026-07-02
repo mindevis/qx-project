@@ -699,6 +699,7 @@ export const api = {
   updateInstance: (
     id: string,
     body: {
+      name?: string;
       max_memory_mb?: number;
       min_memory_mb?: number;
       extra_jvm_args?: string[];
@@ -732,6 +733,66 @@ export const api = {
       { method: 'DELETE', body: JSON.stringify(body) },
       'launcher',
     ),
+
+  listInstanceFiles: (instanceId: string, path = '') =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/instances/${encodeURIComponent(instanceId)}/files?path=${encodeURIComponent(path)}`,
+      { method: 'GET' },
+      'launcher',
+    ),
+
+  readInstanceFile: (instanceId: string, path: string) =>
+    request<GameServerFileContent>(
+      `/instances/${encodeURIComponent(instanceId)}/files/content?path=${encodeURIComponent(path)}`,
+      { method: 'GET' },
+      'launcher',
+    ),
+
+  writeInstanceFile: (instanceId: string, path: string, content: string) =>
+    request<{ status: string }>(
+      `/instances/${encodeURIComponent(instanceId)}/files/content?path=${encodeURIComponent(path)}`,
+      { method: 'PUT', body: JSON.stringify({ content }) },
+      'launcher',
+    ),
+
+  uploadInstanceResource: async (instanceId: string, file: File, resourceType?: ModProjectType) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (resourceType) form.append('resource_type', resourceType);
+    const headers = new Headers();
+    const tokens = loadTokens();
+    if (tokens?.access_token) {
+      headers.set('Authorization', `Bearer ${tokens.access_token}`);
+    }
+    const res = await fetch(
+      `${API_BASE}/instances/${encodeURIComponent(instanceId)}/resources/upload`,
+      { method: 'POST', headers, body: form },
+    );
+    if (!res.ok) {
+      const err = (await res.json().catch(() => null)) as ApiError | null;
+      throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+    }
+    return (await res.json()) as { id: string; status: string; filename: string; resource_type: string };
+  },
+
+  uploadGameServerMod: async (vpsId: string, gameServerId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const headers = new Headers();
+    const tokens = loadTokens();
+    if (tokens?.access_token) {
+      headers.set('Authorization', `Bearer ${tokens.access_token}`);
+    }
+    const res = await fetch(
+      `${API_BASE}/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods/upload`,
+      { method: 'POST', headers, body: form },
+    );
+    if (!res.ok) {
+      const err = (await res.json().catch(() => null)) as ApiError | null;
+      throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+    }
+    return (await res.json()) as { status: string; filename: string; path?: string };
+  },
 
   createModInstallRequest: (body: {
     instance_id: string;

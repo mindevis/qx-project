@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -557,6 +558,36 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		return &protocol.Envelope{
 			V:         protocol.Version,
 			Type:      protocol.TypeResServerContentInstall,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerContentUpload:
+		var payload protocol.ServerContentUploadPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		data, decErr := base64.StdEncoding.DecodeString(payload.ContentB64)
+		var relPath string
+		var err error
+		if decErr == nil {
+			relPath, err = fs.UploadContentFile(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.Filename, data)
+		} else {
+			err = decErr
+		}
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerContentUploadResult{
+				Status:   "uploaded",
+				RelPath:  relPath,
+				Filename: payload.Filename,
+			})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerContentUpload,
 			RequestID: env.RequestID,
 			TS:        ts,
 			Payload:   resPayload,

@@ -173,24 +173,32 @@ export function ModInstallDepsModal({
                 {t('qxmods.deps.optional')}
               </Text>
               <ul className="qxmods-deps-list">
-                {optional.map((dep) => (
-                  <li key={`${dep.source}:${dep.project_id}`} className="qxmods-deps-item">
-                    <Checkbox
-                      checked={optionalSelected.has(dep.project_id)}
-                      disabled={!dep.download_url || installedProjectIds.has(`${dep.source}:${dep.project_id}`)}
-                      onChange={(e) => {
-                        setOptionalSelected((prev) => {
-                          const next = new Set(prev);
-                          if (e.target.checked) next.add(dep.project_id);
-                          else next.delete(dep.project_id);
-                          return next;
-                        });
-                      }}
-                    >
-                      {dep.project_name ?? dep.project_id}
-                    </Checkbox>
-                  </li>
-                ))}
+                {optional.map((dep) => {
+                  const installed = dep.project_id
+                    ? installedProjectIds.has(`${dep.source}:${dep.project_id}`)
+                    : false;
+                  return (
+                    <li key={`${dep.source}:${dep.project_id}`} className="qxmods-deps-item">
+                      <Checkbox
+                        checked={installed || optionalSelected.has(dep.project_id)}
+                        disabled={installed || !dep.download_url}
+                        onChange={(e) => {
+                          setOptionalSelected((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add(dep.project_id);
+                            else next.delete(dep.project_id);
+                            return next;
+                          });
+                        }}
+                      >
+                        {dep.project_name ?? dep.project_id}{' '}
+                        {installed ? (
+                          <Text type="success">({t('qxmods.deps.installed')})</Text>
+                        ) : null}
+                      </Checkbox>
+                    </li>
+                  );
+                })}
               </ul>
             </>
           ) : null}

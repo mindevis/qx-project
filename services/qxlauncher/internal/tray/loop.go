@@ -2,6 +2,8 @@ package tray
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/qxproject/qx/pkg/protocol"
 	"github.com/qxproject/qx/services/qxlauncher/internal/apiclient"
 	"github.com/qxproject/qx/services/qxlauncher/internal/cache"
 	"github.com/qxproject/qx/services/qxlauncher/internal/config"
@@ -37,6 +40,9 @@ type Config struct {
 var activeLaunches sync.Map
 var activeUpdates sync.Map
 var activeModInstalls sync.Map
+var activeInstanceFiles sync.Map
+var activeModUninstalls sync.Map
+var activeResourceUploads sync.Map
 
 func RunLoop(ctx context.Context, cfg Config) {
 	if cfg.LaunchPoll <= 0 {
@@ -139,6 +145,63 @@ func RunLoop(ctx context.Context, cfg Config) {
 					}(modItem)
 				}
 			}
+
+			fileItem, fileErr := api.FetchPendingInstanceFile(ctx)
+			if fileErr != nil {
+				if apiclient.IsUnauthorized(fileErr) {
+					tryRefreshDeviceToken(ctx, api, cfg, fileErr)
+					fileItem, fileErr = api.FetchPendingInstanceFile(ctx)
+				}
+				if fileErr != nil {
+					logAPIFailure("instance file poll failed", fileErr)
+				}
+			}
+			if fileErr == nil && fileItem != nil {
+				if _, loaded := activeInstanceFiles.LoadOrStore(fileItem.ID, true); !loaded {
+					go func(item *apiclient.InstanceFileRequestItem) {
+						defer activeInstanceFiles.Delete(item.ID)
+						executeInstanceFile(context.Background(), api, downloader, item)
+					}(fileItem)
+				}
+			}
+
+			uninstallItem, uninstallErr := api.FetchPendingModUninstall(ctx)
+			if uninstallErr != nil {
+				if apiclient.IsUnauthorized(uninstallErr) {
+					tryRefreshDeviceToken(ctx, api, cfg, uninstallErr)
+					uninstallItem, uninstallErr = api.FetchPendingModUninstall(ctx)
+				}
+				if uninstallErr != nil {
+					logAPIFailure("mod uninstall poll failed", uninstallErr)
+				}
+			}
+			if uninstallErr == nil && uninstallItem != nil {
+				if _, loaded := activeModUninstalls.LoadOrStore(uninstallItem.ID, true); !loaded {
+					go func(item *apiclient.ModUninstallRequestItem) {
+						defer activeModUninstalls.Delete(item.ID)
+						executeModUninstall(context.Background(), api, downloader, item)
+					}(uninstallItem)
+				}
+			}
+
+			uploadItem, uploadErr := api.FetchPendingResourceUpload(ctx)
+			if uploadErr != nil {
+				if apiclient.IsUnauthorized(uploadErr) {
+					tryRefreshDeviceToken(ctx, api, cfg, uploadErr)
+					uploadItem, uploadErr = api.FetchPendingResourceUpload(ctx)
+				}
+				if uploadErr != nil {
+					logAPIFailure("resource upload poll failed", uploadErr)
+				}
+			}
+			if uploadErr == nil && uploadItem != nil {
+				if _, loaded := activeResourceUploads.LoadOrStore(uploadItem.ID, true); !loaded {
+					go func(item *apiclient.ResourceUploadRequestItem) {
+						defer activeResourceUploads.Delete(item.ID)
+						executeResourceUpload(context.Background(), api, downloader, item)
+					}(uploadItem)
+				}
+			}
 		}
 	}
 }
@@ -180,6 +243,68 @@ func executeModInstall(ctx context.Context, api *apiclient.Client, dl *minecraft
 		return
 	}
 	_ = api.CompleteModInstall(ctx, item.ID, "completed", "")
+}
+
+func executeInstanceFile(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.InstanceFileRequestItem) {
+	switch item.Operation {
+	case "list":
+		entries, err := dl.ListInstanceDir(item.InstanceID, item.Path)
+		if err != nil {
+			slog.Error("instance file list failed", "instance", item.InstanceID, "err", err)
+			_ = api.CompleteInstanceFile(ctx, item.ID, "failed", "", "FILE_LIST_FAILED")
+			return
+		}
+		raw, _ := json.Marshal(protocol.InstanceFilesListResult{Entries: entries})
+		_ = api.CompleteInstanceFile(ctx, item.ID, "completed", string(raw), "")
+	case "read":
+		content, size, err := dl.ReadInstanceFile(item.InstanceID, item.Path)
+		if err != nil {
+			slog.Error("instance file read failed", "instance", item.InstanceID, "path", item.Path, "err", err)
+			_ = api.CompleteInstanceFile(ctx, item.ID, "failed", "", "FILE_READ_FAILED")
+			return
+		}
+		raw, _ := json.Marshal(protocol.InstanceFilesReadResult{
+			Path:    item.Path,
+			Content: content,
+			Size:    size,
+		})
+		_ = api.CompleteInstanceFile(ctx, item.ID, "completed", string(raw), "")
+	case "write":
+		if err := dl.WriteInstanceFile(item.InstanceID, item.Path, item.WriteContent); err != nil {
+			slog.Error("instance file write failed", "instance", item.InstanceID, "path", item.Path, "err", err)
+			_ = api.CompleteInstanceFile(ctx, item.ID, "failed", "", "FILE_WRITE_FAILED")
+			return
+		}
+		_ = api.CompleteInstanceFile(ctx, item.ID, "completed", `{"status":"ok"}`, "")
+	default:
+		_ = api.CompleteInstanceFile(ctx, item.ID, "failed", "", "UNKNOWN_OPERATION")
+	}
+}
+
+func executeModUninstall(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.ModUninstallRequestItem) {
+	folder := modInstallFolder(item.ResourceType)
+	if err := dl.RemoveInstanceResourceFile(item.InstanceID, folder, item.Filename); err != nil {
+		slog.Error("mod uninstall failed", "instance", item.InstanceID, "file", item.Filename, "err", err)
+		_ = api.CompleteModUninstall(ctx, item.ID, "failed", "UNINSTALL_FAILED")
+		return
+	}
+	_ = api.CompleteModUninstall(ctx, item.ID, "completed", "")
+}
+
+func executeResourceUpload(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.ResourceUploadRequestItem) {
+	data, err := base64.StdEncoding.DecodeString(item.ContentB64)
+	if err != nil {
+		slog.Error("resource upload decode failed", "err", err)
+		_ = api.CompleteResourceUpload(ctx, item.ID, "failed", "UPLOAD_DECODE_FAILED")
+		return
+	}
+	folder := modInstallFolder(item.ResourceType)
+	if err := dl.WriteInstanceResourceFile(item.InstanceID, folder, item.Filename, data); err != nil {
+		slog.Error("resource upload write failed", "instance", item.InstanceID, "file", item.Filename, "err", err)
+		_ = api.CompleteResourceUpload(ctx, item.ID, "failed", "UPLOAD_FAILED")
+		return
+	}
+	_ = api.CompleteResourceUpload(ctx, item.ID, "completed", "")
 }
 
 func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, cfg Config, item *apiclient.LaunchRequestItem) {

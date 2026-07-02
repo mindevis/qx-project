@@ -123,6 +123,22 @@ func TestCurseForgeClassIDDatapack(t *testing.T) {
 	}
 }
 
+func TestCurseForgeSidesFromGameVersions(t *testing.T) {
+	t.Parallel()
+	client, server := curseForgeSidesFromGameVersions([]string{"Client", "1.20.1", "Forge", "Server"})
+	if client != "required" || server != "required" {
+		t.Fatalf("both sides: client=%q server=%q", client, server)
+	}
+	client, server = curseForgeSidesFromGameVersions([]string{"Client", "1.20.1"})
+	if client != "required" || server != "unsupported" {
+		t.Fatalf("client only: client=%q server=%q", client, server)
+	}
+	client, server = curseForgeSidesFromGameVersions([]string{"Server", "1.20.1"})
+	if client != "unsupported" || server != "required" {
+		t.Fatalf("server only: client=%q server=%q", client, server)
+	}
+}
+
 func TestCurseForgeGetVersionUsesInlineDependencies(t *testing.T) {
 	t.Parallel()
 	var gotPaths []string

@@ -1,11 +1,94 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildModSyncBodies,
   instanceResourceVersionKey,
   isInstanceResourceOnServer,
   isModOnServer,
   modSupportsServerSync,
   modSyncSide,
 } from './modSync';
+
+describe('buildModSyncBodies', () => {
+  it('includes installed required dependencies before the main mod', () => {
+    const bodies = buildModSyncBodies(
+      {
+        source: 'modrinth',
+        projectId: 'main-mod',
+        projectName: 'Main Mod',
+        version: {
+          id: 'main-ver',
+          version_number: '1.0.0',
+          files: [{ filename: 'main.jar', url: 'https://example/main.jar' }],
+        },
+      },
+      [
+        {
+          source: 'modrinth',
+          project_id: 'dep-mod',
+          project_name: 'Dep Mod',
+          version_id: 'dep-ver',
+          filename: 'dep.jar',
+          resource_type: 'mod',
+          installed_at: 'now',
+        },
+      ],
+      {
+        id: 'main-ver',
+        version_number: '1.0.0',
+        files: [{ filename: 'main.jar', url: 'https://example/main.jar' }],
+        dependencies: [
+          {
+            source: 'modrinth',
+            project_id: 'dep-mod',
+            project_name: 'Dep Mod',
+            dependency_type: 'required',
+            version_id: 'dep-ver',
+            filename: 'dep.jar',
+            download_url: 'https://example/dep.jar',
+          },
+        ],
+      },
+    );
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0].project_id).toBe('dep-mod');
+    expect(bodies[1].project_id).toBe('main-mod');
+  });
+
+  it('skips required dependencies that are not installed on the instance', () => {
+    const bodies = buildModSyncBodies(
+      {
+        source: 'modrinth',
+        projectId: 'main-mod',
+        projectName: 'Main Mod',
+        version: {
+          id: 'main-ver',
+          version_number: '1.0.0',
+          files: [{ filename: 'main.jar', url: 'https://example/main.jar' }],
+        },
+      },
+      [],
+      {
+        id: 'main-ver',
+        version_number: '1.0.0',
+        files: [{ filename: 'main.jar', url: 'https://example/main.jar' }],
+        dependencies: [
+          {
+            source: 'modrinth',
+            project_id: 'dep-mod',
+            dependency_type: 'required',
+            version_id: 'dep-ver',
+            filename: 'dep.jar',
+            download_url: 'https://example/dep.jar',
+          },
+        ],
+      },
+    );
+
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0].project_id).toBe('main-mod');
+  });
+});
 
 describe('modSyncSide', () => {
   it('detects server-side mods', () => {

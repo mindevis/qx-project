@@ -20,6 +20,7 @@ import {
   type ModProjectType,
   type ModSource,
   type ModVersion,
+  type InstanceResource,
 } from '@/api/client';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import {
@@ -27,6 +28,7 @@ import {
   clearModVersionCache,
 } from '@/components/ModCatalogInstallControls';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
+import { ModSideBadge } from '@/components/ModSideBadge';
 import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
@@ -60,27 +62,33 @@ export function ModsCatalogPanel() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [installedProjectIds, setInstalledProjectIds] = useState<Set<string>>(new Set());
+  const [installedResources, setInstalledResources] = useState<InstanceResource[]>([]);
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncSelection, setSyncSelection] = useState<ModSyncSelection | null>(null);
 
   const refreshInstalled = useCallback(async () => {
     try {
       const res = await api.listInstanceResources(instance.id);
+      const resources = res.items ?? [];
+      setInstalledResources(resources);
       setInstalledProjectIds(
         new Set(
-          (res.items ?? [])
+          resources
             .filter((r) => r.project_id)
             .map((r) => `${r.source}:${r.project_id}`),
         ),
       );
+      return resources;
     } catch {
+      setInstalledResources([]);
       setInstalledProjectIds(new Set());
+      return [];
     }
   }, [instance.id]);
 
   const handleInstalled = useCallback(
-    (item: ModCatalogItem, version: ModVersion) => {
-      void refreshInstalled();
+    async (item: ModCatalogItem, version: ModVersion) => {
+      await refreshInstalled();
       const projectType = item.project_type ?? activeTab;
       if (canSync && modSupportsServerSync(item) && projectType === 'mod') {
         setSyncSelection({
@@ -248,6 +256,7 @@ export function ModsCatalogPanel() {
           </Link>
           <div className="qxmods-catalog-name-meta">
             <ModSourceBadge source={item.source} />
+            {activeTab === 'mod' ? <ModSideBadge item={item} /> : null}
           </div>
         </div>
       ),
@@ -262,7 +271,7 @@ export function ModsCatalogPanel() {
     {
       title: t('qxmods.catalog.install'),
       key: 'install',
-      width: 300,
+      width: 360,
       className: 'qxmods-catalog-install-cell',
       render: (_, item) => (
         <ModCatalogInstallControls
@@ -385,7 +394,7 @@ export function ModsCatalogPanel() {
             columns={columns}
             dataSource={items}
             pagination={false}
-            scroll={{ x: 720 }}
+            tableLayout="fixed"
             locale={{ emptyText: isSearchMode ? t('qxmods.empty') : t('qxmods.catalogEmpty') }}
           />
           {!isSearchMode && hasMore ? (
@@ -406,6 +415,7 @@ export function ModsCatalogPanel() {
         selection={syncSelection}
         instanceLoader={instance.loader}
         instanceMcVersion={instance.mc_version}
+        installedResources={installedResources}
         onClose={() => setSyncOpen(false)}
       />
     </section>

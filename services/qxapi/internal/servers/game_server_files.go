@@ -2,6 +2,7 @@ package servers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -271,6 +272,48 @@ func (s *Service) InstallGameServerContent(
 	return &result, nil
 }
 
+func (s *Service) UploadGameServerContent(
+	ctx context.Context,
+	ownerID, vpsID, gameServerID, contentKind, filename string,
+	data []byte,
+) (*protocol.ServerContentUploadResult, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	filename = strings.TrimSpace(filename)
+	contentKind = strings.ToLower(strings.TrimSpace(contentKind))
+	if filename == "" || contentKind == "" || len(data) == 0 {
+		return nil, ErrValidation
+	}
+	if int64(len(data)) > 32*1024*1024 {
+		return nil, ErrValidation
+	}
+	if err := validateGameServerContentKind(item.ServerType, contentKind); err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.ServerContentUploadPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		ServerType:   item.ServerType,
+		ContentKind:  contentKind,
+		Filename:     filename,
+		ContentB64:   base64.StdEncoding.EncodeToString(data),
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerContentUpload, protocol.TypeResServerContentUpload, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerContentUploadResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 func validateGameServerContentKind(serverType, contentKind string) error {
 	switch contentKind {
 	case "mod":
@@ -373,7 +416,8 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerModsList,
 		protocol.TypeResServerPluginsList,
 		protocol.TypeResServerDatapacksList,
-		protocol.TypeResServerContentInstall:
+		protocol.TypeResServerContentInstall,
+		protocol.TypeResServerContentUpload:
 		return true
 	default:
 		return false

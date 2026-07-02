@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,6 +29,8 @@ var (
 	ErrManifest            = errors.New("manifest build failed")
 	ErrMojangSession       = errors.New("mojang session failed")
 	ErrMojangUnavailable   = errors.New("mojang auth unavailable")
+	ErrDeviceOffline       = errors.New("device offline")
+	ErrBridgeTimeout       = errors.New("launcher bridge timeout")
 )
 
 type mojangLauncher interface {
@@ -50,6 +53,9 @@ type Service struct {
 	manifest            ManifestProvider
 	mojang              mojangLauncher
 	cosmetics           *cosmetics.Service
+	pendingFileRPC      sync.Map
+	pendingUninstallRPC sync.Map
+	pendingUploadRPC    sync.Map
 }
 
 func NewService(db *gorm.DB, tokens *auth.TokenService, webBaseURL string) *Service {
@@ -358,11 +364,12 @@ func instanceLoaderVersion(inst models.LauncherInstance) string {
 }
 
 type UpdateInstanceInput struct {
-	MaxMemoryMB   *int
-	MinMemoryMB   *int
-	ExtraJVMArgs  *[]string
-	WindowWidth   *int
-	WindowHeight  *int
+	Name         *string
+	MaxMemoryMB  *int
+	MinMemoryMB  *int
+	ExtraJVMArgs *[]string
+	WindowWidth  *int
+	WindowHeight *int
 }
 
 const (
@@ -400,8 +407,15 @@ func (s *Service) UpdateInstance(ctx context.Context, owner Owner, instanceID st
 	if err != nil {
 		return nil, err
 	}
-	if in.MaxMemoryMB == nil && in.MinMemoryMB == nil && in.ExtraJVMArgs == nil && in.WindowWidth == nil && in.WindowHeight == nil {
+	if in.MaxMemoryMB == nil && in.MinMemoryMB == nil && in.ExtraJVMArgs == nil && in.WindowWidth == nil && in.WindowHeight == nil && in.Name == nil {
 		return nil, ErrValidation
+	}
+	if in.Name != nil {
+		name := strings.TrimSpace(*in.Name)
+		if name == "" || len(name) > 128 {
+			return nil, ErrValidation
+		}
+		inst.Name = name
 	}
 	if in.MinMemoryMB != nil {
 		if err := validateMemoryMB(*in.MinMemoryMB); err != nil {

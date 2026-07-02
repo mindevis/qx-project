@@ -12,6 +12,7 @@ import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useModInstall } from '@/hooks/useModInstall';
 import { formatModCatalogError } from '@/lib/modCatalogError';
+import { fetchModProjectIcons } from '@/lib/instanceResourceIcons';
 import { useMessage } from '@/hooks/useMessage';
 
 const versionCache = new Map<string, ModVersion[]>();
@@ -144,9 +145,15 @@ export function ModCatalogInstallControls({
   };
 
   const handleInstallConfirm = async (items: InstallItem[]) => {
+    const iconMap = await fetchModProjectIcons(
+      items.map((item) => ({ source: item.source, projectId: item.projectId })),
+    );
+    if (iconUrl) {
+      iconMap.set(projectKey, iconUrl);
+    }
     const enriched = items.map((item) => ({
       ...item,
-      iconUrl: item.projectId === projectId ? iconUrl : undefined,
+      iconUrl: iconMap.get(`${item.source}:${item.projectId}`),
       downloads: item.projectId === projectId ? downloads : undefined,
       fileSize: item.version.files[0]?.size,
     }));

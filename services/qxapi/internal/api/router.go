@@ -92,6 +92,9 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	profilesH := &ProfilesHandler{Service: launcherSvc}
 	launchH := &LaunchRequestsHandler{Service: launcherSvc, Tokens: tokens}
 	modInstallH := &ModInstallRequestsHandler{Service: launcherSvc, Tokens: tokens}
+	instanceFileH := &InstanceFileRequestsHandler{Service: launcherSvc}
+	modUninstallH := &ModUninstallRequestsHandler{Service: launcherSvc}
+	resourceUploadH := &ResourceUploadRequestsHandler{Service: launcherSvc}
 	updateH := &UpdateRequestsHandler{Service: launcherSvc}
 	releaseH := &ReleaseHandler{Service: launcherSvc}
 	mcVersionsH := &McVersionsHandler{}
@@ -181,6 +184,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.PATCH("/servers/:id/game-servers/:gameServerId/properties", gameServersH.PatchProperties)
 			authed.GET("/servers/:id/game-servers/:gameServerId/mods", gameServersH.ListMods)
 			authed.POST("/servers/:id/game-servers/:gameServerId/mods/sync", gameServersH.SyncMod)
+			authed.POST("/servers/:id/game-servers/:gameServerId/mods/upload", gameServersH.UploadMod)
 			authed.GET("/servers/:id/game-servers/:gameServerId/plugins", gameServersH.ListPlugins)
 			authed.POST("/servers/:id/game-servers/:gameServerId/plugins/sync", gameServersH.SyncPlugin)
 			authed.GET("/servers/:id/game-servers/:gameServerId/datapacks", gameServersH.ListDatapacks)
@@ -217,6 +221,10 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			launcherOwner.PATCH("/instances/:id", instancesH.Update)
 			launcherOwner.GET("/instances/:id/resources", instancesH.ListResources)
 			launcherOwner.DELETE("/instances/:id/resources", instancesH.DeleteResource)
+			launcherOwner.POST("/instances/:id/resources/upload", instancesH.UploadResource)
+			launcherOwner.GET("/instances/:id/files", instancesH.ListFiles)
+			launcherOwner.GET("/instances/:id/files/content", instancesH.ReadFile)
+			launcherOwner.PUT("/instances/:id/files/content", instancesH.WriteFile)
 			launcherOwner.GET("/instances/:id/manifest", instancesH.Manifest)
 			launcherOwner.DELETE("/instances/:id", instancesH.Delete)
 
@@ -245,6 +253,12 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			deviceAuth.PATCH("/launcher/launch-requests/:id", launchH.Update)
 			deviceAuth.GET("/launcher/mod-install-requests/pending", modInstallH.Pending)
 			deviceAuth.PATCH("/launcher/mod-install-requests/:id", modInstallH.Update)
+			deviceAuth.GET("/launcher/instance-file-requests/pending", instanceFileH.Pending)
+			deviceAuth.PATCH("/launcher/instance-file-requests/:id", instanceFileH.Update)
+			deviceAuth.GET("/launcher/mod-uninstall-requests/pending", modUninstallH.Pending)
+			deviceAuth.PATCH("/launcher/mod-uninstall-requests/:id", modUninstallH.Update)
+			deviceAuth.GET("/launcher/resource-upload-requests/pending", resourceUploadH.Pending)
+			deviceAuth.PATCH("/launcher/resource-upload-requests/:id", resourceUploadH.Update)
 			deviceAuth.GET("/launcher/update-requests/pending", updateH.Pending)
 			deviceAuth.PATCH("/launcher/update-requests/:id", updateH.Complete)
 		}

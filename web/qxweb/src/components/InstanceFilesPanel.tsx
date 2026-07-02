@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Breadcrumb,
   Button,
@@ -14,10 +14,9 @@ import { api, type GameServerFileEntry } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 
-type GameServerFilesPanelProps = {
-  vpsId: string;
-  gameServerId: string;
-  agentOnline: boolean;
+type InstanceFilesPanelProps = {
+  instanceId: string;
+  deviceLinked: boolean;
   rootPath?: string;
   highlightExtensions?: string[];
 };
@@ -53,13 +52,12 @@ function isHighlighted(name: string, extensions?: string[]): boolean {
   return extensions.some((ext) => lower.endsWith(ext.toLowerCase()));
 }
 
-export function GameServerFilesPanel({
-  vpsId,
-  gameServerId,
-  agentOnline,
+export function InstanceFilesPanel({
+  instanceId,
+  deviceLinked,
   rootPath,
   highlightExtensions,
-}: GameServerFilesPanelProps) {
+}: InstanceFilesPanelProps) {
   const { t } = useI18n();
   const message = useMessage();
   const initialPath = rootPath?.replace(/^\/+|\/+$/g, '') ?? '';
@@ -71,32 +69,24 @@ export function GameServerFilesPanel({
   const [fileLoading, setFileLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const normalizedRoot = rootPath?.replace(/^\/+|\/+$/g, '') ?? '';
-
-  const navigateTo = (path: string) => {
-    if (normalizedRoot && path && !path.startsWith(normalizedRoot)) {
-      setCurrentPath(normalizedRoot);
-      return;
-    }
-    setCurrentPath(path);
-  };
+  const normalizedRoot = useMemo(() => rootPath?.replace(/^\/+|\/+$/g, '') ?? '', [rootPath]);
 
   const loadDir = useCallback(async () => {
-    if (!agentOnline) {
+    if (!deviceLinked) {
       setEntries([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const res = await api.listVpsGameServerFiles(vpsId, gameServerId, currentPath);
+      const res = await api.listInstanceFiles(instanceId, currentPath);
       setEntries(res.items ?? []);
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('gameServerDetail.filesLoadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [agentOnline, currentPath, gameServerId, message, t, vpsId]);
+  }, [currentPath, deviceLinked, instanceId, message, t]);
 
   useEffect(() => {
     void loadDir();
@@ -106,7 +96,7 @@ export function GameServerFilesPanel({
     setSelectedFile(path);
     setFileLoading(true);
     try {
-      const res = await api.readVpsGameServerFile(vpsId, gameServerId, path);
+      const res = await api.readInstanceFile(instanceId, path);
       setFileContent(res.content);
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('gameServerDetail.fileReadFailed'));
@@ -120,7 +110,7 @@ export function GameServerFilesPanel({
     if (!selectedFile) return;
     setSaving(true);
     try {
-      await api.writeVpsGameServerFile(vpsId, gameServerId, selectedFile, fileContent);
+      await api.writeInstanceFile(instanceId, selectedFile, fileContent);
       message.success(t('gameServerDetail.fileSaved'));
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('common.error'));
@@ -129,10 +119,18 @@ export function GameServerFilesPanel({
     }
   };
 
-  if (!agentOnline) {
+  const navigateTo = (path: string) => {
+    if (normalizedRoot && path && !path.startsWith(normalizedRoot)) {
+      setCurrentPath(normalizedRoot);
+      return;
+    }
+    setCurrentPath(path);
+  };
+
+  if (!deviceLinked) {
     return (
       <Typography.Paragraph type="secondary">
-        {t('servers.gameServersAgentRequired')}
+        {t('launcher.instanceSettingsModsConfigNote')}
       </Typography.Paragraph>
     );
   }

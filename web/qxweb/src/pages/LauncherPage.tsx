@@ -85,6 +85,9 @@ import {
   launcherSupportsResourcesPage,
 } from '@/lib/launcherInstanceCapabilities';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
+import { InstanceFilesPanel } from '@/components/InstanceFilesPanel';
+import { InstanceOptionsPanel } from '@/components/InstanceOptionsPanel';
+import { InstanceModConfigsPanel } from '@/components/InstanceModConfigsPanel';
 import {
   getLaunchErrorKey,
   isLaunchTerminal,
@@ -151,7 +154,8 @@ function LauncherHome() {
   const [mojangLoading, setMojangLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInstance, setSettingsInstance] = useState<LauncherInstance | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'launch' | 'resources'>('launch');
+  const [settingsTab, setSettingsTab] = useState<'launch' | 'options' | 'files' | 'mods' | 'resources'>('launch');
+  const [settingsName, setSettingsName] = useState('');
   const [settingsRamMb, setSettingsRamMb] = useState(2048);
   const [settingsMinRamMb, setSettingsMinRamMb] = useState<number | null>(null);
   const [settingsExtraJvmArgs, setSettingsExtraJvmArgs] = useState('');
@@ -667,6 +671,7 @@ function LauncherHome() {
   const openInstanceSettings = (instance: LauncherInstance) => {
     setSettingsInstance(instance);
     setSettingsTab('launch');
+    setSettingsName(instance.name);
     setSettingsRamMb(instance.max_memory_mb ?? 2048);
     setSettingsMinRamMb(instance.min_memory_mb ?? null);
     setSettingsExtraJvmArgs((instance.extra_jvm_args ?? []).join('\n'));
@@ -704,6 +709,7 @@ function LauncherHome() {
         .map((line) => line.trim())
         .filter(Boolean);
       const updated = await api.updateInstance(settingsInstance.id, {
+        name: settingsName.trim(),
         max_memory_mb: settingsRamMb,
         ...(settingsMinRamMb != null ? { min_memory_mb: settingsMinRamMb } : {}),
         extra_jvm_args: extraJvmArgs,
@@ -1482,7 +1488,7 @@ function LauncherHome() {
       >
         <Tabs
           activeKey={settingsTab}
-          onChange={(key) => setSettingsTab(key as 'launch' | 'resources')}
+          onChange={(key) => setSettingsTab(key as 'launch' | 'options' | 'files' | 'mods' | 'resources')}
           items={[
             {
               key: 'launch',
@@ -1491,6 +1497,14 @@ function LauncherHome() {
                 <>
                   <Paragraph type="secondary">{t('launcher.instanceSettingsHint')}</Paragraph>
                   <Form layout="vertical">
+                    <Form.Item label={t('common.name')}>
+                      <Input
+                        value={settingsName}
+                        maxLength={128}
+                        onChange={(e) => setSettingsName(e.target.value)}
+                        placeholder={t('launcher.placeholderInstanceName')}
+                      />
+                    </Form.Item>
                     <Form.Item label={t('launcher.minMemoryMb')}>
                       <InputNumber
                         min={512}
@@ -1550,6 +1564,36 @@ function LauncherHome() {
                   </Form>
                 </>
               ),
+            },
+            {
+              key: 'options',
+              label: t('launcher.instanceSettingsTabOptions'),
+              children: settingsInstance ? (
+                <InstanceOptionsPanel
+                  instanceId={settingsInstance.id}
+                  deviceLinked={linkedDevice != null}
+                />
+              ) : null,
+            },
+            {
+              key: 'files',
+              label: t('launcher.instanceSettingsTabFiles'),
+              children: settingsInstance ? (
+                <InstanceFilesPanel
+                  instanceId={settingsInstance.id}
+                  deviceLinked={linkedDevice != null}
+                />
+              ) : null,
+            },
+            {
+              key: 'mods',
+              label: t('launcher.instanceSettingsTabMods'),
+              children: settingsInstance ? (
+                <InstanceModConfigsPanel
+                  instance={settingsInstance}
+                  deviceLinked={linkedDevice != null}
+                />
+              ) : null,
             },
             {
               key: 'resources',

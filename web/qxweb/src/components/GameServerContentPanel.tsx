@@ -9,9 +9,10 @@ import {
   Spin,
   Table,
   Typography,
+  Upload,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import {
   api,
   type GameServerContentKind,
@@ -134,6 +135,7 @@ export function GameServerContentPanel({
   const [versions, setVersions] = useState<ModVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [installingVersionId, setInstallingVersionId] = useState<string>();
+  const [uploading, setUploading] = useState(false);
 
   const i18nPrefix = `gameServerDetail.content.${kind}`;
 
@@ -310,6 +312,21 @@ export function GameServerContentPanel({
     [t],
   );
 
+  const handleUpload = async (file: File) => {
+    if (kind !== 'mod') return false;
+    setUploading(true);
+    try {
+      await api.uploadGameServerMod(vpsId, gameServerId, file);
+      message.success(t('gameServerDetail.content.uploadCompleted'));
+      void loadInstalled();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('gameServerDetail.content.uploadFailed'));
+    } finally {
+      setUploading(false);
+    }
+    return false;
+  };
+
   if (!supported) {
     return <Paragraph type="secondary">{t(`${i18nPrefix}.notSupported`)}</Paragraph>;
   }
@@ -323,7 +340,24 @@ export function GameServerContentPanel({
 
   return (
     <div className="game-server-content-panel">
-      <Title level={5}>{t(`${i18nPrefix}.installedTitle`)}</Title>
+      <div className="game-server-content-installed-header">
+        <Title level={5}>{t(`${i18nPrefix}.installedTitle`)}</Title>
+        {kind === 'mod' ? (
+          <Upload
+            accept=".jar,.zip,.mrpack"
+            showUploadList={false}
+            disabled={uploading}
+            beforeUpload={(file) => {
+              void handleUpload(file);
+              return false;
+            }}
+          >
+            <Button icon={<UploadOutlined />} loading={uploading}>
+              {t('gameServerDetail.content.upload')}
+            </Button>
+          </Upload>
+        ) : null}
+      </div>
       {installedLoading ? (
         <div className="servers-loading">
           <Spin />

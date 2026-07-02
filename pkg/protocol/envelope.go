@@ -22,6 +22,10 @@ const (
 	TypeCmdServerPluginsList        = "cmd.server.plugins.list"
 	TypeCmdServerDatapacksList      = "cmd.server.datapacks.list"
 	TypeCmdServerContentInstall     = "cmd.server.content.install"
+	TypeCmdServerContentUpload      = "cmd.server.content.upload"
+	TypeCmdInstanceFilesList        = "cmd.instance.files.list"
+	TypeCmdInstanceFilesRead        = "cmd.instance.files.read"
+	TypeCmdInstanceFilesWrite       = "cmd.instance.files.write"
 
 	TypeEvtAgentHeartbeat = "evt.agent.heartbeat"
 	TypeEvtConsoleOutput  = "evt.console.output"
@@ -40,6 +44,10 @@ const (
 	TypeResServerPluginsList        = "res.server.plugins.list"
 	TypeResServerDatapacksList      = "res.server.datapacks.list"
 	TypeResServerContentInstall     = "res.server.content.install"
+	TypeResServerContentUpload      = "res.server.content.upload"
+	TypeResInstanceFilesList        = "res.instance.files.list"
+	TypeResInstanceFilesRead        = "res.instance.files.read"
+	TypeResInstanceFilesWrite       = "res.instance.files.write"
 )
 
 type Envelope struct {
@@ -211,6 +219,42 @@ type ServerContentInstallPayload struct {
 }
 
 type ServerContentInstallResult struct {
+	Status   string `json:"status"`
+	RelPath  string `json:"rel_path,omitempty"`
+	Filename string `json:"filename,omitempty"`
+}
+
+type InstanceFilesPathPayload struct {
+	InstanceID string `json:"instance_id"`
+	Path       string `json:"path"`
+}
+
+type InstanceFilesWritePayload struct {
+	InstanceID string `json:"instance_id"`
+	Path       string `json:"path"`
+	Content    string `json:"content"`
+}
+
+type InstanceFilesListResult struct {
+	Entries []FileEntry `json:"entries"`
+}
+
+type InstanceFilesReadResult struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+	Size    int64  `json:"size"`
+}
+
+type ServerContentUploadPayload struct {
+	GameServerID string `json:"game_server_id"`
+	WorkDir      string `json:"work_dir"`
+	ServerType   string `json:"server_type,omitempty"`
+	ContentKind  string `json:"content_kind"`
+	Filename     string `json:"filename"`
+	ContentB64   string `json:"content_b64"`
+}
+
+type ServerContentUploadResult struct {
 	Status   string `json:"status"`
 	RelPath  string `json:"rel_path,omitempty"`
 	Filename string `json:"filename,omitempty"`

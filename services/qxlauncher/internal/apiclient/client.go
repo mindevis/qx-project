@@ -107,6 +107,34 @@ type ModInstallRequestItem struct {
 	ResourceType  string `json:"resource_type"`
 }
 
+type InstanceFileRequestItem struct {
+	ID           string `json:"id"`
+	Status       string `json:"status"`
+	InstanceID   string `json:"instance_id"`
+	Operation    string `json:"operation"`
+	Path         string `json:"path"`
+	WriteContent string `json:"write_content,omitempty"`
+}
+
+type ModUninstallRequestItem struct {
+	ID           string `json:"id"`
+	Status       string `json:"status"`
+	InstanceID   string `json:"instance_id"`
+	Source       string `json:"source"`
+	ProjectID    string `json:"project_id"`
+	Filename     string `json:"filename"`
+	ResourceType string `json:"resource_type"`
+}
+
+type ResourceUploadRequestItem struct {
+	ID           string `json:"id"`
+	Status       string `json:"status"`
+	InstanceID   string `json:"instance_id"`
+	Filename     string `json:"filename"`
+	ResourceType string `json:"resource_type"`
+	ContentB64   string `json:"content_b64"`
+}
+
 func (c *Client) FetchPendingLaunch(ctx context.Context) (*LaunchRequestItem, error) {
 	body, err := c.request(ctx, http.MethodGet, "/launcher/launch-requests/pending", nil, true)
 	if err != nil {
@@ -175,6 +203,81 @@ func (c *Client) CompleteModInstall(ctx context.Context, id, status, errorCode s
 	}
 	b, _ := json.Marshal(payload)
 	_, err := c.request(ctx, http.MethodPatch, "/launcher/mod-install-requests/"+id, b, true)
+	return err
+}
+
+func (c *Client) FetchPendingInstanceFile(ctx context.Context) (*InstanceFileRequestItem, error) {
+	body, err := c.request(ctx, http.MethodGet, "/launcher/instance-file-requests/pending", nil, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Item *InstanceFileRequestItem `json:"item"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Item, nil
+}
+
+func (c *Client) CompleteInstanceFile(ctx context.Context, id, status, resultJSON, errorCode string) error {
+	payload := map[string]any{"status": status}
+	if resultJSON != "" {
+		payload["result_json"] = resultJSON
+	}
+	if errorCode != "" {
+		payload["error_code"] = errorCode
+	}
+	b, _ := json.Marshal(payload)
+	_, err := c.request(ctx, http.MethodPatch, "/launcher/instance-file-requests/"+id, b, true)
+	return err
+}
+
+func (c *Client) FetchPendingModUninstall(ctx context.Context) (*ModUninstallRequestItem, error) {
+	body, err := c.request(ctx, http.MethodGet, "/launcher/mod-uninstall-requests/pending", nil, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Item *ModUninstallRequestItem `json:"item"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Item, nil
+}
+
+func (c *Client) CompleteModUninstall(ctx context.Context, id, status, errorCode string) error {
+	payload := map[string]any{"status": status}
+	if errorCode != "" {
+		payload["error_code"] = errorCode
+	}
+	b, _ := json.Marshal(payload)
+	_, err := c.request(ctx, http.MethodPatch, "/launcher/mod-uninstall-requests/"+id, b, true)
+	return err
+}
+
+func (c *Client) FetchPendingResourceUpload(ctx context.Context) (*ResourceUploadRequestItem, error) {
+	body, err := c.request(ctx, http.MethodGet, "/launcher/resource-upload-requests/pending", nil, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Item *ResourceUploadRequestItem `json:"item"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Item, nil
+}
+
+func (c *Client) CompleteResourceUpload(ctx context.Context, id, status, errorCode string) error {
+	payload := map[string]any{"status": status}
+	if errorCode != "" {
+		payload["error_code"] = errorCode
+	}
+	b, _ := json.Marshal(payload)
+	_, err := c.request(ctx, http.MethodPatch, "/launcher/resource-upload-requests/"+id, b, true)
 	return err
 }
 

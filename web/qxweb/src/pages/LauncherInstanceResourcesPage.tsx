@@ -76,6 +76,7 @@ export function LauncherInstanceResourcesPage() {
   const { t } = useI18n();
   const message = useMessage();
   const navigate = useNavigate();
+  const location = useLocation();
   const { instanceId } = useParams<{ instanceId: string }>();
   const [instance, setInstance] = useState<LauncherInstance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,9 +138,10 @@ export function LauncherInstanceResourcesPage() {
   const loaderName = isLauncherLoader(instance.loader)
     ? loaderLabel(instance.loader)
     : instance.loader;
+  const catalogActive = location.pathname.includes('/catalog');
 
   return (
-    <div className="launcher-resources-page">
+    <div className={`launcher-resources-page${catalogActive ? ' launcher-resources-page--catalog' : ''}`}>
       <section className="launcher-resources-hero">
         <div className="launcher-resources-hero-ambient" aria-hidden />
         <div className="launcher-resources-hero-inner">
@@ -173,7 +175,7 @@ export function LauncherInstanceResourcesPage() {
         </div>
       </section>
 
-      <section className="launcher-resources-body">
+      <section className={`launcher-resources-body${catalogActive ? ' launcher-resources-body--catalog' : ''}`}>
         <ResourcesTabNav instanceId={instance.id} />
         <div className="launcher-resources-panel">
           <Routes>

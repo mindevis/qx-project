@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Modal, Spin, Typography } from 'antd';
-import { AppstoreOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Modal, Spin, Typography, Upload } from 'antd';
+import { AppstoreOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { api, type InstanceResource, type ModProjectType } from '@/api/client';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
+import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { ResourceMetaBadges } from '@/components/ResourceMetaBadges';
 import {
   InstanceResourceSyncButton,
@@ -13,6 +14,7 @@ import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { launcherCatalogTabs } from '@/lib/launcherInstanceCapabilities';
+import { fetchMissingResourceIcons, instanceResourceIconKey } from '@/lib/instanceResourceIcons';
 import './InstanceResourcesPanel.css';
 
 const { Text, Title } = Typography;
@@ -20,10 +22,12 @@ const { Text, Title } = Typography;
 export function InstanceInstalledResources() {
   const { t } = useI18n();
   const message = useMessage();
-  const { instance, basePath } = useInstanceMods();
+  const { instance, basePath, canSync } = useInstanceMods();
   const [items, setItems] = useState<InstanceResource[]>([]);
+  const [resolvedIconUrls, setResolvedIconUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [removingKey, setRemovingKey] = useState<string>();
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,6 +45,21 @@ export function InstanceInstalledResources() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const icons = await fetchMissingResourceIcons(items);
+      if (!cancelled) {
+        setResolvedIconUrls(icons);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [items]);
 
   const typeOrder = useMemo(() => launcherCatalogTabs(instance.loader), [instance.loader]);
 
@@ -75,6 +94,24 @@ export function InstanceInstalledResources() {
 
   const resourceKey = (item: InstanceResource) =>
     `${item.source}:${item.project_id ?? item.filename}:${item.resource_type}`;
+
+  const handleUpload = async (file: File) => {
+    if (!canSync) {
+      message.warning(t('launcher.instanceSettingsModsConfigNote'));
+      return false;
+    }
+    setUploading(true);
+    try {
+      await api.uploadInstanceResource(instance.id, file);
+      message.success(t('qxmods.upload.completed'));
+      await load();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('qxmods.upload.failed'));
+    } finally {
+      setUploading(false);
+    }
+    return false;
+  };
 
   const handleRemove = (item: InstanceResource) => {
     Modal.confirm({
@@ -117,6 +154,25 @@ export function InstanceInstalledResources() {
         </Text>
       </div>
 
+      {canSync ? (
+        <Upload.Dragger
+          className="instance-resources-upload"
+          accept=".jar,.zip,.mrpack"
+          showUploadList={false}
+          disabled={uploading}
+          beforeUpload={(file) => {
+            void handleUpload(file);
+            return false;
+          }}
+        >
+          <p className="ant-upload-drag-icon">
+            <UploadOutlined />
+          </p>
+          <p className="ant-upload-text">{t('qxmods.upload.dropHint')}</p>
+          <p className="ant-upload-hint">{t('qxmods.upload.extensionsHint')}</p>
+        </Upload.Dragger>
+      ) : null}
+
       {!loading && items.length > 0 ? (
         <div className="launcher-resources-stats" aria-label={t('launcherInstanceResources.statsAria')}>
           <span className="launcher-resources-stat">
@@ -157,17 +213,18 @@ export function InstanceInstalledResources() {
               <span className="launcher-resources-section-count">{sectionItems.length}</span>
             </Title>
             <ul className="launcher-resources-grid">
-              {sectionItems.map((item) => (
+              {sectionItems.map((item) => {
+                const iconKey = instanceResourceIconKey(item);
+                const iconUrl = item.icon_url ?? (iconKey ? resolvedIconUrls[iconKey] : undefined);
+                return (
                 <li key={`${item.source}:${item.project_id ?? item.filename}`}>
                   <article className="launcher-resource-card">
-                    {item.icon_url ? (
-                      <img src={item.icon_url} alt="" className="launcher-resource-card-icon" />
-                    ) : (
-                      <span
-                        className="launcher-resource-card-icon launcher-resource-card-icon--placeholder"
-                        aria-hidden
-                      />
-                    )}
+                    <ModCatalogIcon
+                      url={iconUrl}
+                      name={item.project_name}
+                      size={48}
+                      className="launcher-resource-card-icon"
+                    />
                     <div className="launcher-resource-card-body">
                       <div className="launcher-resource-card-title">
                         <span>{item.project_name}</span>
@@ -190,7 +247,8 @@ export function InstanceInstalledResources() {
                     </div>
                   </article>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
         ))

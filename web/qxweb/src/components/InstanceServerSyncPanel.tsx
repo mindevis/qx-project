@@ -232,6 +232,7 @@ export function InstanceServerSyncProvider({
         selection={singleSelection}
         instanceLoader={instance.loader}
         instanceMcVersion={instance.mc_version}
+        installedResources={items}
         onClose={() => {
           setSingleSyncOpen(false);
           setSingleSelection(null);

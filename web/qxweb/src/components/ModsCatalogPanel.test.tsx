@@ -74,6 +74,7 @@ describe('ModsCatalogPanel', () => {
   it('loads browse catalog into table', async () => {
     const { container } = renderCatalog();
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    expect(screen.getByText('Клиент + сервер')).toBeInTheDocument();
     expect(api.browseMods).toHaveBeenCalled();
     expect(screen.getByRole('link', { name: 'Sodium' })).toHaveAttribute(
       'href',

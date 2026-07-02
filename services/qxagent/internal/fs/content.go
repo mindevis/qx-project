@@ -102,3 +102,27 @@ func InstallContentFile(ctx context.Context, workDir, relPath, downloadURL strin
 	}
 	return safepath.WriteStreamAtomic(abs, res.Body)
 }
+
+func UploadContentFile(workDir, serverType, contentKind, filename string, data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", fmt.Errorf("empty content")
+	}
+	if len(data) > 32*1024*1024 {
+		return "", fmt.Errorf("content too large")
+	}
+	relPath, err := ContentRelPath(workDir, serverType, contentKind, filename)
+	if err != nil {
+		return "", err
+	}
+	abs, err := safepath.JoinRel(workDir, relPath)
+	if err != nil {
+		return "", err
+	}
+	if err := safepath.EnsureParent(abs); err != nil {
+		return "", err
+	}
+	if err := safepath.WriteFileBytes(abs, data, 0o644); err != nil {
+		return "", err
+	}
+	return relPath, nil
+}

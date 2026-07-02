@@ -45,6 +45,11 @@ func (c *curseForgeClient) baseURL() string {
 	return curseForgeAPIBase
 }
 
+type curseForgeLatestFile struct {
+	GameVersions []string `json:"gameVersions"`
+	ModLoader    int      `json:"modLoader"`
+}
+
 type curseForgeSearchResponse struct {
 	Data []struct {
 		ID            int    `json:"id"`
@@ -62,6 +67,7 @@ type curseForgeSearchResponse struct {
 			GameVersion string `json:"gameVersion"`
 			ModLoader   int    `json:"modLoader"`
 		} `json:"latestFilesIndexes"`
+		LatestFiles []curseForgeLatestFile `json:"latestFiles"`
 	} `json:"data"`
 }
 
@@ -79,6 +85,7 @@ type curseForgeModResponse struct {
 		Authors []struct {
 			Name string `json:"name"`
 		} `json:"authors"`
+		LatestFiles []curseForgeLatestFile `json:"latestFiles"`
 	} `json:"data"`
 }
 
@@ -178,6 +185,8 @@ func (c *curseForgeClient) searchProjects(
 			ProjectType:  projectType,
 			Loaders:      loaders,
 			GameVersions: versions,
+			ClientSide:   curseForgeClientSide(item.LatestFiles, loader, mcVersion),
+			ServerSide:   curseForgeServerSide(item.LatestFiles, loader, mcVersion),
 			ExternalURL:  curseForgeExternalURL(projectType, item.Slug),
 		})
 	}
@@ -207,6 +216,8 @@ func (c *curseForgeClient) getProject(ctx context.Context, projectID string) (*P
 			IconURL:     item.Logo.ThumbnailURL,
 			Downloads:   item.DownloadCount,
 			Author:      author,
+			ClientSide:  curseForgeClientSide(item.LatestFiles, "", ""),
+			ServerSide:  curseForgeServerSide(item.LatestFiles, "", ""),
 			ExternalURL: curseForgeExternalURL(ProjectTypeMod, item.Slug),
 		},
 		Description: item.Description,
@@ -466,6 +477,67 @@ func curseForgeLoaderName(code int) string {
 	default:
 		return ""
 	}
+}
+
+func curseForgePickLatestFileGameVersions(files []curseForgeLatestFile, loader, mcVersion string) []string {
+	if len(files) == 0 {
+		return nil
+	}
+	if loader != "" || mcVersion != "" {
+		for _, file := range files {
+			loaderName := curseForgeLoaderName(file.ModLoader)
+			if loader != "" && loaderName != loader {
+				continue
+			}
+			if mcVersion != "" && !slicesContains(file.GameVersions, mcVersion) {
+				continue
+			}
+			return file.GameVersions
+		}
+	}
+	return files[0].GameVersions
+}
+
+func curseForgeSidesFromGameVersions(versions []string) (clientSide, serverSide string) {
+	hasClient := false
+	hasServer := false
+	for _, version := range versions {
+		switch strings.ToLower(strings.TrimSpace(version)) {
+		case "client":
+			hasClient = true
+		case "server":
+			hasServer = true
+		}
+	}
+	switch {
+	case hasClient && hasServer:
+		return "required", "required"
+	case hasServer:
+		return "unsupported", "required"
+	case hasClient:
+		return "required", "unsupported"
+	default:
+		return "", ""
+	}
+}
+
+func curseForgeClientSide(files []curseForgeLatestFile, loader, mcVersion string) string {
+	client, _ := curseForgeSidesFromGameVersions(curseForgePickLatestFileGameVersions(files, loader, mcVersion))
+	return client
+}
+
+func curseForgeServerSide(files []curseForgeLatestFile, loader, mcVersion string) string {
+	_, server := curseForgeSidesFromGameVersions(curseForgePickLatestFileGameVersions(files, loader, mcVersion))
+	return server
+}
+
+func slicesContains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func curseForgeExternalURL(projectType, slug string) string {

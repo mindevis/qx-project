@@ -1,7 +1,9 @@
 package api
 
 import (
+	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -190,6 +192,78 @@ func (h *GameServersHandler) syncGameServerContent(
 			"project_name":   body.ProjectName,
 			"version_number": body.VersionNumber,
 		},
+	})
+}
+
+func (h *GameServersHandler) UploadMod(c *gin.Context) {
+	h.uploadGameServerContent(c, "mod", gameServerSupportsMods)
+}
+
+func (h *GameServersHandler) uploadGameServerContent(
+	c *gin.Context,
+	contentKind string,
+	supports func(string) bool,
+) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	gs, err := h.Service.GetGameServer(c.Request.Context(), userID.(string), c.Param("id"), c.Param("gameServerId"))
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	if !supports(gs.ServerType) {
+		JSONError(c, http.StatusForbidden, "CONTENT_NOT_ALLOWED", "this server type does not support "+contentKind)
+		return
+	}
+	file, err := c.FormFile("file")
+	if err != nil {
+		JSONValidation(c, "missing file")
+		return
+	}
+	if file.Size > 32*1024*1024 {
+		JSONValidation(c, "file too large")
+		return
+	}
+	f, err := file.Open()
+	if err != nil {
+		JSONInternal(c)
+		return
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, 32*1024*1024+1))
+	if err != nil {
+		JSONInternal(c)
+		return
+	}
+	if int64(len(data)) > 32*1024*1024 {
+		JSONValidation(c, "file too large")
+		return
+	}
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".jar" && ext != ".zip" && ext != ".mrpack" {
+		JSONValidation(c, "invalid file extension")
+		return
+	}
+	result, err := h.Service.UploadGameServerContent(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		contentKind,
+		file.Filename,
+		data,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"status":   result.Status,
+		"filename": result.Filename,
+		"path":     result.RelPath,
 	})
 }
 

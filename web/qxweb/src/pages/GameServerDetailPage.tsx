@@ -30,6 +30,7 @@ import { GameServerPropertiesPanel } from '@/components/GameServerPropertiesPane
 import { GameServerContentPanel } from '@/components/GameServerContentPanel';
 import { GameServerModsPanel } from '@/components/GameServerModsPanel';
 import { GameServerFilesPanel } from '@/components/GameServerFilesPanel';
+import { GameServerModConfigsPanel } from '@/components/GameServerModConfigsPanel';
 import { GameServerInstanceBinding } from '@/components/GameServerInstanceBinding';
 import {
   gameServerTypeCapabilities,
@@ -253,6 +254,19 @@ export function GameServerDetailPage() {
                 supportsMods={caps.mods}
                 serverType={serverType}
                 mcVersion={game.mc_version ?? '1.21'}
+              />
+            ),
+          },
+          {
+            key: 'mod-configs',
+            label: tabLabel(<CodeOutlined aria-hidden />, t('gameServerDetail.tabModConfigs')),
+            children: (
+              <GameServerModConfigsPanel
+                vpsId={vpsId}
+                gameServerId={game.id}
+                agentOnline={agentOnline}
+                mcVersion={game.mc_version ?? '1.21'}
+                loader={serverType}
               />
             ),
           },

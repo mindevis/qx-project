@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
@@ -20,6 +21,49 @@ func (fixedManifestProvider) BuildInstanceManifest(_ context.Context, instanceID
 		JVMArguments:   []string{},
 		MainClass:      "net.minecraft.client.main.Main",
 	}, nil
+}
+
+func TestUpdateInstanceRename(t *testing.T) {
+	svc, _, _ := newLauncherService(t)
+	ctx := context.Background()
+	owner := Owner{UserID: "user-1"}
+
+	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name:          "Original",
+		MCVersion:     "1.21.1",
+		Loader:        "fabric",
+		LoaderVersion: "0.16.9",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	renamed := "Renamed Instance"
+	updated, err := svc.UpdateInstance(ctx, owner, inst.ID, UpdateInstanceInput{
+		Name: &renamed,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Name != "Renamed Instance" {
+		t.Fatalf("expected renamed instance, got %q", updated.Name)
+	}
+
+	empty := "   "
+	_, err = svc.UpdateInstance(ctx, owner, inst.ID, UpdateInstanceInput{
+		Name: &empty,
+	})
+	if err != ErrValidation {
+		t.Fatalf("expected validation error for empty name, got %v", err)
+	}
+
+	long := strings.Repeat("a", 129)
+	_, err = svc.UpdateInstance(ctx, owner, inst.ID, UpdateInstanceInput{
+		Name: &long,
+	})
+	if err != ErrValidation {
+		t.Fatalf("expected validation error for long name, got %v", err)
+	}
 }
 
 func TestUpdateInstanceMaxMemory(t *testing.T) {

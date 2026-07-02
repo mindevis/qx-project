@@ -31,6 +31,8 @@ type modrinthSearchResponse struct {
 		Downloads      int64    `json:"downloads"`
 		Versions       []string `json:"versions"`
 		Categories     []string `json:"categories"`
+		ClientSide     string   `json:"client_side"`
+		ServerSide     string   `json:"server_side"`
 	} `json:"hits"`
 }
 
@@ -141,6 +143,8 @@ func (c *modrinthClient) searchProjects(
 			ProjectType:  modrinthProjectType(hit.ProjectType),
 			Loaders:      hit.Categories,
 			GameVersions: hit.Versions,
+			ClientSide:   hit.ClientSide,
+			ServerSide:   hit.ServerSide,
 			ExternalURL:  modrinthExternalURL(hit.Slug),
 		})
 	}

@@ -4,11 +4,12 @@ import {
   api,
   type ModCatalogItem,
   type ModVersion,
+  type InstanceResource,
 } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
-import { isModOnServer } from '@/lib/modSync';
+import { isModOnServer, resolveModSyncBodies } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 
@@ -31,6 +32,7 @@ type ModSyncModalProps = {
   selection: ModSyncSelection | null;
   instanceLoader: string;
   instanceMcVersion?: string;
+  installedResources?: InstanceResource[];
   onClose: () => void;
 };
 
@@ -39,6 +41,7 @@ export function ModSyncModal({
   selection,
   instanceLoader,
   instanceMcVersion,
+  installedResources = [],
   onClose,
 }: ModSyncModalProps) {
   const { t } = useI18n();
@@ -101,37 +104,35 @@ export function ModSyncModal({
 
   const handleSync = async () => {
     if (!selection || !selectedTarget) return;
-    const file = selection.version.files[0];
-    if (!file) {
-      const messageText = t('qxmods.sync.noFile');
-      setSyncFeedback({ kind: 'error', message: messageText });
-      message.error(messageText);
-      return;
-    }
     const target = selectedTarget;
     setSyncing(true);
     setSyncFeedback(null);
     try {
-      const res = await api.syncModToGameServer(target.vpsId, target.gameServer.id, {
-        source: selection.source,
-        project_id: selection.projectId,
-        version_id: selection.version.id,
-        filename: file.filename,
-        download_url: file.url,
-        project_name: selection.projectName,
-        version_number: selection.version.version_number,
-      });
-      if (res.status === 'already_installed') {
-        const messageText = t('qxmods.sync.alreadyOnServer');
-        setSyncFeedback({ kind: 'info', message: messageText });
-        message.info(messageText);
+      const bodies = await resolveModSyncBodies(
+        selection,
+        installedResources,
+        instanceLoader,
+        instanceMcVersion,
+      );
+      let lastStatus: 'queued' | 'already_installed' | 'installed' = 'queued';
+      for (const body of bodies) {
+        const res = await api.syncModToGameServer(target.vpsId, target.gameServer.id, body);
+        lastStatus = res.status;
+      }
+      if (lastStatus === 'already_installed' && bodies.length === 1) {
+        message.info(t('qxmods.sync.alreadyOnServer'));
+        onClose();
         return;
       }
       const messageText =
-        res.status === 'installed' ? t('qxmods.sync.installed') : t('qxmods.sync.queued');
-      setSyncFeedback({ kind: 'success', message: messageText });
-      message.success(messageText);
+        lastStatus === 'installed' ? t('qxmods.sync.installed') : t('qxmods.sync.queued');
+      message.success(
+        bodies.length > 1
+          ? t('qxmods.sync.installedWithDeps', { count: bodies.length })
+          : messageText,
+      );
       promptServerRestart(target);
+      onClose();
     } catch (e) {
       const messageText = e instanceof Error ? e.message : t('qxmods.sync.failed');
       setSyncFeedback({ kind: 'error', message: messageText });

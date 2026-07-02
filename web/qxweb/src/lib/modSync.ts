@@ -1,5 +1,138 @@
-import type { GameServerFileEntry, InstanceResource } from '@/api/client';
-import type { ModCatalogItem, ModVersion } from '@/api/client';
+import {
+  api,
+  type GameServerContentSyncBody,
+  type GameServerFileEntry,
+  type InstanceResource,
+  type ModCatalogItem,
+  type ModSource,
+  type ModVersion,
+} from '@/api/client';
+
+export type ModSyncSelectionInput = {
+  source: ModSource;
+  projectId: string;
+  projectName: string;
+  version: ModVersion;
+};
+
+function installedProjectKey(source: string, projectId: string) {
+  return `${source}:${projectId}`;
+}
+
+export function buildModSyncBodies(
+  selection: ModSyncSelectionInput,
+  installedResources: InstanceResource[],
+  versionDetail: ModVersion,
+): GameServerContentSyncBody[] {
+  const installedByProject = new Map(
+    installedResources
+      .filter((resource) => resource.project_id)
+      .map((resource) => [installedProjectKey(resource.source, resource.project_id!), resource] as const),
+  );
+
+  const bodies: GameServerContentSyncBody[] = [];
+
+  for (const dep of versionDetail.dependencies ?? []) {
+    if (dep.dependency_type !== 'required' || !dep.project_id) continue;
+    const resource = installedByProject.get(installedProjectKey(dep.source, dep.project_id));
+    if (!resource) continue;
+
+    const filename = dep.filename ?? resource.filename;
+    const downloadUrl = dep.download_url;
+    const versionId = dep.version_id ?? resource.version_id;
+    if (!filename || !downloadUrl || !versionId) continue;
+
+    bodies.push({
+      source: dep.source,
+      project_id: dep.project_id,
+      version_id: versionId,
+      filename,
+      download_url: downloadUrl,
+      project_name: dep.project_name ?? resource.project_name,
+      version_number: dep.version_number ?? resource.version_number,
+    });
+  }
+
+  const mainFile = selection.version.files[0];
+  if (!mainFile?.url) {
+    throw new Error('mod sync file missing');
+  }
+
+  bodies.push({
+    source: selection.source,
+    project_id: selection.projectId,
+    version_id: selection.version.id,
+    filename: mainFile.filename,
+    download_url: mainFile.url,
+    project_name: selection.projectName,
+    version_number: selection.version.version_number,
+  });
+
+  return bodies;
+}
+
+export async function resolveModSyncBodies(
+  selection: ModSyncSelectionInput,
+  installedResources: InstanceResource[],
+  loader: string,
+  mcVersion?: string,
+): Promise<GameServerContentSyncBody[]> {
+  const params = { loader, mc_version: mcVersion };
+  let versionDetail = selection.version;
+
+  if (!versionDetail.dependencies?.length) {
+    try {
+      versionDetail = await api.getModVersion(
+        selection.source,
+        selection.projectId,
+        selection.version.id,
+        params,
+      );
+    } catch {
+      versionDetail = selection.version;
+    }
+  }
+
+  const dependencies = [...(versionDetail.dependencies ?? [])];
+  const installedByProject = new Map(
+    installedResources
+      .filter((resource) => resource.project_id)
+      .map((resource) => [installedProjectKey(resource.source, resource.project_id!), resource] as const),
+  );
+
+  for (let index = 0; index < dependencies.length; index += 1) {
+    const dep = dependencies[index];
+    if (dep.dependency_type !== 'required' || !dep.project_id || dep.download_url) continue;
+
+    const resource = installedByProject.get(installedProjectKey(dep.source, dep.project_id));
+    if (!resource?.project_id || !resource.version_id) continue;
+
+    try {
+      const depVersion = await api.getModVersion(
+        dep.source,
+        resource.project_id,
+        resource.version_id,
+        params,
+      );
+      const file = depVersion.files[0];
+      if (!file?.url) continue;
+      dependencies[index] = {
+        ...dep,
+        download_url: file.url,
+        filename: dep.filename ?? file.filename ?? resource.filename,
+        version_id: dep.version_id ?? depVersion.id,
+        version_number: dep.version_number ?? depVersion.version_number,
+      };
+    } catch {
+      // Keep dependency unresolved; it will be skipped by buildModSyncBodies.
+    }
+  }
+
+  return buildModSyncBodies(selection, installedResources, {
+    ...versionDetail,
+    dependencies,
+  });
+}
 
 export type ModSyncSide = 'client' | 'server' | 'both' | 'unknown';
 
