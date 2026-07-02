@@ -345,6 +345,9 @@ describe('MonitoringPage', () => {
     const user = userEvent.setup({ delay: null });
     renderWithProviders(<MonitoringPage />, '/monitoring');
     await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await waitFor(() => expect(api.listMonitoringBindings).toHaveBeenCalled());
+    await waitFor(() => expect(api.myLauncherDevice).toHaveBeenCalled());
+    await waitFor(() => expect(api.mojangStatus).toHaveBeenCalled());
     await user.click(screen.getByRole('button', { name: /Подключиться/ }));
 
     await waitFor(() =>
