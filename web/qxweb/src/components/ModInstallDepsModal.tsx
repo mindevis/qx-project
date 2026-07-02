@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Checkbox, Modal, Spin, Typography } from 'antd';
 import {
   api,
@@ -35,6 +35,23 @@ export type InstallItem = {
   resourceType: ModProjectType;
 };
 
+function dependencyProjectKey(dep: ModDependency): string | undefined {
+  if (!dep.project_id) return undefined;
+  return `${dep.source}:${dep.project_id}`;
+}
+
+export function defaultRequiredSelection(
+  dependencies: ModDependency[],
+  installedProjectIds: Set<string>,
+): Set<string> {
+  return new Set(
+    dependencies
+      .filter((dep) => dep.dependency_type === 'required' && dep.project_id)
+      .filter((dep) => !installedProjectIds.has(`${dep.source}:${dep.project_id}`))
+      .map((dep) => dep.project_id),
+  );
+}
+
 export function ModInstallDepsModal({
   open,
   source,
@@ -51,12 +68,14 @@ export function ModInstallDepsModal({
   const { instance } = useInstanceMods();
   const [loading, setLoading] = useState(false);
   const [dependencies, setDependencies] = useState<ModDependency[]>([]);
+  const [requiredSelected, setRequiredSelected] = useState<Set<string>>(new Set());
   const [optionalSelected, setOptionalSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
+    setRequiredSelected(new Set());
     setOptionalSelected(new Set());
     void (async () => {
       try {
@@ -65,9 +84,14 @@ export function ModInstallDepsModal({
           mc_version: instance.mc_version,
         });
         if (cancelled) return;
-        setDependencies(detail.dependencies ?? []);
+        const nextDependencies = detail.dependencies ?? [];
+        setDependencies(nextDependencies);
+        setRequiredSelected(defaultRequiredSelection(nextDependencies, installedProjectIds));
       } catch {
-        if (!cancelled) setDependencies([]);
+        if (!cancelled) {
+          setDependencies([]);
+          setRequiredSelected(new Set());
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -75,7 +99,7 @@ export function ModInstallDepsModal({
     return () => {
       cancelled = true;
     };
-  }, [instance.loader, instance.mc_version, open, projectId, source, version.id]);
+  }, [installedProjectIds, instance.loader, instance.mc_version, open, projectId, source, version.id]);
 
   const required = useMemo(
     () => dependencies.filter((d) => d.dependency_type === 'required'),
@@ -86,15 +110,25 @@ export function ModInstallDepsModal({
     [dependencies],
   );
 
-  const missingRequired = required.filter(
-    (d) => d.project_id && !installedProjectIds.has(`${d.source}:${d.project_id}`),
-  );
+  const isDependencyInstalled = (dep: ModDependency) => {
+    const key = dependencyProjectKey(dep);
+    return Boolean(key && installedProjectIds.has(key));
+  };
+
+  const isDependencySelected = (dep: ModDependency) => {
+    if (!dep.project_id) return false;
+    if (isDependencyInstalled(dep)) return false;
+    if (dep.dependency_type === 'required') {
+      return requiredSelected.has(dep.project_id);
+    }
+    return optionalSelected.has(dep.project_id);
+  };
 
   const buildInstallItems = (): InstallItem[] => {
     const items: InstallItem[] = [];
     const addDep = (dep: ModDependency) => {
       if (!dep.project_id || !dep.version_id || !dep.download_url || !dep.filename) return;
-      if (installedProjectIds.has(`${dep.source}:${dep.project_id}`)) return;
+      if (isDependencyInstalled(dep)) return;
       items.push({
         source: dep.source,
         projectId: dep.project_id,
@@ -107,7 +141,9 @@ export function ModInstallDepsModal({
         resourceType: 'mod',
       });
     };
-    for (const dep of required) addDep(dep);
+    for (const dep of required) {
+      if (requiredSelected.has(dep.project_id)) addDep(dep);
+    }
     for (const dep of optional) {
       if (optionalSelected.has(dep.project_id)) addDep(dep);
     }
@@ -121,8 +157,43 @@ export function ModInstallDepsModal({
     return items;
   };
 
-  const canInstall =
-    missingRequired.every((d) => d.version_id && d.download_url && d.filename) || missingRequired.length === 0;
+  const selectedUnresolved = [...required, ...optional].filter(
+    (dep) => isDependencySelected(dep) && (!dep.download_url || !dep.filename || !dep.version_id),
+  );
+  const canInstall = selectedUnresolved.length === 0;
+
+  const renderDependencyCheckbox = (
+    dep: ModDependency,
+    selected: Set<string>,
+    setSelected: Dispatch<SetStateAction<Set<string>>>,
+  ) => {
+    const installed = isDependencyInstalled(dep);
+    const unresolved = !dep.download_url || !dep.filename || !dep.version_id;
+    return (
+      <li key={dependencyProjectKey(dep) ?? dep.project_name} className="qxmods-deps-item">
+        <Checkbox
+          checked={installed || selected.has(dep.project_id)}
+          disabled={installed || unresolved}
+          onChange={(e) => {
+            if (!dep.project_id) return;
+            setSelected((prev) => {
+              const next = new Set(prev);
+              if (e.target.checked) next.add(dep.project_id);
+              else next.delete(dep.project_id);
+              return next;
+            });
+          }}
+        >
+          {dep.project_name ?? dep.project_id}{' '}
+          {installed ? (
+            <Text type="success">({t('qxmods.deps.installed')})</Text>
+          ) : unresolved ? (
+            <Text type="danger">({t('qxmods.deps.unresolved')})</Text>
+          ) : null}
+        </Checkbox>
+      </li>
+    );
+  };
 
   return (
     <Modal
@@ -145,23 +216,7 @@ export function ModInstallDepsModal({
             <>
               <Text strong>{t('qxmods.deps.required')}</Text>
               <ul className="qxmods-deps-list">
-                {required.map((dep) => {
-                  const installed = dep.project_id
-                    ? installedProjectIds.has(`${dep.source}:${dep.project_id}`)
-                    : false;
-                  return (
-                    <li key={`${dep.source}:${dep.project_id ?? dep.project_name}`} className="qxmods-deps-item">
-                      <Text>
-                        {dep.project_name ?? dep.project_id}{' '}
-                        {installed ? (
-                          <Text type="success">({t('qxmods.deps.installed')})</Text>
-                        ) : !dep.download_url ? (
-                          <Text type="danger">({t('qxmods.deps.unresolved')})</Text>
-                        ) : null}
-                      </Text>
-                    </li>
-                  );
-                })}
+                {required.map((dep) => renderDependencyCheckbox(dep, requiredSelected, setRequiredSelected))}
               </ul>
             </>
           ) : (
@@ -173,32 +228,7 @@ export function ModInstallDepsModal({
                 {t('qxmods.deps.optional')}
               </Text>
               <ul className="qxmods-deps-list">
-                {optional.map((dep) => {
-                  const installed = dep.project_id
-                    ? installedProjectIds.has(`${dep.source}:${dep.project_id}`)
-                    : false;
-                  return (
-                    <li key={`${dep.source}:${dep.project_id}`} className="qxmods-deps-item">
-                      <Checkbox
-                        checked={installed || optionalSelected.has(dep.project_id)}
-                        disabled={installed || !dep.download_url}
-                        onChange={(e) => {
-                          setOptionalSelected((prev) => {
-                            const next = new Set(prev);
-                            if (e.target.checked) next.add(dep.project_id);
-                            else next.delete(dep.project_id);
-                            return next;
-                          });
-                        }}
-                      >
-                        {dep.project_name ?? dep.project_id}{' '}
-                        {installed ? (
-                          <Text type="success">({t('qxmods.deps.installed')})</Text>
-                        ) : null}
-                      </Checkbox>
-                    </li>
-                  );
-                })}
+                {optional.map((dep) => renderDependencyCheckbox(dep, optionalSelected, setOptionalSelected))}
               </ul>
             </>
           ) : null}
