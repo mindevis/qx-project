@@ -291,6 +291,8 @@ export function ModsCatalogPanel() {
           projectType={item.project_type ?? activeTab}
           iconUrl={item.icon_url}
           downloads={item.downloads}
+          clientSide={item.client_side}
+          serverSide={item.server_side}
           loader={catalogLoader}
           mcVersion={instance.mc_version}
           installedProjectIds={installedProjectIds}

@@ -44,14 +44,14 @@ func WorldFolder(workDir string) (string, error) {
 	return levelName, nil
 }
 
-func ContentRelPath(workDir, serverType, contentKind, filename string) (string, error) {
+func ContentRelPath(workDir, serverType, contentKind, filename, modTarget string) (string, error) {
 	filename = strings.TrimSpace(filename)
 	if filename == "" || strings.Contains(filename, "..") || strings.ContainsAny(filename, `/\`) {
 		return "", fmt.Errorf("invalid filename")
 	}
 	switch strings.ToLower(strings.TrimSpace(contentKind)) {
 	case "mod":
-		folder := modsFolderFor(serverType)
+		folder := modFolderFor(serverType, modTarget)
 		if folder == "" {
 			return "", fmt.Errorf("server type does not support mods")
 		}
@@ -64,6 +64,18 @@ func ContentRelPath(workDir, serverType, contentKind, filename string) (string, 
 			return "", err
 		}
 		return filepath.ToSlash(filepath.Join(world, "datapacks", filename)), nil
+	case "resourcepack":
+		folder := resourcepackFolderFor(modTarget)
+		if folder == "" {
+			return "", fmt.Errorf("invalid resourcepack target")
+		}
+		return filepath.ToSlash(filepath.Join(folder, filename)), nil
+	case "shader":
+		folder := shaderFolderFor(modTarget)
+		if folder == "" {
+			return "", fmt.Errorf("invalid shader target")
+		}
+		return filepath.ToSlash(filepath.Join(folder, filename)), nil
 	default:
 		return "", fmt.Errorf("unknown content kind %q", contentKind)
 	}
@@ -103,14 +115,14 @@ func InstallContentFile(ctx context.Context, workDir, relPath, downloadURL strin
 	return safepath.WriteStreamAtomic(abs, res.Body)
 }
 
-func UploadContentFile(workDir, serverType, contentKind, filename string, data []byte) (string, error) {
+func UploadContentFile(workDir, serverType, contentKind, modTarget, filename string, data []byte) (string, error) {
 	if len(data) == 0 {
 		return "", fmt.Errorf("empty content")
 	}
 	if len(data) > 32*1024*1024 {
 		return "", fmt.Errorf("content too large")
 	}
-	relPath, err := ContentRelPath(workDir, serverType, contentKind, filename)
+	relPath, err := ContentRelPath(workDir, serverType, contentKind, filename, modTarget)
 	if err != nil {
 		return "", err
 	}
@@ -125,4 +137,41 @@ func UploadContentFile(workDir, serverType, contentKind, filename string, data [
 		return "", err
 	}
 	return relPath, nil
+}
+
+func DeleteContentFile(workDir, serverType, contentKind, modTarget, filename string) (string, error) {
+	relPath, err := ContentRelPath(workDir, serverType, contentKind, filename, modTarget)
+	if err != nil {
+		return "", err
+	}
+	abs, err := safepath.JoinRel(workDir, relPath)
+	if err != nil {
+		return "", err
+	}
+	if err := safepath.Remove(abs); err != nil {
+		return "", err
+	}
+	return relPath, nil
+}
+
+func ReadContentFile(workDir, serverType, contentKind, modTarget, filename string) ([]byte, error) {
+	relPath, err := ContentRelPath(workDir, serverType, contentKind, filename, modTarget)
+	if err != nil {
+		return nil, err
+	}
+	abs, err := safepath.JoinRel(workDir, relPath)
+	if err != nil {
+		return nil, err
+	}
+	info, err := safepath.Stat(abs)
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("path is a directory")
+	}
+	if info.Size() > 32*1024*1024 {
+		return nil, fmt.Errorf("content too large")
+	}
+	return safepath.ReadFileBytes(abs)
 }

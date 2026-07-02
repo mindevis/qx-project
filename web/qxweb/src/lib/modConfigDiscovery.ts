@@ -5,22 +5,29 @@ export type ModConfigMod = {
   label: string;
   filename?: string;
   project_name?: string;
+  icon_url?: string;
+};
+
+export type ModConfigFileEntry = {
+  path: string;
+  size?: number;
 };
 
 export type ModConfigGroup = {
   mod: ModConfigMod;
-  paths: string[];
+  files: ModConfigFileEntry[];
 };
 
 export type GroupConfigResult = {
   groups: ModConfigGroup[];
-  other: string[];
+  other: ModConfigFileEntry[];
 };
 
 type ListDirEntry = {
   path: string;
   dir: boolean;
   name: string;
+  size?: number;
 };
 
 function normalizeConfigKey(value: string): string {
@@ -85,39 +92,61 @@ export function isConfigFilePath(path: string): boolean {
   return CONFIG_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-export function groupConfigFilesByMod(mods: ModConfigMod[], configPaths: string[]): GroupConfigResult {
-  const configOnly = configPaths.filter(isConfigFilePath);
+export function configRelativePath(path: string): string {
+  return path.replace(/^config\/?/i, '');
+}
+
+export function filterConfigFileEntries(
+  entries: ModConfigFileEntry[],
+  query: string,
+): ModConfigFileEntry[] {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return entries;
+  return entries.filter((entry) => {
+    const relative = configRelativePath(entry.path).toLowerCase();
+    const name = (entry.path.split('/').pop() ?? entry.path).toLowerCase();
+    return relative.includes(trimmed) || name.includes(trimmed);
+  });
+}
+
+export function groupConfigFilesByMod(
+  mods: ModConfigMod[],
+  configFiles: ModConfigFileEntry[],
+): GroupConfigResult {
+  const configOnly = configFiles.filter((entry) => isConfigFilePath(entry.path));
   const assigned = new Set<string>();
   const groups: ModConfigGroup[] = [];
 
   for (const mod of mods) {
-    const paths = configOnly.filter((entry) => !assigned.has(entry) && matchesMod(entry, mod));
-    for (const entry of paths) {
-      assigned.add(entry);
+    const files = configOnly.filter((entry) => !assigned.has(entry.path) && matchesMod(entry.path, mod));
+    for (const entry of files) {
+      assigned.add(entry.path);
     }
-    if (paths.length > 0) {
-      groups.push({ mod, paths });
+    if (files.length > 0) {
+      groups.push({ mod, files });
     }
   }
 
-  const other = configOnly.filter((entry) => !assigned.has(entry));
+  const other = configOnly.filter((entry) => !assigned.has(entry.path));
   return { groups, other };
 }
 
-export async function listConfigPaths(listDirFn: (path: string) => Promise<ListDirEntry[]>): Promise<string[]> {
-  const paths: string[] = [];
+export async function listConfigPaths(
+  listDirFn: (path: string) => Promise<ListDirEntry[]>,
+): Promise<ModConfigFileEntry[]> {
+  const files: ModConfigFileEntry[] = [];
   const rootEntries = await listDirFn('config');
   for (const entry of rootEntries) {
     if (entry.dir) {
       const subEntries = await listDirFn(entry.path);
       for (const sub of subEntries) {
         if (!sub.dir && isConfigFilePath(sub.path)) {
-          paths.push(sub.path);
+          files.push({ path: sub.path, size: sub.size });
         }
       }
     } else if (isConfigFilePath(entry.path)) {
-      paths.push(entry.path);
+      files.push({ path: entry.path, size: entry.size });
     }
   }
-  return paths.sort();
+  return files.sort((a, b) => a.path.localeCompare(b.path));
 }

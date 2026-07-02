@@ -251,16 +251,44 @@ func (s *Service) refreshMonitoringSnapshots(ctx context.Context, ownerID, vpsID
 	if err != nil {
 		return
 	}
+	clientEntries, clientErr := s.ListGameServerClientMods(ctx, ownerID, vpsID, item.ID)
+	resourcepackEntries, _ := s.ListGameServerResourcepacks(ctx, ownerID, vpsID, item.ID)
+	clientResourcepackEntries, _ := s.ListGameServerClientResourcepacks(ctx, ownerID, vpsID, item.ID)
+	shaderEntries, _ := s.ListGameServerShaders(ctx, ownerID, vpsID, item.ID)
+	clientShaderEntries, _ := s.ListGameServerClientShaders(ctx, ownerID, vpsID, item.ID)
 	mods, plugins := splitModPluginNames(item.ServerType, entries)
 	modsJSON, _ := json.Marshal(mods)
 	pluginsJSON, _ := json.Marshal(plugins)
+	clientModsJSON := marshalFilenameList(clientEntries, clientErr)
+	resourcepacksJSON, _ := json.Marshal(fileNamesFromEntries(resourcepackEntries))
+	clientResourcepacksJSON := marshalFilenameList(clientResourcepackEntries, nil)
+	shadersJSON, _ := json.Marshal(fileNamesFromEntries(shaderEntries))
+	clientShadersJSON := marshalFilenameList(clientShaderEntries, nil)
 	_ = s.db.WithContext(ctx).Model(item).Updates(map[string]any{
-		"monitoring_mods_json":     string(modsJSON),
-		"monitoring_plugins_json":  string(pluginsJSON),
-		"updated_at":               item.UpdatedAt,
+		"monitoring_mods_json":                 string(modsJSON),
+		"monitoring_client_mods_json":          clientModsJSON,
+		"monitoring_resourcepacks_json":        string(resourcepacksJSON),
+		"monitoring_client_resourcepacks_json": clientResourcepacksJSON,
+		"monitoring_shaders_json":              string(shadersJSON),
+		"monitoring_client_shaders_json":       clientShadersJSON,
+		"monitoring_plugins_json":              string(pluginsJSON),
+		"updated_at":                           item.UpdatedAt,
 	}).Error
 	item.MonitoringModsJSON = string(modsJSON)
+	item.MonitoringClientModsJSON = clientModsJSON
+	item.MonitoringResourcepacksJSON = string(resourcepacksJSON)
+	item.MonitoringClientResourcepacksJSON = clientResourcepacksJSON
+	item.MonitoringShadersJSON = string(shadersJSON)
+	item.MonitoringClientShadersJSON = clientShadersJSON
 	item.MonitoringPluginsJSON = string(pluginsJSON)
+}
+
+func marshalFilenameList(entries []protocol.FileEntry, err error) string {
+	if err != nil {
+		return "[]"
+	}
+	namesJSON, _ := json.Marshal(fileNamesFromEntries(entries))
+	return string(namesJSON)
 }
 
 func (s *Service) getListedMonitoringServer(ctx context.Context, gameServerID string) (*models.GameServer, string, error) {

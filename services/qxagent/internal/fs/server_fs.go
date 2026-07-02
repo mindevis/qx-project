@@ -142,6 +142,53 @@ func ListMods(workDir, serverType string) ([]protocol.FileEntry, error) {
 	return ListDir(workDir, folder)
 }
 
+func ListClientMods(workDir, serverType string) ([]protocol.FileEntry, error) {
+	if modsFolderFor(serverType) == "" {
+		return nil, nil
+	}
+	return ListDir(workDir, "client-mods")
+}
+
+func ListResourcepacks(workDir string) ([]protocol.FileEntry, error) {
+	return ListDir(workDir, "resourcepacks")
+}
+
+func ListClientResourcepacks(workDir string) ([]protocol.FileEntry, error) {
+	return ListDir(workDir, "client-resourcepacks")
+}
+
+func ListShaders(workDir string) ([]protocol.FileEntry, error) {
+	return ListDir(workDir, "shaderpacks")
+}
+
+func ListClientShaders(workDir string) ([]protocol.FileEntry, error) {
+	return ListDir(workDir, "client-shaders")
+}
+
+func resourcepackFolderFor(modTarget string) string {
+	if strings.EqualFold(strings.TrimSpace(modTarget), "client-resourcepacks") {
+		return "client-resourcepacks"
+	}
+	return "resourcepacks"
+}
+
+func shaderFolderFor(modTarget string) string {
+	if strings.EqualFold(strings.TrimSpace(modTarget), "client-shaders") {
+		return "client-shaders"
+	}
+	return "shaderpacks"
+}
+
+func modFolderFor(serverType, modTarget string) string {
+	if strings.EqualFold(strings.TrimSpace(modTarget), "client-mods") {
+		if modsFolderFor(serverType) == "" {
+			return ""
+		}
+		return "client-mods"
+	}
+	return modsFolderFor(serverType)
+}
+
 func modsFolderFor(serverType string) string {
 	switch strings.ToLower(strings.TrimSpace(serverType)) {
 	case "paper", "spigot", "purpur", "mohist", "magma", "arclight":

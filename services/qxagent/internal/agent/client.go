@@ -533,12 +533,107 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 			TS:        ts,
 			Payload:   resPayload,
 		}, nil
+	case protocol.TypeCmdServerClientModsList:
+		var payload protocol.ServerModsListPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListClientMods(payload.WorkDir, payload.ServerType)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerModsListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerClientModsList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerResourcepacksList:
+		var payload protocol.GameServerWorkDirPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListResourcepacks(payload.WorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerModsListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerResourcepacksList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerClientResourcepacksList:
+		var payload protocol.GameServerWorkDirPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListClientResourcepacks(payload.WorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerModsListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerClientResourcepacksList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerShadersList:
+		var payload protocol.GameServerWorkDirPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListShaders(payload.WorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerModsListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerShadersList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerClientShadersList:
+		var payload protocol.GameServerWorkDirPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		entries, err := fs.ListClientShaders(payload.WorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerModsListResult{Entries: entries})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerClientShadersList,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
 	case protocol.TypeCmdServerContentInstall:
 		var payload protocol.ServerContentInstallPayload
 		if err := json.Unmarshal(env.Payload, &payload); err != nil {
 			return nil, err
 		}
-		relPath, pathErr := fs.ContentRelPath(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.Filename)
+		relPath, pathErr := fs.ContentRelPath(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.Filename, payload.ModTarget)
 		var err error
 		if pathErr == nil {
 			err = fs.InstallContentFile(context.Background(), payload.WorkDir, relPath, payload.DownloadURL)
@@ -571,7 +666,7 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		var relPath string
 		var err error
 		if decErr == nil {
-			relPath, err = fs.UploadContentFile(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.Filename, data)
+			relPath, err = fs.UploadContentFile(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.ModTarget, payload.Filename, data)
 		} else {
 			err = decErr
 		}
@@ -588,6 +683,53 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		return &protocol.Envelope{
 			V:         protocol.Version,
 			Type:      protocol.TypeResServerContentUpload,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerContentRead:
+		var payload protocol.ServerContentReadPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		data, readErr := fs.ReadContentFile(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.ModTarget, payload.Filename)
+		var resPayload []byte
+		if readErr != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": readErr.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerContentReadResult{
+				Status:     "ok",
+				Filename:   payload.Filename,
+				ContentB64: base64.StdEncoding.EncodeToString(data),
+				Size:       int64(len(data)),
+			})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerContentRead,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerContentDelete:
+		var payload protocol.ServerContentDeletePayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		relPath, err := fs.DeleteContentFile(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.ModTarget, payload.Filename)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerContentDeleteResult{
+				Status:   "deleted",
+				RelPath:  relPath,
+				Filename: payload.Filename,
+			})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerContentDelete,
 			RequestID: env.RequestID,
 			TS:        ts,
 			Payload:   resPayload,

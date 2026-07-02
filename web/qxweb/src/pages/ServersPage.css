@@ -1418,3 +1418,63 @@ html[data-theme='dark'] .game-server-property-row {
 .game-server-files-toolbar {
   margin-bottom: 8px;
 }
+
+.mod-configs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mod-configs-toolbar-search {
+  flex: 1 1 200px;
+  min-width: 160px;
+  max-width: 320px;
+}
+
+.mod-configs-tabs .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+
+.mod-configs-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+}
+
+.mod-configs-tab-label > span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-configs-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.mod-configs-editor-path {
+  word-break: break-all;
+}
+
+.mod-configs-sync-hint,
+.mod-configs-binding-hint {
+  margin-bottom: 12px;
+}
+
+.mod-configs-textarea {
+  min-height: 320px;
+}
+
+@media (max-width: 767px) {
+  .mod-configs-toolbar-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .mod-configs-tab-label {
+    max-width: 120px;
+  }
+}

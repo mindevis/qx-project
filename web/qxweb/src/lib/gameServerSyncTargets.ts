@@ -7,6 +7,7 @@ export type GameServerSyncTarget = {
   vpsName: string;
   gameServer: VpsGameServer;
   serverMods: GameServerFileEntry[];
+  clientMods?: GameServerFileEntry[];
 };
 
 export function gameServerSyncTargetKey(target: Pick<GameServerSyncTarget, 'vpsId' | 'gameServer'>) {
@@ -40,17 +41,25 @@ export async function loadGameServerSyncTargets(
         continue;
       }
       let serverMods: GameServerFileEntry[] = [];
+      let clientMods: GameServerFileEntry[] = [];
       try {
         const modsRes = await api.listVpsGameServerMods(vps.id, gs.id);
         serverMods = modsRes.items ?? [];
       } catch {
         serverMods = [];
       }
+      try {
+        const clientRes = await api.listVpsGameServerClientMods(vps.id, gs.id);
+        clientMods = clientRes.items ?? [];
+      } catch {
+        clientMods = [];
+      }
       loaded.push({
         vpsId: vps.id,
         vpsName: vps.name || vps.slug,
         gameServer: gs,
         serverMods,
+        clientMods,
       });
     }
   }

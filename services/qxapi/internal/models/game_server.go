@@ -30,8 +30,13 @@ type GameServer struct {
 	MonitoringDescription string  `gorm:"type:text" json:"monitoring_description,omitempty"`
 	BannerURL             string  `gorm:"type:varchar(512)" json:"banner_url,omitempty"`
 	MonitoringTagsJSON    string  `gorm:"type:text" json:"-"`
-	MonitoringModsJSON    string  `gorm:"type:text" json:"-"`
-	MonitoringPluginsJSON string  `gorm:"type:text" json:"-"`
+	MonitoringModsJSON        string  `gorm:"type:text" json:"-"`
+	MonitoringClientModsJSON  string  `gorm:"type:text" json:"-"`
+	MonitoringResourcepacksJSON       string `gorm:"type:text" json:"-"`
+	MonitoringClientResourcepacksJSON string `gorm:"type:text" json:"-"`
+	MonitoringShadersJSON             string `gorm:"type:text" json:"-"`
+	MonitoringClientShadersJSON       string `gorm:"type:text" json:"-"`
+	MonitoringPluginsJSON     string  `gorm:"type:text" json:"-"`
 	LikesCount            int     `gorm:"not null;default:0" json:"likes_count"`
 	RatingSum             int     `gorm:"not null;default:0" json:"-"`
 	RatingCount           int     `gorm:"not null;default:0" json:"rating_count"`

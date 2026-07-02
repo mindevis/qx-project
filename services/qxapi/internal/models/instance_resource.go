@@ -19,6 +19,7 @@ type InstanceResourceEntry struct {
 	Downloads     int64  `json:"downloads,omitempty"`
 	FileSize      int64  `json:"file_size,omitempty"`
 	InstalledAt   string `json:"installed_at"`
+	SideOverride  string `json:"side_override,omitempty"`
 }
 
 // InstanceResourceList is stored as JSON on launcher_instances.

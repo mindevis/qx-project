@@ -101,7 +101,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	mcVersionsH := &McVersionsHandler{}
 	serversH := &ServersHandler{Service: serversSvc}
 	gameServersH := &GameServersHandler{Service: serversSvc}
-	monitoringH := &MonitoringHandler{Service: serversSvc}
+	monitoringH := &MonitoringHandler{Service: serversSvc, LauncherService: launcherSvc}
 	consoleH := &ServerConsoleHandler{Servers: serversSvc, Tokens: tokens}
 	mojangH := &MojangHandler{Service: mojangSvc}
 	cosmeticsH := &CosmeticsHandler{Service: cosmeticsSvc}
@@ -184,12 +184,22 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.GET("/servers/:id/game-servers/:gameServerId/properties", gameServersH.GetProperties)
 			authed.PATCH("/servers/:id/game-servers/:gameServerId/properties", gameServersH.PatchProperties)
 			authed.GET("/servers/:id/game-servers/:gameServerId/mods", gameServersH.ListMods)
+			authed.GET("/servers/:id/game-servers/:gameServerId/client-mods", gameServersH.ListClientMods)
 			authed.POST("/servers/:id/game-servers/:gameServerId/mods/sync", gameServersH.SyncMod)
+			authed.DELETE("/servers/:id/game-servers/:gameServerId/mods", gameServersH.DeleteMod)
 			authed.POST("/servers/:id/game-servers/:gameServerId/mods/upload", gameServersH.UploadMod)
+			authed.GET("/servers/:id/game-servers/:gameServerId/client-resourcepacks", gameServersH.ListClientResourcepacks)
+			authed.POST("/servers/:id/game-servers/:gameServerId/resourcepacks/sync", gameServersH.SyncResourcepack)
+			authed.DELETE("/servers/:id/game-servers/:gameServerId/resourcepacks", gameServersH.DeleteResourcepack)
+			authed.GET("/servers/:id/game-servers/:gameServerId/client-shaders", gameServersH.ListClientShaders)
+			authed.POST("/servers/:id/game-servers/:gameServerId/shaders/sync", gameServersH.SyncShader)
+			authed.DELETE("/servers/:id/game-servers/:gameServerId/shaders", gameServersH.DeleteShader)
 			authed.GET("/servers/:id/game-servers/:gameServerId/plugins", gameServersH.ListPlugins)
 			authed.POST("/servers/:id/game-servers/:gameServerId/plugins/sync", gameServersH.SyncPlugin)
+			authed.DELETE("/servers/:id/game-servers/:gameServerId/plugins", gameServersH.DeletePlugin)
 			authed.GET("/servers/:id/game-servers/:gameServerId/datapacks", gameServersH.ListDatapacks)
 			authed.POST("/servers/:id/game-servers/:gameServerId/datapacks/sync", gameServersH.SyncDatapack)
+			authed.DELETE("/servers/:id/game-servers/:gameServerId/datapacks", gameServersH.DeleteDatapack)
 			authed.GET("/servers/:id/game-servers/:gameServerId/files", gameServersH.ListFiles)
 			authed.GET("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.ReadFile)
 			authed.PUT("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.WriteFile)
@@ -205,6 +215,9 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.GET("/monitoring/bindable-servers", monitoringH.ListBindable)
 			authed.PUT("/monitoring/servers/:id/binding", monitoringH.SetBinding)
 			authed.DELETE("/monitoring/servers/:id/binding", monitoringH.ClearBinding)
+			authed.GET("/monitoring/servers/:id/connect-mod-status", monitoringH.GetConnectModStatus)
+			authed.PUT("/monitoring/servers/:id/client-mod-prefs", monitoringH.SetClientModPrefs)
+			authed.POST("/monitoring/servers/:id/prepare-connect-mods", monitoringH.PrepareConnectMods)
 
 			authed.GET("/mods/search", modsH.Search)
 			authed.GET("/mods/browse", modsH.Browse)
@@ -221,6 +234,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			launcherOwner.GET("/instances/:id", instancesH.Get)
 			launcherOwner.PATCH("/instances/:id", instancesH.Update)
 			launcherOwner.GET("/instances/:id/resources", instancesH.ListResources)
+			launcherOwner.PATCH("/instances/:id/resources", instancesH.PatchResource)
 			launcherOwner.DELETE("/instances/:id/resources", instancesH.DeleteResource)
 			launcherOwner.POST("/instances/:id/resources/upload", instancesH.UploadResource)
 			launcherOwner.POST("/instances/:id/resources/sync-to-game-server", instancesH.SyncUploadedResource)

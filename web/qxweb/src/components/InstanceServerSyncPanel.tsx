@@ -22,8 +22,10 @@ import {
 import {
   instanceResourceSupportsServerSync,
   instanceResourceVersionKey,
+  instanceResourceContentTarget,
   isInstanceResourceOnServer,
   isUploadedInstanceResource,
+  mergeServerModLists,
 } from '@/lib/modSync';
 import './InstanceServerSyncPanel.css';
 
@@ -89,6 +91,8 @@ export function InstanceServerSyncProvider({
   const [singleSyncOpen, setSingleSyncOpen] = useState(false);
   const [singleSelection, setSingleSelection] = useState<ModSyncSelection | null>(null);
   const [uploadedSyncResource, setUploadedSyncResource] = useState<InstanceResource | null>(null);
+  const [syncContentTarget, setSyncContentTarget] = useState<import('@/lib/modSync').ContentTarget>('mods');
+  const [syncResourceType, setSyncResourceType] = useState<'mod' | 'resourcepack' | 'shader'>('mod');
 
   const syncableItems = useMemo(
     () => items.filter(instanceResourceSupportsServerSync),
@@ -170,7 +174,11 @@ export function InstanceServerSyncProvider({
     (item: InstanceResource, target: GameServerSyncTarget) => {
       const key = instanceResourceVersionKey(item);
       const filenames = key ? versionFilenames[key] : undefined;
-      return isInstanceResourceOnServer(target.serverMods, item, filenames);
+      return isInstanceResourceOnServer(
+        mergeServerModLists(target.serverMods, target.clientMods ?? []),
+        item,
+        filenames,
+      );
     },
     [versionFilenames],
   );
@@ -186,7 +194,14 @@ export function InstanceServerSyncProvider({
       targets.map(async (target) => {
         try {
           const modsRes = await api.listVpsGameServerMods(target.vpsId, target.gameServer.id);
-          return { ...target, serverMods: modsRes.items ?? [] };
+          let clientMods: Awaited<ReturnType<typeof api.listVpsGameServerClientMods>>['items'] = [];
+          try {
+            const clientRes = await api.listVpsGameServerClientMods(target.vpsId, target.gameServer.id);
+            clientMods = clientRes.items ?? [];
+          } catch {
+            clientMods = [];
+          }
+          return { ...target, serverMods: modsRes.items ?? [], clientMods };
         } catch {
           return target;
         }
@@ -200,6 +215,12 @@ export function InstanceServerSyncProvider({
       if (isUploadedInstanceResource(item)) {
         setUploadedSyncResource(item);
         setSingleSelection(null);
+        setSyncContentTarget(instanceResourceContentTarget(item));
+        setSyncResourceType(
+          item.resource_type === 'resourcepack' || item.resource_type === 'shader'
+            ? item.resource_type
+            : 'mod',
+        );
         setSingleSyncOpen(true);
         return;
       }
@@ -222,6 +243,12 @@ export function InstanceServerSyncProvider({
         projectName: item.project_name,
         version,
       });
+      setSyncContentTarget(instanceResourceContentTarget(item));
+      setSyncResourceType(
+        item.resource_type === 'resourcepack' || item.resource_type === 'shader'
+          ? item.resource_type
+          : 'mod',
+      );
       setUploadedSyncResource(null);
       setSingleSyncOpen(true);
     },
@@ -249,6 +276,8 @@ export function InstanceServerSyncProvider({
         instanceLoader={instance.loader}
         instanceMcVersion={instance.mc_version}
         installedResources={items}
+        modTarget={syncContentTarget}
+        resourceType={syncResourceType}
         onClose={() => {
           setSingleSyncOpen(false);
           setSingleSelection(null);

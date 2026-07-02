@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildModSyncBodies,
+  applyModTargetToBodies,
+  instanceResourceModTarget,
   instanceResourceSupportsServerSync,
+  isServerOnlyMod,
   instanceResourceVersionKey,
   isInstanceResourceOnServer,
   isModOnServer,
@@ -143,6 +146,41 @@ describe('instanceResourceVersionKey', () => {
         filename: 'custom-mod.jar',
       }),
     ).toBe('upload:custom-mod.jar');
+  });
+});
+
+describe('instanceResourceModTarget', () => {
+  it('routes client-only resourcepack override to client-resourcepacks folder', () => {
+    expect(
+      instanceResourceContentTarget({ side_override: 'client', resource_type: 'resourcepack' }),
+    ).toBe('client-resourcepacks');
+  });
+
+  it('routes client-only shader override to client-shaders folder', () => {
+    expect(instanceResourceContentTarget({ side_override: 'client', resource_type: 'shader' })).toBe(
+      'client-shaders',
+    );
+  });
+
+  it('routes client-only override to client-mods folder', () => {
+    expect(instanceResourceModTarget({ side_override: 'client' })).toBe('client-mods');
+    expect(instanceResourceModTarget({ side_override: 'server' })).toBe('mods');
+  });
+});
+
+describe('isServerOnlyMod', () => {
+  it('detects server-only catalog entries', () => {
+    expect(isServerOnlyMod({ client_side: 'unsupported', server_side: 'required' })).toBe(true);
+  });
+});
+
+describe('applyModTargetToBodies', () => {
+  it('adds mod_target to sync bodies', () => {
+    const bodies = applyModTargetToBodies(
+      [{ source: 'modrinth', project_id: 'a', version_id: 'v', filename: 'a.jar', download_url: 'https://x' }],
+      'client-mods',
+    );
+    expect(bodies[0].mod_target).toBe('client-mods');
   });
 });
 

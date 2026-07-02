@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/qxproject/qx/services/qxapi/internal/models"
@@ -19,6 +20,7 @@ type InstanceResourceView struct {
 	Downloads     int64  `json:"downloads,omitempty"`
 	FileSize      int64  `json:"file_size,omitempty"`
 	InstalledAt   string `json:"installed_at"`
+	SideOverride  string `json:"side_override,omitempty"`
 }
 
 func resourceViewFromEntry(entry models.InstanceResourceEntry) InstanceResourceView {
@@ -34,6 +36,7 @@ func resourceViewFromEntry(entry models.InstanceResourceEntry) InstanceResourceV
 		Downloads:     entry.Downloads,
 		FileSize:      entry.FileSize,
 		InstalledAt:   entry.InstalledAt,
+		SideOverride:  entry.SideOverride,
 	}
 }
 
@@ -149,4 +152,64 @@ func (s *Service) DeleteInstanceResource(ctx context.Context, owner Owner, insta
 
 func resourceInstalledAt() string {
 	return time.Now().UTC().Format(time.RFC3339)
+}
+
+type UpdateInstanceResourceSideInput struct {
+	Source       string
+	ProjectID    string
+	Filename     string
+	ResourceType string
+	SideOverride string
+}
+
+func updateResourceSide(list *models.InstanceResourceList, in UpdateInstanceResourceSideInput) bool {
+	match := DeleteInstanceResourceInput{
+		Source:       in.Source,
+		ProjectID:    in.ProjectID,
+		Filename:     in.Filename,
+		ResourceType: in.ResourceType,
+	}
+	for i, entry := range *list {
+		if resourceEntryMatches(entry, match) {
+			(*list)[i].SideOverride = in.SideOverride
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) UpdateInstanceResourceSide(ctx context.Context, owner Owner, instanceID string, in UpdateInstanceResourceSideInput) error {
+	side := strings.TrimSpace(in.SideOverride)
+	if in.Source == "" || (in.ProjectID == "" && in.Filename == "") {
+		return ErrValidation
+	}
+	switch side {
+	case "", "client", "server", "both":
+	default:
+		return ErrValidation
+	}
+	inst, err := s.GetInstance(ctx, owner, instanceID)
+	if err != nil {
+		return err
+	}
+	updated := false
+	switch normalizeResourceType(in.ResourceType) {
+	case "resourcepack":
+		updated = updateResourceSide(&inst.ResourcePacks, in)
+	case "shader":
+		updated = updateResourceSide(&inst.Shaders, in)
+	case "datapack":
+		updated = updateResourceSide(&inst.Datapacks, in)
+	default:
+		updated = updateResourceSide(&inst.Mods, in)
+	}
+	if !updated {
+		return ErrNotFound
+	}
+	return s.db.WithContext(ctx).Model(inst).Updates(map[string]any{
+		"mods":           inst.Mods,
+		"resource_packs": inst.ResourcePacks,
+		"shaders":        inst.Shaders,
+		"datapacks":      inst.Datapacks,
+	}).Error
 }

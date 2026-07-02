@@ -8,10 +8,12 @@ import {
   type ModVersion,
 } from '@/api/client';
 import { ModInstallDepsModal, type InstallItem } from '@/components/ModInstallDepsModal';
+import { ServerOnlyInstallModal } from '@/components/ServerOnlyInstallModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useModInstall } from '@/hooks/useModInstall';
 import { formatModCatalogError } from '@/lib/modCatalogError';
+import { isServerOnlyMod } from '@/lib/modSync';
 import { fetchModProjectIcons } from '@/lib/instanceResourceIcons';
 import { useMessage } from '@/hooks/useMessage';
 
@@ -33,6 +35,8 @@ export type ModCatalogInstallControlsProps = {
   projectType: ModProjectType;
   iconUrl?: string;
   downloads?: number;
+  clientSide?: string;
+  serverSide?: string;
   loader?: string;
   mcVersion: string;
   installedProjectIds: Set<string>;
@@ -49,6 +53,8 @@ export function ModCatalogInstallControls({
   projectType,
   iconUrl,
   downloads,
+  clientSide,
+  serverSide,
   loader,
   mcVersion,
   installedProjectIds,
@@ -66,6 +72,7 @@ export function ModCatalogInstallControls({
   const [selectedVersionId, setSelectedVersionId] = useState<string>();
   const [loadingVersions, setLoadingVersions] = useState(true);
   const [depsOpen, setDepsOpen] = useState(false);
+  const [serverOnlyOpen, setServerOnlyOpen] = useState(false);
   const [pendingVersion, setPendingVersion] = useState<ModVersion | null>(null);
   const [uninstalling, setUninstalling] = useState(false);
 
@@ -138,6 +145,14 @@ export function ModCatalogInstallControls({
         ]);
         if (ok) onInstalled?.(version);
       })();
+      return;
+    }
+    if (
+      projectType === 'mod' &&
+      isServerOnlyMod({ client_side: clientSide, server_side: serverSide })
+    ) {
+      setPendingVersion(version);
+      setServerOnlyOpen(true);
       return;
     }
     setPendingVersion(version);
@@ -265,18 +280,35 @@ export function ModCatalogInstallControls({
         ) : null}
       </div>
       {pendingVersion ? (
-        <ModInstallDepsModal
-          open={depsOpen}
-          source={source}
-          projectId={projectId}
-          projectName={projectName}
-          version={pendingVersion}
-          resourceType={projectType}
-          installedProjectIds={installedProjectIds}
-          confirming={installingVersionId === pendingVersion.id}
-          onCancel={() => setDepsOpen(false)}
-          onConfirm={(items) => void handleInstallConfirm(items)}
-        />
+        <>
+          <ModInstallDepsModal
+            open={depsOpen}
+            source={source}
+            projectId={projectId}
+            projectName={projectName}
+            version={pendingVersion}
+            resourceType={projectType}
+            installedProjectIds={installedProjectIds}
+            confirming={installingVersionId === pendingVersion.id}
+            onCancel={() => setDepsOpen(false)}
+            onConfirm={(items) => void handleInstallConfirm(items)}
+          />
+          <ServerOnlyInstallModal
+            open={serverOnlyOpen}
+            source={source}
+            projectId={projectId}
+            projectName={projectName}
+            version={pendingVersion}
+            projectType={projectType}
+            instanceLoader={instance.loader}
+            instanceMcVersion={instance.mc_version}
+            onClose={() => setServerOnlyOpen(false)}
+            onInstallToInstance={() => {
+              setServerOnlyOpen(false);
+              setDepsOpen(true);
+            }}
+          />
+        </>
       ) : null}
     </>
   );

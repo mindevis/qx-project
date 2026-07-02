@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Modal, Spin, Typography, Upload } from 'antd';
+import { Button, Modal, Select, Spin, Typography, Upload } from 'antd';
 import { AppstoreOutlined, DeleteOutlined, UnorderedListOutlined, UploadOutlined } from '@ant-design/icons';
-import { api, type InstanceResource, type ModProjectType } from '@/api/client';
+import { api, type InstanceResource, type ModProjectType, type ModSyncSide } from '@/api/client';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { ResourceMetaBadges } from '@/components/ResourceMetaBadges';
@@ -32,8 +32,17 @@ type InstalledResourceItemProps = {
   removingKey?: string;
   resourceKey: (item: InstanceResource) => string;
   onRemove: (item: InstanceResource) => void;
+  onSideChange: (item: InstanceResource, side: ModSyncSide | '') => void;
+  sideSavingKey?: string;
   t: ReturnType<typeof useI18n>['t'];
 };
+
+const sideOptions = (t: ReturnType<typeof useI18n>['t']) => [
+  { value: '', label: t('qxmods.side.auto') },
+  { value: 'client', label: t('qxmods.side.client') },
+  { value: 'server', label: t('qxmods.side.server') },
+  { value: 'both', label: t('qxmods.side.both') },
+];
 
 function InstalledResourceItem({
   item,
@@ -42,6 +51,8 @@ function InstalledResourceItem({
   removingKey,
   resourceKey,
   onRemove,
+  onSideChange,
+  sideSavingKey,
   t,
 }: InstalledResourceItemProps) {
   const removeButton = (
@@ -56,6 +67,21 @@ function InstalledResourceItem({
       onClick={() => onRemove(item)}
     />
   );
+
+  const sideSelect =
+    item.resource_type === 'mod' ||
+    item.resource_type === 'resourcepack' ||
+    item.resource_type === 'shader' ? (
+      <Select
+        size="small"
+        className="launcher-resource-side-select"
+        loading={sideSavingKey === resourceKey(item)}
+        value={item.side_override ?? ''}
+        options={sideOptions(t)}
+        aria-label={t('qxmods.side.editAria')}
+        onChange={(value) => onSideChange(item, (value || '') as ModSyncSide | '')}
+      />
+    ) : null;
 
   if (viewMode === 'list') {
     return (
@@ -72,6 +98,7 @@ function InstalledResourceItem({
             <ModSourceBadge source={item.source} />
           </div>
           <ResourceMetaBadges item={item} t={t} />
+          {sideSelect}
         </div>
         <div className="qxmods-installed-item-actions">
           <InstanceResourceSyncButton item={item} />
@@ -95,6 +122,7 @@ function InstalledResourceItem({
           <ModSourceBadge source={item.source} />
         </div>
         <ResourceMetaBadges item={item} t={t} />
+        {sideSelect}
       </div>
       <div className="launcher-resource-card-actions">
         <InstanceResourceSyncButton item={item} />
@@ -113,6 +141,7 @@ export function InstanceInstalledResources() {
   const [resolvedIconUrls, setResolvedIconUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [removingKey, setRemovingKey] = useState<string>();
+  const [sideSavingKey, setSideSavingKey] = useState<string>();
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
@@ -197,6 +226,30 @@ export function InstanceInstalledResources() {
       setUploading(false);
     }
     return false;
+  };
+
+  const handleSideChange = async (item: InstanceResource, side: ModSyncSide | '') => {
+    const key = resourceKey(item);
+    setSideSavingKey(key);
+    try {
+      await api.patchInstanceResource(instance.id, {
+        source: item.source,
+        project_id: item.project_id,
+        filename: item.filename,
+        resource_type: item.resource_type,
+        side_override: side,
+      });
+      setItems((prev) =>
+        prev.map((entry) =>
+          resourceKey(entry) === key ? { ...entry, side_override: side || undefined } : entry,
+        ),
+      );
+      message.success(t('qxmods.side.saved'));
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('qxmods.side.saveFailed'));
+    } finally {
+      setSideSavingKey(undefined);
+    }
   };
 
   const handleRemove = (item: InstanceResource) => {
@@ -333,6 +386,8 @@ export function InstanceInstalledResources() {
                     removingKey={removingKey}
                     resourceKey={resourceKey}
                     onRemove={handleRemove}
+                    onSideChange={(entry, side) => void handleSideChange(entry, side)}
+                    sideSavingKey={sideSavingKey}
                     t={t}
                   />
                 </li>

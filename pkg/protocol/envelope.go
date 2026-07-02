@@ -19,10 +19,17 @@ const (
 	TypeCmdServerFilesRead       = "cmd.server.files.read"
 	TypeCmdServerFilesWrite      = "cmd.server.files.write"
 	TypeCmdServerModsList           = "cmd.server.mods.list"
+	TypeCmdServerClientModsList     = "cmd.server.clientmods.list"
+	TypeCmdServerResourcepacksList        = "cmd.server.resourcepacks.list"
+	TypeCmdServerClientResourcepacksList  = "cmd.server.clientresourcepacks.list"
+	TypeCmdServerShadersList              = "cmd.server.shaders.list"
+	TypeCmdServerClientShadersList        = "cmd.server.clientshaders.list"
 	TypeCmdServerPluginsList        = "cmd.server.plugins.list"
 	TypeCmdServerDatapacksList      = "cmd.server.datapacks.list"
 	TypeCmdServerContentInstall     = "cmd.server.content.install"
 	TypeCmdServerContentUpload      = "cmd.server.content.upload"
+	TypeCmdServerContentRead        = "cmd.server.content.read"
+	TypeCmdServerContentDelete      = "cmd.server.content.delete"
 	TypeCmdInstanceFilesList        = "cmd.instance.files.list"
 	TypeCmdInstanceFilesRead        = "cmd.instance.files.read"
 	TypeCmdInstanceFilesWrite       = "cmd.instance.files.write"
@@ -41,10 +48,17 @@ const (
 	TypeResServerFilesRead        = "res.server.files.read"
 	TypeResServerFilesWrite       = "res.server.files.write"
 	TypeResServerModsList           = "res.server.mods.list"
+	TypeResServerClientModsList     = "res.server.clientmods.list"
+	TypeResServerResourcepacksList        = "res.server.resourcepacks.list"
+	TypeResServerClientResourcepacksList  = "res.server.clientresourcepacks.list"
+	TypeResServerShadersList              = "res.server.shaders.list"
+	TypeResServerClientShadersList        = "res.server.clientshaders.list"
 	TypeResServerPluginsList        = "res.server.plugins.list"
 	TypeResServerDatapacksList      = "res.server.datapacks.list"
 	TypeResServerContentInstall     = "res.server.content.install"
 	TypeResServerContentUpload      = "res.server.content.upload"
+	TypeResServerContentRead        = "res.server.content.read"
+	TypeResServerContentDelete      = "res.server.content.delete"
 	TypeResInstanceFilesList        = "res.instance.files.list"
 	TypeResInstanceFilesRead        = "res.instance.files.read"
 	TypeResInstanceFilesWrite       = "res.instance.files.write"
@@ -214,6 +228,7 @@ type ServerContentInstallPayload struct {
 	WorkDir      string `json:"work_dir"`
 	ServerType   string `json:"server_type,omitempty"`
 	ContentKind  string `json:"content_kind"`
+	ModTarget    string `json:"mod_target,omitempty"`
 	Filename     string `json:"filename"`
 	DownloadURL  string `json:"download_url"`
 }
@@ -250,8 +265,41 @@ type ServerContentUploadPayload struct {
 	WorkDir      string `json:"work_dir"`
 	ServerType   string `json:"server_type,omitempty"`
 	ContentKind  string `json:"content_kind"`
+	ModTarget    string `json:"mod_target,omitempty"`
 	Filename     string `json:"filename"`
 	ContentB64   string `json:"content_b64"`
+}
+
+type ServerContentReadPayload struct {
+	GameServerID string `json:"game_server_id"`
+	WorkDir      string `json:"work_dir"`
+	ServerType   string `json:"server_type,omitempty"`
+	ContentKind  string `json:"content_kind"`
+	ModTarget    string `json:"mod_target,omitempty"`
+	Filename     string `json:"filename"`
+}
+
+type ServerContentReadResult struct {
+	Status     string `json:"status"`
+	RelPath    string `json:"rel_path,omitempty"`
+	Filename   string `json:"filename,omitempty"`
+	ContentB64 string `json:"content_b64,omitempty"`
+	Size       int64  `json:"size,omitempty"`
+}
+
+type ServerContentDeletePayload struct {
+	GameServerID string `json:"game_server_id"`
+	WorkDir      string `json:"work_dir"`
+	ServerType   string `json:"server_type,omitempty"`
+	ContentKind  string `json:"content_kind"`
+	ModTarget    string `json:"mod_target,omitempty"`
+	Filename     string `json:"filename"`
+}
+
+type ServerContentDeleteResult struct {
+	Status   string `json:"status"`
+	RelPath  string `json:"rel_path,omitempty"`
+	Filename string `json:"filename,omitempty"`
 }
 
 type ServerContentUploadResult struct {

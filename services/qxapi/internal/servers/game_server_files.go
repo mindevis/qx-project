@@ -163,6 +163,72 @@ func (s *Service) WriteGameServerFile(ctx context.Context, ownerID, vpsID, gameS
 	return err
 }
 
+func (s *Service) ListGameServerClientMods(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.ServerModsListPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		ServerType:   item.ServerType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerClientModsList, protocol.TypeResServerClientModsList, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerModsListResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return result.Entries, nil
+}
+
+func (s *Service) listGameServerWorkDirContent(
+	ctx context.Context,
+	ownerID, vpsID, gameServerID, cmdType, resType string,
+) ([]protocol.FileEntry, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.GameServerWorkDirPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, cmdType, resType, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerModsListResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return result.Entries, nil
+}
+
+func (s *Service) ListGameServerResourcepacks(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
+	return s.listGameServerWorkDirContent(ctx, ownerID, vpsID, gameServerID, protocol.TypeCmdServerResourcepacksList, protocol.TypeResServerResourcepacksList)
+}
+
+func (s *Service) ListGameServerClientResourcepacks(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
+	return s.listGameServerWorkDirContent(ctx, ownerID, vpsID, gameServerID, protocol.TypeCmdServerClientResourcepacksList, protocol.TypeResServerClientResourcepacksList)
+}
+
+func (s *Service) ListGameServerShaders(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
+	return s.listGameServerWorkDirContent(ctx, ownerID, vpsID, gameServerID, protocol.TypeCmdServerShadersList, protocol.TypeResServerShadersList)
+}
+
+func (s *Service) ListGameServerClientShaders(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
+	return s.listGameServerWorkDirContent(ctx, ownerID, vpsID, gameServerID, protocol.TypeCmdServerClientShadersList, protocol.TypeResServerClientShadersList)
+}
+
 func (s *Service) ListGameServerMods(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
 	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
 	if err != nil {
@@ -235,7 +301,7 @@ func (s *Service) ListGameServerDatapacks(ctx context.Context, ownerID, vpsID, g
 
 func (s *Service) InstallGameServerContent(
 	ctx context.Context,
-	ownerID, vpsID, gameServerID, contentKind, filename, downloadURL string,
+	ownerID, vpsID, gameServerID, contentKind, modTarget, filename, downloadURL string,
 ) (*protocol.ServerContentInstallResult, error) {
 	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
 	if err != nil {
@@ -244,6 +310,7 @@ func (s *Service) InstallGameServerContent(
 	filename = strings.TrimSpace(filename)
 	downloadURL = strings.TrimSpace(downloadURL)
 	contentKind = strings.ToLower(strings.TrimSpace(contentKind))
+	modTarget = strings.TrimSpace(modTarget)
 	if filename == "" || downloadURL == "" || contentKind == "" {
 		return nil, ErrValidation
 	}
@@ -255,6 +322,7 @@ func (s *Service) InstallGameServerContent(
 		WorkDir:      item.WorkDir,
 		ServerType:   item.ServerType,
 		ContentKind:  contentKind,
+		ModTarget:    modTarget,
 		Filename:     filename,
 		DownloadURL:  downloadURL,
 	})
@@ -274,7 +342,7 @@ func (s *Service) InstallGameServerContent(
 
 func (s *Service) UploadGameServerContent(
 	ctx context.Context,
-	ownerID, vpsID, gameServerID, contentKind, filename string,
+	ownerID, vpsID, gameServerID, contentKind, modTarget, filename string,
 	data []byte,
 ) (*protocol.ServerContentUploadResult, error) {
 	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
@@ -283,6 +351,7 @@ func (s *Service) UploadGameServerContent(
 	}
 	filename = strings.TrimSpace(filename)
 	contentKind = strings.ToLower(strings.TrimSpace(contentKind))
+	modTarget = strings.TrimSpace(modTarget)
 	if filename == "" || contentKind == "" || len(data) == 0 {
 		return nil, ErrValidation
 	}
@@ -297,6 +366,7 @@ func (s *Service) UploadGameServerContent(
 		WorkDir:      item.WorkDir,
 		ServerType:   item.ServerType,
 		ContentKind:  contentKind,
+		ModTarget:    modTarget,
 		Filename:     filename,
 		ContentB64:   base64.StdEncoding.EncodeToString(data),
 	})
@@ -308,6 +378,91 @@ func (s *Service) UploadGameServerContent(
 		return nil, err
 	}
 	var result protocol.ServerContentUploadResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (s *Service) ReadGameServerContent(
+	ctx context.Context,
+	ownerID, vpsID, gameServerID, contentKind, modTarget, filename string,
+) ([]byte, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	filename = strings.TrimSpace(filename)
+	contentKind = strings.ToLower(strings.TrimSpace(contentKind))
+	modTarget = strings.TrimSpace(modTarget)
+	if filename == "" || contentKind == "" {
+		return nil, ErrValidation
+	}
+	if err := validateGameServerContentKind(item.ServerType, contentKind); err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.ServerContentReadPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		ServerType:   item.ServerType,
+		ContentKind:  contentKind,
+		ModTarget:    modTarget,
+		Filename:     filename,
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerContentRead, protocol.TypeResServerContentRead, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerContentReadResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	if result.ContentB64 == "" {
+		return nil, ErrValidation
+	}
+	data, err := base64.StdEncoding.DecodeString(result.ContentB64)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (s *Service) DeleteGameServerContent(
+	ctx context.Context,
+	ownerID, vpsID, gameServerID, contentKind, modTarget, filename string,
+) (*protocol.ServerContentDeleteResult, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	filename = strings.TrimSpace(filename)
+	contentKind = strings.ToLower(strings.TrimSpace(contentKind))
+	modTarget = strings.TrimSpace(modTarget)
+	if filename == "" || contentKind == "" {
+		return nil, ErrValidation
+	}
+	if err := validateGameServerContentKind(item.ServerType, contentKind); err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.ServerContentDeletePayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		ServerType:   item.ServerType,
+		ContentKind:  contentKind,
+		ModTarget:    modTarget,
+		Filename:     filename,
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerContentDelete, protocol.TypeResServerContentDelete, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerContentDeleteResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
@@ -332,6 +487,13 @@ func validateGameServerContentKind(serverType, contentKind string) error {
 		}
 	case "datapack":
 		return nil
+	case "resourcepack", "shader":
+		switch strings.ToLower(strings.TrimSpace(serverType)) {
+		case "forge", "neoforge", "fabric", "quilt":
+			return nil
+		default:
+			return ErrValidation
+		}
 	default:
 		return ErrValidation
 	}
@@ -414,10 +576,17 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerFilesRead,
 		protocol.TypeResServerFilesWrite,
 		protocol.TypeResServerModsList,
+		protocol.TypeResServerClientModsList,
+		protocol.TypeResServerResourcepacksList,
+		protocol.TypeResServerClientResourcepacksList,
+		protocol.TypeResServerShadersList,
+		protocol.TypeResServerClientShadersList,
 		protocol.TypeResServerPluginsList,
 		protocol.TypeResServerDatapacksList,
 		protocol.TypeResServerContentInstall,
-		protocol.TypeResServerContentUpload:
+		protocol.TypeResServerContentUpload,
+		protocol.TypeResServerContentRead,
+		protocol.TypeResServerContentDelete:
 		return true
 	default:
 		return false

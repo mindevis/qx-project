@@ -9,7 +9,7 @@ import {
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
-import { isFilenameOnServer, isModOnServer, resolveModSyncBodies } from '@/lib/modSync';
+import { isFilenameOnServer, isModOnServer, resolveModSyncBodies, applyModTargetToBodies, type ModTarget } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 
@@ -35,6 +35,8 @@ type ModSyncModalProps = {
   instanceLoader: string;
   instanceMcVersion?: string;
   installedResources?: InstanceResource[];
+  modTarget?: ModTarget;
+  resourceType?: 'mod' | 'resourcepack' | 'shader';
   onClose: () => void;
 };
 
@@ -46,6 +48,8 @@ export function ModSyncModal({
   instanceLoader,
   instanceMcVersion,
   installedResources = [],
+  modTarget = 'mods',
+  resourceType = 'mod',
   onClose,
 }: ModSyncModalProps) {
   const { t } = useI18n();
@@ -125,6 +129,7 @@ export function ModSyncModal({
           game_server_id: target.gameServer.id,
           filename: uploadedResource.filename,
           resource_type: uploadedResource.resource_type,
+          mod_target: modTarget,
         });
         if (res.status === 'already_installed') {
           message.info(t('qxmods.sync.alreadyOnServer'));
@@ -140,15 +145,27 @@ export function ModSyncModal({
       }
 
       if (!selection) return;
-      const bodies = await resolveModSyncBodies(
-        selection,
-        installedResources,
-        instanceLoader,
-        instanceMcVersion,
+      const bodies = applyModTargetToBodies(
+        await resolveModSyncBodies(
+          selection,
+          installedResources,
+          instanceLoader,
+          instanceMcVersion,
+        ),
+        modTarget,
       );
       let lastStatus: 'queued' | 'already_installed' | 'installed' = 'queued';
+      const syncToServer = (body: Parameters<typeof api.syncModToGameServer>[2]) => {
+        if (resourceType === 'resourcepack') {
+          return api.syncResourcepackToGameServer(target.vpsId, target.gameServer.id, body);
+        }
+        if (resourceType === 'shader') {
+          return api.syncShaderToGameServer(target.vpsId, target.gameServer.id, body);
+        }
+        return api.syncModToGameServer(target.vpsId, target.gameServer.id, body);
+      };
       for (const body of bodies) {
-        const res = await api.syncModToGameServer(target.vpsId, target.gameServer.id, body);
+        const res = await syncToServer(body);
         lastStatus = res.status;
       }
       if (lastStatus === 'already_installed' && bodies.length === 1) {

@@ -6,11 +6,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/qxproject/qx/services/qxapi/internal/launcher"
 	"github.com/qxproject/qx/services/qxapi/internal/servers"
 )
 
 type MonitoringHandler struct {
-	Service *servers.Service
+	Service        *servers.Service
+	LauncherService *launcher.Service
 }
 
 type rateMonitoringRequest struct {
@@ -65,6 +67,84 @@ func (h *MonitoringHandler) ClearBinding(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+type setClientModPrefsRequest struct {
+	EnabledFilenames           []string `json:"enabled_filenames"`
+	EnabledResourcepackFilenames []string `json:"enabled_resourcepack_filenames"`
+	EnabledShaderFilenames     []string `json:"enabled_shader_filenames"`
+}
+
+func (h *MonitoringHandler) GetConnectModStatus(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	instanceID := c.Query("instance_id")
+	if instanceID == "" {
+		JSONValidation(c, "instance_id required")
+		return
+	}
+	view, err := h.Service.GetConnectModStatus(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		instanceID,
+		h.LauncherService,
+	)
+	if err != nil {
+		monitoringError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
+}
+
+func (h *MonitoringHandler) SetClientModPrefs(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req setClientModPrefsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	if err := h.Service.SetClientModEnabled(c.Request.Context(), userID.(string), c.Param("id"), req.EnabledFilenames, req.EnabledResourcepackFilenames, req.EnabledShaderFilenames); err != nil {
+		monitoringError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "enabled_filenames": req.EnabledFilenames})
+}
+
+type prepareConnectModsRequest struct {
+	InstanceID string `json:"instance_id" binding:"required"`
+}
+
+func (h *MonitoringHandler) PrepareConnectMods(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req prepareConnectModsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	view, err := h.Service.PrepareConnectMods(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		req.InstanceID,
+		h.LauncherService,
+	)
+	if err != nil {
+		monitoringError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
 }
 
 func (h *MonitoringHandler) ListBindable(c *gin.Context) {

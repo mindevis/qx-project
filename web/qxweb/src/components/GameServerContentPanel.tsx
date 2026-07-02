@@ -12,7 +12,7 @@ import {
   Upload,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { SearchOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
   api,
   type GameServerContentKind,
@@ -79,7 +79,39 @@ function listInstalled(
     case 'datapack':
       return api.listVpsGameServerDatapacks(vpsId, gameServerId);
     default:
-      return api.listVpsGameServerMods(vpsId, gameServerId);
+      return Promise.all([
+        api.listVpsGameServerMods(vpsId, gameServerId),
+        api.listVpsGameServerClientMods(vpsId, gameServerId),
+      ]).then(([modsRes, clientRes]) => ({
+        items: [...(modsRes.items ?? []), ...(clientRes.items ?? [])],
+      }));
+  }
+}
+
+function modTargetFromPath(path: string): 'mods' | 'client-mods' | undefined {
+  const normalized = path.replace(/\\/g, '/').toLowerCase();
+  if (normalized.startsWith('client-mods/')) return 'client-mods';
+  if (normalized.startsWith('mods/')) return 'mods';
+  return undefined;
+}
+
+function deleteContent(
+  kind: GameServerContentKind,
+  vpsId: string,
+  gameServerId: string,
+  filename: string,
+  modTarget?: 'mods' | 'client-mods',
+) {
+  switch (kind) {
+    case 'plugin':
+      return api.deleteVpsGameServerPlugin(vpsId, gameServerId, { filename });
+    case 'datapack':
+      return api.deleteVpsGameServerDatapack(vpsId, gameServerId, { filename });
+    default:
+      return api.deleteVpsGameServerMod(vpsId, gameServerId, {
+        filename,
+        mod_target: modTarget,
+      });
   }
 }
 
@@ -136,6 +168,7 @@ export function GameServerContentPanel({
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [installingVersionId, setInstallingVersionId] = useState<string>();
   const [uploading, setUploading] = useState(false);
+  const [deletingPath, setDeletingPath] = useState<string>();
 
   const i18nPrefix = `gameServerDetail.content.${kind}`;
 
@@ -312,6 +345,30 @@ export function GameServerContentPanel({
     [t],
   );
 
+  const handleDelete = (row: GameServerFileEntry) => {
+    Modal.confirm({
+      title: t('gameServerDetail.content.deleteTitle'),
+      content: t('gameServerDetail.content.deleteConfirm', { name: row.name }),
+      okText: t('gameServerDetail.content.deleteAction'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setDeletingPath(row.path);
+        try {
+          await deleteContent(kind, vpsId, gameServerId, row.name, modTargetFromPath(row.path));
+          message.success(t('gameServerDetail.content.deleteCompleted'));
+          void loadInstalled();
+          promptRestart();
+        } catch (e) {
+          message.error(e instanceof Error ? e.message : t('gameServerDetail.content.deleteFailed'));
+          throw e;
+        } finally {
+          setDeletingPath(undefined);
+        }
+      },
+    });
+  };
+
   const handleUpload = async (file: File) => {
     if (kind !== 'mod') return false;
     setUploading(true);
@@ -373,10 +430,40 @@ export function GameServerContentPanel({
           dataSource={installed}
           columns={[
             { title: t('gameServerDetail.fileName'), dataIndex: 'name', key: 'name' },
+            ...(kind === 'mod'
+              ? [
+                  {
+                    title: t('gameServerDetail.content.folder'),
+                    key: 'folder',
+                    render: (_: unknown, row: GameServerFileEntry) => {
+                      const target = modTargetFromPath(row.path);
+                      return target === 'client-mods'
+                        ? t('gameServerDetail.content.clientModsFolder')
+                        : t('gameServerDetail.content.modsFolder');
+                    },
+                  },
+                ]
+              : []),
             {
               title: t('gameServerDetail.fileSize'),
               key: 'size',
               render: (_, row) => formatFileSize(row.size),
+            },
+            {
+              title: '',
+              key: 'actions',
+              width: 56,
+              render: (_, row) => (
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  loading={deletingPath === row.path}
+                  aria-label={t('gameServerDetail.content.deleteAction')}
+                  onClick={() => handleDelete(row)}
+                />
+              ),
             },
           ]}
         />

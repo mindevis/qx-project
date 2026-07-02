@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -8,11 +9,36 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/qxproject/qx/pkg/protocol"
 	"github.com/qxproject/qx/services/qxapi/internal/mods"
 )
 
 type syncContentBody struct {
 	mods.SyncModRequest
+}
+
+type deleteContentBody struct {
+	Filename  string `json:"filename" binding:"required"`
+	ModTarget string `json:"mod_target"`
+}
+
+func (h *GameServersHandler) ListClientMods(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	entries, err := h.Service.ListGameServerClientMods(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": entries})
 }
 
 func (h *GameServersHandler) ListPlugins(c *gin.Context) {
@@ -65,6 +91,72 @@ func (h *GameServersHandler) SyncDatapack(c *gin.Context) {
 	h.syncGameServerContent(c, "datapack", gameServerSupportsDatapacks)
 }
 
+func (h *GameServersHandler) SyncResourcepack(c *gin.Context) {
+	h.syncGameServerContent(c, "resourcepack", gameServerSupportsClientContent)
+}
+
+func (h *GameServersHandler) SyncShader(c *gin.Context) {
+	h.syncGameServerContent(c, "shader", gameServerSupportsClientContent)
+}
+
+func (h *GameServersHandler) DeleteMod(c *gin.Context) {
+	h.deleteGameServerContent(c, "mod", gameServerSupportsMods)
+}
+
+func (h *GameServersHandler) DeletePlugin(c *gin.Context) {
+	h.deleteGameServerContent(c, "plugin", gameServerSupportsPlugins)
+}
+
+func (h *GameServersHandler) DeleteDatapack(c *gin.Context) {
+	h.deleteGameServerContent(c, "datapack", gameServerSupportsDatapacks)
+}
+
+func (h *GameServersHandler) DeleteResourcepack(c *gin.Context) {
+	h.deleteGameServerContent(c, "resourcepack", gameServerSupportsClientContent)
+}
+
+func (h *GameServersHandler) DeleteShader(c *gin.Context) {
+	h.deleteGameServerContent(c, "shader", gameServerSupportsClientContent)
+}
+
+func (h *GameServersHandler) ListClientResourcepacks(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	entries, err := h.Service.ListGameServerClientResourcepacks(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": entries})
+}
+
+func (h *GameServersHandler) ListClientShaders(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	entries, err := h.Service.ListGameServerClientShaders(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": entries})
+}
+
 func (h *GameServersHandler) syncGameServerContent(
 	c *gin.Context,
 	contentKind string,
@@ -95,62 +187,19 @@ func (h *GameServersHandler) syncGameServerContent(
 		return
 	}
 
-	var entries []struct {
-		Name string `json:"name"`
-		Dir  bool   `json:"dir"`
-	}
-	switch contentKind {
-	case "mod":
-		modEntries, listErr := h.Service.ListGameServerMods(
-			c.Request.Context(),
-			userID.(string),
-			c.Param("id"),
-			c.Param("gameServerId"),
-		)
-		if listErr != nil {
-			gameServerError(c, listErr)
-			return
-		}
-		for _, entry := range modEntries {
-			entries = append(entries, struct {
-				Name string `json:"name"`
-				Dir  bool   `json:"dir"`
-			}{Name: entry.Name, Dir: entry.Dir})
-		}
-	case "plugin":
-		pluginEntries, listErr := h.Service.ListGameServerPlugins(
-			c.Request.Context(),
-			userID.(string),
-			c.Param("id"),
-			c.Param("gameServerId"),
-		)
-		if listErr != nil {
-			gameServerError(c, listErr)
-			return
-		}
-		for _, entry := range pluginEntries {
-			entries = append(entries, struct {
-				Name string `json:"name"`
-				Dir  bool   `json:"dir"`
-			}{Name: entry.Name, Dir: entry.Dir})
-		}
-	case "datapack":
-		datapackEntries, listErr := h.Service.ListGameServerDatapacks(
-			c.Request.Context(),
-			userID.(string),
-			c.Param("id"),
-			c.Param("gameServerId"),
-		)
-		if listErr != nil {
-			gameServerError(c, listErr)
-			return
-		}
-		for _, entry := range datapackEntries {
-			entries = append(entries, struct {
-				Name string `json:"name"`
-				Dir  bool   `json:"dir"`
-			}{Name: entry.Name, Dir: entry.Dir})
-		}
+	modTarget := strings.TrimSpace(body.ModTarget)
+	entries, err := listContentEntries(
+		c.Request.Context(),
+		h,
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		contentKind,
+		modTarget,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
 	}
 	for _, entry := range entries {
 		if entry.Dir {
@@ -171,6 +220,7 @@ func (h *GameServersHandler) syncGameServerContent(
 		c.Param("id"),
 		c.Param("gameServerId"),
 		contentKind,
+		modTarget,
 		body.Filename,
 		body.DownloadURL,
 	)
@@ -191,18 +241,93 @@ func (h *GameServersHandler) syncGameServerContent(
 			"download_url":   body.DownloadURL,
 			"project_name":   body.ProjectName,
 			"version_number": body.VersionNumber,
+			"mod_target":     modTarget,
 		},
 	})
 }
 
+func (h *GameServersHandler) deleteGameServerContent(
+	c *gin.Context,
+	contentKind string,
+	supports func(string) bool,
+) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var body deleteContentBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+
+	gs, err := h.Service.GetGameServer(c.Request.Context(), userID.(string), c.Param("id"), c.Param("gameServerId"))
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	if !supports(gs.ServerType) {
+		JSONError(c, http.StatusForbidden, "CONTENT_NOT_ALLOWED", "this server type does not support "+contentKind)
+		return
+	}
+
+	modTarget := strings.TrimSpace(body.ModTarget)
+	_, err = h.Service.DeleteGameServerContent(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		contentKind,
+		modTarget,
+		body.Filename,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "deleted", "filename": body.Filename})
+}
+
+func listContentEntries(
+	ctx context.Context,
+	h *GameServersHandler,
+	userID, vpsID, gameServerID, contentKind, modTarget string,
+) ([]protocol.FileEntry, error) {
+	switch contentKind {
+	case "mod":
+		if strings.EqualFold(modTarget, "client-mods") {
+			return h.Service.ListGameServerClientMods(ctx, userID, vpsID, gameServerID)
+		}
+		return h.Service.ListGameServerMods(ctx, userID, vpsID, gameServerID)
+	case "plugin":
+		return h.Service.ListGameServerPlugins(ctx, userID, vpsID, gameServerID)
+	case "datapack":
+		return h.Service.ListGameServerDatapacks(ctx, userID, vpsID, gameServerID)
+	case "resourcepack":
+		if strings.EqualFold(modTarget, "client-resourcepacks") {
+			return h.Service.ListGameServerClientResourcepacks(ctx, userID, vpsID, gameServerID)
+		}
+		return h.Service.ListGameServerResourcepacks(ctx, userID, vpsID, gameServerID)
+	case "shader":
+		if strings.EqualFold(modTarget, "client-shaders") {
+			return h.Service.ListGameServerClientShaders(ctx, userID, vpsID, gameServerID)
+		}
+		return h.Service.ListGameServerShaders(ctx, userID, vpsID, gameServerID)
+	default:
+		return nil, nil
+	}
+}
+
 func (h *GameServersHandler) UploadMod(c *gin.Context) {
-	h.uploadGameServerContent(c, "mod", gameServerSupportsMods)
+	h.uploadGameServerContent(c, "mod", gameServerSupportsMods, c.PostForm("mod_target"))
 }
 
 func (h *GameServersHandler) uploadGameServerContent(
 	c *gin.Context,
 	contentKind string,
 	supports func(string) bool,
+	modTarget string,
 ) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {
@@ -253,6 +378,7 @@ func (h *GameServersHandler) uploadGameServerContent(
 		c.Param("id"),
 		c.Param("gameServerId"),
 		contentKind,
+		strings.TrimSpace(modTarget),
 		file.Filename,
 		data,
 	)
@@ -287,4 +413,13 @@ func gameServerSupportsPlugins(serverType string) bool {
 
 func gameServerSupportsDatapacks(_ string) bool {
 	return true
+}
+
+func gameServerSupportsClientContent(serverType string) bool {
+	switch strings.ToLower(serverType) {
+	case "forge", "neoforge", "fabric", "quilt":
+		return true
+	default:
+		return false
+	}
 }

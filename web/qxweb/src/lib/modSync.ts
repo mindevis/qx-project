@@ -136,6 +136,16 @@ export async function resolveModSyncBodies(
 
 export type ModSyncSide = 'client' | 'server' | 'both' | 'unknown';
 
+export type ModTarget =
+  | 'mods'
+  | 'client-mods'
+  | 'resourcepacks'
+  | 'client-resourcepacks'
+  | 'shaderpacks'
+  | 'client-shaders';
+
+export type ContentTarget = ModTarget;
+
 export function modSyncSide(item: Pick<ModCatalogItem, 'client_side' | 'server_side'>): ModSyncSide {
   const client = item.client_side?.trim() || 'unknown';
   const server = item.server_side?.trim() || 'unknown';
@@ -196,10 +206,88 @@ export function isInstanceResourceOnServer(
   return isFilenameOnServer(serverFiles, resource.filename);
 }
 
+export function instanceResourceEffectiveSide(
+  resource: Pick<InstanceResource, 'side_override'>,
+  catalogSide?: ModSyncSide,
+): ModSyncSide {
+  const override = resource.side_override?.trim();
+  if (override === 'client' || override === 'server' || override === 'both') {
+    return override;
+  }
+  return catalogSide ?? 'unknown';
+}
+
+export function contentTargetForSide(side: ModSyncSide, resourceType: string): ContentTarget {
+  switch (resourceType) {
+    case 'resourcepack':
+      return side === 'client' ? 'client-resourcepacks' : 'resourcepacks';
+    case 'shader':
+      return side === 'client' ? 'client-shaders' : 'shaderpacks';
+    default:
+      return side === 'client' ? 'client-mods' : 'mods';
+  }
+}
+
+export function modTargetForSide(side: ModSyncSide): ModTarget {
+  return contentTargetForSide(side, 'mod');
+}
+
+export function instanceResourceContentTarget(
+  resource: Pick<InstanceResource, 'side_override' | 'resource_type'>,
+  catalogSide?: ModSyncSide,
+): ContentTarget {
+  return contentTargetForSide(
+    instanceResourceEffectiveSide(resource, catalogSide),
+    resource.resource_type ?? 'mod',
+  );
+}
+
+export function instanceResourceModTarget(
+  resource: Pick<InstanceResource, 'side_override' | 'resource_type'>,
+  catalogSide?: ModSyncSide,
+): ModTarget {
+  const target = instanceResourceContentTarget(resource, catalogSide);
+  if (target === 'client-mods' || target === 'mods') {
+    return target;
+  }
+  return 'mods';
+}
+
+export function isServerOnlyMod(item: Pick<ModCatalogItem, 'client_side' | 'server_side'>): boolean {
+  return modSyncSide(item) === 'server';
+}
+
+export function isClientOnlyMod(item: Pick<ModCatalogItem, 'client_side' | 'server_side'>): boolean {
+  return modSyncSide(item) === 'client';
+}
+
+export function mergeServerModLists(
+  serverMods: GameServerFileEntry[],
+  clientMods: GameServerFileEntry[],
+): GameServerFileEntry[] {
+  return [...serverMods, ...clientMods];
+}
+
+export function isFilenameOnServerLists(
+  serverFiles: GameServerFileEntry[],
+  clientFiles: GameServerFileEntry[],
+  filename: string,
+): boolean {
+  return isFilenameOnServer(serverFiles, filename) || isFilenameOnServer(clientFiles, filename);
+}
+
 export function instanceResourceSupportsServerSync(resource: InstanceResource): boolean {
-  if (resource.resource_type !== 'mod') return false;
+  if (!['mod', 'resourcepack', 'shader'].includes(resource.resource_type)) return false;
   if (resource.source === 'upload') {
     return Boolean(resource.filename);
   }
   return Boolean(resource.project_id && resource.version_id);
+}
+
+export function applyModTargetToBodies(
+  bodies: GameServerContentSyncBody[],
+  modTarget: ContentTarget,
+): GameServerContentSyncBody[] {
+  if (modTarget === 'mods' || modTarget === 'resourcepacks' || modTarget === 'shaderpacks') return bodies;
+  return bodies.map((body) => ({ ...body, mod_target: modTarget }));
 }

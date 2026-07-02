@@ -298,7 +298,16 @@ export type GameServerContentSyncBody = {
   download_url: string;
   project_name?: string;
   version_number?: string;
+  mod_target?: ModTarget;
 };
+
+export type ModTarget =
+  | 'mods'
+  | 'client-mods'
+  | 'resourcepacks'
+  | 'client-resourcepacks'
+  | 'shaderpacks'
+  | 'client-shaders';
 
 export type InstanceResource = {
   source: ModSource;
@@ -312,6 +321,49 @@ export type InstanceResource = {
   downloads?: number;
   file_size?: number;
   installed_at: string;
+  side_override?: ModSyncSide;
+};
+
+export type ModSyncSide = 'client' | 'server' | 'both' | 'unknown';
+
+export type ConnectModStatus = {
+  client_mods: Array<{
+    filename: string;
+    size?: number;
+    installed_locally: boolean;
+  }>;
+  all_client_mods_installed: boolean;
+  saved_client_mod_enabled?: string[];
+  client_resourcepacks: Array<{
+    filename: string;
+    size?: number;
+    installed_locally: boolean;
+  }>;
+  all_client_resourcepacks_installed: boolean;
+  saved_client_resourcepack_enabled?: string[];
+  client_shaders: Array<{
+    filename: string;
+    size?: number;
+    installed_locally: boolean;
+  }>;
+  all_client_shaders_installed: boolean;
+  saved_client_shader_enabled?: string[];
+  server_mod_count: number;
+  server_resourcepack_count: number;
+  server_shader_count: number;
+  agent_online: boolean;
+};
+
+export type PrepareConnectModsResult = {
+  client_mods_installed: string[];
+  server_mods_installed: string[];
+  client_resourcepacks_installed: string[];
+  server_resourcepacks_installed: string[];
+  client_shaders_installed: string[];
+  server_shaders_installed: string[];
+  skipped?: string[];
+  errors?: string[];
+  agent_online: boolean;
 };
 
 export type ModInstallRequest = {
@@ -719,6 +771,22 @@ export const api = {
       'launcher',
     ),
 
+  patchInstanceResource: (
+    instanceId: string,
+    body: {
+      source: ModSource;
+      project_id?: string;
+      filename?: string;
+      resource_type: ModProjectType;
+      side_override?: ModSyncSide | '';
+    },
+  ) =>
+    request<{ status: string }>(
+      `/instances/${encodeURIComponent(instanceId)}/resources`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+      'launcher',
+    ),
+
   deleteInstanceResource: (
     instanceId: string,
     body: {
@@ -782,6 +850,7 @@ export const api = {
       game_server_id: string;
       filename: string;
       resource_type?: ModProjectType;
+      mod_target?: ModTarget;
     },
   ) =>
     request<ModSyncResult>(
@@ -983,6 +1052,33 @@ export const api = {
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods`,
     ),
 
+  listVpsGameServerClientMods: (vpsId: string, gameServerId: string) =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/client-mods`,
+    ),
+
+  deleteVpsGameServerMod: (
+    vpsId: string,
+    gameServerId: string,
+    body: { filename: string; mod_target?: ModTarget },
+  ) =>
+    request<{ status: string; filename: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods`,
+      { method: 'DELETE', body: JSON.stringify(body) },
+    ),
+
+  deleteVpsGameServerPlugin: (vpsId: string, gameServerId: string, body: { filename: string }) =>
+    request<{ status: string; filename: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/plugins`,
+      { method: 'DELETE', body: JSON.stringify(body) },
+    ),
+
+  deleteVpsGameServerDatapack: (vpsId: string, gameServerId: string, body: { filename: string }) =>
+    request<{ status: string; filename: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/datapacks`,
+      { method: 'DELETE', body: JSON.stringify(body) },
+    ),
+
   listVpsGameServerPlugins: (vpsId: string, gameServerId: string) =>
     request<{ items: GameServerFileEntry[] }>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/plugins`,
@@ -1070,6 +1166,30 @@ export const api = {
       method: 'DELETE',
     }),
 
+  getConnectModStatus: (gameServerId: string, instanceId: string) =>
+    request<ConnectModStatus>(
+      `/monitoring/servers/${encodeURIComponent(gameServerId)}/connect-mod-status?instance_id=${encodeURIComponent(instanceId)}`,
+    ),
+
+  setClientModPrefs: (
+    gameServerId: string,
+    prefs: {
+      enabled_filenames?: string[];
+      enabled_resourcepack_filenames?: string[];
+      enabled_shader_filenames?: string[];
+    },
+  ) =>
+    request<{ status: string }>(
+      `/monitoring/servers/${encodeURIComponent(gameServerId)}/client-mod-prefs`,
+      { method: 'PUT', body: JSON.stringify(prefs) },
+    ),
+
+  prepareConnectMods: (gameServerId: string, instanceId: string) =>
+    request<PrepareConnectModsResult>(
+      `/monitoring/servers/${encodeURIComponent(gameServerId)}/prepare-connect-mods`,
+      { method: 'POST', body: JSON.stringify({ instance_id: instanceId }) },
+    ),
+
   searchMods: (params: {
     q: string;
     type?: ModProjectType;
@@ -1152,6 +1272,26 @@ export const api = {
   ) =>
     request<ModSyncResult>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods/sync`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
+  syncResourcepackToGameServer: (
+    vpsId: string,
+    gameServerId: string,
+    body: GameServerContentSyncBody,
+  ) =>
+    request<ModSyncResult>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/resourcepacks/sync`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
+  syncShaderToGameServer: (
+    vpsId: string,
+    gameServerId: string,
+    body: GameServerContentSyncBody,
+  ) =>
+    request<ModSyncResult>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/shaders/sync`,
       { method: 'POST', body: JSON.stringify(body) },
     ),
 

@@ -38,6 +38,7 @@ import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { ALL_GAME_SERVER_TYPES, gameServerTypeLabelText } from '@/lib/gameServerTypes';
 import { isLaunchTerminal } from '@/lib/launchProgress';
+import { ConnectClientModsModal } from '@/components/ConnectClientModsModal';
 import { highlightMinecraft } from '@/pages/HomePage';
 import './MonitoringPage.css';
 
@@ -298,6 +299,7 @@ export function MonitoringPage() {
   const [profiles, setProfiles] = useState<OfflineProfile[]>([]);
   const [mojangStatus, setMojangStatus] = useState<MojangLinkStatus | null>(null);
   const [connectingServerId, setConnectingServerId] = useState<string | null>(null);
+  const [connectModsServer, setConnectModsServer] = useState<MonitoringServer | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const onlineCount = useMemo(() => servers.filter((server) => server.is_online).length, [servers]);
@@ -489,16 +491,7 @@ export function MonitoringPage() {
     }
   };
 
-  const handleConnect = async (server: MonitoringServer) => {
-    const binding = bindings.get(server.id);
-    if (!isAuthenticated || !binding || !linkedDevice) {
-      openMinecraftLink(server);
-      if (isAuthenticated && binding && !linkedDevice) {
-        message.info(t('monitoring.connectNeedsLauncher'));
-      }
-      return;
-    }
-
+  const launchToServer = async (server: MonitoringServer, binding: MonitoringInstanceBinding) => {
     setConnectingServerId(server.id);
     try {
       const useLicensed = mojangStatus?.linked === true;
@@ -511,6 +504,51 @@ export function MonitoringPage() {
       });
       await pollLaunchRequest(req.id);
     } catch {
+      openMinecraftLink(server);
+    } finally {
+      setConnectingServerId(null);
+    }
+  };
+
+  const handleConnect = async (server: MonitoringServer) => {
+    const binding = bindings.get(server.id);
+    if (!isAuthenticated || !binding || !linkedDevice) {
+      openMinecraftLink(server);
+      if (isAuthenticated && binding && !linkedDevice) {
+        message.info(t('monitoring.connectNeedsLauncher'));
+      }
+      return;
+    }
+
+    setConnectModsServer(server);
+  };
+
+  const handleConnectModsConfirmed = async () => {
+    if (!connectModsServer) return;
+    const binding = bindings.get(connectModsServer.id);
+    if (!binding) return;
+    const server = connectModsServer;
+    setConnectModsServer(null);
+    setConnectingServerId(server.id);
+    try {
+      const prepared = await api.prepareConnectMods(server.id, binding.instance_id);
+      const installedCount =
+        (prepared.client_mods_installed?.length ?? 0) +
+        (prepared.server_mods_installed?.length ?? 0) +
+        (prepared.client_resourcepacks_installed?.length ?? 0) +
+        (prepared.server_resourcepacks_installed?.length ?? 0) +
+        (prepared.client_shaders_installed?.length ?? 0) +
+        (prepared.server_shaders_installed?.length ?? 0);
+      if (installedCount > 0) {
+        message.success(t('monitoring.connectMods.synced', { count: installedCount }));
+      } else if ((prepared.errors?.length ?? 0) > 0) {
+        message.warning(t('monitoring.connectMods.syncPartial'));
+      } else if (!prepared.agent_online && (prepared.client_mods_installed?.length ?? 0) === 0) {
+        message.info(t('monitoring.connectMods.agentOffline'));
+      }
+      await launchToServer(server, binding);
+    } catch {
+      message.error(t('monitoring.connectMods.syncFailed'));
       openMinecraftLink(server);
     } finally {
       setConnectingServerId(null);
@@ -698,6 +736,16 @@ export function MonitoringPage() {
         )}
       </section>
       </div>
+      {connectModsServer && bindings.get(connectModsServer.id) ? (
+        <ConnectClientModsModal
+          open
+          gameServerId={connectModsServer.id}
+          instanceId={bindings.get(connectModsServer.id)!.instance_id}
+          serverName={connectModsServer.name}
+          onClose={() => setConnectModsServer(null)}
+          onConfirm={handleConnectModsConfirmed}
+        />
+      ) : null}
     </div>
   );
 }

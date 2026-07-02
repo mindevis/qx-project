@@ -34,21 +34,56 @@ func TestWorldFolderFromProperties(t *testing.T) {
 
 func TestContentRelPath(t *testing.T) {
 	dir := t.TempDir()
-	modPath, err := ContentRelPath(dir, "forge", "mod", "example.jar")
+	modPath, err := ContentRelPath(dir, "forge", "mod", "example.jar", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if modPath != "mods/example.jar" {
 		t.Fatalf("mod path: %q", modPath)
 	}
-	pluginPath, err := ContentRelPath(dir, "paper", "plugin", "EssentialsX.jar")
+	clientModPath, err := ContentRelPath(dir, "forge", "mod", "example.jar", "client-mods")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if clientModPath != "client-mods/example.jar" {
+		t.Fatalf("client mod path: %q", clientModPath)
+	}
+	resourcepackPath, err := ContentRelPath(dir, "forge", "resourcepack", "pack.zip", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resourcepackPath != "resourcepacks/pack.zip" {
+		t.Fatalf("resourcepack path: %q", resourcepackPath)
+	}
+	clientResourcepackPath, err := ContentRelPath(dir, "forge", "resourcepack", "pack.zip", "client-resourcepacks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if clientResourcepackPath != "client-resourcepacks/pack.zip" {
+		t.Fatalf("client resourcepack path: %q", clientResourcepackPath)
+	}
+	shaderPath, err := ContentRelPath(dir, "forge", "shader", "pack.zip", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shaderPath != "shaderpacks/pack.zip" {
+		t.Fatalf("shader path: %q", shaderPath)
+	}
+	clientShaderPath, err := ContentRelPath(dir, "forge", "shader", "pack.zip", "client-shaders")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if clientShaderPath != "client-shaders/pack.zip" {
+		t.Fatalf("client shader path: %q", clientShaderPath)
+	}
+	pluginPath, err := ContentRelPath(dir, "paper", "plugin", "EssentialsX.jar", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if pluginPath != "plugins/EssentialsX.jar" {
 		t.Fatalf("plugin path: %q", pluginPath)
 	}
-	datapackPath, err := ContentRelPath(dir, "vanilla", "datapack", "pack.zip")
+	datapackPath, err := ContentRelPath(dir, "vanilla", "datapack", "pack.zip", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,5 +117,23 @@ func TestListDatapacksEmpty(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("expected empty, got %d", len(entries))
+	}
+}
+
+func TestReadContentFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "client-mods"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "client-mods", "journeymap.jar")
+	if err := os.WriteFile(path, []byte("fake-jar"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	data, err := ReadContentFile(dir, "forge", "mod", "client-mods", "journeymap.jar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "fake-jar" {
+		t.Fatalf("content: %q", string(data))
 	}
 }

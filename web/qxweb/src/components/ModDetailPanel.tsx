@@ -212,6 +212,8 @@ export function ModDetailPanel() {
           projectType={resourceType}
           iconUrl={detail.icon_url}
           downloads={detail.downloads}
+          clientSide={detail.client_side}
+          serverSide={detail.server_side}
           loader={resourceType === 'datapack' ? undefined : loader || catalogLoader}
           mcVersion={mcVersion}
           installedProjectIds={installedProjectIds}

@@ -3,12 +3,15 @@ package models
 import "time"
 
 type GameServerInstanceBinding struct {
-	ID                 string    `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;primaryKey" json:"id"`
-	UserID             string    `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;not null;uniqueIndex:idx_binding_user_game" json:"user_id"`
-	GameServerID       string    `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;not null;uniqueIndex:idx_binding_user_game;index" json:"game_server_id"`
-	LauncherInstanceID string    `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;not null;index" json:"launcher_instance_id"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                 string     `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;primaryKey" json:"id"`
+	UserID             string     `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;not null;uniqueIndex:idx_binding_user_game" json:"user_id"`
+	GameServerID       string     `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;not null;uniqueIndex:idx_binding_user_game;index" json:"game_server_id"`
+	LauncherInstanceID string     `gorm:"type:char(36);charset:utf8mb4;collation:utf8mb4_unicode_ci;not null;index" json:"launcher_instance_id"`
+	ClientModEnabled            StringList `gorm:"type:text" json:"client_mod_enabled,omitempty"`
+	ClientResourcepackEnabled   StringList `gorm:"type:text" json:"client_resourcepack_enabled,omitempty"`
+	ClientShaderEnabled         StringList `gorm:"type:text" json:"client_shader_enabled,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 func (GameServerInstanceBinding) TableName() string {

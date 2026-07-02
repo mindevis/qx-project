@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/qxproject/qx/pkg/protocol"
 	"github.com/qxproject/qx/services/qxapi/internal/launcher"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 	"github.com/qxproject/qx/services/qxapi/internal/servers"
@@ -247,6 +249,52 @@ type syncUploadedResourceBody struct {
 	GameServerID string `json:"game_server_id" binding:"required"`
 	Filename     string `json:"filename" binding:"required"`
 	ResourceType string `json:"resource_type"`
+	ModTarget    string `json:"mod_target"`
+}
+
+type patchInstanceResourceRequest struct {
+	Source       string `json:"source" binding:"required"`
+	ProjectID    string `json:"project_id"`
+	Filename     string `json:"filename"`
+	ResourceType string `json:"resource_type"`
+	SideOverride string `json:"side_override"`
+}
+
+func (h *InstancesHandler) PatchResource(c *gin.Context) {
+	owner, ok := ownerFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req patchInstanceResourceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	if req.ProjectID == "" && req.Filename == "" {
+		JSONValidation(c, "project_id or filename required")
+		return
+	}
+	err := h.Service.UpdateInstanceResourceSide(c.Request.Context(), owner, c.Param("id"), launcher.UpdateInstanceResourceSideInput{
+		Source:       req.Source,
+		ProjectID:    req.ProjectID,
+		Filename:     req.Filename,
+		ResourceType: req.ResourceType,
+		SideOverride: req.SideOverride,
+	})
+	if err != nil {
+		if errors.Is(err, launcher.ErrNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "resource not found")
+			return
+		}
+		if errors.Is(err, launcher.ErrValidation) {
+			JSONValidation(c, "invalid resource data")
+			return
+		}
+		JSONInternal(c)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (h *InstancesHandler) SyncUploadedResource(c *gin.Context) {
@@ -270,8 +318,10 @@ func (h *InstancesHandler) SyncUploadedResource(c *gin.Context) {
 		resourceType = "mod"
 	}
 	resourceType = strings.ToLower(strings.TrimSpace(resourceType))
-	if resourceType != "mod" {
-		JSONValidation(c, "only mod resources can be synced to game server")
+	switch resourceType {
+	case "mod", "resourcepack", "shader":
+	default:
+		JSONValidation(c, "unsupported resource type for server sync")
 		return
 	}
 
@@ -289,24 +339,28 @@ func (h *InstancesHandler) SyncUploadedResource(c *gin.Context) {
 		return
 	}
 
-	modEntries, err := h.ServerService.ListGameServerMods(
+	modTarget := strings.TrimSpace(body.ModTarget)
+	entries, listErr := listUploadedSyncEntries(
 		c.Request.Context(),
+		h.ServerService,
 		owner.UserID,
 		body.VpsID,
 		body.GameServerID,
+		resourceType,
+		modTarget,
 	)
-	if err != nil {
-		gameServerError(c, err)
+	if listErr != nil {
+		gameServerError(c, listErr)
 		return
 	}
-	for _, entry := range modEntries {
+	for _, entry := range entries {
 		if entry.Dir {
 			continue
 		}
 		if strings.EqualFold(entry.Name, body.Filename) {
 			c.JSON(http.StatusOK, gin.H{
 				"status":  "already_installed",
-				"message": "mod file already exists on server",
+				"message": resourceType + " file already exists on server",
 			})
 			return
 		}
@@ -330,6 +384,7 @@ func (h *InstancesHandler) SyncUploadedResource(c *gin.Context) {
 		body.VpsID,
 		body.GameServerID,
 		resourceType,
+		modTarget,
 		body.Filename,
 		data,
 	)
@@ -339,10 +394,36 @@ func (h *InstancesHandler) SyncUploadedResource(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"status":   "installed",
-		"message":  "mod installed on server",
+		"message":  resourceType + " installed on server",
 		"filename": result.Filename,
 		"path":     result.RelPath,
 	})
+}
+
+func listUploadedSyncEntries(
+	ctx context.Context,
+	service *servers.Service,
+	userID, vpsID, gameServerID, resourceType, modTarget string,
+) ([]protocol.FileEntry, error) {
+	switch resourceType {
+	case "mod":
+		if strings.EqualFold(modTarget, "client-mods") {
+			return service.ListGameServerClientMods(ctx, userID, vpsID, gameServerID)
+		}
+		return service.ListGameServerMods(ctx, userID, vpsID, gameServerID)
+	case "resourcepack":
+		if strings.EqualFold(modTarget, "client-resourcepacks") {
+			return service.ListGameServerClientResourcepacks(ctx, userID, vpsID, gameServerID)
+		}
+		return service.ListGameServerResourcepacks(ctx, userID, vpsID, gameServerID)
+	case "shader":
+		if strings.EqualFold(modTarget, "client-shaders") {
+			return service.ListGameServerClientShaders(ctx, userID, vpsID, gameServerID)
+		}
+		return service.ListGameServerShaders(ctx, userID, vpsID, gameServerID)
+	default:
+		return nil, servers.ErrValidation
+	}
 }
 
 func (h *InstancesHandler) Delete(c *gin.Context) {
