@@ -37,6 +37,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { LauncherDownloadButton } from '@/components/LauncherDownloadButton';
+import { LauncherCodeSigningNotice } from '@/components/LauncherCodeSigningNotice';
 import { InstanceServerBinding } from '@/components/InstanceServerBinding';
 import { ProfileModelPicker, ProfileModelAvatar } from '@/components/ProfileModelPicker';
 import { useMessage } from '@/hooks/useMessage';
@@ -925,8 +926,8 @@ function LauncherHome() {
           </nav>
         ) : null}
 
-        {!linkedDevice && isAuthenticated && (
-          <div className="launcher-download-band">
+        <section className="launcher-download-public" aria-label={t('launcher.downloadSectionAria')}>
+          <div className="launcher-download-band launcher-download-band--public">
             <div className="launcher-download-band-icon">
               <DownloadOutlined />
             </div>
@@ -934,11 +935,14 @@ function LauncherHome() {
               <Title level={5} className="launcher-download-band-title">
                 {t('launcher.desktopTitle')}
               </Title>
-              <Paragraph className="launcher-download-band-desc">{t('launcher.desktopDesc')}</Paragraph>
+              <Paragraph className="launcher-download-band-desc">
+                {isAuthenticated ? t('launcher.desktopDesc') : t('launcher.downloadPublicDesc')}
+              </Paragraph>
+              <LauncherCodeSigningNotice />
             </div>
             <LauncherDownloadButton type="primary" release={launcherRelease} />
           </div>
-        )}
+        </section>
 
         {linkedDevice && isAuthenticated && updateAvailable && launcherRelease ? (
           <Alert

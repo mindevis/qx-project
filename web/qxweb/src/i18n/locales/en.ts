@@ -327,6 +327,11 @@ export const en: Messages = {
     desktopTitle: 'QXLauncher for desktop',
     desktopDesc:
       'Install QXLauncher, then choose “Link QXLauncher” in its menu.',
+    downloadSectionAria: 'Download QXLauncher for Windows',
+    downloadPublicDesc: 'Download QXLauncher for Windows to link your PC and launch Minecraft from the tray.',
+    codeSigningNotice:
+      'Windows builds of QX Launcher are code-signed through the SignPath Foundation open-source code signing program.',
+    privacyPolicyLink: 'Privacy policy',
     updateAvailableTitle: 'QXLauncher update available',
     updateAvailableDesc:
       'Installed version {{installed}} — latest is {{latest}}. Click Update to install via linked QXLauncher, or download manually.',

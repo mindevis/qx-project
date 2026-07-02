@@ -529,6 +529,18 @@ html[data-theme='dark'] .launcher-status-card {
 
 /* Download band */
 
+.launcher-download-public {
+  margin-bottom: 28px;
+}
+
+.launcher-code-signing-notice {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 52rem;
+}
+
 .launcher-download-band {
   display: flex;
   flex-wrap: wrap;

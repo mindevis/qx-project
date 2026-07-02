@@ -4,7 +4,7 @@ Minecraft ecosystem: **QXWeb**, **QXApi**, **QXLauncher**, **QXAgent**, **QXMods
 
 **Prod platform ✅** ([mc.qx-dev.ru](https://mc.qx-dev.ru)) · [docs.qx-dev.ru](https://docs.qx-dev.ru)
 
-[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [License](LICENSE)
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Privacy](PRIVACY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [License](LICENSE)
 
 ## Требования
 

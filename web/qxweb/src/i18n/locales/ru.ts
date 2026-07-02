@@ -324,6 +324,12 @@ export const ru = {
     desktopTitle: 'QXLauncher для ПК',
     desktopDesc:
       'Установите QXLauncher, затем в его меню выберите «Связать QXLauncher».',
+    downloadSectionAria: 'Скачать QXLauncher для Windows',
+    downloadPublicDesc:
+      'Скачайте QXLauncher для Windows, чтобы привязать ПК и запускать Minecraft из трея.',
+    codeSigningNotice:
+      'Сборки QX Launcher для Windows подписываются через программу SignPath Foundation для open-source проектов.',
+    privacyPolicyLink: 'Политика конфиденциальности',
     updateAvailableTitle: 'Доступно обновление QXLauncher',
     updateAvailableDesc:
       'Установлена версия {{installed}} — актуальная {{latest}}. Нажмите «Обновить», чтобы установить через связанный QXLauncher, или скачайте вручную.',

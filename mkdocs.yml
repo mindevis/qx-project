@@ -1,0 +1,92 @@
+site_name: QXSystem
+site_description: Документация QX — QXWeb, QXApi, QXLauncher, QXAgent
+site_url: https://docs.qx-dev.ru/
+repo_url: https://github.com/mindevis/qx-project
+repo_name: mindevis/qx-project
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+site_dir: site
+
+exclude_docs: |
+  schema.sql
+  migrations/*
+  mvp.md
+  qa/*
+
+theme:
+  name: material
+  language: ru
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Тёмная тема
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Светлая тема
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+plugins:
+  - search:
+      lang:
+        - ru
+        - en
+  - mermaid2
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Главная: index.md
+  - FAQ: faq.md
+  - Конфигурация: configuration.md
+  - Деплой:
+      - Production: production-deploy.md
+      - SSH / агент: ssh-deploy.md
+      - Observability: observability-ops.md
+  - API: api.md
+  - Лаунчер:
+      - Скачивание: launcher-download.md
+      - Привязка устройства: device-linking.md
+      - Запуск игры: launch-bridge.md
+      - Скины (QX Cosmetics): cosmetics.md
+      - Windows Defender: launcher-windows-defender.md
+  - QXAgent: agent-protocol.md
+  - Архитектура: architecture.md
+  - Безопасность:
+      - Security & legal: security-legal.md
+      - Privacy: privacy.md
+  - Post-MVP: post-mvp.md
+  - ADR: adr/README.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mindevis/qx-project
