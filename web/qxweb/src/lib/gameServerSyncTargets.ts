@@ -13,7 +13,10 @@ export function gameServerSyncTargetKey(target: Pick<GameServerSyncTarget, 'vpsI
   return `${target.vpsId}:${target.gameServer.id}`;
 }
 
-export async function loadGameServerSyncTargets(instanceLoader: string): Promise<GameServerSyncTarget[]> {
+export async function loadGameServerSyncTargets(
+  instanceLoader: string,
+  instanceMcVersion?: string,
+): Promise<GameServerSyncTarget[]> {
   const serversRes = await api.listServers();
   const vpsList = serversRes.items ?? [];
   const loaded: GameServerSyncTarget[] = [];
@@ -24,6 +27,9 @@ export async function loadGameServerSyncTargets(instanceLoader: string): Promise
     for (const gs of gameServers) {
       const serverType = gs.server_type ?? 'vanilla';
       if (!isKnownGameServerType(serverType) || !gameServerSupportsMods(serverType)) {
+        continue;
+      }
+      if (instanceMcVersion && gs.mc_version && gs.mc_version !== instanceMcVersion) {
         continue;
       }
       if (

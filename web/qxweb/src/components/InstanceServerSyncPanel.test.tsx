@@ -7,7 +7,11 @@ import { api } from '@/api/client';
 import { InstanceModsProvider } from '@/components/InstanceModsContext';
 import { renderWithProviders } from '@/test/test-utils';
 import * as gameServerSyncTargets from '@/lib/gameServerSyncTargets';
-import { InstanceServerSyncPanel } from './InstanceServerSyncPanel';
+import {
+  InstanceServerSyncProvider,
+  InstanceServerSyncStatus,
+  InstanceServerSyncToolbar,
+} from './InstanceServerSyncPanel';
 
 const forgeInstance = {
   id: 'inst-1',
@@ -47,10 +51,13 @@ const syncTarget = {
   serverMods: [] as { name: string; path: string; dir: boolean }[],
 };
 
-function renderPanel(items = [installedMod], canSync = true) {
+function renderToolbar(items = [installedMod], canSync = true) {
   return renderWithProviders(
     <InstanceModsProvider instance={forgeInstance} canSync={canSync}>
-      <InstanceServerSyncPanel items={items} />
+      <InstanceServerSyncProvider items={items}>
+        <InstanceServerSyncStatus />
+        <InstanceServerSyncToolbar />
+      </InstanceServerSyncProvider>
     </InstanceModsProvider>,
   );
 }
@@ -75,21 +82,21 @@ describe('InstanceServerSyncPanel', () => {
     vi.restoreAllMocks();
   });
 
-  it('shows sign-in hint for guests', () => {
-    renderPanel([installedMod], false);
-    expect(screen.getByText('Войдите, чтобы синхронизировать моды с сервером.')).toBeInTheDocument();
+  it('shows sign-in button for guests', () => {
+    renderToolbar([installedMod], false);
+    expect(screen.getByRole('button', { name: /Синхронизировать/ })).toBeInTheDocument();
   });
 
   it('shows server selector, status and sync button', async () => {
-    renderPanel();
-    await waitFor(() => expect(screen.getByText('Синхронизация с сервером')).toBeInTheDocument());
+    renderToolbar();
+    await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Синхронизировать/ })).toBeInTheDocument();
     expect(screen.getByText('Ожидают: 1 из 1')).toBeInTheDocument();
   });
 
   it('queues missing mods to selected server', async () => {
     const user = userEvent.setup({ delay: null });
-    renderPanel();
+    renderToolbar();
     await waitFor(() => expect(screen.getByRole('button', { name: /Синхронизировать/ })).toBeEnabled());
 
     await user.click(screen.getByRole('button', { name: /Синхронизировать/ }));

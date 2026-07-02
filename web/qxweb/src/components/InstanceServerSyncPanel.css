@@ -2,8 +2,30 @@
   margin: 16px 0;
   padding: 14px 16px;
   border-radius: 12px;
-  border: 1px solid rgba(114, 46, 209, 0.16);
-  background: rgba(114, 46, 209, 0.04);
+  border: 1px solid rgba(114, 46, 209, 0.35);
+  background: rgba(114, 46, 209, 0.1);
+}
+
+html[data-theme='dark'] .instance-server-sync-panel {
+  border-color: rgba(177, 127, 255, 0.45);
+  background: rgba(114, 46, 209, 0.18);
+}
+
+.instance-server-sync-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(114, 46, 209, 0.28);
+  background: rgba(114, 46, 209, 0.08);
+}
+
+html[data-theme='dark'] .instance-server-sync-status {
+  border-color: rgba(177, 127, 255, 0.35);
+  background: rgba(114, 46, 209, 0.16);
 }
 
 .instance-server-sync-head {
@@ -49,12 +71,44 @@
   max-width: 480px;
 }
 
+.instance-server-sync-select--toolbar {
+  flex: 0 1 260px;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.instance-server-sync-toolbar-tag {
+  max-width: min(100%, 360px);
+  white-space: normal;
+  text-align: left;
+}
+
 .instance-server-sync-summary {
+  font-size: 13px;
+  color: var(--ant-color-text-secondary);
+}
+
+.instance-server-sync-panel .instance-server-sync-summary {
   display: block;
   margin-top: 10px;
-  font-size: 13px;
+}
+
+.launcher-resource-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: auto;
 }
 
 .launcher-resource-card-sync {
-  margin-top: 6px;
+  color: #722ed1 !important;
+}
+
+html[data-theme='dark'] .launcher-resource-card-sync {
+  color: #b37feb !important;
+}
+
+.launcher-resource-card-sync:disabled {
+  color: var(--ant-color-text-tertiary) !important;
 }

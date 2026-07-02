@@ -1,8 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { Button, Modal, Select, Spin, Tag } from 'antd';
 import { CloudSyncOutlined } from '@ant-design/icons';
-import { Button, Modal, Select, Spin, Tag, Typography } from 'antd';
 import { api, type InstanceResource } from '@/api/client';
+import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
+import { useAuthModal } from '@/auth/AuthModalContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import {
@@ -18,13 +28,39 @@ import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 import './InstanceServerSyncPanel.css';
 
-const { Text } = Typography;
-
-type InstanceServerSyncPanelProps = {
-  items: InstanceResource[];
+type InstanceServerSyncContextValue = {
+  canSync: boolean;
+  loadingTargets: boolean;
+  syncing: boolean;
+  targets: GameServerSyncTarget[];
+  selectedKey?: string;
+  setSelectedKey: (key: string) => void;
+  selectedTarget?: GameServerSyncTarget;
+  syncableItems: InstanceResource[];
+  pendingItems: InstanceResource[];
+  syncedCount: number;
+  isOnServer: (item: InstanceResource) => boolean;
+  syncAll: () => Promise<void>;
+  openSingleSync: (item: InstanceResource) => void;
 };
 
-export function InstanceServerSyncPanel({ items }: InstanceServerSyncPanelProps) {
+const InstanceServerSyncContext = createContext<InstanceServerSyncContextValue | null>(null);
+
+function useInstanceServerSync() {
+  const ctx = useContext(InstanceServerSyncContext);
+  if (!ctx) {
+    throw new Error('useInstanceServerSync must be used within InstanceServerSyncProvider');
+  }
+  return ctx;
+}
+
+export function InstanceServerSyncProvider({
+  items,
+  children,
+}: {
+  items: InstanceResource[];
+  children: ReactNode;
+}) {
   const { t } = useI18n();
   const message = useMessage();
   const { instance, canSync } = useInstanceMods();
@@ -32,6 +68,8 @@ export function InstanceServerSyncPanel({ items }: InstanceServerSyncPanelProps)
   const [targets, setTargets] = useState<GameServerSyncTarget[]>([]);
   const [selectedKey, setSelectedKey] = useState<string>();
   const [syncing, setSyncing] = useState(false);
+  const [singleSyncOpen, setSingleSyncOpen] = useState(false);
+  const [singleSelection, setSingleSelection] = useState<ModSyncSelection | null>(null);
 
   const loadTargets = useCallback(async () => {
     if (!canSync) {
@@ -41,7 +79,7 @@ export function InstanceServerSyncPanel({ items }: InstanceServerSyncPanelProps)
     }
     setLoadingTargets(true);
     try {
-      const loaded = await loadGameServerSyncTargets(instance.loader);
+      const loaded = await loadGameServerSyncTargets(instance.loader, instance.mc_version);
       setTargets(loaded);
       setSelectedKey((prev) => {
         if (prev && loaded.some((item) => gameServerSyncTargetKey(item) === prev)) {
@@ -56,7 +94,7 @@ export function InstanceServerSyncPanel({ items }: InstanceServerSyncPanelProps)
     } finally {
       setLoadingTargets(false);
     }
-  }, [canSync, instance.loader, message, t]);
+  }, [canSync, instance.loader, instance.mc_version, message, t]);
 
   useEffect(() => {
     void loadTargets();
@@ -74,12 +112,32 @@ export function InstanceServerSyncPanel({ items }: InstanceServerSyncPanelProps)
 
   const serverMods = selectedTarget?.serverMods ?? [];
 
+  const isOnServer = useCallback(
+    (item: InstanceResource) => isInstanceResourceOnServer(serverMods, item),
+    [serverMods],
+  );
+
   const pendingItems = useMemo(
-    () => syncableItems.filter((item) => !isInstanceResourceOnServer(serverMods, item)),
-    [serverMods, syncableItems],
+    () => syncableItems.filter((item) => !isOnServer(item)),
+    [isOnServer, syncableItems],
   );
 
   const syncedCount = syncableItems.length - pendingItems.length;
+
+  const refreshServerMods = useCallback(
+    async (target: GameServerSyncTarget) => {
+      const modsRes = await api.listVpsGameServerMods(target.vpsId, target.gameServer.id);
+      const nextMods = modsRes.items ?? [];
+      setTargets((prev) =>
+        prev.map((item) =>
+          gameServerSyncTargetKey(item) === gameServerSyncTargetKey(target)
+            ? { ...item, serverMods: nextMods }
+            : item,
+        ),
+      );
+    },
+    [],
+  );
 
   const promptServerRestart = (target: GameServerSyncTarget) => {
     Modal.confirm({
@@ -100,82 +158,228 @@ export function InstanceServerSyncPanel({ items }: InstanceServerSyncPanelProps)
     });
   };
 
-  const handleSync = async () => {
-    if (!selectedTarget || pendingItems.length === 0) return;
-    const target = selectedTarget;
-    setSyncing(true);
-    let queued = 0;
-    let failed = 0;
-
-    try {
-      for (const resource of pendingItems) {
-        if (!resource.project_id || !resource.version_id) continue;
-        try {
-          const version = await api.getModVersion(resource.source, resource.project_id, resource.version_id, {
-            loader: instance.loader,
-            mc_version: instance.mc_version,
-          });
-          const file = version.files[0];
-          if (!file?.url) {
-            failed += 1;
-            continue;
-          }
-          const res = await api.syncModToGameServer(target.vpsId, target.gameServer.id, {
-            source: resource.source,
-            project_id: resource.project_id,
-            version_id: resource.version_id,
-            filename: file.filename,
-            download_url: file.url,
-            project_name: resource.project_name,
-            version_number: resource.version_number,
-          });
-          if (res.status !== 'already_installed') {
-            queued += 1;
-          }
-        } catch {
-          failed += 1;
-        }
-      }
+  const syncResources = useCallback(
+    async (resources: InstanceResource[]) => {
+      if (!selectedTarget || resources.length === 0) return;
+      const target = selectedTarget;
+      setSyncing(true);
+      let queued = 0;
+      let failed = 0;
 
       try {
-        const modsRes = await api.listVpsGameServerMods(target.vpsId, target.gameServer.id);
-        const serverMods = modsRes.items ?? [];
-        setTargets((prev) =>
-          prev.map((item) =>
-            gameServerSyncTargetKey(item) === gameServerSyncTargetKey(target)
-              ? { ...item, serverMods }
-              : item,
-          ),
-        );
-      } catch (e) {
-        message.error(e instanceof Error ? e.message : t('qxmods.sync.statusLoadFailed'));
-      }
+        for (const resource of resources) {
+          if (!resource.project_id || !resource.version_id) continue;
+          try {
+            const version = await api.getModVersion(
+              resource.source,
+              resource.project_id,
+              resource.version_id,
+              { loader: instance.loader, mc_version: instance.mc_version },
+            );
+            const file = version.files[0];
+            if (!file?.url) {
+              failed += 1;
+              continue;
+            }
+            const res = await api.syncModToGameServer(target.vpsId, target.gameServer.id, {
+              source: resource.source,
+              project_id: resource.project_id,
+              version_id: resource.version_id,
+              filename: file.filename,
+              download_url: file.url,
+              project_name: resource.project_name,
+              version_number: resource.version_number,
+            });
+            if (res.status !== 'already_installed') {
+              queued += 1;
+            }
+          } catch {
+            failed += 1;
+          }
+        }
 
-      if (queued > 0) {
-        message.success(t('qxmods.sync.bulkQueued', { count: queued }));
-        promptServerRestart(target);
-      } else if (failed > 0) {
-        message.error(t('qxmods.sync.bulkFailed'));
-      } else {
-        message.info(t('qxmods.sync.allOnServer'));
+        try {
+          await refreshServerMods(target);
+        } catch (e) {
+          message.error(e instanceof Error ? e.message : t('qxmods.sync.statusLoadFailed'));
+        }
+
+        if (queued > 0) {
+          message.success(t('qxmods.sync.bulkQueued', { count: queued }));
+          promptServerRestart(target);
+        } else if (failed > 0) {
+          message.error(t('qxmods.sync.bulkFailed'));
+        } else {
+          message.info(t('qxmods.sync.allOnServer'));
+        }
+      } finally {
+        setSyncing(false);
       }
-    } finally {
-      setSyncing(false);
-    }
-  };
+    },
+    [instance.loader, instance.mc_version, message, refreshServerMods, selectedTarget, t],
+  );
+
+  const syncAll = useCallback(async () => {
+    await syncResources(pendingItems);
+  }, [pendingItems, syncResources]);
+
+  const openSingleSync = useCallback(
+    async (item: InstanceResource) => {
+      if (!item.project_id || !item.version_id) return;
+      try {
+        const version = await api.getModVersion(
+          item.source,
+          item.project_id,
+          item.version_id,
+          { loader: instance.loader, mc_version: instance.mc_version },
+        );
+        setSingleSelection({
+          source: item.source,
+          projectId: item.project_id,
+          projectName: item.project_name,
+          version,
+        });
+        setSingleSyncOpen(true);
+      } catch (e) {
+        message.error(e instanceof Error ? e.message : t('qxmods.sync.failed'));
+      }
+    },
+    [instance.loader, instance.mc_version, message, t],
+  );
+
+  const value = useMemo(
+    () => ({
+      canSync,
+      loadingTargets,
+      syncing,
+      targets,
+      selectedKey,
+      setSelectedKey,
+      selectedTarget,
+      syncableItems,
+      pendingItems,
+      syncedCount,
+      isOnServer,
+      syncAll,
+      openSingleSync,
+    }),
+    [
+      canSync,
+      isOnServer,
+      loadingTargets,
+      openSingleSync,
+      pendingItems,
+      selectedKey,
+      selectedTarget,
+      syncAll,
+      syncedCount,
+      syncableItems,
+      syncing,
+      targets,
+    ],
+  );
+
+  return (
+    <InstanceServerSyncContext.Provider value={value}>
+      {children}
+      <ModSyncModal
+        open={singleSyncOpen}
+        selection={singleSelection}
+        instanceLoader={instance.loader}
+        onClose={() => {
+          setSingleSyncOpen(false);
+          setSingleSelection(null);
+          if (selectedTarget) {
+            void refreshServerMods(selectedTarget).catch(() => undefined);
+          }
+        }}
+      />
+    </InstanceServerSyncContext.Provider>
+  );
+}
+
+export function InstanceServerSyncToolbar() {
+  const { t } = useI18n();
+  const { openAuthModal } = useAuthModal();
+  const {
+    canSync,
+    loadingTargets,
+    syncing,
+    targets,
+    selectedKey,
+    setSelectedKey,
+    selectedTarget,
+    pendingItems,
+    syncableItems,
+    syncAll,
+  } = useInstanceServerSync();
 
   if (!canSync) {
     return (
-      <div className="instance-server-sync-panel">
-        <Text type="secondary">{t('qxmods.sync.signIn')}</Text>
-      </div>
+      <Button icon={<CloudSyncOutlined />} onClick={() => openAuthModal('login')}>
+        {t('qxmods.sync.action')}
+      </Button>
     );
+  }
+
+  if (loadingTargets) {
+    return <Spin size="small" />;
+  }
+
+  if (targets.length === 0) {
+    return (
+      <Tag className="instance-server-sync-toolbar-tag">{t('qxmods.sync.noServers')}</Tag>
+    );
+  }
+
+  return (
+    <>
+      <Select
+        showSearch
+        className="instance-server-sync-select instance-server-sync-select--toolbar"
+        placeholder={t('qxmods.sync.serverPlaceholder')}
+        value={selectedKey}
+        disabled={syncing}
+        optionFilterProp="label"
+        options={targets.map((target) => ({
+          value: gameServerSyncTargetKey(target),
+          label: `${target.gameServer.name} (${target.vpsName})`,
+        }))}
+        onChange={(value) => setSelectedKey(value)}
+      />
+      <Button
+        type="primary"
+        icon={<CloudSyncOutlined />}
+        loading={syncing}
+        disabled={!selectedTarget || pendingItems.length === 0 || syncableItems.length === 0}
+        onClick={() => void syncAll()}
+      >
+        {t('qxmods.sync.action')}
+      </Button>
+    </>
+  );
+}
+
+export function InstanceServerSyncStatus() {
+  const { t } = useI18n();
+  const {
+    canSync,
+    loadingTargets,
+    targets,
+    selectedTarget,
+    syncableItems,
+    pendingItems,
+    syncedCount,
+  } = useInstanceServerSync();
+
+  if (!canSync || loadingTargets) {
+    return null;
   }
 
   const statusTag =
     syncableItems.length === 0 ? (
       <Tag>{t('qxmods.sync.noSyncableMods')}</Tag>
-    ) : !selectedTarget ? (
+    ) : targets.length === 0 ? null : !selectedTarget ? (
       <Tag>{t('qxmods.sync.pickServer')}</Tag>
     ) : pendingItems.length === 0 ? (
       <Tag color="success">{t('qxmods.sync.allOnServer')}</Tag>
@@ -188,70 +392,68 @@ export function InstanceServerSyncPanel({ items }: InstanceServerSyncPanelProps)
       </Tag>
     );
 
+  if (!statusTag && !(selectedTarget && syncableItems.length > 0)) {
+    return null;
+  }
+
   return (
-    <div className="instance-server-sync-panel" aria-label={t('qxmods.sync.panelAria')}>
-      <div className="instance-server-sync-head">
-        <div>
-          <Text strong className="instance-server-sync-title">
-            {t('qxmods.sync.panelTitle')}
-          </Text>
-          <Text type="secondary" className="instance-server-sync-hint">
-            {t('qxmods.sync.panelHint')}
-          </Text>
-        </div>
-        {loadingTargets ? <Spin size="small" /> : statusTag}
-      </div>
-
-      {loadingTargets ? (
-        <div className="instance-server-sync-loading">
-          <Spin size="small" />
-        </div>
-      ) : targets.length === 0 ? (
-        <Text type="secondary" className="instance-server-sync-empty">
-          {t('qxmods.sync.noServers')}
-        </Text>
-      ) : (
-        <div className="instance-server-sync-actions">
-          <Select
-            showSearch
-            className="instance-server-sync-select"
-            placeholder={t('qxmods.sync.serverPlaceholder')}
-            value={selectedKey}
-            loading={loadingTargets}
-            disabled={syncing}
-            optionFilterProp="label"
-            options={targets.map((target) => ({
-              value: gameServerSyncTargetKey(target),
-              label: `${target.gameServer.name} (${target.vpsName})`,
-            }))}
-            onChange={(value) => setSelectedKey(value)}
-          />
-          <Button
-            type="primary"
-            icon={<CloudSyncOutlined />}
-            loading={syncing}
-            disabled={
-              !selectedTarget ||
-              pendingItems.length === 0 ||
-              syncableItems.length === 0 ||
-              loadingTargets
-            }
-            onClick={() => void handleSync()}
-          >
-            {t('qxmods.sync.action')}
-          </Button>
-        </div>
-      )}
-
+    <div className="instance-server-sync-status" aria-live="polite">
+      {statusTag}
       {selectedTarget && syncableItems.length > 0 ? (
-        <Text type="secondary" className="instance-server-sync-summary">
+        <span className="instance-server-sync-summary">
           {t('qxmods.sync.summary', {
             synced: syncedCount,
             total: syncableItems.length,
             server: selectedTarget.gameServer.name,
           })}
-        </Text>
+        </span>
       ) : null}
     </div>
+  );
+}
+
+export function InstanceResourceSyncButton({ item }: { item: InstanceResource }) {
+  const { t } = useI18n();
+  const { openAuthModal } = useAuthModal();
+  const { canSync, isOnServer, openSingleSync } = useInstanceServerSync();
+
+  if (!instanceResourceSupportsServerSync(item)) {
+    return null;
+  }
+
+  const onServer = isOnServer(item);
+
+  return (
+    <Button
+      type="text"
+      size="small"
+      className="launcher-resource-card-sync"
+      icon={<CloudSyncOutlined />}
+      disabled={onServer}
+      aria-label={onServer ? t('qxmods.sync.alreadyOnServer') : t('qxmods.sync.withServer')}
+      title={onServer ? t('qxmods.sync.alreadyOnServer') : t('qxmods.sync.withServer')}
+      onClick={() => {
+        if (!canSync) {
+          openAuthModal('login');
+          return;
+        }
+        void openSingleSync(item);
+      }}
+    />
+  );
+}
+
+/** @deprecated Use InstanceServerSyncProvider + toolbar components instead. */
+export function InstanceServerSyncPanel({ items }: { items: InstanceResource[] }) {
+  const { t } = useI18n();
+  return (
+    <InstanceServerSyncProvider items={items}>
+      <div className="instance-server-sync-panel" aria-label={t('qxmods.sync.panelAria')}>
+        <InstanceServerSyncStatus />
+        <div className="instance-server-sync-actions">
+          <InstanceServerSyncToolbar />
+        </div>
+      </div>
+    </InstanceServerSyncProvider>
   );
 }
