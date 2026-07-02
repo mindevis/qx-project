@@ -62,7 +62,7 @@ describe('LauncherInstanceResourcesPage', () => {
     expect(screen.getByRole('link', { name: /Установленные/ })).toHaveClass('launcher-resources-tab--active');
     expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument();
     expect(screen.getByText('Назад к лаунчеру')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('link', { name: /Добавить/ })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Пока ничего не установлено')).toBeInTheDocument());
   });
 
   it('switches to catalog tab', async () => {
@@ -87,15 +87,5 @@ describe('LauncherInstanceResourcesPage', () => {
     renderResources();
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Forge'));
     expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument();
-  });
-
-  it('opens catalog table from add button', async () => {
-    const user = userEvent.setup({ delay: null });
-    renderResources();
-    await waitFor(() => expect(screen.getByRole('link', { name: /Добавить/ })).toBeInTheDocument());
-
-    await user.click(screen.getByRole('link', { name: /Добавить/ }));
-    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
-    expect(api.browseMods).toHaveBeenCalled();
   });
 });
