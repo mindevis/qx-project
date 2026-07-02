@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Modal, Spin, Typography } from 'antd';
-import { AppstoreOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, DeleteOutlined } from '@ant-design/icons';
 import { api, type InstanceResource, type ModProjectType } from '@/api/client';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { ResourceMetaBadges } from '@/components/ResourceMetaBadges';
@@ -23,7 +23,6 @@ export function InstanceInstalledResources() {
   const { instance, basePath } = useInstanceMods();
   const [items, setItems] = useState<InstanceResource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [removingKey, setRemovingKey] = useState<string>();
 
   const load = useCallback(async () => {
@@ -36,19 +35,6 @@ export function InstanceInstalledResources() {
       setItems([]);
     } finally {
       setLoading(false);
-    }
-  }, [instance.id, message, t]);
-
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const res = await api.listInstanceResources(instance.id);
-      setItems(res.items ?? []);
-      message.success(t('launcherInstanceResources.refreshed'));
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : t('qxmods.installed.loadFailed'));
-    } finally {
-      setRefreshing(false);
     }
   }, [instance.id, message, t]);
 
@@ -147,24 +133,6 @@ export function InstanceInstalledResources() {
           })}
         </div>
       ) : null}
-
-      <div className="launcher-resources-toolbar">
-        <Text type="secondary">{t('qxmods.installed.intro')}</Text>
-        <div className="launcher-resources-toolbar-actions">
-          <Button
-            icon={<ReloadOutlined spin={refreshing} />}
-            loading={refreshing}
-            onClick={() => void refresh()}
-          >
-            {t('launcherInstanceResources.refresh')}
-          </Button>
-          <Link to={`${basePath}/catalog`}>
-            <Button type="primary" icon={<PlusOutlined />}>
-              {t('qxmods.installed.add')}
-            </Button>
-          </Link>
-        </div>
-      </div>
 
       {loading ? (
         <div className="qxmods-loading">

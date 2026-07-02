@@ -114,3 +114,10 @@ func TestCurseForgeLoaderMappings(t *testing.T) {
 		t.Fatalf("fabric name mapping")
 	}
 }
+
+func TestCurseForgeClassIDDatapack(t *testing.T) {
+	t.Parallel()
+	if got := curseForgeClassID(ProjectTypeDatapack); got != 6945 {
+		t.Fatalf("datapack classId: got %d want 6945", got)
+	}
+}

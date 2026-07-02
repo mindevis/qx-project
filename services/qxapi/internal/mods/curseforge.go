@@ -398,7 +398,7 @@ func curseForgeClassID(projectType string) int {
 	case ProjectTypeShader:
 		return 6552
 	case ProjectTypeDatapack:
-		return 5193
+		return 6945
 	case ProjectTypePlugin:
 		return 5
 	default:

@@ -148,6 +148,9 @@ html[data-theme='dark'] .instance-resources-panel {
 }
 
 .qxmods-install-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
 }
 
@@ -155,18 +158,38 @@ html[data-theme='dark'] .instance-resources-panel {
   flex-wrap: nowrap;
 }
 
+.qxmods-install-controls--stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .qxmods-install-version-select {
-  min-width: 140px;
+  flex: 1 1 auto;
+  min-width: 120px;
 }
 
 .qxmods-install-version-select--table {
-  min-width: 120px;
+  flex: 1 1 120px;
+  min-width: 110px;
   max-width: 160px;
 }
 
 .qxmods-install-version-select--detail {
+  flex: 1 1 200px;
   min-width: 200px;
   max-width: 280px;
+}
+
+.qxmods-install-action {
+  flex-shrink: 0;
+}
+
+.qxmods-catalog-install-cell {
+  white-space: nowrap;
+}
+
+.qxmods-catalog-table--install .qxmods-catalog-install-cell .ant-table-cell {
+  overflow: visible;
 }
 
 .qxmods-install-no-versions {

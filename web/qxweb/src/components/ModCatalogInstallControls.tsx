@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Modal, Select, Space, Spin, Tag } from 'antd';
+import { Button, Modal, Select, Spin, Tag } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import {
   api,
@@ -201,7 +201,7 @@ export function ModCatalogInstallControls({
 
   if (versions.length === 0) {
     return (
-      <Space size="small" wrap>
+      <div className="qxmods-install-controls qxmods-install-controls--inline">
         {isInstalled ? (
           <Tag icon={<CheckCircleOutlined />} color="success" className="qxmods-installed-badge">
             {t('qxmods.installed.badge')}
@@ -213,18 +213,13 @@ export function ModCatalogInstallControls({
             {t('qxmods.uninstall.action')}
           </Button>
         ) : null}
-      </Space>
+      </div>
     );
   }
 
   return (
     <>
-      <Space
-        wrap={layout === 'inline'}
-        direction={layout === 'stacked' ? 'vertical' : 'horizontal'}
-        className={`qxmods-install-controls qxmods-install-controls--${layout}`}
-        size="small"
-      >
+      <div className={`qxmods-install-controls qxmods-install-controls--${layout}`}>
         {isInstalled ? (
           <Tag icon={<CheckCircleOutlined />} color="success" className="qxmods-installed-badge">
             {t('qxmods.installed.badge')}
@@ -249,6 +244,7 @@ export function ModCatalogInstallControls({
         <Button
           type="primary"
           size="small"
+          className="qxmods-install-action"
           loading={installing}
           disabled={disabled || !selectedVersion}
           onClick={() => selectedVersion && runInstall(selectedVersion)}
@@ -260,7 +256,7 @@ export function ModCatalogInstallControls({
             {t('qxmods.uninstall.action')}
           </Button>
         ) : null}
-      </Space>
+      </div>
       {pendingVersion ? (
         <ModInstallDepsModal
           open={depsOpen}

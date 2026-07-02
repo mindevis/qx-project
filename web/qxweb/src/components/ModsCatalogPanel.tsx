@@ -262,7 +262,8 @@ export function ModsCatalogPanel() {
     {
       title: t('qxmods.catalog.install'),
       key: 'install',
-      width: 280,
+      width: 300,
+      className: 'qxmods-catalog-install-cell',
       render: (_, item) => (
         <ModCatalogInstallControls
           source={item.source as ModSource}
@@ -274,6 +275,7 @@ export function ModsCatalogPanel() {
           loader={catalogLoader}
           mcVersion={instance.mc_version}
           installedProjectIds={installedProjectIds}
+          layout="inline"
           selectClassName="qxmods-install-version-select--table"
           onInstalled={(version) => handleInstalled(item, version)}
           onUninstalled={() => void refreshInstalled()}
@@ -403,6 +405,7 @@ export function ModsCatalogPanel() {
         open={syncOpen}
         selection={syncSelection}
         instanceLoader={instance.loader}
+        instanceMcVersion={instance.mc_version}
         onClose={() => setSyncOpen(false)}
       />
     </section>

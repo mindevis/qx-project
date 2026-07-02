@@ -26,6 +26,7 @@ type modrinthSearchResponse struct {
 		Description    string   `json:"description"`
 		Author         string   `json:"author"`
 		DisplayIconURL string   `json:"display_icon_url"`
+		IconURL        string   `json:"icon_url"`
 		ProjectType    string   `json:"project_type"`
 		Downloads      int64    `json:"downloads"`
 		Versions       []string `json:"versions"`
@@ -81,6 +82,13 @@ func modrinthExternalURL(slug string) string {
 	return "https://modrinth.com/project/" + slug
 }
 
+func modrinthSearchIconURL(iconURL, displayIconURL string) string {
+	if strings.TrimSpace(iconURL) != "" {
+		return iconURL
+	}
+	return displayIconURL
+}
+
 func (c *modrinthClient) search(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {
 	return c.searchProjects(ctx, query, projectType, loader, mcVersion, "relevance", limit, 0)
 }
@@ -127,7 +135,7 @@ func (c *modrinthClient) searchProjects(
 			Slug:         hit.Slug,
 			Name:         hit.Title,
 			Summary:      hit.Description,
-			IconURL:      hit.DisplayIconURL,
+			IconURL:      modrinthSearchIconURL(hit.IconURL, hit.DisplayIconURL),
 			Downloads:    hit.Downloads,
 			Author:       hit.Author,
 			ProjectType:  modrinthProjectType(hit.ProjectType),
