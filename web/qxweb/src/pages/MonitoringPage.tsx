@@ -27,6 +27,7 @@ import {
 import {
   api,
   type LauncherInstance,
+  type MojangLinkStatus,
   type MonitoringInstanceBinding,
   type MonitoringServer,
   type OfflineProfile,
@@ -295,6 +296,7 @@ export function MonitoringPage() {
   const [bindings, setBindings] = useState<Map<string, MonitoringInstanceBinding>>(new Map());
   const [linkedDevice, setLinkedDevice] = useState<{ device_id: string } | null>(null);
   const [profiles, setProfiles] = useState<OfflineProfile[]>([]);
+  const [mojangStatus, setMojangStatus] = useState<MojangLinkStatus | null>(null);
   const [connectingServerId, setConnectingServerId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -323,15 +325,17 @@ export function MonitoringPage() {
       setBindings(new Map());
       setLinkedDevice(null);
       setProfiles([]);
+      setMojangStatus(null);
       return;
     }
     void (async () => {
       try {
-        const [instanceData, bindingData, device, profileData] = await Promise.all([
+        const [instanceData, bindingData, device, profileData, mojang] = await Promise.all([
           api.listInstances(),
           api.listMonitoringBindings(),
           api.myLauncherDevice().catch(() => null),
           api.listProfiles().catch(() => ({ items: [] as OfflineProfile[] })),
+          api.mojangStatus().catch(() => null),
         ]);
         setInstances(instanceData.items ?? []);
         setBindings(
@@ -339,6 +343,7 @@ export function MonitoringPage() {
         );
         setLinkedDevice(device?.device_id ? { device_id: device.device_id } : null);
         setProfiles(profileData.items ?? []);
+        setMojangStatus(mojang);
       } catch {
         /* optional workspace data */
       }
@@ -496,9 +501,11 @@ export function MonitoringPage() {
 
     setConnectingServerId(server.id);
     try {
+      const useLicensed = mojangStatus?.linked === true;
       const req = await api.createLaunchRequest({
         instance_id: binding.instance_id,
-        offline_profile_id: profiles[0]?.id,
+        offline_profile_id: useLicensed ? undefined : profiles[0]?.id,
+        use_mojang_account: useLicensed,
         join_server_address: server.address,
         join_server_port: server.port,
       });

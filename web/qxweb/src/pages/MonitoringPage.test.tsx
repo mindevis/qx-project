@@ -79,6 +79,7 @@ describe('MonitoringPage', () => {
     vi.spyOn(api, 'listInstances').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'myLauncherDevice').mockRejectedValue(new Error('no device'));
     vi.spyOn(api, 'listProfiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'mojangStatus').mockResolvedValue({ linked: false });
   });
 
   afterEach(() => {
@@ -261,6 +262,7 @@ describe('MonitoringPage', () => {
     vi.spyOn(api, 'listProfiles').mockResolvedValue({
       items: [{ id: 'prof-1', username: 'Steve', offline_uuid: 'uuid', model: 'steve', created_at: 'now' }],
     });
+    vi.spyOn(api, 'mojangStatus').mockResolvedValue({ linked: false });
     vi.spyOn(api, 'createLaunchRequest').mockResolvedValue({
       id: 'lr-1',
       status: 'queued',
@@ -287,10 +289,72 @@ describe('MonitoringPage', () => {
         expect(api.createLaunchRequest).toHaveBeenCalledWith({
           instance_id: 'inst-1',
           offline_profile_id: 'prof-1',
+          use_mojang_account: false,
           join_server_address: 'play.example.com',
           join_server_port: 25565,
         }),
       { timeout: 5000 },
+    );
+  }, 20000);
+
+  it('uses licensed mojang account for connect when linked', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(mockAuthedFetch());
+    vi.spyOn(api, 'listInstances').mockResolvedValue({
+      items: [
+        {
+          id: 'inst-1',
+          name: 'Forge Client',
+          mc_version: '1.21',
+          loader: 'forge',
+          created_at: 'now',
+          updated_at: 'now',
+        },
+      ],
+    });
+    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
+      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client' }],
+    });
+    vi.spyOn(api, 'myLauncherDevice').mockResolvedValue({
+      device_id: 'dev-1',
+      owner_type: 'user',
+    });
+    vi.spyOn(api, 'mojangStatus').mockResolvedValue({
+      linked: true,
+      username: 'Steve',
+      minecraft_uuid: 'uuid-steve',
+    });
+    vi.spyOn(api, 'createLaunchRequest').mockResolvedValue({
+      id: 'lr-1',
+      status: 'queued',
+      instance_id: 'inst-1',
+      expires_at: new Date().toISOString(),
+    });
+    vi.spyOn(api, 'getLaunchRequest').mockResolvedValue({
+      id: 'lr-1',
+      status: 'completed',
+      instance_id: 'inst-1',
+      expires_at: new Date().toISOString(),
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Подключиться/ }));
+
+    await waitFor(() =>
+      expect(api.createLaunchRequest).toHaveBeenCalledWith({
+        instance_id: 'inst-1',
+        offline_profile_id: undefined,
+        use_mojang_account: true,
+        join_server_address: 'play.example.com',
+        join_server_port: 25565,
+      }),
     );
   }, 20000);
 
