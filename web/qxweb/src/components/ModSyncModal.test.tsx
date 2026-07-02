@@ -79,7 +79,7 @@ describe('ModSyncModal', () => {
     );
   });
 
-  it('queues sync to selected game server', async () => {
+  it('queues sync to selected game server and shows inline feedback', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup({ delay: null });
     renderWithTheme(
@@ -89,8 +89,10 @@ describe('ModSyncModal', () => {
     await waitFor(() => expect(screen.getByText('Forge')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Синхронизировать' }));
     await waitFor(() => expect(api.syncModToGameServer).toHaveBeenCalled());
-    expect(testMessage.success).toHaveBeenCalledWith('Синхронизация поставлена в очередь');
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByText('Синхронизация поставлена в очередь')).toBeInTheDocument(),
+    );
+    expect(onClose).not.toHaveBeenCalled();
     expect(Modal.confirm).toHaveBeenCalled();
   });
 

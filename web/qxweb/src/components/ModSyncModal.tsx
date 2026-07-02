@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Empty, Modal, Radio, Spin, Typography } from 'antd';
+import { Alert, Button, Empty, Modal, Radio, Spin, Typography } from 'antd';
 import {
   api,
   type ModCatalogItem,
@@ -14,6 +14,11 @@ import { restartVpsGameServer } from '@/lib/vpsGameServers';
 
 const { Text } = Typography;
 
+type SyncFeedback = {
+  kind: 'success' | 'error' | 'info';
+  message: string;
+};
+
 export type ModSyncSelection = {
   source: ModCatalogItem['source'];
   projectId: string;
@@ -25,14 +30,22 @@ type ModSyncModalProps = {
   open: boolean;
   selection: ModSyncSelection | null;
   instanceLoader: string;
+  instanceMcVersion?: string;
   onClose: () => void;
 };
 
-export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSyncModalProps) {
+export function ModSyncModal({
+  open,
+  selection,
+  instanceLoader,
+  instanceMcVersion,
+  onClose,
+}: ModSyncModalProps) {
   const { t } = useI18n();
   const message = useMessage();
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<SyncFeedback | null>(null);
   const [targets, setTargets] = useState<Awaited<ReturnType<typeof loadGameServerSyncTargets>>>([]);
   const [selectedKey, setSelectedKey] = useState<string>();
 
@@ -40,7 +53,7 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
     if (!open) return;
     setLoading(true);
     try {
-      const loaded = await loadGameServerSyncTargets(instanceLoader);
+      const loaded = await loadGameServerSyncTargets(instanceLoader, instanceMcVersion);
       setTargets(loaded);
       setSelectedKey(loaded[0] ? gameServerSyncTargetKey(loaded[0]) : undefined);
     } catch (e) {
@@ -49,10 +62,11 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
     } finally {
       setLoading(false);
     }
-  }, [instanceLoader, message, open, t]);
+  }, [instanceLoader, instanceMcVersion, message, open, t]);
 
   useEffect(() => {
     if (open) {
+      setSyncFeedback(null);
       void loadTargets();
     }
   }, [loadTargets, open]);
@@ -89,11 +103,14 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
     if (!selection || !selectedTarget) return;
     const file = selection.version.files[0];
     if (!file) {
-      message.error(t('qxmods.sync.noFile'));
+      const messageText = t('qxmods.sync.noFile');
+      setSyncFeedback({ kind: 'error', message: messageText });
+      message.error(messageText);
       return;
     }
     const target = selectedTarget;
     setSyncing(true);
+    setSyncFeedback(null);
     try {
       const res = await api.syncModToGameServer(target.vpsId, target.gameServer.id, {
         source: selection.source,
@@ -105,17 +122,20 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
         version_number: selection.version.version_number,
       });
       if (res.status === 'already_installed') {
-        message.info(t('qxmods.sync.alreadyOnServer'));
-        onClose();
+        const messageText = t('qxmods.sync.alreadyOnServer');
+        setSyncFeedback({ kind: 'info', message: messageText });
+        message.info(messageText);
         return;
       }
-      message.success(
-        res.status === 'installed' ? t('qxmods.sync.installed') : t('qxmods.sync.queued'),
-      );
-      onClose();
+      const messageText =
+        res.status === 'installed' ? t('qxmods.sync.installed') : t('qxmods.sync.queued');
+      setSyncFeedback({ kind: 'success', message: messageText });
+      message.success(messageText);
       promptServerRestart(target);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('qxmods.sync.failed'));
+      const messageText = e instanceof Error ? e.message : t('qxmods.sync.failed');
+      setSyncFeedback({ kind: 'error', message: messageText });
+      message.error(messageText);
     } finally {
       setSyncing(false);
     }
@@ -135,13 +155,26 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
           key="sync"
           type="primary"
           loading={syncing}
-          disabled={!selectedTarget || alreadyOnServer || loading}
+          disabled={!selectedTarget || alreadyOnServer || loading || syncFeedback?.kind === 'success'}
           onClick={() => void handleSync()}
         >
-          {alreadyOnServer ? t('qxmods.sync.alreadyOnServer') : t('qxmods.sync.action')}
+          {syncing
+            ? t('qxmods.sync.syncing')
+            : alreadyOnServer
+              ? t('qxmods.sync.alreadyOnServer')
+              : t('qxmods.sync.action')}
         </Button>,
       ]}
     >
+      {syncFeedback ? (
+        <Alert
+          className="qxmods-sync-feedback"
+          type={syncFeedback.kind}
+          showIcon
+          message={syncFeedback.message}
+          style={{ marginBottom: 12 }}
+        />
+      ) : null}
       {loading ? (
         <div className="qxmods-sync-loading">
           <Spin />

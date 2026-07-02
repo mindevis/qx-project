@@ -1,16 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Modal } from 'antd';
-import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { InstanceModsProvider } from '@/components/InstanceModsContext';
 import { renderWithProviders } from '@/test/test-utils';
 import * as gameServerSyncTargets from '@/lib/gameServerSyncTargets';
 import {
+  InstanceResourceSyncButton,
   InstanceServerSyncProvider,
-  InstanceServerSyncStatus,
-  InstanceServerSyncToolbar,
 } from './InstanceServerSyncPanel';
 
 const forgeInstance = {
@@ -39,7 +36,7 @@ const syncTarget = {
   vpsName: 'My VPS',
   gameServer: {
     id: 'gs-1',
-    name: 'qRPG',
+    name: 'qRPG TechnoMagic',
     server_type: 'forge' as const,
     mc_version: '1.20.1',
     loader_version: '47.1.20',
@@ -51,67 +48,96 @@ const syncTarget = {
   serverMods: [] as { name: string; path: string; dir: boolean }[],
 };
 
-function renderToolbar(items = [installedMod], canSync = true) {
+function renderSyncButton(
+  items = [installedMod],
+  canSync = true,
+  targets = [syncTarget],
+) {
+  vi.spyOn(gameServerSyncTargets, 'loadGameServerSyncTargets').mockResolvedValue(targets);
   return renderWithProviders(
     <InstanceModsProvider instance={forgeInstance} canSync={canSync}>
       <InstanceServerSyncProvider items={items}>
-        <InstanceServerSyncStatus />
-        <InstanceServerSyncToolbar />
+        <InstanceResourceSyncButton item={items[0]} />
       </InstanceServerSyncProvider>
     </InstanceModsProvider>,
   );
 }
 
-describe('InstanceServerSyncPanel', () => {
+describe('InstanceResourceSyncButton', () => {
   beforeEach(() => {
-    vi.spyOn(gameServerSyncTargets, 'loadGameServerSyncTargets').mockResolvedValue([syncTarget]);
     vi.spyOn(api, 'getModVersion').mockResolvedValue({
       id: 'ver-1',
       version_number: '5.10.3',
       files: [{ filename: installedMod.filename, url: 'https://example/mod.jar' }],
     });
-    vi.spyOn(api, 'syncModToGameServer').mockResolvedValue({ status: 'queued' });
-    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
-    vi.spyOn(Modal, 'confirm').mockImplementation(() => ({
-      destroy: vi.fn(),
-      update: vi.fn(),
-    }));
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('shows sign-in button for guests', () => {
-    renderToolbar([installedMod], false);
-    expect(screen.getByRole('button', { name: /Синхронизировать/ })).toBeInTheDocument();
+  it('shows sync button when mod is not on any server', async () => {
+    renderSyncButton();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Синхронизировать с сервером/ })).toBeInTheDocument(),
+    );
   });
 
-  it('shows server selector, status and sync button', async () => {
-    renderToolbar();
-    await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /Синхронизировать/ })).toBeInTheDocument();
-    expect(screen.getByText('Ожидают: 1 из 1')).toBeInTheDocument();
-  });
-
-  it('queues missing mods to selected server', async () => {
+  it('opens server picker modal when sync button is clicked', async () => {
     const user = userEvent.setup({ delay: null });
-    renderToolbar();
-    await waitFor(() => expect(screen.getByRole('button', { name: /Синхронизировать/ })).toBeEnabled());
+    renderSyncButton();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Синхронизировать с сервером/ })).toBeEnabled(),
+    );
 
-    await user.click(screen.getByRole('button', { name: /Синхронизировать/ }));
+    await user.click(screen.getByRole('button', { name: /Синхронизировать с сервером/ }));
+
+    await waitFor(() => expect(screen.getByText('Синхронизация с сервером')).toBeInTheDocument());
+    expect(screen.getByText('qRPG TechnoMagic')).toBeInTheDocument();
+  });
+
+  it('shows checkmark when mod is already on a server', async () => {
+    renderSyncButton([installedMod], true, [
+      {
+        ...syncTarget,
+        serverMods: [{ name: installedMod.filename, path: 'mods/' + installedMod.filename, dir: false }],
+      },
+    ]);
 
     await waitFor(() =>
-      expect(api.syncModToGameServer).toHaveBeenCalledWith('vps-1', 'gs-1', {
-        source: 'curseforge',
-        project_id: 'journeymap',
-        version_id: 'ver-1',
-        filename: installedMod.filename,
-        download_url: 'https://example/mod.jar',
-        project_name: 'JourneyMap',
-        version_number: '5.10.3',
-      }),
+      expect(screen.getByLabelText(/Синхронизирован с «qRPG TechnoMagic»/)).toBeInTheDocument(),
     );
-    expect(testMessage.success).toHaveBeenCalledWith('В очередь отправлено модов: 1');
+    expect(screen.queryByRole('button', { name: /Синхронизировать с сервером/ })).not.toBeInTheDocument();
+  });
+
+  it('detects synced mods by catalog version filename', async () => {
+    const catalogFilename = 'journeymap-1.20.1-5.10.3-forge.jar';
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({
+      id: 'ver-1',
+      version_number: '5.10.3',
+      files: [{ filename: catalogFilename, url: 'https://example/mod.jar' }],
+    });
+
+    renderSyncButton(
+      [{ ...installedMod, filename: 'different-local-name.jar' }],
+      true,
+      [
+        {
+          ...syncTarget,
+          serverMods: [{ name: catalogFilename, path: `mods/${catalogFilename}`, dir: false }],
+        },
+      ],
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Синхронизирован с «qRPG TechnoMagic»/)).toBeInTheDocument(),
+    );
+  });
+
+  it('prompts sign-in for guests', async () => {
+    renderSyncButton([installedMod], false);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Синхронизировать с сервером/ })).toBeInTheDocument(),
+    );
   });
 });

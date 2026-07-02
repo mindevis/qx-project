@@ -32,10 +32,23 @@ export function isModOnServer(
   return serverMods.some((entry) => !entry.dir && filenames.includes(entry.name.toLowerCase()));
 }
 
+export function instanceResourceVersionKey(
+  resource: Pick<InstanceResource, 'source' | 'project_id' | 'version_id'>,
+): string | undefined {
+  if (!resource.project_id || !resource.version_id) return undefined;
+  return `${resource.source}:${resource.project_id}:${resource.version_id}`;
+}
+
 export function isInstanceResourceOnServer(
   serverFiles: GameServerFileEntry[],
   resource: Pick<InstanceResource, 'filename'>,
+  versionFilenames?: string[],
 ): boolean {
+  if (versionFilenames?.length) {
+    return isModOnServer(serverFiles, {
+      files: versionFilenames.map((filename) => ({ filename, url: '' })),
+    });
+  }
   return isFilenameOnServer(serverFiles, resource.filename);
 }
 

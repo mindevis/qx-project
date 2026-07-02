@@ -8,8 +8,6 @@ import { ResourceMetaBadges } from '@/components/ResourceMetaBadges';
 import {
   InstanceResourceSyncButton,
   InstanceServerSyncProvider,
-  InstanceServerSyncStatus,
-  InstanceServerSyncToolbar,
 } from '@/components/InstanceServerSyncPanel';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
@@ -150,12 +148,9 @@ export function InstanceInstalledResources() {
         </div>
       ) : null}
 
-      <InstanceServerSyncStatus />
-
       <div className="launcher-resources-toolbar">
         <Text type="secondary">{t('qxmods.installed.intro')}</Text>
         <div className="launcher-resources-toolbar-actions">
-          <InstanceServerSyncToolbar />
           <Button
             icon={<ReloadOutlined spin={refreshing} />}
             loading={refreshing}
