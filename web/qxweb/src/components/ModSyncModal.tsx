@@ -2,17 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Empty, Modal, Radio, Spin, Typography } from 'antd';
 import {
   api,
-  type GameServerFileEntry,
   type ModCatalogItem,
   type ModVersion,
-  type VpsGameServerInstance,
 } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
-import { gameServerSupportsMods, isKnownGameServerType } from '@/lib/gameServerTypes';
+import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
 import { isModOnServer } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
-import { listVpsGameServers, restartVpsGameServer, type VpsGameServer } from '@/lib/vpsGameServers';
+import { restartVpsGameServer } from '@/lib/vpsGameServers';
 
 const { Text } = Typography;
 
@@ -21,13 +19,6 @@ export type ModSyncSelection = {
   projectId: string;
   projectName: string;
   version: ModVersion;
-};
-
-type SyncTarget = {
-  vpsId: string;
-  vpsName: string;
-  gameServer: VpsGameServer | VpsGameServerInstance;
-  serverMods: GameServerFileEntry[];
 };
 
 type ModSyncModalProps = {
@@ -42,48 +33,16 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
   const message = useMessage();
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [targets, setTargets] = useState<SyncTarget[]>([]);
+  const [targets, setTargets] = useState<Awaited<ReturnType<typeof loadGameServerSyncTargets>>>([]);
   const [selectedKey, setSelectedKey] = useState<string>();
 
   const loadTargets = useCallback(async () => {
     if (!open) return;
     setLoading(true);
     try {
-      const serversRes = await api.listServers();
-      const vpsList = serversRes.items ?? [];
-      const loaded: SyncTarget[] = [];
-      for (const vps of vpsList) {
-        if (!vps.agent_online) continue;
-        const gameServers = await listVpsGameServers(vps.id);
-        for (const gs of gameServers) {
-          const serverType = gs.server_type ?? 'vanilla';
-          if (!isKnownGameServerType(serverType) || !gameServerSupportsMods(serverType)) {
-            continue;
-          }
-          if (
-            instanceLoader &&
-            serverType !== instanceLoader &&
-            !['mohist', 'magma', 'arclight'].includes(serverType)
-          ) {
-            continue;
-          }
-          let serverMods: GameServerFileEntry[] = [];
-          try {
-            const modsRes = await api.listVpsGameServerMods(vps.id, gs.id);
-            serverMods = modsRes.items ?? [];
-          } catch {
-            serverMods = [];
-          }
-          loaded.push({
-            vpsId: vps.id,
-            vpsName: vps.name || vps.slug,
-            gameServer: gs,
-            serverMods,
-          });
-        }
-      }
+      const loaded = await loadGameServerSyncTargets(instanceLoader);
       setTargets(loaded);
-      setSelectedKey(loaded[0] ? `${loaded[0].vpsId}:${loaded[0].gameServer.id}` : undefined);
+      setSelectedKey(loaded[0] ? gameServerSyncTargetKey(loaded[0]) : undefined);
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('qxmods.sync.loadFailed'));
       setTargets([]);
@@ -99,7 +58,7 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
   }, [loadTargets, open]);
 
   const selectedTarget = useMemo(
-    () => targets.find((item) => `${item.vpsId}:${item.gameServer.id}` === selectedKey),
+    () => targets.find((item) => gameServerSyncTargetKey(item) === selectedKey),
     [selectedKey, targets],
   );
 
@@ -108,7 +67,7 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
     return isModOnServer(selectedTarget.serverMods, selection.version);
   }, [selectedTarget, selection]);
 
-  const promptServerRestart = (target: SyncTarget) => {
+  const promptServerRestart = (target: (typeof targets)[number]) => {
     Modal.confirm({
       title: t('qxmods.sync.restartTitle'),
       content: t('qxmods.sync.restartPrompt', { name: target.gameServer.name }),
@@ -200,7 +159,7 @@ export function ModSyncModal({ open, selection, instanceLoader, onClose }: ModSy
             onChange={(e) => setSelectedKey(e.target.value as string)}
           >
             {targets.map((target) => {
-              const key = `${target.vpsId}:${target.gameServer.id}`;
+              const key = gameServerSyncTargetKey(target);
               const onServer =
                 selection != null && isModOnServer(target.serverMods, selection.version);
               return (

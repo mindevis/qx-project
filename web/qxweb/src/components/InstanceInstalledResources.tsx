@@ -5,6 +5,7 @@ import { AppstoreOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined } from '
 import { api, type InstanceResource, type ModProjectType } from '@/api/client';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { ResourceMetaBadges } from '@/components/ResourceMetaBadges';
+import { InstanceServerSyncPanel } from '@/components/InstanceServerSyncPanel';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -16,7 +17,7 @@ const { Text, Title } = Typography;
 export function InstanceInstalledResources() {
   const { t } = useI18n();
   const message = useMessage();
-  const { instance, basePath } = useInstanceMods();
+  const { instance, basePath, canSync } = useInstanceMods();
   const [items, setItems] = useState<InstanceResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -142,6 +143,8 @@ export function InstanceInstalledResources() {
           })}
         </div>
       ) : null}
+
+      {canSync ? <InstanceServerSyncPanel items={items} /> : null}
 
       <div className="launcher-resources-toolbar">
         <Text type="secondary">{t('qxmods.installed.intro')}</Text>

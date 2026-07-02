@@ -1,4 +1,4 @@
-import type { GameServerFileEntry } from '@/api/client';
+import type { GameServerFileEntry, InstanceResource } from '@/api/client';
 import type { ModCatalogItem, ModVersion } from '@/api/client';
 
 export type ModSyncSide = 'client' | 'server' | 'both' | 'unknown';
@@ -19,10 +19,26 @@ export function modSupportsServerSync(item: Pick<ModCatalogItem, 'client_side' |
   return side === 'server' || side === 'both' || side === 'unknown';
 }
 
+export function isFilenameOnServer(serverFiles: GameServerFileEntry[], filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return serverFiles.some((entry) => !entry.dir && entry.name.toLowerCase() === lower);
+}
+
 export function isModOnServer(
   serverMods: GameServerFileEntry[],
   version: Pick<ModVersion, 'files'>,
 ): boolean {
   const filenames = version.files.map((f) => f.filename.toLowerCase());
   return serverMods.some((entry) => !entry.dir && filenames.includes(entry.name.toLowerCase()));
+}
+
+export function isInstanceResourceOnServer(
+  serverFiles: GameServerFileEntry[],
+  resource: Pick<InstanceResource, 'filename'>,
+): boolean {
+  return isFilenameOnServer(serverFiles, resource.filename);
+}
+
+export function instanceResourceSupportsServerSync(resource: InstanceResource): boolean {
+  return resource.resource_type === 'mod' && Boolean(resource.project_id && resource.version_id);
 }

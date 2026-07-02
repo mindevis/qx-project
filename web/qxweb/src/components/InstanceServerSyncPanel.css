@@ -1,0 +1,60 @@
+.instance-server-sync-panel {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(114, 46, 209, 0.16);
+  background: rgba(114, 46, 209, 0.04);
+}
+
+.instance-server-sync-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.instance-server-sync-title {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.instance-server-sync-hint {
+  display: block;
+  font-size: 13px;
+}
+
+.instance-server-sync-loading {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.instance-server-sync-empty {
+  display: block;
+  font-size: 13px;
+}
+
+.instance-server-sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.instance-server-sync-select {
+  flex: 1 1 240px;
+  min-width: min(100%, 280px);
+  max-width: 480px;
+}
+
+.instance-server-sync-summary {
+  display: block;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.launcher-resource-card-sync {
+  margin-top: 6px;
+}
