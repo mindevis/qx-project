@@ -3,6 +3,7 @@ import {
   buildModSyncBodies,
   applyModTargetToBodies,
   instanceResourceModTarget,
+  instanceResourceContentTarget,
   instanceResourceSupportsServerSync,
   isServerOnlyMod,
   instanceResourceVersionKey,
@@ -211,13 +212,34 @@ describe('instanceResourceSupportsServerSync', () => {
     ).toBe(true);
   });
 
-  it('rejects uploaded non-mod resources', () => {
+  it('allows uploaded resource packs and shaders with filename', () => {
     expect(
       instanceResourceSupportsServerSync({
         source: 'upload',
         project_name: 'Pack',
         filename: 'pack.zip',
         resource_type: 'resourcepack',
+        installed_at: 'now',
+      }),
+    ).toBe(true);
+    expect(
+      instanceResourceSupportsServerSync({
+        source: 'upload',
+        project_name: 'Shader',
+        filename: 'shader.zip',
+        resource_type: 'shader',
+        installed_at: 'now',
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects unsupported resource types', () => {
+    expect(
+      instanceResourceSupportsServerSync({
+        source: 'upload',
+        project_name: 'Pack',
+        filename: 'pack.zip',
+        resource_type: 'datapack',
         installed_at: 'now',
       }),
     ).toBe(false);

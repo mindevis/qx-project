@@ -53,6 +53,30 @@ function mockAuthedFetch() {
   };
 }
 
+function mockConnectModFlow() {
+  vi.spyOn(api, 'getConnectModStatus').mockResolvedValue({
+    client_mods: [],
+    all_client_mods_installed: true,
+    server_mod_count: 0,
+    server_resourcepack_count: 0,
+    server_shader_count: 0,
+    client_resourcepacks: [],
+    all_client_resourcepacks_installed: true,
+    client_shaders: [],
+    all_client_shaders_installed: true,
+    agent_online: true,
+  });
+  vi.spyOn(api, 'prepareConnectMods').mockResolvedValue({
+    client_mods_installed: [],
+    server_mods_installed: [],
+    client_resourcepacks_installed: [],
+    server_resourcepacks_installed: [],
+    client_shaders_installed: [],
+    server_shaders_installed: [],
+    agent_online: true,
+  });
+}
+
 describe('MonitoringPage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -275,6 +299,7 @@ describe('MonitoringPage', () => {
       instance_id: 'inst-1',
       expires_at: new Date().toISOString(),
     });
+    mockConnectModFlow();
 
     const user = userEvent.setup({ delay: null });
     renderWithProviders(<MonitoringPage />, '/monitoring');
@@ -283,6 +308,9 @@ describe('MonitoringPage', () => {
     await waitFor(() => expect(api.myLauncherDevice).toHaveBeenCalled());
 
     await user.click(screen.getByRole('button', { name: /Подключиться/ }));
+    await waitFor(() => expect(api.getConnectModStatus).toHaveBeenCalled());
+    const confirmButtons = screen.getAllByRole('button', { name: /Подключиться/ });
+    await user.click(confirmButtons[confirmButtons.length - 1]);
 
     await waitFor(
       () =>
@@ -341,6 +369,7 @@ describe('MonitoringPage', () => {
       instance_id: 'inst-1',
       expires_at: new Date().toISOString(),
     });
+    mockConnectModFlow();
 
     const user = userEvent.setup({ delay: null });
     renderWithProviders(<MonitoringPage />, '/monitoring');
@@ -349,6 +378,9 @@ describe('MonitoringPage', () => {
     await waitFor(() => expect(api.myLauncherDevice).toHaveBeenCalled());
     await waitFor(() => expect(api.mojangStatus).toHaveBeenCalled());
     await user.click(screen.getByRole('button', { name: /Подключиться/ }));
+    await waitFor(() => expect(api.getConnectModStatus).toHaveBeenCalled());
+    const confirmButtons = screen.getAllByRole('button', { name: /Подключиться/ });
+    await user.click(confirmButtons[confirmButtons.length - 1]);
 
     await waitFor(() =>
       expect(api.createLaunchRequest).toHaveBeenCalledWith({
@@ -440,6 +472,7 @@ describe('MonitoringPage', () => {
       items: [{ id: 'prof-1', username: 'Steve', offline_uuid: 'uuid', model: 'steve', created_at: 'now' }],
     });
     vi.spyOn(api, 'createLaunchRequest').mockRejectedValue(new Error('launch failed'));
+    mockConnectModFlow();
 
     const user = userEvent.setup({ delay: null });
     renderWithProviders(<MonitoringPage />, '/monitoring');
@@ -447,6 +480,9 @@ describe('MonitoringPage', () => {
     await waitFor(() => expect(api.myLauncherDevice).toHaveBeenCalled());
 
     await user.click(screen.getByRole('button', { name: /\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f/i }));
+    await waitFor(() => expect(api.getConnectModStatus).toHaveBeenCalled());
+    const confirmButtons = screen.getAllByRole('button', { name: /\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f/i });
+    await user.click(confirmButtons[confirmButtons.length - 1]);
 
     await waitFor(() =>
       expect(testNavigation.hrefSet).toHaveBeenCalledWith('minecraft://play.example.com:25565'),

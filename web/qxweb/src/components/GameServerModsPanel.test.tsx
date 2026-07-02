@@ -47,6 +47,7 @@ describe('GameServerModsPanel', () => {
         ],
       })
       .mockRejectedValueOnce(new Error('mods failed'));
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'browseMods').mockResolvedValue({
       items: [],
       has_more: false,
@@ -79,6 +80,7 @@ describe('GameServerModsPanel', () => {
 
   it('shows empty mods list', async () => {
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'browseMods').mockResolvedValue({
       items: [],
       has_more: false,
@@ -100,6 +102,7 @@ describe('GameServerModsPanel', () => {
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
       items: [{ name: 'empty.jar', path: 'mods/empty.jar', dir: false }],
     });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'browseMods').mockResolvedValue({
       items: [],
       has_more: false,
