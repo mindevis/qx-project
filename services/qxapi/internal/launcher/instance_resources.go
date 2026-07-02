@@ -81,6 +81,72 @@ func appendUniqueResource(list models.InstanceResourceList, entry models.Instanc
 	return append(list, entry)
 }
 
+type DeleteInstanceResourceInput struct {
+	Source       string
+	ProjectID    string
+	Filename     string
+	ResourceType string
+}
+
+func resourceEntryMatches(entry models.InstanceResourceEntry, in DeleteInstanceResourceInput) bool {
+	if entry.Source != in.Source {
+		return false
+	}
+	if in.ProjectID != "" && entry.ProjectID != in.ProjectID {
+		return false
+	}
+	if in.Filename != "" && entry.Filename != in.Filename {
+		return false
+	}
+	return in.ProjectID != "" || in.Filename != ""
+}
+
+func removeInstanceResource(inst *models.LauncherInstance, in DeleteInstanceResourceInput) bool {
+	switch normalizeResourceType(in.ResourceType) {
+	case "resourcepack":
+		return removeFromResourceList(&inst.ResourcePacks, in)
+	case "shader":
+		return removeFromResourceList(&inst.Shaders, in)
+	case "datapack":
+		return removeFromResourceList(&inst.Datapacks, in)
+	default:
+		return removeFromResourceList(&inst.Mods, in)
+	}
+}
+
+func removeFromResourceList(list *models.InstanceResourceList, in DeleteInstanceResourceInput) bool {
+	next := (*list)[:0]
+	removed := false
+	for _, entry := range *list {
+		if resourceEntryMatches(entry, in) {
+			removed = true
+			continue
+		}
+		next = append(next, entry)
+	}
+	*list = next
+	return removed
+}
+
+func (s *Service) DeleteInstanceResource(ctx context.Context, owner Owner, instanceID string, in DeleteInstanceResourceInput) error {
+	if in.Source == "" || (in.ProjectID == "" && in.Filename == "") {
+		return ErrValidation
+	}
+	inst, err := s.GetInstance(ctx, owner, instanceID)
+	if err != nil {
+		return err
+	}
+	if !removeInstanceResource(inst, in) {
+		return ErrNotFound
+	}
+	return s.db.WithContext(ctx).Model(inst).Updates(map[string]any{
+		"mods":           inst.Mods,
+		"resource_packs": inst.ResourcePacks,
+		"shaders":        inst.Shaders,
+		"datapacks":      inst.Datapacks,
+	}).Error
+}
+
 func resourceInstalledAt() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }

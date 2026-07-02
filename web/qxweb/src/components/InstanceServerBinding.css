@@ -20,3 +20,62 @@
   width: 100%;
   max-width: 420px;
 }
+
+.qxmods-binding-panel {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(114, 46, 209, 0.04);
+  border: 1px solid rgba(114, 46, 209, 0.12);
+}
+
+.qxmods-binding-panel--card {
+  margin: 12px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.qxmods-binding-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qxmods-binding-title {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.qxmods-binding-panel--card .qxmods-binding-title {
+  display: inline;
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+.qxmods-binding-help {
+  color: var(--ant-color-text-tertiary);
+  font-size: 13px;
+  cursor: help;
+}
+
+.qxmods-binding-hint {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.qxmods-binding-select {
+  width: 100%;
+  max-width: 480px;
+}
+
+.qxmods-binding-select--card {
+  max-width: 100%;
+  min-width: min(100%, 320px);
+}
+
+.qxmods-binding-empty {
+  display: block;
+  font-size: 13px;
+}

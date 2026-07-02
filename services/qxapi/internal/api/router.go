@@ -216,6 +216,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			launcherOwner.GET("/instances/:id", instancesH.Get)
 			launcherOwner.PATCH("/instances/:id", instancesH.Update)
 			launcherOwner.GET("/instances/:id/resources", instancesH.ListResources)
+			launcherOwner.DELETE("/instances/:id/resources", instancesH.DeleteResource)
 			launcherOwner.GET("/instances/:id/manifest", instancesH.Manifest)
 			launcherOwner.DELETE("/instances/:id", instancesH.Delete)
 

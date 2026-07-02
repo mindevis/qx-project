@@ -494,6 +494,18 @@ export const ru = {
     badge: 'QXMods',
     notFound: 'Инстанс не найден',
     loadFailed: 'Не удалось загрузить инстанс',
+    subtitle:
+      'Установленные ресурсы и каталог CurseForge / Modrinth для Minecraft {{mc}} · {{loader}}.',
+    tabInstalled: 'Установленные',
+    tabCatalog: 'Каталог',
+    tabsAria: 'Разделы ресурсов инстанса',
+    installedTitle: 'Установленные ресурсы',
+    statTotal: 'Всего',
+    statsAria: 'Статистика установленных ресурсов',
+    refresh: 'Обновить',
+    refreshed: 'Список ресурсов обновлён',
+    emptyHint: 'Откройте каталог и установите моды, датапаки или другие ресурсы через QXLauncher.',
+    browseCatalog: 'Открыть каталог',
   },
   servers: {
     title: 'Серверы',
@@ -932,6 +944,14 @@ export const ru = {
       empty: 'Пока ничего не установлено',
       loadFailed: 'Не удалось загрузить установленные ресурсы',
       downloads: 'скачиваний',
+      badge: 'Установлен',
+    },
+    uninstall: {
+      action: 'Удалить',
+      confirmTitle: 'Удалить ресурс?',
+      confirmBody: 'Убрать «{{name}}» из этого инстанса? Файл может остаться на диске до удаления в QXLauncher.',
+      completed: 'Удалено из инстанса',
+      failed: 'Не удалось удалить',
     },
     binding: {
       title: 'Привязка к серверу',
@@ -956,6 +976,7 @@ export const ru = {
       title: 'Каталог',
       name: 'Название',
       summary: 'Описание',
+      install: 'Установка',
       backToInstalled: 'К установленным',
     },
     detail: {

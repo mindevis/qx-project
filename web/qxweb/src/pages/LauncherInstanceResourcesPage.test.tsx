@@ -58,9 +58,20 @@ describe('LauncherInstanceResourcesPage', () => {
   it('renders installed resources view for modded instance', async () => {
     renderResources();
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Forge'));
+    expect(screen.getByRole('navigation', { name: 'Разделы ресурсов инстанса' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Установленные/ })).toHaveClass('launcher-resources-tab--active');
     expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument();
     expect(screen.getByText('Назад к лаунчеру')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('link', { name: /Добавить/ })).toBeInTheDocument());
+  });
+
+  it('switches to catalog tab', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderResources();
+    await waitFor(() => expect(screen.getByRole('link', { name: /Каталог/ })).toBeInTheDocument());
+    await user.click(screen.getByRole('link', { name: /Каталог/ }));
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    expect(api.browseMods).toHaveBeenCalled();
   });
 
   it('redirects when instance is not found', async () => {
@@ -84,7 +95,6 @@ describe('LauncherInstanceResourcesPage', () => {
     await waitFor(() => expect(screen.getByRole('link', { name: /Добавить/ })).toBeInTheDocument());
 
     await user.click(screen.getByRole('link', { name: /Добавить/ }));
-    await waitFor(() => expect(screen.getByText('Каталог')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
     expect(api.browseMods).toHaveBeenCalled();
   });

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
@@ -125,6 +126,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 			"--userType", userType,
 		)
 	}
+	args = appendJoinServerArgs(args, quickPlayMultiplayer, manifest)
 	if javaBin == "" {
 		javaBin = ResolveJavaBin("")
 	}
@@ -275,4 +277,88 @@ func isOptionalValueFlag(arg string) bool {
 	default:
 		return false
 	}
+}
+
+func launchArgsContainJoin(args []string) bool {
+	for i, arg := range args {
+		switch arg {
+		case "--quickPlayMultiplayer", "--server":
+			if i+1 < len(args) {
+				next := strings.TrimSpace(args[i+1])
+				if next != "" && !isUnresolvedPlaceholder(next) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func splitQuickPlayHostPort(addrPort string) (host, port string) {
+	addrPort = strings.TrimSpace(addrPort)
+	if addrPort == "" {
+		return "", ""
+	}
+	if strings.HasPrefix(addrPort, "[") {
+		if i := strings.LastIndex(addrPort, "]:"); i >= 0 {
+			return addrPort[:i+1], addrPort[i+2:]
+		}
+	}
+	if i := strings.LastIndex(addrPort, ":"); i > 0 {
+		return addrPort[:i], addrPort[i+1:]
+	}
+	return addrPort, "25565"
+}
+
+func usesLegacyDirectConnect(loader string) bool {
+	switch mcmanifest.NormalizeLoader(loader) {
+	case mcmanifest.LoaderForge, mcmanifest.LoaderNeoForge:
+		return true
+	default:
+		return false
+	}
+}
+
+func mcVersionSupportsQuickPlay(mcVersion string) bool {
+	mcVersion = strings.TrimSpace(mcVersion)
+	if mcVersion == "" {
+		return false
+	}
+	parts := strings.Split(mcVersion, ".")
+	if len(parts) < 2 {
+		return false
+	}
+	major, errMajor := strconv.Atoi(parts[0])
+	minor, errMinor := strconv.Atoi(parts[1])
+	if errMajor != nil || errMinor != nil {
+		return false
+	}
+	return major > 1 || (major == 1 && minor >= 20)
+}
+
+func appendJoinServerArgs(args []string, quickPlayMultiplayer string, manifest *mcmanifest.InstanceLaunchManifest) []string {
+	if quickPlayMultiplayer == "" || launchArgsContainJoin(args) {
+		return args
+	}
+	loader := ""
+	mcVersion := ""
+	if manifest != nil {
+		loader = manifest.Loader
+		mcVersion = manifest.MCVersion
+	}
+	if usesLegacyDirectConnect(loader) {
+		host, port := splitQuickPlayHostPort(quickPlayMultiplayer)
+		if port == "" {
+			port = "25565"
+		}
+		return append(args, "--server", host, "--port", port)
+	}
+	if mcVersionSupportsQuickPlay(mcVersion) {
+		return append(args, "--quickPlayMultiplayer", quickPlayMultiplayer)
+	}
+	host, port := splitQuickPlayHostPort(quickPlayMultiplayer)
+	if port == "" {
+		port = "25565"
+	}
+	return append(args, "--server", host, "--port", port)
 }

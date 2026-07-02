@@ -657,8 +657,9 @@ html[data-theme='dark'] .launcher-panel--player {
   font-size: 13px;
 }
 
-.launcher-instance-link-alert {
-  margin-bottom: 16px;
+.launcher-instance-info {
+  flex: 1 1 280px;
+  min-width: 0;
 }
 
 .launcher-instance-name-row {

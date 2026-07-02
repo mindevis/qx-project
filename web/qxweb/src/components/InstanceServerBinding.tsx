@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Select, Spin, Typography } from 'antd';
+import { QuestionCircleOutlined } from '@ant-design/icons';
+import { Select, Spin, Tooltip, Typography } from 'antd';
 import {
   api,
+  type LauncherInstance,
   type MonitoringInstanceBinding,
   type MonitoringServer,
 } from '@/api/client';
-import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useAuth } from '@/auth/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -13,15 +14,20 @@ import './InstanceServerBinding.css';
 
 const { Text } = Typography;
 
-export function InstanceServerBinding() {
+type InstanceServerBindingProps = {
+  instance: LauncherInstance;
+  variant?: 'panel' | 'card';
+};
+
+export function InstanceServerBinding({ instance, variant = 'panel' }: InstanceServerBindingProps) {
   const { t } = useI18n();
   const message = useMessage();
   const { isAuthenticated } = useAuth();
-  const { instance } = useInstanceMods();
   const [servers, setServers] = useState<MonitoringServer[]>([]);
   const [bindings, setBindings] = useState<MonitoringInstanceBinding[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const isCard = variant === 'card';
 
   const load = useCallback(async () => {
     if (!isAuthenticated) {
@@ -92,20 +98,33 @@ export function InstanceServerBinding() {
 
   if (!isAuthenticated) {
     return (
-      <div className="qxmods-binding-panel">
+      <div className={`qxmods-binding-panel${isCard ? ' qxmods-binding-panel--card' : ''}`}>
         <Text type="secondary">{t('qxmods.binding.signIn')}</Text>
       </div>
     );
   }
 
-  return (
-    <div className="qxmods-binding-panel">
-      <Text strong className="qxmods-binding-title">
+  const title = (
+    <span className="qxmods-binding-title-row">
+      <Text strong={!isCard} className="qxmods-binding-title">
         {t('qxmods.binding.title')}
       </Text>
-      <Text type="secondary" className="qxmods-binding-hint">
-        {t('qxmods.binding.hint')}
-      </Text>
+      {isCard ? (
+        <Tooltip title={t('qxmods.binding.hint')}>
+          <QuestionCircleOutlined className="qxmods-binding-help" aria-label={t('qxmods.binding.hint')} />
+        </Tooltip>
+      ) : null}
+    </span>
+  );
+
+  return (
+    <div className={`qxmods-binding-panel${isCard ? ' qxmods-binding-panel--card' : ''}`}>
+      {title}
+      {!isCard ? (
+        <Text type="secondary" className="qxmods-binding-hint">
+          {t('qxmods.binding.hint')}
+        </Text>
+      ) : null}
       {loading ? (
         <Spin size="small" />
       ) : options.length === 0 ? (
@@ -120,7 +139,7 @@ export function InstanceServerBinding() {
           allowClear
           showSearch
           placeholder={t('qxmods.binding.placeholder')}
-          className="qxmods-binding-select"
+          className={`qxmods-binding-select${isCard ? ' qxmods-binding-select--card' : ''}`}
           loading={saving}
           disabled={saving}
           value={boundServerId ?? undefined}

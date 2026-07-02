@@ -3,7 +3,6 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { api, saveTokens } from '@/api/client';
 import { renderWithProviders } from '@/test/test-utils';
-import { InstanceModsProvider } from '@/components/InstanceModsContext';
 import { InstanceServerBinding } from './InstanceServerBinding';
 
 const instance = {
@@ -73,12 +72,8 @@ describe('InstanceServerBinding', () => {
     vi.unstubAllGlobals();
   });
 
-  function renderBinding() {
-    return renderWithProviders(
-      <InstanceModsProvider instance={instance} canSync={false}>
-        <InstanceServerBinding />
-      </InstanceModsProvider>,
-    );
+  function renderBinding(variant: 'panel' | 'card' = 'panel') {
+    return renderWithProviders(<InstanceServerBinding instance={instance} variant={variant} />);
   }
 
   it('loads bindable servers and saves binding', async () => {
@@ -91,6 +86,14 @@ describe('InstanceServerBinding', () => {
       expect(api.setMonitoringBinding).toHaveBeenCalledWith('mon-1', 'inst-1'),
     );
   });
+
+  it('renders compact card variant', async () => {
+    const { container } = renderBinding('card');
+    await waitFor(() => expect(api.listBindableServers).toHaveBeenCalled());
+    expect(container.querySelector('.qxmods-binding-panel--card')).toBeTruthy();
+    expect(screen.queryByText(/Выберите свой игровой сервер/i)).not.toBeInTheDocument();
+  });
+
   it('shows sign-in hint for guests', async () => {
     const { clearTokens } = await import('@/api/client');
     clearTokens();

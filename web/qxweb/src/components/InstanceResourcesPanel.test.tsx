@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithProviders } from '@/test/test-utils';
@@ -68,5 +69,24 @@ describe('InstanceResourcesPanel', () => {
     vi.mocked(api.listInstanceResources).mockRejectedValueOnce(new Error('load failed'));
     renderWithProviders(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
     await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('load failed'));
+  });
+
+  it('removes installed resource after confirmation', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'deleteInstanceResource').mockResolvedValue(undefined);
+    renderWithProviders(<InstanceResourcesPanel instance={forgeInstance} canSync={false} />);
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Удалить' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
+
+    await waitFor(() => expect(api.deleteInstanceResource).toHaveBeenCalledWith('inst-1', {
+      source: 'modrinth',
+      project_id: 'sodium',
+      filename: 'sodium.jar',
+      resource_type: 'mod',
+    }));
+    await waitFor(() => expect(screen.queryByText('Sodium')).not.toBeInTheDocument());
   });
 });

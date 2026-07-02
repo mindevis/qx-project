@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Alert,
@@ -11,19 +11,28 @@ import {
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
 import {
   api,
   type ModCatalogItem,
   type ModCatalogSort,
   type ModCatalogSourceFilter,
   type ModProjectType,
+  type ModSource,
+  type ModVersion,
 } from '@/api/client';
+import { ModCatalogIcon } from '@/components/ModCatalogIcon';
+import {
+  ModCatalogInstallControls,
+  clearModVersionCache,
+} from '@/components/ModCatalogInstallControls';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
+import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { formatModCatalogError } from '@/lib/modCatalogError';
+import { modSupportsServerSync } from '@/lib/modSync';
 import {
   catalogLoaderForType,
   launcherCatalogTabs,
@@ -36,7 +45,7 @@ const PAGE_SIZE = 20;
 export function ModsCatalogPanel() {
   const { t } = useI18n();
   const message = useMessage();
-  const { instance, basePath } = useInstanceMods();
+  const { instance, basePath, canSync } = useInstanceMods();
   const tabTypes = useMemo(() => launcherCatalogTabs(instance.loader), [instance.loader]);
   const [activeTab, setActiveTab] = useState<ModProjectType>(() => tabTypes[0] ?? 'mod');
   const [sourceFilter, setSourceFilter] = useState<ModCatalogSourceFilter>('all');
@@ -50,6 +59,41 @@ export function ModsCatalogPanel() {
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [installedProjectIds, setInstalledProjectIds] = useState<Set<string>>(new Set());
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncSelection, setSyncSelection] = useState<ModSyncSelection | null>(null);
+
+  const refreshInstalled = useCallback(async () => {
+    try {
+      const res = await api.listInstanceResources(instance.id);
+      setInstalledProjectIds(
+        new Set(
+          (res.items ?? [])
+            .filter((r) => r.project_id)
+            .map((r) => `${r.source}:${r.project_id}`),
+        ),
+      );
+    } catch {
+      setInstalledProjectIds(new Set());
+    }
+  }, [instance.id]);
+
+  const handleInstalled = useCallback(
+    (item: ModCatalogItem, version: ModVersion) => {
+      void refreshInstalled();
+      const projectType = item.project_type ?? activeTab;
+      if (canSync && modSupportsServerSync(item) && projectType === 'mod') {
+        setSyncSelection({
+          source: item.source as ModSource,
+          projectId: item.id,
+          projectName: item.name,
+          version,
+        });
+        setSyncOpen(true);
+      }
+    },
+    [activeTab, canSync, refreshInstalled],
+  );
 
   const isSearchMode = appliedSearch.trim().length > 0;
   const showCurseforgeUnavailable =
@@ -58,10 +102,18 @@ export function ModsCatalogPanel() {
   const catalogLoader = catalogLoaderForType(instance.loader, activeTab);
 
   useEffect(() => {
+    void refreshInstalled();
+  }, [refreshInstalled]);
+
+  useEffect(() => {
     if (!tabTypes.includes(activeTab)) {
       setActiveTab(tabTypes[0] ?? 'mod');
     }
   }, [activeTab, tabTypes]);
+
+  useEffect(() => {
+    clearModVersionCache();
+  }, [activeTab, appliedSearch, catalogLoader, instance.mc_version, sort, sourceFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,38 +230,62 @@ export function ModsCatalogPanel() {
 
   const columns: ColumnsType<ModCatalogItem> = [
     {
+      title: '',
+      key: 'icon',
+      width: 56,
+      render: (_, item) => (
+        <ModCatalogIcon url={item.icon_url} name={item.name} size={44} className="qxmods-catalog-table-icon" />
+      ),
+    },
+    {
       title: t('qxmods.catalog.name'),
       dataIndex: 'name',
       key: 'name',
       render: (_, item) => (
-        <Link to={`${basePath}/catalog/${item.source}/${item.id}`} className="qxmods-catalog-link">
-          {item.name}
-        </Link>
+        <div className="qxmods-catalog-name-cell">
+          <Link to={`${basePath}/catalog/${item.source}/${item.id}`} className="qxmods-catalog-link">
+            {item.name}
+          </Link>
+          <div className="qxmods-catalog-name-meta">
+            <ModSourceBadge source={item.source} />
+          </div>
+        </div>
       ),
-    },
-    {
-      title: t('qxmods.filters.source'),
-      key: 'source',
-      width: 120,
-      render: (_, item) => <ModSourceBadge source={item.source} />,
     },
     {
       title: t('qxmods.catalog.summary'),
       dataIndex: 'summary',
       key: 'summary',
       ellipsis: true,
+      responsive: ['md'],
+    },
+    {
+      title: t('qxmods.catalog.install'),
+      key: 'install',
+      width: 280,
+      render: (_, item) => (
+        <ModCatalogInstallControls
+          source={item.source as ModSource}
+          projectId={item.id}
+          projectName={item.name}
+          projectType={item.project_type ?? activeTab}
+          iconUrl={item.icon_url}
+          downloads={item.downloads}
+          loader={catalogLoader}
+          mcVersion={instance.mc_version}
+          installedProjectIds={installedProjectIds}
+          selectClassName="qxmods-install-version-select--table"
+          onInstalled={(version) => handleInstalled(item, version)}
+          onUninstalled={() => void refreshInstalled()}
+        />
+      ),
     },
   ];
 
   return (
     <section className="instance-resources-panel instance-resources-panel--standalone qxmods-catalog-page">
-      <div className="qxmods-page-toolbar">
-        <Link to={basePath} className="launcher-instance-detail-back">
-          <ArrowLeftOutlined /> {t('qxmods.catalog.backToInstalled')}
-        </Link>
-      </div>
       <div className="instance-resources-header">
-        <Typography.Title level={5} className="instance-resources-title">
+        <Typography.Title level={4} className="instance-resources-title">
           {t('qxmods.catalog.title')}
         </Typography.Title>
         <Text type="secondary" className="instance-resources-brand">
@@ -302,11 +378,12 @@ export function ModsCatalogPanel() {
       ) : (
         <>
           <Table
-            className="qxmods-catalog-table"
+            className="qxmods-catalog-table qxmods-catalog-table--install"
             rowKey={(item) => `${item.source}:${item.id}`}
             columns={columns}
             dataSource={items}
             pagination={false}
+            scroll={{ x: 720 }}
             locale={{ emptyText: isSearchMode ? t('qxmods.empty') : t('qxmods.catalogEmpty') }}
           />
           {!isSearchMode && hasMore ? (
@@ -322,6 +399,12 @@ export function ModsCatalogPanel() {
         {t('qxmods.attribution')}
         {!curseforgeEnabled ? ` ${t('qxmods.curseforgeDisabled')}` : ''}
       </Paragraph>
+      <ModSyncModal
+        open={syncOpen}
+        selection={syncSelection}
+        instanceLoader={instance.loader}
+        onClose={() => setSyncOpen(false)}
+      />
     </section>
   );
 }

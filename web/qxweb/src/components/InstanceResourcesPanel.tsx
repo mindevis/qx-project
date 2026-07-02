@@ -7,14 +7,12 @@ import './InstanceResourcesPanel.css';
 type InstanceResourcesPanelProps = {
   instance: LauncherInstance;
   canSync: boolean;
-  layout?: 'embedded' | 'standalone';
 };
 
 /** Embedded resources panel (installed mods + link to catalog). */
 export function InstanceResourcesPanel({
   instance,
   canSync,
-  layout = 'embedded',
 }: InstanceResourcesPanelProps) {
   if (!launcherSupportsResourcesPage(instance.loader)) {
     return null;
@@ -22,7 +20,7 @@ export function InstanceResourcesPanel({
 
   return (
     <InstanceModsProvider instance={instance} canSync={canSync}>
-      <InstanceInstalledResources layout={layout} />
+      <InstanceInstalledResources />
     </InstanceModsProvider>
   );
 }

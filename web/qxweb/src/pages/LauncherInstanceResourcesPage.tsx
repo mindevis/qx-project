@@ -1,7 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import {
+  Link,
+  Navigate,
+  NavLink,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import { Spin, Tag, Typography } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import {
+  AppstoreOutlined,
+  ArrowLeftOutlined,
+  DatabaseOutlined,
+  UnorderedListOutlined,
+} from '@ant-design/icons';
 import { api, type LauncherInstance } from '@/api/client';
 import { InstanceModsProvider } from '@/components/InstanceModsContext';
 import { InstanceInstalledResources } from '@/components/InstanceInstalledResources';
@@ -13,7 +28,7 @@ import { useMessage } from '@/hooks/useMessage';
 import { launcherSupportsResourcesPage } from '@/lib/launcherInstanceCapabilities';
 import { isLauncherLoader, type LauncherLoader } from '@/lib/launcherLoaders';
 import { logger } from '@/lib/logger';
-import './LauncherPage.css';
+import './LauncherInstanceResourcesPage.css';
 
 const { Title, Paragraph } = Typography;
 
@@ -23,6 +38,37 @@ function InstanceModsShell({ instance }: { instance: LauncherInstance }) {
     <InstanceModsProvider instance={instance} canSync={isAuthenticated}>
       <Outlet />
     </InstanceModsProvider>
+  );
+}
+
+function ResourcesTabNav({ instanceId }: { instanceId: string }) {
+  const { t } = useI18n();
+  const location = useLocation();
+  const base = `/launcher/instances/${instanceId}/resources`;
+  const catalogActive = location.pathname.includes('/catalog');
+
+  return (
+    <nav className="launcher-resources-tabs" aria-label={t('launcherInstanceResources.tabsAria')}>
+      <NavLink
+        to={base}
+        end
+        className={() =>
+          `launcher-resources-tab${!catalogActive ? ' launcher-resources-tab--active' : ''}`
+        }
+      >
+        <UnorderedListOutlined aria-hidden />
+        {t('launcherInstanceResources.tabInstalled')}
+      </NavLink>
+      <NavLink
+        to={`${base}/catalog`}
+        className={() =>
+          `launcher-resources-tab${catalogActive ? ' launcher-resources-tab--active' : ''}`
+        }
+      >
+        <AppstoreOutlined aria-hidden />
+        {t('launcherInstanceResources.tabCatalog')}
+      </NavLink>
+    </nav>
   );
 }
 
@@ -80,46 +126,56 @@ export function LauncherInstanceResourcesPage() {
 
   if (loading || !instance) {
     return (
-      <div className="launcher-page launcher-page--qxmods">
-        <div className="launcher-panel-loading">
+      <div className="launcher-resources-page">
+        <div className="launcher-panel-loading" style={{ minHeight: '50vh' }}>
           <Spin size="large" />
         </div>
       </div>
     );
   }
 
+  const loaderName = isLauncherLoader(instance.loader)
+    ? loaderLabel(instance.loader)
+    : instance.loader;
+
   return (
-    <div className="launcher-page launcher-page--instance-detail launcher-page--qxmods">
-      <section className="launcher-section launcher-section--hero launcher-section--qxmods-compact">
-        <div className="launcher-hero-inner launcher-hero-inner--qxmods">
-          <div className="launcher-hero-content">
-            <Link to="/launcher" className="launcher-instance-detail-back">
-              <ArrowLeftOutlined /> {t('launcherInstanceResources.backToLauncher')}
-            </Link>
-            <span className="launcher-section-eyebrow">{t('launcherInstanceResources.badge')}</span>
-            <Title level={1} className="launcher-title">
-              {instance.name}
-            </Title>
-            <div className="launcher-instance-tags launcher-instance-tags--detail">
-              <span className="launcher-tag launcher-tag--version">
-                Minecraft {instance.mc_version}
+    <div className="launcher-resources-page">
+      <section className="launcher-resources-hero">
+        <div className="launcher-resources-hero-ambient" aria-hidden />
+        <div className="launcher-resources-hero-inner">
+          <Link to="/launcher" className="launcher-resources-back">
+            <ArrowLeftOutlined /> {t('launcherInstanceResources.backToLauncher')}
+          </Link>
+          <div className="launcher-resources-hero-head">
+            <div className="launcher-resources-hero-main">
+              <span className="launcher-resources-badge">
+                <DatabaseOutlined aria-hidden />
+                {t('launcherInstanceResources.badge')}
               </span>
-              <Tag>
-                {isLauncherLoader(instance.loader)
-                  ? loaderLabel(instance.loader)
-                  : instance.loader}
-              </Tag>
-              {instance.loader_version ? <Tag>{instance.loader_version}</Tag> : null}
+              <Title level={1} className="launcher-resources-title">
+                {instance.name}
+              </Title>
+              <Paragraph type="secondary" className="launcher-resources-subtitle">
+                {t('launcherInstanceResources.subtitle', {
+                  mc: instance.mc_version,
+                  loader: loaderName,
+                })}
+              </Paragraph>
+              <div className="launcher-resources-tags">
+                <span className="launcher-tag launcher-tag--version">
+                  Minecraft {instance.mc_version}
+                </span>
+                <Tag>{loaderName}</Tag>
+                {instance.loader_version ? <Tag>{instance.loader_version}</Tag> : null}
+              </div>
             </div>
-            <Paragraph type="secondary" className="launcher-intro">
-              {t('qxmods.promoBody')}
-            </Paragraph>
           </div>
         </div>
       </section>
 
-      <section className="launcher-section launcher-section--instance-resources">
-        <div className="launcher-panel launcher-panel--resources launcher-panel--qxmods-full">
+      <section className="launcher-resources-body">
+        <ResourcesTabNav instanceId={instance.id} />
+        <div className="launcher-resources-panel">
           <Routes>
             <Route element={<InstanceModsShell instance={instance} />}>
               <Route index element={<InstanceInstalledResources />} />

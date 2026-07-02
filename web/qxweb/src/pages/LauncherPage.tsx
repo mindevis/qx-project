@@ -37,6 +37,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { LauncherDownloadButton } from '@/components/LauncherDownloadButton';
+import { InstanceServerBinding } from '@/components/InstanceServerBinding';
 import { ProfileModelPicker, ProfileModelAvatar } from '@/components/ProfileModelPicker';
 import { useMessage } from '@/hooks/useMessage';
 import {
@@ -1302,6 +1303,7 @@ function LauncherHome() {
                             {launchErrorMessage(progress?.errorCode)}
                           </Paragraph>
                         ) : null}
+                        <InstanceServerBinding instance={item} variant="card" />
                       </div>
                       <Space wrap className="launcher-instance-actions">
                         <Button

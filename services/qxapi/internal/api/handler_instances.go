@@ -186,6 +186,49 @@ func (h *InstancesHandler) ListResources(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
+type deleteInstanceResourceRequest struct {
+	Source       string `json:"source" binding:"required"`
+	ProjectID    string `json:"project_id"`
+	Filename     string `json:"filename"`
+	ResourceType string `json:"resource_type"`
+}
+
+func (h *InstancesHandler) DeleteResource(c *gin.Context) {
+	owner, ok := ownerFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req deleteInstanceResourceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	if req.ProjectID == "" && req.Filename == "" {
+		JSONValidation(c, "project_id or filename required")
+		return
+	}
+	err := h.Service.DeleteInstanceResource(c.Request.Context(), owner, c.Param("id"), launcher.DeleteInstanceResourceInput{
+		Source:       req.Source,
+		ProjectID:    req.ProjectID,
+		Filename:     req.Filename,
+		ResourceType: req.ResourceType,
+	})
+	if err != nil {
+		if errors.Is(err, launcher.ErrNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "resource not found")
+			return
+		}
+		if errors.Is(err, launcher.ErrValidation) {
+			JSONValidation(c, "invalid resource data")
+			return
+		}
+		JSONInternal(c)
+		return
+	}
+	c.AbortWithStatus(http.StatusNoContent)
+}
+
 func (h *InstancesHandler) Delete(c *gin.Context) {
 	owner, ok := ownerFromContext(c)
 	if !ok {

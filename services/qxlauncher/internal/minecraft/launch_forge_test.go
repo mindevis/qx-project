@@ -50,6 +50,38 @@ func TestBuildLaunchPlanForgeModulePath(t *testing.T) {
 	}
 }
 
+func TestBuildLaunchPlanForgeDirectConnect(t *testing.T) {
+	manifest := &mcmanifest.InstanceLaunchManifest{
+		Loader:    mcmanifest.LoaderForge,
+		MCVersion: "1.20.1",
+		VersionID: "1.20.1-forge-47.4.20",
+		MainClass: "cpw.mods.bootstraplauncher.BootstrapLauncher",
+		AssetIndex: mcmanifest.AssetIndexRef{ID: "1.20.1"},
+		GameArguments: []string{
+			"--username", "${auth_player_name}",
+			"--launchTarget", "forgeclient",
+		},
+	}
+	plan := BuildLaunchPlan(
+		manifest,
+		`C:\game\versions\1.20.1-forge-47.4.20\1.20.1-forge-47.4.20.jar`,
+		nil,
+		`C:\game\natives`,
+		`C:\game\assets`,
+		`C:\game`,
+		`C:\libs`,
+		"Devis",
+		"uuid-1",
+		"",
+		nil,
+		"mc.example.com:25565",
+	)
+	joined := strings.Join(plan.Args, " ")
+	if !strings.Contains(joined, "--server mc.example.com") || !strings.Contains(joined, "--port 25565") {
+		t.Fatalf("forge direct connect missing: %s", joined)
+	}
+}
+
 func TestSubstituteLaunchArgEmbedded(t *testing.T) {
 	got := substituteLaunchArg("-DignoreList=${version_name}.jar", map[string]string{
 		"${version_name}": "1.20.1-forge-47.4.20",

@@ -718,6 +718,21 @@ export const api = {
       'launcher',
     ),
 
+  deleteInstanceResource: (
+    instanceId: string,
+    body: {
+      source: ModSource;
+      project_id?: string;
+      filename?: string;
+      resource_type: ModProjectType;
+    },
+  ) =>
+    request<void>(
+      `/instances/${encodeURIComponent(instanceId)}/resources`,
+      { method: 'DELETE', body: JSON.stringify(body) },
+      'launcher',
+    ),
+
   createModInstallRequest: (body: {
     instance_id: string;
     source: ModSource;
