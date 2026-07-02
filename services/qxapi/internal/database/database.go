@@ -73,6 +73,7 @@ var migrateUsers = func(db *gorm.DB) error {
 		&models.ModUninstallRequest{},
 		&models.InstanceFileRequest{},
 		&models.InstanceResourceUploadRequest{},
+		&models.InstanceResourceExportRequest{},
 		&models.UserCosmetics{},
 		&models.Server{},
 		&models.SSHCredential{},

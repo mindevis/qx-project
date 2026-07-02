@@ -155,7 +155,8 @@ html[data-theme='dark'] .instance-resources-panel {
 }
 
 .qxmods-install-controls--inline {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .qxmods-install-controls--stacked {
@@ -182,9 +183,9 @@ html[data-theme='dark'] .instance-resources-panel {
 }
 
 .qxmods-install-version-select--table {
-  flex: 1 1 140px;
-  min-width: 110px;
-  max-width: 220px;
+  flex: 1 1 160px;
+  min-width: 140px;
+  max-width: 240px;
 }
 
 .qxmods-install-version-select--detail {
@@ -198,11 +199,24 @@ html[data-theme='dark'] .instance-resources-panel {
 }
 
 .qxmods-catalog-install-cell {
-  white-space: nowrap;
+  min-width: 320px;
 }
 
 .qxmods-catalog-table--install .qxmods-catalog-install-cell .ant-table-cell {
-  overflow: visible;
+  overflow: hidden;
+}
+
+.qxmods-catalog-name-col,
+.qxmods-catalog-summary-col {
+  overflow: hidden;
+}
+
+.qxmods-catalog-side-col {
+  white-space: nowrap;
+}
+
+.qxmods-catalog-table--install .ant-table-content {
+  overflow-x: auto;
 }
 
 .qxmods-install-no-versions {
@@ -386,7 +400,19 @@ html[data-theme='dark'] .qxmods-installed-item {
 }
 
 .qxmods-installed-item-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 4px;
+}
+
+.qxmods-installed-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .qxmods-installed-list .qxmods-installed-icon {

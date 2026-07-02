@@ -227,7 +227,7 @@ export type GameServerFileContent = {
   size: number;
 };
 
-export type ModSource = 'curseforge' | 'modrinth';
+export type ModSource = 'curseforge' | 'modrinth' | 'upload';
 
 export type ModCatalogSourceFilter = 'all' | ModSource;
 
@@ -774,6 +774,20 @@ export const api = {
     }
     return (await res.json()) as { id: string; status: string; filename: string; resource_type: string };
   },
+
+  syncUploadedInstanceResource: (
+    instanceId: string,
+    body: {
+      vps_id: string;
+      game_server_id: string;
+      filename: string;
+      resource_type?: ModProjectType;
+    },
+  ) =>
+    request<ModSyncResult>(
+      `/instances/${encodeURIComponent(instanceId)}/resources/sync-to-game-server`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
 
   uploadGameServerMod: async (vpsId: string, gameServerId: string, file: File) => {
     const form = new FormData();

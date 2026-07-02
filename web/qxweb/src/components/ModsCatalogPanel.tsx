@@ -249,6 +249,9 @@ export function ModsCatalogPanel() {
       title: t('qxmods.catalog.name'),
       dataIndex: 'name',
       key: 'name',
+      width: 220,
+      ellipsis: true,
+      className: 'qxmods-catalog-name-col',
       render: (_, item) => (
         <div className="qxmods-catalog-name-cell">
           <Link to={`${basePath}/catalog/${item.source}/${item.id}`} className="qxmods-catalog-link">
@@ -256,7 +259,6 @@ export function ModsCatalogPanel() {
           </Link>
           <div className="qxmods-catalog-name-meta">
             <ModSourceBadge source={item.source} />
-            {activeTab === 'mod' ? <ModSideBadge item={item} /> : null}
           </div>
         </div>
       ),
@@ -266,12 +268,20 @@ export function ModsCatalogPanel() {
       dataIndex: 'summary',
       key: 'summary',
       ellipsis: true,
+      className: 'qxmods-catalog-summary-col',
       responsive: ['md'],
+    },
+    {
+      title: t('qxmods.catalog.side'),
+      key: 'side',
+      width: 132,
+      className: 'qxmods-catalog-side-col',
+      render: (_, item) => (activeTab === 'mod' ? <ModSideBadge item={item} /> : null),
     },
     {
       title: t('qxmods.catalog.install'),
       key: 'install',
-      width: 360,
+      width: 400,
       className: 'qxmods-catalog-install-cell',
       render: (_, item) => (
         <ModCatalogInstallControls
@@ -394,6 +404,7 @@ export function ModsCatalogPanel() {
             columns={columns}
             dataSource={items}
             pagination={false}
+            scroll={{ x: 960 }}
             tableLayout="fixed"
             locale={{ emptyText: isSearchMode ? t('qxmods.empty') : t('qxmods.catalogEmpty') }}
           />

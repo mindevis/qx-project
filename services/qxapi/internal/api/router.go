@@ -88,13 +88,14 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	authH := &AuthHandler{Service: authSvc}
 	usersH := &UsersHandler{Service: authSvc}
 	devicesH := &DevicesHandler{Service: launcherSvc}
-	instancesH := &InstancesHandler{Service: launcherSvc}
+	instancesH := &InstancesHandler{Service: launcherSvc, ServerService: serversSvc}
 	profilesH := &ProfilesHandler{Service: launcherSvc}
 	launchH := &LaunchRequestsHandler{Service: launcherSvc, Tokens: tokens}
 	modInstallH := &ModInstallRequestsHandler{Service: launcherSvc, Tokens: tokens}
 	instanceFileH := &InstanceFileRequestsHandler{Service: launcherSvc}
 	modUninstallH := &ModUninstallRequestsHandler{Service: launcherSvc}
 	resourceUploadH := &ResourceUploadRequestsHandler{Service: launcherSvc}
+	resourceExportH := &ResourceExportRequestsHandler{Service: launcherSvc}
 	updateH := &UpdateRequestsHandler{Service: launcherSvc}
 	releaseH := &ReleaseHandler{Service: launcherSvc}
 	mcVersionsH := &McVersionsHandler{}
@@ -222,6 +223,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			launcherOwner.GET("/instances/:id/resources", instancesH.ListResources)
 			launcherOwner.DELETE("/instances/:id/resources", instancesH.DeleteResource)
 			launcherOwner.POST("/instances/:id/resources/upload", instancesH.UploadResource)
+			launcherOwner.POST("/instances/:id/resources/sync-to-game-server", instancesH.SyncUploadedResource)
 			launcherOwner.GET("/instances/:id/files", instancesH.ListFiles)
 			launcherOwner.GET("/instances/:id/files/content", instancesH.ReadFile)
 			launcherOwner.PUT("/instances/:id/files/content", instancesH.WriteFile)
@@ -259,6 +261,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			deviceAuth.PATCH("/launcher/mod-uninstall-requests/:id", modUninstallH.Update)
 			deviceAuth.GET("/launcher/resource-upload-requests/pending", resourceUploadH.Pending)
 			deviceAuth.PATCH("/launcher/resource-upload-requests/:id", resourceUploadH.Update)
+			deviceAuth.GET("/launcher/resource-export-requests/pending", resourceExportH.Pending)
+			deviceAuth.PATCH("/launcher/resource-export-requests/:id", resourceExportH.Update)
 			deviceAuth.GET("/launcher/update-requests/pending", updateH.Pending)
 			deviceAuth.PATCH("/launcher/update-requests/:id", updateH.Complete)
 		}

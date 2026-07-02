@@ -135,6 +135,14 @@ type ResourceUploadRequestItem struct {
 	ContentB64   string `json:"content_b64"`
 }
 
+type ResourceExportRequestItem struct {
+	ID           string `json:"id"`
+	Status       string `json:"status"`
+	InstanceID   string `json:"instance_id"`
+	Filename     string `json:"filename"`
+	ResourceType string `json:"resource_type"`
+}
+
 func (c *Client) FetchPendingLaunch(ctx context.Context) (*LaunchRequestItem, error) {
 	body, err := c.request(ctx, http.MethodGet, "/launcher/launch-requests/pending", nil, true)
 	if err != nil {
@@ -278,6 +286,33 @@ func (c *Client) CompleteResourceUpload(ctx context.Context, id, status, errorCo
 	}
 	b, _ := json.Marshal(payload)
 	_, err := c.request(ctx, http.MethodPatch, "/launcher/resource-upload-requests/"+id, b, true)
+	return err
+}
+
+func (c *Client) FetchPendingResourceExport(ctx context.Context) (*ResourceExportRequestItem, error) {
+	body, err := c.request(ctx, http.MethodGet, "/launcher/resource-export-requests/pending", nil, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Item *ResourceExportRequestItem `json:"item"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Item, nil
+}
+
+func (c *Client) CompleteResourceExport(ctx context.Context, id, status, contentB64, errorCode string) error {
+	payload := map[string]any{"status": status}
+	if contentB64 != "" {
+		payload["content_b64"] = contentB64
+	}
+	if errorCode != "" {
+		payload["error_code"] = errorCode
+	}
+	b, _ := json.Marshal(payload)
+	_, err := c.request(ctx, http.MethodPatch, "/launcher/resource-export-requests/"+id, b, true)
 	return err
 }
 

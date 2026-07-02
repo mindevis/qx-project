@@ -139,6 +139,53 @@ func TestCurseForgeSidesFromGameVersions(t *testing.T) {
 	}
 }
 
+func TestCurseForgeSearchMapsClientServerSides(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":42,"name":"JEI","slug":"jei","summary":"items","downloadCount":1,"logo":{"thumbnailUrl":""},"authors":[{"name":"meili"}],"latestFilesIndexes":[{"gameVersion":"1.20.1","modLoader":1}],"latestFiles":[{"gameVersions":["1.20.1","Forge"],"modLoader":1},{"gameVersions":["Client","Server","1.20.1","Forge"],"modLoader":1}]}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	items, err := c.browse(context.Background(), ProjectTypeMod, "forge", "1.20.1", "downloads", 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items len %d", len(items))
+	}
+	if items[0].ClientSide != "required" || items[0].ServerSide != "required" {
+		t.Fatalf("sides: client=%q server=%q", items[0].ClientSide, items[0].ServerSide)
+	}
+}
+
+func TestCurseForgeSearchMapsServerPackSide(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":7,"name":"Pack","slug":"pack","summary":"","downloadCount":0,"logo":{"thumbnailUrl":""},"authors":[],"latestFilesIndexes":[],"latestFiles":[{"gameVersions":["1.20.1","Forge"],"modLoader":1,"isServerPack":true}]}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	items, err := c.browse(context.Background(), ProjectTypeMod, "forge", "1.20.1", "downloads", 5, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items[0].ClientSide != "unsupported" || items[0].ServerSide != "required" {
+		t.Fatalf("server pack sides: client=%q server=%q", items[0].ClientSide, items[0].ServerSide)
+	}
+}
+
 func TestCurseForgeGetVersionUsesInlineDependencies(t *testing.T) {
 	t.Parallel()
 	var gotPaths []string

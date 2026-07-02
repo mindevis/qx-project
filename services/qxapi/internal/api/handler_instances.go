@@ -3,16 +3,19 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/qxproject/qx/services/qxapi/internal/launcher"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
+	"github.com/qxproject/qx/services/qxapi/internal/servers"
 )
 
 type InstancesHandler struct {
-	Service *launcher.Service
+	Service       *launcher.Service
+	ServerService *servers.Service
 }
 
 type instanceResponse struct {
@@ -237,6 +240,109 @@ func (h *InstancesHandler) DeleteResource(c *gin.Context) {
 		return
 	}
 	c.AbortWithStatus(http.StatusNoContent)
+}
+
+type syncUploadedResourceBody struct {
+	VpsID        string `json:"vps_id" binding:"required"`
+	GameServerID string `json:"game_server_id" binding:"required"`
+	Filename     string `json:"filename" binding:"required"`
+	ResourceType string `json:"resource_type"`
+}
+
+func (h *InstancesHandler) SyncUploadedResource(c *gin.Context) {
+	owner, ok := ownerFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	if h.ServerService == nil {
+		JSONInternal(c)
+		return
+	}
+	var body syncUploadedResourceBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	instanceID := c.Param("id")
+	resourceType := body.ResourceType
+	if resourceType == "" {
+		resourceType = "mod"
+	}
+	resourceType = strings.ToLower(strings.TrimSpace(resourceType))
+	if resourceType != "mod" {
+		JSONValidation(c, "only mod resources can be synced to game server")
+		return
+	}
+
+	inst, err := h.Service.GetInstance(c.Request.Context(), owner, instanceID)
+	if err != nil {
+		if errors.Is(err, launcher.ErrNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "instance not found")
+			return
+		}
+		JSONInternal(c)
+		return
+	}
+	if launcher.FindUploadedInstanceResource(inst, body.Filename, resourceType) == nil {
+		JSONError(c, http.StatusNotFound, "NOT_FOUND", "uploaded resource not found on instance")
+		return
+	}
+
+	modEntries, err := h.ServerService.ListGameServerMods(
+		c.Request.Context(),
+		owner.UserID,
+		body.VpsID,
+		body.GameServerID,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	for _, entry := range modEntries {
+		if entry.Dir {
+			continue
+		}
+		if strings.EqualFold(entry.Name, body.Filename) {
+			c.JSON(http.StatusOK, gin.H{
+				"status":  "already_installed",
+				"message": "mod file already exists on server",
+			})
+			return
+		}
+	}
+
+	data, err := h.Service.ExportInstanceResource(
+		c.Request.Context(),
+		owner,
+		instanceID,
+		body.Filename,
+		resourceType,
+	)
+	if err != nil {
+		mapInstanceBridgeError(c, err)
+		return
+	}
+
+	result, err := h.ServerService.UploadGameServerContent(
+		c.Request.Context(),
+		owner.UserID,
+		body.VpsID,
+		body.GameServerID,
+		resourceType,
+		body.Filename,
+		data,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status":   "installed",
+		"message":  "mod installed on server",
+		"filename": result.Filename,
+		"path":     result.RelPath,
+	})
 }
 
 func (h *InstancesHandler) Delete(c *gin.Context) {

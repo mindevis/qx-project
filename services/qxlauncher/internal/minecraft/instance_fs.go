@@ -12,6 +12,7 @@ import (
 )
 
 const instanceFileMaxBytes = 2 * 1024 * 1024
+const maxResourceUploadBytes = 32 * 1024 * 1024
 
 func (d *Downloader) ListInstanceDir(instanceID, relPath string) ([]protocol.FileEntry, error) {
 	gameDir := d.InstanceGameDir(instanceID)
@@ -92,6 +93,29 @@ func (d *Downloader) WriteInstanceFile(instanceID, relPath, content string) erro
 		return err
 	}
 	return safepath.WriteFileBytes(abs, []byte(content), 0o644)
+}
+
+func (d *Downloader) ReadInstanceResourceFile(instanceID, folder, filename string) ([]byte, error) {
+	if instanceID == "" || folder == "" || filename == "" {
+		return nil, fmt.Errorf("invalid read parameters")
+	}
+	relPath := filepath.ToSlash(filepath.Join(folder, filename))
+	gameDir := d.InstanceGameDir(instanceID)
+	abs, err := safepath.JoinRel(gameDir, relPath)
+	if err != nil {
+		return nil, err
+	}
+	info, err := safepath.Stat(abs)
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("path is a directory")
+	}
+	if info.Size() > maxResourceUploadBytes {
+		return nil, fmt.Errorf("file too large")
+	}
+	return safepath.ReadFileBytes(abs)
 }
 
 func (d *Downloader) WriteInstanceResourceFile(instanceID, folder, filename string, data []byte) error {

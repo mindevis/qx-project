@@ -169,3 +169,58 @@ func (h *ResourceUploadRequestsHandler) Update(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, view)
 }
+
+type ResourceExportRequestsHandler struct {
+	Service *launcher.Service
+}
+
+func (h *ResourceExportRequestsHandler) Pending(c *gin.Context) {
+	deviceID, ok := deviceIDFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	view, err := h.Service.FetchPendingResourceExport(c.Request.Context(), deviceID)
+	if err != nil {
+		mapInstanceBridgeError(c, err)
+		return
+	}
+	if view == nil {
+		c.JSON(http.StatusOK, gin.H{"item": nil})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"item": view})
+}
+
+type patchResourceExportRequestBody struct {
+	Status     string  `json:"status" binding:"required"`
+	ContentB64 string  `json:"content_b64"`
+	ErrorCode  *string `json:"error_code"`
+}
+
+func (h *ResourceExportRequestsHandler) Update(c *gin.Context) {
+	deviceID, ok := deviceIDFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req patchResourceExportRequestBody
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	view, err := h.Service.UpdateResourceExportRequest(c.Request.Context(), deviceID, c.Param("id"), launcher.UpdateResourceExportRequestInput{
+		Status:     req.Status,
+		ContentB64: req.ContentB64,
+		ErrorCode:  req.ErrorCode,
+	})
+	if err != nil {
+		if errors.Is(err, launcher.ErrNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "resource export request not found")
+			return
+		}
+		mapInstanceBridgeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
+}

@@ -56,6 +56,7 @@ type Service struct {
 	pendingFileRPC      sync.Map
 	pendingUninstallRPC sync.Map
 	pendingUploadRPC    sync.Map
+	pendingExportRPC    sync.Map
 }
 
 func NewService(db *gorm.DB, tokens *auth.TokenService, webBaseURL string) *Service {

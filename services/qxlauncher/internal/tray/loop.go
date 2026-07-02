@@ -43,6 +43,7 @@ var activeModInstalls sync.Map
 var activeInstanceFiles sync.Map
 var activeModUninstalls sync.Map
 var activeResourceUploads sync.Map
+var activeResourceExports sync.Map
 
 func RunLoop(ctx context.Context, cfg Config) {
 	if cfg.LaunchPoll <= 0 {
@@ -202,6 +203,25 @@ func RunLoop(ctx context.Context, cfg Config) {
 					}(uploadItem)
 				}
 			}
+
+			exportItem, exportErr := api.FetchPendingResourceExport(ctx)
+			if exportErr != nil {
+				if apiclient.IsUnauthorized(exportErr) {
+					tryRefreshDeviceToken(ctx, api, cfg, exportErr)
+					exportItem, exportErr = api.FetchPendingResourceExport(ctx)
+				}
+				if exportErr != nil {
+					logAPIFailure("resource export poll failed", exportErr)
+				}
+			}
+			if exportErr == nil && exportItem != nil {
+				if _, loaded := activeResourceExports.LoadOrStore(exportItem.ID, true); !loaded {
+					go func(item *apiclient.ResourceExportRequestItem) {
+						defer activeResourceExports.Delete(item.ID)
+						executeResourceExport(context.Background(), api, downloader, item)
+					}(exportItem)
+				}
+			}
 		}
 	}
 }
@@ -305,6 +325,20 @@ func executeResourceUpload(ctx context.Context, api *apiclient.Client, dl *minec
 		return
 	}
 	_ = api.CompleteResourceUpload(ctx, item.ID, "completed", "")
+}
+
+func executeResourceExport(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.ResourceExportRequestItem) {
+	folder := modInstallFolder(item.ResourceType)
+	data, err := dl.ReadInstanceResourceFile(item.InstanceID, folder, item.Filename)
+	if err != nil {
+		slog.Error("resource export read failed", "instance", item.InstanceID, "file", item.Filename, "err", err)
+		_ = api.CompleteResourceExport(ctx, item.ID, "failed", "", "EXPORT_READ_FAILED")
+		return
+	}
+	contentB64 := base64.StdEncoding.EncodeToString(data)
+	if err := api.CompleteResourceExport(ctx, item.ID, "completed", contentB64, ""); err != nil {
+		slog.Error("resource export complete failed", "id", item.ID, "err", err)
+	}
 }
 
 func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, cfg Config, item *apiclient.LaunchRequestItem) {

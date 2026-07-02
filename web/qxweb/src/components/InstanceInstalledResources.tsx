@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Modal, Spin, Typography, Upload } from 'antd';
-import { AppstoreOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, DeleteOutlined, UnorderedListOutlined, UploadOutlined } from '@ant-design/icons';
 import { api, type InstanceResource, type ModProjectType } from '@/api/client';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
@@ -10,19 +10,105 @@ import {
   InstanceResourceSyncButton,
   InstanceServerSyncProvider,
 } from '@/components/InstanceServerSyncPanel';
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { launcherCatalogTabs } from '@/lib/launcherInstanceCapabilities';
 import { fetchMissingResourceIcons, instanceResourceIconKey } from '@/lib/instanceResourceIcons';
+import {
+  type InstalledResourcesViewMode,
+  useInstalledResourcesViewMode,
+} from '@/lib/installedResourcesView';
 import './InstanceResourcesPanel.css';
+import '../pages/LauncherInstanceResourcesPage.css';
 
 const { Text, Title } = Typography;
+
+type InstalledResourceItemProps = {
+  item: InstanceResource;
+  viewMode: InstalledResourcesViewMode;
+  iconUrl?: string;
+  removingKey?: string;
+  resourceKey: (item: InstanceResource) => string;
+  onRemove: (item: InstanceResource) => void;
+  t: ReturnType<typeof useI18n>['t'];
+};
+
+function InstalledResourceItem({
+  item,
+  viewMode,
+  iconUrl,
+  removingKey,
+  resourceKey,
+  onRemove,
+  t,
+}: InstalledResourceItemProps) {
+  const removeButton = (
+    <Button
+      type="text"
+      danger
+      size="small"
+      className="launcher-resource-card-remove"
+      icon={<DeleteOutlined />}
+      loading={removingKey === resourceKey(item)}
+      aria-label={t('qxmods.uninstall.action')}
+      onClick={() => onRemove(item)}
+    />
+  );
+
+  if (viewMode === 'list') {
+    return (
+      <article className="qxmods-installed-item launcher-resources-list-item">
+        <ModCatalogIcon
+          url={iconUrl}
+          name={item.project_name}
+          size={40}
+          className="qxmods-installed-icon"
+        />
+        <div className="qxmods-installed-item-content">
+          <div className="qxmods-installed-item-title">
+            <span>{item.project_name}</span>
+            <ModSourceBadge source={item.source} />
+          </div>
+          <ResourceMetaBadges item={item} t={t} />
+        </div>
+        <div className="qxmods-installed-item-actions">
+          <InstanceResourceSyncButton item={item} />
+          {removeButton}
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="launcher-resource-card">
+      <ModCatalogIcon
+        url={iconUrl}
+        name={item.project_name}
+        size={48}
+        className="launcher-resource-card-icon"
+      />
+      <div className="launcher-resource-card-body">
+        <div className="launcher-resource-card-title">
+          <span>{item.project_name}</span>
+          <ModSourceBadge source={item.source} />
+        </div>
+        <ResourceMetaBadges item={item} t={t} />
+      </div>
+      <div className="launcher-resource-card-actions">
+        <InstanceResourceSyncButton item={item} />
+        {removeButton}
+      </div>
+    </article>
+  );
+}
 
 export function InstanceInstalledResources() {
   const { t } = useI18n();
   const message = useMessage();
   const { instance, basePath, canSync } = useInstanceMods();
+  const { viewMode, setViewMode } = useInstalledResourcesViewMode();
   const [items, setItems] = useState<InstanceResource[]>([]);
   const [resolvedIconUrls, setResolvedIconUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -142,6 +228,8 @@ export function InstanceInstalledResources() {
     });
   };
 
+  const listClassName = viewMode === 'list' ? 'qxmods-installed-list' : 'launcher-resources-grid';
+
   return (
     <InstanceServerSyncProvider items={items}>
       <section className="instance-resources-panel instance-resources-panel--standalone" aria-label={t('qxmods.sectionTitle')}>
@@ -174,19 +262,39 @@ export function InstanceInstalledResources() {
       ) : null}
 
       {!loading && items.length > 0 ? (
-        <div className="launcher-resources-stats" aria-label={t('launcherInstanceResources.statsAria')}>
-          <span className="launcher-resources-stat">
-            {t('launcherInstanceResources.statTotal')}: <strong>{items.length}</strong>
-          </span>
-          {typeOrder.map((type) => {
-            const count = stats.get(type) ?? 0;
-            if (count === 0) return null;
-            return (
-              <span key={type} className="launcher-resources-stat">
-                {t(`qxmods.tabs.${type}`)}: <strong>{count}</strong>
-              </span>
-            );
-          })}
+        <div className="launcher-resources-toolbar">
+          <div className="launcher-resources-stats" aria-label={t('launcherInstanceResources.statsAria')}>
+            <span className="launcher-resources-stat">
+              {t('launcherInstanceResources.statTotal')}: <strong>{items.length}</strong>
+            </span>
+            {typeOrder.map((type) => {
+              const count = stats.get(type) ?? 0;
+              if (count === 0) return null;
+              return (
+                <span key={type} className="launcher-resources-stat">
+                  {t(`qxmods.tabs.${type}`)}: <strong>{count}</strong>
+                </span>
+              );
+            })}
+          </div>
+          <SegmentedControl
+            iconOnly
+            value={viewMode}
+            onChange={setViewMode}
+            groupLabel={t('launcherInstanceResources.viewModeAria')}
+            options={[
+              {
+                value: 'list',
+                label: <UnorderedListOutlined aria-hidden />,
+                ariaLabel: t('launcherInstanceResources.viewList'),
+              },
+              {
+                value: 'cards',
+                label: <AppstoreOutlined aria-hidden />,
+                ariaLabel: t('launcherInstanceResources.viewCards'),
+              },
+            ]}
+          />
         </div>
       ) : null}
 
@@ -212,40 +320,21 @@ export function InstanceInstalledResources() {
               {t(`qxmods.tabs.${type}`)}
               <span className="launcher-resources-section-count">{sectionItems.length}</span>
             </Title>
-            <ul className="launcher-resources-grid">
+            <ul className={listClassName}>
               {sectionItems.map((item) => {
                 const iconKey = instanceResourceIconKey(item);
                 const iconUrl = item.icon_url ?? (iconKey ? resolvedIconUrls[iconKey] : undefined);
                 return (
                 <li key={`${item.source}:${item.project_id ?? item.filename}`}>
-                  <article className="launcher-resource-card">
-                    <ModCatalogIcon
-                      url={iconUrl}
-                      name={item.project_name}
-                      size={48}
-                      className="launcher-resource-card-icon"
-                    />
-                    <div className="launcher-resource-card-body">
-                      <div className="launcher-resource-card-title">
-                        <span>{item.project_name}</span>
-                        <ModSourceBadge source={item.source} />
-                      </div>
-                      <ResourceMetaBadges item={item} t={t} />
-                    </div>
-                    <div className="launcher-resource-card-actions">
-                      <InstanceResourceSyncButton item={item} />
-                      <Button
-                        type="text"
-                        danger
-                        size="small"
-                        className="launcher-resource-card-remove"
-                        icon={<DeleteOutlined />}
-                        loading={removingKey === resourceKey(item)}
-                        aria-label={t('qxmods.uninstall.action')}
-                        onClick={() => handleRemove(item)}
-                      />
-                    </div>
-                  </article>
+                  <InstalledResourceItem
+                    item={item}
+                    viewMode={viewMode}
+                    iconUrl={iconUrl}
+                    removingKey={removingKey}
+                    resourceKey={resourceKey}
+                    onRemove={handleRemove}
+                    t={t}
+                  />
                 </li>
                 );
               })}

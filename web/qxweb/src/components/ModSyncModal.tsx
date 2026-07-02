@@ -9,7 +9,7 @@ import {
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
-import { isModOnServer, resolveModSyncBodies } from '@/lib/modSync';
+import { isFilenameOnServer, isModOnServer, resolveModSyncBodies } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 
@@ -30,6 +30,8 @@ export type ModSyncSelection = {
 type ModSyncModalProps = {
   open: boolean;
   selection: ModSyncSelection | null;
+  uploadedResource?: InstanceResource | null;
+  instanceId?: string;
   instanceLoader: string;
   instanceMcVersion?: string;
   installedResources?: InstanceResource[];
@@ -39,6 +41,8 @@ type ModSyncModalProps = {
 export function ModSyncModal({
   open,
   selection,
+  uploadedResource = null,
+  instanceId,
   instanceLoader,
   instanceMcVersion,
   installedResources = [],
@@ -80,9 +84,13 @@ export function ModSyncModal({
   );
 
   const alreadyOnServer = useMemo(() => {
-    if (!selection || !selectedTarget) return false;
+    if (!selectedTarget) return false;
+    if (uploadedResource) {
+      return isFilenameOnServer(selectedTarget.serverMods, uploadedResource.filename);
+    }
+    if (!selection) return false;
     return isModOnServer(selectedTarget.serverMods, selection.version);
-  }, [selectedTarget, selection]);
+  }, [selectedTarget, selection, uploadedResource]);
 
   const promptServerRestart = (target: (typeof targets)[number]) => {
     Modal.confirm({
@@ -103,11 +111,35 @@ export function ModSyncModal({
   };
 
   const handleSync = async () => {
-    if (!selection || !selectedTarget) return;
+    if (!selectedTarget) return;
     const target = selectedTarget;
     setSyncing(true);
     setSyncFeedback(null);
     try {
+      if (uploadedResource) {
+        if (!instanceId) {
+          throw new Error(t('qxmods.sync.failed'));
+        }
+        const res = await api.syncUploadedInstanceResource(instanceId, {
+          vps_id: target.vpsId,
+          game_server_id: target.gameServer.id,
+          filename: uploadedResource.filename,
+          resource_type: uploadedResource.resource_type,
+        });
+        if (res.status === 'already_installed') {
+          message.info(t('qxmods.sync.alreadyOnServer'));
+          onClose();
+          return;
+        }
+        message.success(
+          res.status === 'installed' ? t('qxmods.sync.installed') : t('qxmods.sync.queued'),
+        );
+        promptServerRestart(target);
+        onClose();
+        return;
+      }
+
+      if (!selection) return;
       const bodies = await resolveModSyncBodies(
         selection,
         installedResources,
@@ -195,7 +227,9 @@ export function ModSyncModal({
             {targets.map((target) => {
               const key = gameServerSyncTargetKey(target);
               const onServer =
-                selection != null && isModOnServer(target.serverMods, selection.version);
+                uploadedResource != null
+                  ? isFilenameOnServer(target.serverMods, uploadedResource.filename)
+                  : selection != null && isModOnServer(target.serverMods, selection.version);
               return (
                 <Radio key={key} value={key} disabled={onServer} className="qxmods-sync-option">
                   <span className="qxmods-sync-option-name">{target.gameServer.name}</span>

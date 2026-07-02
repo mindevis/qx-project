@@ -183,4 +183,38 @@ describe('InstanceResourceSyncButton', () => {
       expect(screen.getByLabelText(/Синхронизирован с «qRPG TechnoMagic»/)).toBeInTheDocument(),
     );
   });
+
+  it('shows sync button for uploaded mods', async () => {
+    const uploadedMod = {
+      source: 'upload' as const,
+      project_name: 'Custom Mod',
+      filename: 'custom-mod.jar',
+      resource_type: 'mod' as const,
+      installed_at: '2026-01-01T00:00:00Z',
+    };
+    renderSyncButton([uploadedMod]);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Синхронизировать с сервером/ })).toBeInTheDocument(),
+    );
+  });
+
+  it('opens sync modal for uploaded mods without catalog lookup', async () => {
+    const user = userEvent.setup({ delay: null });
+    const uploadedMod = {
+      source: 'upload' as const,
+      project_name: 'Custom Mod',
+      filename: 'custom-mod.jar',
+      resource_type: 'mod' as const,
+      installed_at: '2026-01-01T00:00:00Z',
+    };
+    renderSyncButton([uploadedMod]);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Синхронизировать с сервером/ })).toBeEnabled(),
+    );
+
+    await user.click(screen.getByRole('button', { name: /Синхронизировать с сервером/ }));
+
+    await waitFor(() => expect(screen.getByText('Синхронизация с сервером')).toBeInTheDocument());
+    expect(api.getModVersion).not.toHaveBeenCalled();
+  });
 });

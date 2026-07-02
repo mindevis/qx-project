@@ -137,8 +137,8 @@ export async function resolveModSyncBodies(
 export type ModSyncSide = 'client' | 'server' | 'both' | 'unknown';
 
 export function modSyncSide(item: Pick<ModCatalogItem, 'client_side' | 'server_side'>): ModSyncSide {
-  const client = item.client_side ?? 'unknown';
-  const server = item.server_side ?? 'unknown';
+  const client = item.client_side?.trim() || 'unknown';
+  const server = item.server_side?.trim() || 'unknown';
   const clientOk = client === 'required' || client === 'optional';
   const serverOk = server === 'required' || server === 'optional';
   if (clientOk && serverOk) return 'both';
@@ -166,10 +166,21 @@ export function isModOnServer(
 }
 
 export function instanceResourceVersionKey(
-  resource: Pick<InstanceResource, 'source' | 'project_id' | 'version_id'>,
+  resource: Pick<InstanceResource, 'source' | 'project_id' | 'version_id' | 'filename'>,
 ): string | undefined {
-  if (!resource.project_id || !resource.version_id) return undefined;
-  return `${resource.source}:${resource.project_id}:${resource.version_id}`;
+  if (resource.project_id && resource.version_id) {
+    return `${resource.source}:${resource.project_id}:${resource.version_id}`;
+  }
+  if (resource.source === 'upload' && resource.filename) {
+    return `upload:${resource.filename}`;
+  }
+  return undefined;
+}
+
+export function isUploadedInstanceResource(
+  resource: Pick<InstanceResource, 'source'>,
+): boolean {
+  return resource.source === 'upload';
 }
 
 export function isInstanceResourceOnServer(
@@ -186,5 +197,9 @@ export function isInstanceResourceOnServer(
 }
 
 export function instanceResourceSupportsServerSync(resource: InstanceResource): boolean {
-  return resource.resource_type === 'mod' && Boolean(resource.project_id && resource.version_id);
+  if (resource.resource_type !== 'mod') return false;
+  if (resource.source === 'upload') {
+    return Boolean(resource.filename);
+  }
+  return Boolean(resource.project_id && resource.version_id);
 }

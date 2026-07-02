@@ -48,6 +48,7 @@ func (c *curseForgeClient) baseURL() string {
 type curseForgeLatestFile struct {
 	GameVersions []string `json:"gameVersions"`
 	ModLoader    int      `json:"modLoader"`
+	IsServerPack bool     `json:"isServerPack"`
 }
 
 type curseForgeSearchResponse struct {
@@ -479,23 +480,25 @@ func curseForgeLoaderName(code int) string {
 	}
 }
 
-func curseForgePickLatestFileGameVersions(files []curseForgeLatestFile, loader, mcVersion string) []string {
-	if len(files) == 0 {
-		return nil
+func curseForgeFileCandidates(files []curseForgeLatestFile, loader, mcVersion string) []curseForgeLatestFile {
+	if loader == "" && mcVersion == "" {
+		return files
 	}
-	if loader != "" || mcVersion != "" {
-		for _, file := range files {
-			loaderName := curseForgeLoaderName(file.ModLoader)
-			if loader != "" && loaderName != loader {
-				continue
-			}
-			if mcVersion != "" && !slicesContains(file.GameVersions, mcVersion) {
-				continue
-			}
-			return file.GameVersions
+	matched := make([]curseForgeLatestFile, 0, len(files))
+	for _, file := range files {
+		loaderName := curseForgeLoaderName(file.ModLoader)
+		if loader != "" && loaderName != loader {
+			continue
 		}
+		if mcVersion != "" && !slicesContains(file.GameVersions, mcVersion) {
+			continue
+		}
+		matched = append(matched, file)
 	}
-	return files[0].GameVersions
+	if len(matched) > 0 {
+		return matched
+	}
+	return files
 }
 
 func curseForgeSidesFromGameVersions(versions []string) (clientSide, serverSide string) {
@@ -521,13 +524,36 @@ func curseForgeSidesFromGameVersions(versions []string) (clientSide, serverSide 
 	}
 }
 
+func curseForgeSidesFromFile(file curseForgeLatestFile) (clientSide, serverSide string) {
+	client, server := curseForgeSidesFromGameVersions(file.GameVersions)
+	if client != "" || server != "" {
+		return client, server
+	}
+	if file.IsServerPack {
+		return "unsupported", "required"
+	}
+	return "", ""
+}
+
+func curseForgeSidesFromFiles(files []curseForgeLatestFile, loader, mcVersion string) (clientSide, serverSide string) {
+	if len(files) == 0 {
+		return "", ""
+	}
+	for _, file := range curseForgeFileCandidates(files, loader, mcVersion) {
+		if client, server := curseForgeSidesFromFile(file); client != "" || server != "" {
+			return client, server
+		}
+	}
+	return "", ""
+}
+
 func curseForgeClientSide(files []curseForgeLatestFile, loader, mcVersion string) string {
-	client, _ := curseForgeSidesFromGameVersions(curseForgePickLatestFileGameVersions(files, loader, mcVersion))
+	client, _ := curseForgeSidesFromFiles(files, loader, mcVersion)
 	return client
 }
 
 func curseForgeServerSide(files []curseForgeLatestFile, loader, mcVersion string) string {
-	_, server := curseForgeSidesFromGameVersions(curseForgePickLatestFileGameVersions(files, loader, mcVersion))
+	_, server := curseForgeSidesFromFiles(files, loader, mcVersion)
 	return server
 }
 

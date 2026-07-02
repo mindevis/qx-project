@@ -40,3 +40,19 @@ func TestInstanceFSListReadWrite(t *testing.T) {
 		t.Fatalf("after write: %q err=%v", content, err)
 	}
 }
+
+func TestReadInstanceResourceFile(t *testing.T) {
+	root := t.TempDir()
+	dl := NewDownloader(root)
+	instanceID := "test-inst"
+	if err := dl.WriteInstanceResourceFile(instanceID, "mods", "example.jar", []byte("mod-bytes")); err != nil {
+		t.Fatalf("write resource: %v", err)
+	}
+	data, err := dl.ReadInstanceResourceFile(instanceID, "mods", "example.jar")
+	if err != nil {
+		t.Fatalf("read resource: %v", err)
+	}
+	if string(data) != "mod-bytes" {
+		t.Fatalf("data=%q", data)
+	}
+}

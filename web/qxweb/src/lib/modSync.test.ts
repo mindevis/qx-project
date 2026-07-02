@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildModSyncBodies,
+  instanceResourceSupportsServerSync,
   instanceResourceVersionKey,
   isInstanceResourceOnServer,
   isModOnServer,
@@ -100,6 +101,10 @@ describe('modSyncSide', () => {
     expect(modSyncSide({ client_side: 'required', server_side: 'unsupported' })).toBe('client');
     expect(modSupportsServerSync({ client_side: 'required', server_side: 'unsupported' })).toBe(false);
   });
+
+  it('treats blank side metadata as unknown', () => {
+    expect(modSyncSide({ client_side: '', server_side: '' })).toBe('unknown');
+  });
 });
 
 describe('isModOnServer', () => {
@@ -129,6 +134,55 @@ describe('instanceResourceVersionKey', () => {
         version_id: 'ver-1',
       }),
     ).toBe('curseforge:journeymap:ver-1');
+  });
+
+  it('builds a key for uploaded mods by filename', () => {
+    expect(
+      instanceResourceVersionKey({
+        source: 'upload',
+        filename: 'custom-mod.jar',
+      }),
+    ).toBe('upload:custom-mod.jar');
+  });
+});
+
+describe('instanceResourceSupportsServerSync', () => {
+  it('allows catalog mods with project and version ids', () => {
+    expect(
+      instanceResourceSupportsServerSync({
+        source: 'modrinth',
+        project_id: 'sodium',
+        version_id: 'ver-1',
+        project_name: 'Sodium',
+        filename: 'sodium.jar',
+        resource_type: 'mod',
+        installed_at: 'now',
+      }),
+    ).toBe(true);
+  });
+
+  it('allows uploaded mods with filename only', () => {
+    expect(
+      instanceResourceSupportsServerSync({
+        source: 'upload',
+        project_name: 'Custom Mod',
+        filename: 'custom-mod.jar',
+        resource_type: 'mod',
+        installed_at: 'now',
+      }),
+    ).toBe(true);
+  });
+
+  it('rejects uploaded non-mod resources', () => {
+    expect(
+      instanceResourceSupportsServerSync({
+        source: 'upload',
+        project_name: 'Pack',
+        filename: 'pack.zip',
+        resource_type: 'resourcepack',
+        installed_at: 'now',
+      }),
+    ).toBe(false);
   });
 });
 

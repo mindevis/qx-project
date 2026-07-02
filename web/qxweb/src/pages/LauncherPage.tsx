@@ -3,7 +3,6 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import {
   Alert,
   Button,
-  Empty,
   Form,
   Input,
   InputNumber,
@@ -67,7 +66,6 @@ import {
   clearLinkedDevice,
   saveLinkedDevice,
   ApiRequestError,
-  type InstanceResource,
   type LauncherInstance,
   type MojangLinkStatus,
   type OfflineProfile,
@@ -84,7 +82,6 @@ import {
   launcherSupportsModsCatalog,
   launcherSupportsResourcesPage,
 } from '@/lib/launcherInstanceCapabilities';
-import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { InstanceFilesPanel } from '@/components/InstanceFilesPanel';
 import { InstanceOptionsPanel } from '@/components/InstanceOptionsPanel';
 import { InstanceModConfigsPanel } from '@/components/InstanceModConfigsPanel';
@@ -154,15 +151,13 @@ function LauncherHome() {
   const [mojangLoading, setMojangLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInstance, setSettingsInstance] = useState<LauncherInstance | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'launch' | 'options' | 'files' | 'mods' | 'resources'>('launch');
+  const [settingsTab, setSettingsTab] = useState<'launch' | 'options' | 'files' | 'mods'>('launch');
   const [settingsName, setSettingsName] = useState('');
   const [settingsRamMb, setSettingsRamMb] = useState(2048);
   const [settingsMinRamMb, setSettingsMinRamMb] = useState<number | null>(null);
   const [settingsExtraJvmArgs, setSettingsExtraJvmArgs] = useState('');
   const [settingsWindowWidth, setSettingsWindowWidth] = useState<number | null>(null);
   const [settingsWindowHeight, setSettingsWindowHeight] = useState<number | null>(null);
-  const [settingsMods, setSettingsMods] = useState<InstanceResource[]>([]);
-  const [settingsModsLoading, setSettingsModsLoading] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const userChoseAccountMode = useRef(false);
   const [, setAccessKey] = useState(0);
@@ -677,28 +672,8 @@ function LauncherHome() {
     setSettingsExtraJvmArgs((instance.extra_jvm_args ?? []).join('\n'));
     setSettingsWindowWidth(instance.window_width ?? null);
     setSettingsWindowHeight(instance.window_height ?? null);
-    setSettingsMods([]);
     setSettingsOpen(true);
   };
-
-  const loadSettingsMods = useCallback(async (instanceId: string) => {
-    setSettingsModsLoading(true);
-    try {
-      const res = await api.listInstanceResources(instanceId);
-      setSettingsMods((res.items ?? []).filter((item) => item.resource_type !== 'plugin'));
-    } catch {
-      setSettingsMods([]);
-    } finally {
-      setSettingsModsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!settingsOpen || settingsTab !== 'resources' || !settingsInstance) {
-      return;
-    }
-    void loadSettingsMods(settingsInstance.id);
-  }, [settingsOpen, settingsTab, settingsInstance, loadSettingsMods]);
 
   const handleSaveInstanceSettings = async () => {
     if (!settingsInstance) return;
@@ -1488,7 +1463,7 @@ function LauncherHome() {
       >
         <Tabs
           activeKey={settingsTab}
-          onChange={(key) => setSettingsTab(key as 'launch' | 'options' | 'files' | 'mods' | 'resources')}
+          onChange={(key) => setSettingsTab(key as 'launch' | 'options' | 'files' | 'mods')}
           items={[
             {
               key: 'launch',
@@ -1594,54 +1569,6 @@ function LauncherHome() {
                   deviceLinked={linkedDevice != null}
                 />
               ) : null,
-            },
-            {
-              key: 'resources',
-              label: t('launcher.instanceSettingsTabResources'),
-              children: (
-                <div className="launcher-instance-settings-mods">
-                  {!linkedDevice ? (
-                    <Alert
-                      type="info"
-                      showIcon
-                      title={t('launcher.instanceSettingsModsConfigNote')}
-                      className="launcher-instance-settings-mods-note"
-                    />
-                  ) : null}
-                  <div className="launcher-instance-settings-mods-body">
-                    {settingsModsLoading ? (
-                      <div className="launcher-instance-settings-mods-loading">
-                        <Spin />
-                      </div>
-                    ) : settingsMods.length === 0 ? (
-                      <Empty description={t('launcher.instanceSettingsResourcesEmpty')} />
-                    ) : (
-                      <ul
-                        aria-label={t('launcher.instanceSettingsResourcesListAria')}
-                        className="launcher-instance-settings-mods-list"
-                      >
-                        {settingsMods.map((item) => (
-                          <li
-                            key={`${item.source}:${item.project_id ?? item.filename}`}
-                            className="launcher-instance-settings-mod-item"
-                          >
-                            <div className="launcher-instance-settings-mod-body">
-                              <div className="launcher-instance-settings-mod-title">
-                                {item.project_name} <ModSourceBadge source={item.source} />
-                              </div>
-                              <Text type="secondary">
-                                {t(`qxmods.tabs.${item.resource_type}`)}
-                                {item.version_number ? ` · ${item.version_number}` : ''}
-                                {item.filename ? ` · ${item.filename}` : ''}
-                              </Text>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              ),
             },
           ]}
         />

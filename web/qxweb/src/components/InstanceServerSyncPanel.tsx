@@ -23,6 +23,7 @@ import {
   instanceResourceSupportsServerSync,
   instanceResourceVersionKey,
   isInstanceResourceOnServer,
+  isUploadedInstanceResource,
 } from '@/lib/modSync';
 import './InstanceServerSyncPanel.css';
 
@@ -87,6 +88,7 @@ export function InstanceServerSyncProvider({
   const [versionFilenames, setVersionFilenames] = useState<Record<string, string[]>>({});
   const [singleSyncOpen, setSingleSyncOpen] = useState(false);
   const [singleSelection, setSingleSelection] = useState<ModSyncSelection | null>(null);
+  const [uploadedSyncResource, setUploadedSyncResource] = useState<InstanceResource | null>(null);
 
   const syncableItems = useMemo(
     () => items.filter(instanceResourceSupportsServerSync),
@@ -134,7 +136,12 @@ export function InstanceServerSyncProvider({
       await Promise.all(
         syncableItems.map(async (resource) => {
           const key = instanceResourceVersionKey(resource);
-          if (!key || !resource.project_id || !resource.version_id) return;
+          if (!key) return;
+          if (isUploadedInstanceResource(resource)) {
+            next[key] = [resource.filename];
+            return;
+          }
+          if (!resource.project_id || !resource.version_id) return;
           try {
             const version = await resolveModVersionForSync(resource, instance.loader, instance.mc_version);
             if (version?.files.length) {
@@ -190,6 +197,12 @@ export function InstanceServerSyncProvider({
 
   const openSingleSync = useCallback(
     async (item: InstanceResource) => {
+      if (isUploadedInstanceResource(item)) {
+        setUploadedSyncResource(item);
+        setSingleSelection(null);
+        setSingleSyncOpen(true);
+        return;
+      }
       if (!item.project_id || !item.version_id) return;
       const version = await resolveModVersionForSync(item, instance.loader, instance.mc_version);
       if (!version?.files[0]?.url) {
@@ -209,6 +222,7 @@ export function InstanceServerSyncProvider({
         projectName: item.project_name,
         version,
       });
+      setUploadedSyncResource(null);
       setSingleSyncOpen(true);
     },
     [instance.loader, instance.mc_version, message, t],
@@ -230,12 +244,15 @@ export function InstanceServerSyncProvider({
       <ModSyncModal
         open={singleSyncOpen}
         selection={singleSelection}
+        uploadedResource={uploadedSyncResource}
+        instanceId={instance.id}
         instanceLoader={instance.loader}
         instanceMcVersion={instance.mc_version}
         installedResources={items}
         onClose={() => {
           setSingleSyncOpen(false);
           setSingleSelection(null);
+          setUploadedSyncResource(null);
           void refreshAllServerMods();
         }}
       />
