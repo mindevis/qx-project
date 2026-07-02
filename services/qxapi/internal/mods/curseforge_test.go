@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -119,5 +120,89 @@ func TestCurseForgeClassIDDatapack(t *testing.T) {
 	t.Parallel()
 	if got := curseForgeClassID(ProjectTypeDatapack); got != 6945 {
 		t.Fatalf("datapack classId: got %d want 6945", got)
+	}
+}
+
+func TestCurseForgeGetVersionUsesInlineDependencies(t *testing.T) {
+	t.Parallel()
+	var gotPaths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPaths = append(gotPaths, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/v1/mods/32274/files/5789363":
+			_, _ = w.Write([]byte(`{"data":{"id":5789363,"displayName":"5.10.3","fileName":"journeymap-1.20.1-5.10.3-forge.jar","fileDate":"2024-01-01","gameVersions":["1.20.1"],"modLoader":1,"downloadUrl":"https://example/mod.jar","fileLength":123,"hashes":[{"value":"abc","algo":1}],"dependencies":[{"modId":999,"relationType":3}]}}`))
+		case r.URL.Path == "/v1/mods/999":
+			_, _ = w.Write([]byte(`{"data":{"id":999,"name":"Dep Mod","slug":"dep","summary":"","description":"","downloadCount":0,"logo":{"thumbnailUrl":""},"authors":[]}}`))
+		case r.URL.Path == "/v1/mods/999/files":
+			_, _ = w.Write([]byte(`{"data":[{"id":111,"displayName":"1.0","fileName":"dep.jar","fileDate":"2024-01-01","gameVersions":["1.20.1"],"modLoader":1,"downloadUrl":"https://example/dep.jar","fileLength":10,"hashes":[]}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	version, err := c.getVersion(context.Background(), "32274", "5789363", "forge", "1.20.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version.Files[0].Filename != "journeymap-1.20.1-5.10.3-forge.jar" {
+		t.Fatalf("filename: got %q", version.Files[0].Filename)
+	}
+	if len(version.Dependencies) != 1 || version.Dependencies[0].ProjectID != "999" {
+		t.Fatalf("dependencies: %+v", version.Dependencies)
+	}
+	for _, path := range gotPaths {
+		if strings.HasSuffix(path, "/dependencies") {
+			t.Fatalf("should not call removed dependencies endpoint, got %q", path)
+		}
+	}
+}
+
+func TestCurseForgeGetVersionFallsBackToList(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/mods/32274/files/5789363":
+			http.NotFound(w, r)
+		case "/v1/mods/32274/files":
+			_, _ = w.Write([]byte(`{"data":[{"id":5789363,"displayName":"5.10.3","fileName":"journeymap-1.20.1-5.10.3-forge.jar","fileDate":"2024-01-01","gameVersions":["1.20.1"],"modLoader":1,"downloadUrl":"https://example/mod.jar","fileLength":123,"hashes":[]}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	version, err := c.getVersion(context.Background(), "32274", "5789363", "forge", "1.20.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version.ID != "5789363" {
+		t.Fatalf("version id: got %q", version.ID)
+	}
+}
+
+func TestCurseForgeHTTPError(t *testing.T) {
+	t.Parallel()
+	err := &CurseForgeHTTPError{StatusCode: http.StatusNotFound, Body: "missing"}
+	if !isCurseForgeHTTPStatus(err, http.StatusNotFound) {
+		t.Fatal("expected 404 match")
+	}
+	if isCurseForgeHTTPStatus(err, http.StatusForbidden) {
+		t.Fatal("expected no 403 match")
+	}
+	if !strings.Contains(err.Error(), "status 404") {
+		t.Fatalf("error string: %q", err.Error())
 	}
 }

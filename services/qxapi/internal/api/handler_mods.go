@@ -130,6 +130,10 @@ func writeModsUpstreamError(c *gin.Context, err error) {
 		return
 	}
 	if strings.HasPrefix(msg, "curseforge:") {
+		if strings.Contains(msg, "status 404") {
+			JSONError(c, http.StatusNotFound, "MOD_VERSION_NOT_FOUND", msg)
+			return
+		}
 		code := "CURSEFORGE_UNAVAILABLE"
 		if strings.Contains(msg, "status 403") {
 			code = "CURSEFORGE_INVALID_KEY"

@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { Button, Tooltip } from 'antd';
 import { CheckCircleOutlined, CloudSyncOutlined } from '@ant-design/icons';
-import { api, type InstanceResource } from '@/api/client';
+import { api, type InstanceResource, type ModVersion } from '@/api/client';
 import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useAuthModal } from '@/auth/AuthModalContext';
@@ -34,6 +34,36 @@ type InstanceServerSyncContextValue = {
 };
 
 const InstanceServerSyncContext = createContext<InstanceServerSyncContextValue | null>(null);
+
+async function resolveModVersionForSync(
+  item: InstanceResource,
+  loader: string,
+  mcVersion?: string,
+): Promise<ModVersion | null> {
+  if (!item.project_id || !item.version_id) return null;
+
+  const params = { loader, mc_version: mcVersion };
+  try {
+    return await api.getModVersion(item.source, item.project_id, item.version_id, params);
+  } catch {
+    try {
+      const listed = await api.listModVersions(item.source, item.project_id, params);
+      const match = listed.items.find((entry) => entry.id === item.version_id);
+      if (match?.files.some((file) => file.url)) {
+        return match;
+      }
+    } catch {
+      // Fall back to instance metadata below.
+    }
+  }
+
+  if (!item.filename) return null;
+  return {
+    id: item.version_id,
+    version_number: item.version_number ?? item.version_id,
+    files: [{ filename: item.filename, url: '' }],
+  };
+}
 
 function useInstanceServerSync() {
   const ctx = useContext(InstanceServerSyncContext);
@@ -106,15 +136,16 @@ export function InstanceServerSyncProvider({
           const key = instanceResourceVersionKey(resource);
           if (!key || !resource.project_id || !resource.version_id) return;
           try {
-            const version = await api.getModVersion(
-              resource.source,
-              resource.project_id,
-              resource.version_id,
-              { loader: instance.loader, mc_version: instance.mc_version },
-            );
-            next[key] = version.files.map((file) => file.filename);
+            const version = await resolveModVersionForSync(resource, instance.loader, instance.mc_version);
+            if (version?.files.length) {
+              next[key] = version.files.map((file) => file.filename);
+            } else if (resource.filename) {
+              next[key] = [resource.filename];
+            }
           } catch {
-            // Fall back to instance filename when version metadata is unavailable.
+            if (resource.filename) {
+              next[key] = [resource.filename];
+            }
           }
         }),
       );
@@ -160,30 +191,25 @@ export function InstanceServerSyncProvider({
   const openSingleSync = useCallback(
     async (item: InstanceResource) => {
       if (!item.project_id || !item.version_id) return;
-      try {
-        const version = await api.getModVersion(
-          item.source,
-          item.project_id,
-          item.version_id,
-          { loader: instance.loader, mc_version: instance.mc_version },
-        );
-        const versionKey = instanceResourceVersionKey(item);
-        if (versionKey) {
-          setVersionFilenames((prev) => ({
-            ...prev,
-            [versionKey]: version.files.map((entry) => entry.filename),
-          }));
-        }
-        setSingleSelection({
-          source: item.source,
-          projectId: item.project_id,
-          projectName: item.project_name,
-          version,
-        });
-        setSingleSyncOpen(true);
-      } catch (e) {
-        message.error(e instanceof Error ? e.message : t('qxmods.sync.failed'));
+      const version = await resolveModVersionForSync(item, instance.loader, instance.mc_version);
+      if (!version?.files[0]?.url) {
+        message.error(t('qxmods.sync.failed'));
+        return;
       }
+      const versionKey = instanceResourceVersionKey(item);
+      if (versionKey) {
+        setVersionFilenames((prev) => ({
+          ...prev,
+          [versionKey]: version.files.map((entry) => entry.filename),
+        }));
+      }
+      setSingleSelection({
+        source: item.source,
+        projectId: item.project_id,
+        projectName: item.project_name,
+        version,
+      });
+      setSingleSyncOpen(true);
     },
     [instance.loader, instance.mc_version, message, t],
   );

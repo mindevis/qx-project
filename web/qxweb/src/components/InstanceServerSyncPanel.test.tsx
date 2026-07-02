@@ -140,4 +140,47 @@ describe('InstanceResourceSyncButton', () => {
       expect(screen.getByRole('button', { name: /Синхронизировать с сервером/ })).toBeInTheDocument(),
     );
   });
+
+  it('falls back to listModVersions when getModVersion fails', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'getModVersion').mockRejectedValue(new Error('upstream failed'));
+    vi.spyOn(api, 'listModVersions').mockResolvedValue({
+      items: [
+        {
+          id: installedMod.version_id,
+          version_number: installedMod.version_number ?? '5.10.3',
+          files: [{ filename: installedMod.filename, url: 'https://example/mod.jar' }],
+        },
+      ],
+    });
+
+    renderSyncButton();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Синхронизировать с сервером/ })).toBeEnabled(),
+    );
+
+    await user.click(screen.getByRole('button', { name: /Синхронизировать с сервером/ }));
+
+    await waitFor(() => expect(screen.getByText('Синхронизация с сервером')).toBeInTheDocument());
+    expect(api.listModVersions).toHaveBeenCalled();
+  });
+
+  it('detects synced mods from instance filename when getModVersion fails', async () => {
+    vi.spyOn(api, 'getModVersion').mockRejectedValue(new Error('upstream failed'));
+
+    renderSyncButton(
+      [installedMod],
+      true,
+      [
+        {
+          ...syncTarget,
+          serverMods: [{ name: installedMod.filename, path: `mods/${installedMod.filename}`, dir: false }],
+        },
+      ],
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Синхронизирован с «qRPG TechnoMagic»/)).toBeInTheDocument(),
+    );
+  });
 });

@@ -3,6 +3,7 @@ package mods
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,21 @@ import (
 	"strconv"
 	"strings"
 )
+
+// CurseForgeHTTPError is returned when the CurseForge API responds with a non-200 status.
+type CurseForgeHTTPError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *CurseForgeHTTPError) Error() string {
+	return fmt.Sprintf("curseforge: status %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
+}
+
+func isCurseForgeHTTPStatus(err error, code int) bool {
+	var cfErr *CurseForgeHTTPError
+	return errors.As(err, &cfErr) && cfErr.StatusCode == code
+}
 
 const (
 	curseForgeAPIBase = "https://api.curseforge.com/v1"
@@ -66,21 +82,29 @@ type curseForgeModResponse struct {
 	} `json:"data"`
 }
 
+type curseForgeFileDependency struct {
+	ModID        int `json:"modId"`
+	RelationType int `json:"relationType"`
+}
+
+type curseForgeFileData struct {
+	ID           int    `json:"id"`
+	DisplayName  string `json:"displayName"`
+	FileName     string `json:"fileName"`
+	FileDate     string `json:"fileDate"`
+	GameVersions []string
+	ModLoader    int `json:"modLoader"`
+	DownloadURL  string `json:"downloadUrl"`
+	FileLength   int64  `json:"fileLength"`
+	Hashes       []struct {
+		Value string `json:"value"`
+		Algo  int    `json:"algo"`
+	} `json:"hashes"`
+	Dependencies []curseForgeFileDependency `json:"dependencies"`
+}
+
 type curseForgeFilesResponse struct {
-	Data []struct {
-		ID            int    `json:"id"`
-		DisplayName   string `json:"displayName"`
-		FileName      string `json:"fileName"`
-		FileDate      string `json:"fileDate"`
-		GameVersions  []string
-		ModLoader     int `json:"modLoader"`
-		DownloadURL   string `json:"downloadUrl"`
-		FileLength    int64  `json:"fileLength"`
-		Hashes        []struct {
-			Value string `json:"value"`
-			Algo  int    `json:"algo"`
-		} `json:"hashes"`
-	} `json:"data"`
+	Data []curseForgeFileData `json:"data"`
 }
 
 func (c *curseForgeClient) enabled() bool {
@@ -243,26 +267,39 @@ func (c *curseForgeClient) getVersion(ctx context.Context, projectID, fileID, lo
 		return nil, fmt.Errorf("curseforge api key not configured")
 	}
 	var resp struct {
-		Data struct {
-			ID           int    `json:"id"`
-			DisplayName  string `json:"displayName"`
-			FileName     string `json:"fileName"`
-			FileDate     string `json:"fileDate"`
-			GameVersions []string
-			ModLoader    int `json:"modLoader"`
-			DownloadURL  string `json:"downloadUrl"`
-			FileLength   int64  `json:"fileLength"`
-			Hashes       []struct {
-				Value string `json:"value"`
-				Algo  int    `json:"algo"`
-			} `json:"hashes"`
-		} `json:"data"`
+		Data curseForgeFileData `json:"data"`
 	}
 	path := "/mods/" + url.PathEscape(projectID) + "/files/" + url.PathEscape(fileID)
 	if err := c.getJSON(ctx, path, &resp); err != nil {
+		if isCurseForgeHTTPStatus(err, http.StatusNotFound) {
+			if version, findErr := c.findVersionInList(ctx, projectID, fileID, loader, mcVersion); findErr == nil {
+				return version, nil
+			}
+		}
 		return nil, err
 	}
-	f := resp.Data
+	return c.versionFromFileData(ctx, projectID, fileID, resp.Data, loader, mcVersion)
+}
+
+func (c *curseForgeClient) findVersionInList(ctx context.Context, projectID, fileID, loader, mcVersion string) (*Version, error) {
+	versions, err := c.listVersions(ctx, projectID, loader, mcVersion)
+	if err != nil {
+		return nil, err
+	}
+	for _, version := range versions {
+		if version.ID == fileID {
+			return &version, nil
+		}
+	}
+	return nil, &CurseForgeHTTPError{StatusCode: http.StatusNotFound, Body: "file not found"}
+}
+
+func (c *curseForgeClient) versionFromFileData(
+	ctx context.Context,
+	projectID, fileID string,
+	f curseForgeFileData,
+	loader, mcVersion string,
+) (*Version, error) {
 	sha1 := ""
 	for _, h := range f.Hashes {
 		if h.Algo == 1 {
@@ -274,7 +311,7 @@ func (c *curseForgeClient) getVersion(ctx context.Context, projectID, fileID, lo
 	if downloadURL == "" {
 		downloadURL, _ = c.fileDownloadURL(ctx, projectID, fileID)
 	}
-	deps, err := c.fileDependencies(ctx, projectID, fileID, loader, mcVersion)
+	deps, err := c.resolveFileDependencies(ctx, f.Dependencies, loader, mcVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -294,19 +331,13 @@ func (c *curseForgeClient) getVersion(ctx context.Context, projectID, fileID, lo
 	}, nil
 }
 
-func (c *curseForgeClient) fileDependencies(ctx context.Context, projectID, fileID, loader, mcVersion string) ([]ModDependency, error) {
-	var resp struct {
-		Data []struct {
-			ModID        int `json:"modId"`
-			RelationType int `json:"relationType"`
-		} `json:"data"`
-	}
-	path := "/mods/" + url.PathEscape(projectID) + "/files/" + url.PathEscape(fileID) + "/dependencies"
-	if err := c.getJSON(ctx, path, &resp); err != nil {
-		return nil, err
-	}
-	out := make([]ModDependency, 0, len(resp.Data))
-	for _, dep := range resp.Data {
+func (c *curseForgeClient) resolveFileDependencies(
+	ctx context.Context,
+	raw []curseForgeFileDependency,
+	loader, mcVersion string,
+) ([]ModDependency, error) {
+	out := make([]ModDependency, 0, len(raw))
+	for _, dep := range raw {
 		depType := curseForgeRelationType(dep.RelationType)
 		if depType == "embedded" {
 			continue
@@ -373,7 +404,7 @@ func (c *curseForgeClient) getJSON(ctx context.Context, path string, dest any) e
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("curseforge: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return &CurseForgeHTTPError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 	return json.NewDecoder(resp.Body).Decode(dest)
 }

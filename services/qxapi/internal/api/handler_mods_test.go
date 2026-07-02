@@ -66,6 +66,19 @@ func TestModsHandlerBrowseCurseForgeUpstreamError(t *testing.T) {
 	}
 }
 
+func TestModsHandlerCurseForgeNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	writeModsUpstreamError(c, fmt.Errorf("curseforge: status 404: file not found"))
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "MOD_VERSION_NOT_FOUND") {
+		t.Fatalf("expected MOD_VERSION_NOT_FOUND: %s", w.Body.String())
+	}
+}
+
 func TestModsHandlerBrowseSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := &ModsHandler{
