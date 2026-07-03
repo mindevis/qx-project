@@ -8,14 +8,21 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
 const DefaultManifestURL = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 
+const versionManifestCacheTTL = time.Hour
+
 type Client struct {
 	ManifestURL string
 	HTTPClient  *http.Client
+
+	manifestMu       sync.Mutex
+	cachedManifest   *VersionManifestV2
+	manifestCachedAt time.Time
 }
 
 func NewClient() *Client {
@@ -150,6 +157,14 @@ func (c *Client) ListVersions(ctx context.Context) (*McVersionsList, error) {
 }
 
 func (c *Client) FetchVersionManifest(ctx context.Context) (*VersionManifestV2, error) {
+	c.manifestMu.Lock()
+	if c.cachedManifest != nil && time.Since(c.manifestCachedAt) < versionManifestCacheTTL {
+		cached := c.cachedManifest
+		c.manifestMu.Unlock()
+		return cached, nil
+	}
+	c.manifestMu.Unlock()
+
 	body, err := c.get(ctx, c.ManifestURL)
 	if err != nil {
 		return nil, err
@@ -158,6 +173,11 @@ func (c *Client) FetchVersionManifest(ctx context.Context) (*VersionManifestV2, 
 	if err := json.Unmarshal(body, &manifest); err != nil {
 		return nil, fmt.Errorf("parse version manifest: %w", err)
 	}
+
+	c.manifestMu.Lock()
+	c.cachedManifest = &manifest
+	c.manifestCachedAt = time.Now()
+	c.manifestMu.Unlock()
 	return &manifest, nil
 }
 

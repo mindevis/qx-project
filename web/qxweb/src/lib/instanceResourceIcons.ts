@@ -1,4 +1,5 @@
-import { api, type InstanceResource, type ModSource } from '@/api/client';
+import { type InstanceResource } from '@/api/client';
+import { cachedGetModProject } from '@/lib/modCatalogCache';
 
 export function instanceResourceIconKey(
   item: Pick<InstanceResource, 'source' | 'project_id'>,
@@ -22,7 +23,7 @@ export async function fetchMissingResourceIcons(
       if (!key || seen.has(key)) return;
       seen.add(key);
       try {
-        const project = await api.getModProject(item.source, item.project_id!);
+        const project = await cachedGetModProject(item.source, item.project_id!);
         if (project.icon_url?.trim()) {
           results[key] = project.icon_url;
         }
@@ -36,7 +37,7 @@ export async function fetchMissingResourceIcons(
 }
 
 export async function fetchModProjectIcons(
-  projects: Array<{ source: ModSource; projectId: string }>,
+  projects: Array<{ source: import('@/api/client').ModSource; projectId: string }>,
 ): Promise<Map<string, string>> {
   const results = new Map<string, string>();
   const seen = new Set<string>();
@@ -47,7 +48,7 @@ export async function fetchModProjectIcons(
       if (seen.has(key)) return;
       seen.add(key);
       try {
-        const project = await api.getModProject(source, projectId);
+        const project = await cachedGetModProject(source, projectId);
         if (project.icon_url?.trim()) {
           results.set(key, project.icon_url);
         }

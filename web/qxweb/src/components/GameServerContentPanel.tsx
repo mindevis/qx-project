@@ -32,6 +32,7 @@ import {
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
 import { formatModCatalogError } from '@/lib/modCatalogError';
+import { cachedListModVersions } from '@/lib/modCatalogCache';
 import { isModOnServer } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
@@ -263,11 +264,11 @@ export function GameServerContentPanel({
     setVersions([]);
     setVersionsLoading(true);
     try {
-      const res = await api.listModVersions(item.source as ModSource, item.id, {
+      const items = await cachedListModVersions(item.source as ModSource, item.id, {
         loader,
         mc_version: mcVersion,
       });
-      setVersions(res.items ?? []);
+      setVersions(items);
     } catch (e) {
       message.error(formatModCatalogError(e, t, `${i18nPrefix}.versionsFailed`));
     } finally {

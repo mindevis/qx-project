@@ -130,13 +130,6 @@ export function ModsCatalogPanel() {
       setLoading(true);
       setLoadingMore(false);
       try {
-        if (!appliedSearch.trim() && sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled) {
-          setItems([]);
-          setHasMore(false);
-          setOffset(0);
-          return;
-        }
-
         if (appliedSearch.trim()) {
           const res = await api.searchMods({
             q: appliedSearch.trim(),

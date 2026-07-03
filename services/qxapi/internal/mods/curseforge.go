@@ -135,6 +135,36 @@ func (c *curseForgeClient) searchProjects(
 	if !c.enabled() {
 		return nil, nil
 	}
+	items, err := c.searchProjectsOnce(ctx, query, projectType, loader, mcVersion, sort, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) > 0 || query != "" {
+		return items, nil
+	}
+	// Browse with strict filters often returns zero rows on CurseForge; relax filters progressively.
+	if CatalogProjectUsesLoader(projectType) && loader != "" {
+		if relaxed, err := c.searchProjectsOnce(ctx, query, projectType, "", mcVersion, sort, limit, offset); err != nil {
+			return nil, err
+		} else if len(relaxed) > 0 {
+			return relaxed, nil
+		}
+	}
+	if mcVersion != "" {
+		relaxedLoader := loader
+		if !CatalogProjectUsesLoader(projectType) {
+			relaxedLoader = ""
+		}
+		return c.searchProjectsOnce(ctx, query, projectType, relaxedLoader, "", sort, limit, offset)
+	}
+	return items, nil
+}
+
+func (c *curseForgeClient) searchProjectsOnce(
+	ctx context.Context,
+	query, projectType, loader, mcVersion, sort string,
+	limit, offset int,
+) ([]SearchItem, error) {
 	params := url.Values{}
 	params.Set("gameId", strconv.Itoa(curseForgeGameID))
 	params.Set("classId", strconv.Itoa(curseForgeClassID(projectType)))
@@ -147,8 +177,10 @@ func (c *curseForgeClient) searchProjects(
 	if mcVersion != "" {
 		params.Set("gameVersion", mcVersion)
 	}
-	if loaderType := curseForgeLoaderType(loader); loaderType != "" {
-		params.Set("modLoaderType", loaderType)
+	if CatalogProjectUsesLoader(projectType) {
+		if loaderType := curseForgeLoaderType(loader); loaderType != "" {
+			params.Set("modLoaderType", loaderType)
+		}
 	}
 	var resp curseForgeSearchResponse
 	if err := c.getJSON(ctx, "/mods/search?"+params.Encode(), &resp); err != nil {
@@ -229,6 +261,23 @@ func (c *curseForgeClient) listVersions(ctx context.Context, projectID, loader, 
 	if !c.enabled() {
 		return nil, fmt.Errorf("curseforge api key not configured")
 	}
+	items, err := c.listVersionsOnce(ctx, projectID, loader, mcVersion)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) > 0 || (loader == "" && mcVersion == "") {
+		return items, nil
+	}
+	if loader != "" {
+		items, err = c.listVersionsOnce(ctx, projectID, "", mcVersion)
+		if err != nil || len(items) > 0 || mcVersion == "" {
+			return items, err
+		}
+	}
+	return c.listVersionsOnce(ctx, projectID, "", "")
+}
+
+func (c *curseForgeClient) listVersionsOnce(ctx context.Context, projectID, loader, mcVersion string) ([]Version, error) {
 	path := "/mods/" + url.PathEscape(projectID) + "/files"
 	params := url.Values{}
 	if mcVersion != "" {

@@ -35,6 +35,23 @@ const LOADER_COMPAT_BATCH_SIZE = 15;
 let forgePromosCache: Promise<Record<string, string>> | null = null;
 let forgeMavenVersionsCache: Promise<string[]> | null = null;
 
+const upstreamJsonCache = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
+const UPSTREAM_JSON_TTL_MS = 10 * 60 * 1000;
+
+async function cachedFetchJson<T>(url: string): Promise<T> {
+  const now = Date.now();
+  const hit = upstreamJsonCache.get(url);
+  if (hit && now < hit.expiresAt) {
+    return hit.promise as Promise<T>;
+  }
+  const promise = fetchJson<T>(url).catch((error) => {
+    upstreamJsonCache.delete(url);
+    throw error;
+  });
+  upstreamJsonCache.set(url, { expiresAt: now + UPSTREAM_JSON_TTL_MS, promise });
+  return promise;
+}
+
 function compareMcVersionsDesc(a: string, b: string): number {
   const pa = a.split('.').map((part) => Number.parseInt(part, 10) || 0);
   const pb = b.split('.').map((part) => Number.parseInt(part, 10) || 0);
@@ -125,7 +142,7 @@ async function fetchForgePromos(): Promise<Record<string, string>> {
 
 async function fetchPaperFamilyMcVersions(project: 'paper' | 'purpur'): Promise<VersionOption[]> {
   const base = project === 'paper' ? `${PAPER_API}/paper` : PURPUR_API;
-  const data = await fetchJson<{ versions: string[] }>(base);
+  const data = await cachedFetchJson<{ versions: string[] }>(base);
   return [...data.versions]
     .sort(compareMcVersionsDesc)
     .map((version) => ({ value: version, label: version }));
@@ -139,7 +156,7 @@ async function fetchPaperFamilyBuilds(
     project === 'paper'
       ? `${PAPER_API}/paper/versions/${mcVersion}/builds`
       : `${PURPUR_API}/versions/${mcVersion}/builds`;
-  const data = await fetchJson<{ builds: { build: number }[] }>(base);
+  const data = await cachedFetchJson<{ builds: { build: number }[] }>(base);
   return [...data.builds]
     .sort((a, b) => b.build - a.build)
     .map((item) => ({
@@ -214,7 +231,7 @@ function neoForgeMcVersion(neoforgeVersion: string): string | null {
 }
 
 async function fetchNeoForgeMcVersions(): Promise<VersionOption[]> {
-  const versions = await fetchJson<string[]>(NEOFORGE_VERSIONS);
+  const versions = await cachedFetchJson<string[]>(NEOFORGE_VERSIONS);
   const mcVersions = new Set<string>();
   for (const loaderVersion of versions) {
     const mcVersion = neoForgeMcVersion(loaderVersion);
@@ -228,7 +245,7 @@ async function fetchNeoForgeMcVersions(): Promise<VersionOption[]> {
 async function fetchNeoForgeLoaderVersions(mcVersion: string): Promise<VersionOption[]> {
   const prefix = neoForgeVersionPrefix(mcVersion);
   if (!prefix) return [];
-  const versions = await fetchJson<string[]>(NEOFORGE_VERSIONS);
+  const versions = await cachedFetchJson<string[]>(NEOFORGE_VERSIONS);
   return versions
     .filter(
       (loaderVersion) =>
@@ -241,7 +258,7 @@ async function fetchNeoForgeLoaderVersions(mcVersion: string): Promise<VersionOp
 }
 
 async function fetchStableGameVersions(url: string): Promise<VersionOption[]> {
-  const items = await fetchJson<{ version: string; stable: boolean }[]>(url);
+  const items = await cachedFetchJson<{ version: string; stable: boolean }[]>(url);
   return items
     .filter((item) => item.stable)
     .map((item) => ({ value: item.version, label: item.version }))
@@ -253,7 +270,7 @@ async function fetchCompatibleLoaderVersions(
   checkUrl: (loaderVersion: string, mcVersion: string) => string,
   mcVersion: string,
 ): Promise<VersionOption[]> {
-  const loaders = await fetchJson<{ version: string }[]>(loaderListUrl);
+  const loaders = await cachedFetchJson<{ version: string }[]>(loaderListUrl);
   const compatible: VersionOption[] = [];
 
   for (let i = 0; i < loaders.length; i += LOADER_COMPAT_BATCH_SIZE) {
@@ -277,19 +294,19 @@ async function fetchCompatibleLoaderVersions(
 type ArclightFileEntry = { name: string; type: string };
 
 async function fetchArclightFileNames(url: string): Promise<string[]> {
-  const data = await fetchJson<{ files: ArclightFileEntry[] }>(url);
+  const data = await cachedFetchJson<{ files: ArclightFileEntry[] }>(url);
   return data.files.map((file) => file.name);
 }
 
 async function fetchMohistMcVersions(): Promise<VersionOption[]> {
-  const data = await fetchJson<{ versions: string[] }>(MOHIST_PROJECT);
+  const data = await cachedFetchJson<{ versions: string[] }>(MOHIST_PROJECT);
   return [...data.versions]
     .sort(compareMcVersionsDesc)
     .map((version) => ({ value: version, label: version }));
 }
 
 async function fetchMohistLoaderVersions(mcVersion: string): Promise<VersionOption[]> {
-  const data = await fetchJson<{ builds: { number: number }[] }>(
+  const data = await cachedFetchJson<{ builds: { number: number }[] }>(
     `${MOHIST_PROJECT}/${mcVersion}/builds`,
   );
   return [...data.builds]
@@ -315,7 +332,7 @@ function magmaMcMatches(apiMc: string, selectedMc: string): boolean {
 }
 
 async function fetchMagmaVersions(): Promise<MagmaVersionEntry[]> {
-  const data = await fetchJson<{ versions: MagmaVersionEntry[] }>(MAGMA_VERSIONS);
+  const data = await cachedFetchJson<{ versions: MagmaVersionEntry[] }>(MAGMA_VERSIONS);
   return data.versions;
 }
 

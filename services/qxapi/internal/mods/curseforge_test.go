@@ -9,6 +9,51 @@ import (
 	"testing"
 )
 
+func TestCatalogProjectUsesLoader(t *testing.T) {
+	t.Parallel()
+	if CatalogProjectUsesLoader(ProjectTypeMod) != true {
+		t.Fatal("mods use loader filter")
+	}
+	if CatalogProjectUsesLoader(ProjectTypeResourcePack) {
+		t.Fatal("resource packs should not use loader filter")
+	}
+}
+
+func TestCurseForgeBrowseRelaxesStrictFilters(t *testing.T) {
+	t.Parallel()
+	var calls []url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ := url.ParseQuery(r.URL.RawQuery)
+		calls = append(calls, got)
+		w.Header().Set("Content-Type", "application/json")
+		if len(calls) == 1 {
+			_, _ = w.Write([]byte(`{"data":[]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{"id":42,"name":"JEI","slug":"jei","summary":"items","downloadCount":1,"logo":{"thumbnailUrl":""},"authors":[{"name":"meili"}],"latestFilesIndexes":[{"gameVersion":"1.20.1","modLoader":1}]}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	items, err := c.browse(context.Background(), ProjectTypeMod, "forge", "1.20.1", "downloads", 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected fallback browse results, got %d calls=%d", len(items), len(calls))
+	}
+	if len(calls) < 2 {
+		t.Fatalf("expected relaxed retry, got %d calls", len(calls))
+	}
+	if calls[1].Get("modLoaderType") != "" {
+		t.Fatalf("second call should drop modLoaderType, got %q", calls[1].Get("modLoaderType"))
+	}
+}
+
 func TestCurseForgeBrowseQueryParams(t *testing.T) {
 	t.Parallel()
 	var got url.Values

@@ -38,6 +38,7 @@ import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { ALL_GAME_SERVER_TYPES, gameServerTypeLabelText } from '@/lib/gameServerTypes';
 import { isLaunchTerminal } from '@/lib/launchProgress';
+import { cachedListMcVersions } from '@/lib/mcVersionsCache';
 import { ConnectClientModsModal } from '@/components/ConnectClientModsModal';
 import { highlightMinecraft } from '@/pages/HomePage';
 import './MonitoringPage.css';
@@ -310,8 +311,7 @@ export function MonitoringPage() {
   );
 
   useEffect(() => {
-    void api
-      .listMcVersions()
+    void cachedListMcVersions()
       .then((data) => {
         const versions = [...new Set((data.items ?? []).map((item) => item.id))].sort().reverse();
         setMcVersions(versions);

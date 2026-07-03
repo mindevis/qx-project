@@ -105,7 +105,7 @@ func (c *modrinthClient) searchProjects(
 	limit, offset int,
 ) ([]SearchItem, error) {
 	facets := [][]string{{"project_type:" + modrinthProjectTypeFacet(projectType)}}
-	if loader != "" {
+	if loader != "" && CatalogProjectUsesLoader(projectType) {
 		facets = append(facets, []string{"categories:" + loaderFacetModrinth(loader)})
 	}
 	if mcVersion != "" {
@@ -192,6 +192,17 @@ func (c *modrinthClient) getProject(ctx context.Context, projectID string) (*Pro
 }
 
 func (c *modrinthClient) listVersions(ctx context.Context, projectID, loader, mcVersion string) ([]Version, error) {
+	items, err := c.listVersionsOnce(ctx, projectID, loader, mcVersion)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) > 0 || loader == "" {
+		return items, nil
+	}
+	return c.listVersionsOnce(ctx, projectID, "", mcVersion)
+}
+
+func (c *modrinthClient) listVersionsOnce(ctx context.Context, projectID, loader, mcVersion string) ([]Version, error) {
 	path := "/project/" + url.PathEscape(projectID) + "/version"
 	params := url.Values{}
 	if loader != "" {

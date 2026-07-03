@@ -76,6 +76,7 @@ import { getLaunchStatusKey } from '@/i18n';
 import { useI18n } from '@/i18n/I18nContext';
 import { modalMotionProps } from '@/lib/modal';
 import { logger } from '@/lib/logger';
+import { cachedListMcVersions } from '@/lib/mcVersionsCache';
 import { isUpdateAvailable } from '@/lib/launcherVersion';
 import { openLauncherDownload, resolveLauncherDownloadUrl, type LauncherRelease } from '@/lib/launcherDownload';
 import {
@@ -298,7 +299,7 @@ function LauncherHome() {
   const loadMcVersions = useCallback(async () => {
     setMcVersionsLoading(true);
     try {
-      const result = await api.listMcVersions();
+      const result = await cachedListMcVersions();
       const items = result.items ?? [];
       setMcVersions(items);
       setDefaultMcVersion(pickDefaultMcVersion(result.latest, items));

@@ -19,6 +19,7 @@ import { useMessage } from '@/hooks/useMessage';
 import { modSupportsServerSync } from '@/lib/modSync';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { catalogLoaderForType } from '@/lib/launcherInstanceCapabilities';
+import { cachedGetModProject } from '@/lib/modCatalogCache';
 import './InstanceResourcesPanel.css';
 
 const { Text, Paragraph, Title } = Typography;
@@ -88,7 +89,7 @@ export function ModDetailPanel() {
     setLoading(true);
     void (async () => {
       try {
-        const project = await api.getModProject(source, projectId);
+        const project = await cachedGetModProject(source, projectId);
         if (cancelled) return;
         setDetail(project);
         setGameVersions(project.game_versions ?? []);

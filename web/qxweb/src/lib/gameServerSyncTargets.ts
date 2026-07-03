@@ -1,6 +1,9 @@
 import { api, type GameServerFileEntry } from '@/api/client';
 import { gameServerSupportsMods, isKnownGameServerType } from '@/lib/gameServerTypes';
+import { createTtlCache } from '@/lib/ttlCache';
 import { listVpsGameServers, type VpsGameServer } from '@/lib/vpsGameServers';
+
+const syncTargetsCache = createTtlCache<GameServerSyncTarget[]>(60 * 1000);
 
 export type GameServerSyncTarget = {
   vpsId: string;
@@ -15,6 +18,20 @@ export function gameServerSyncTargetKey(target: Pick<GameServerSyncTarget, 'vpsI
 }
 
 export async function loadGameServerSyncTargets(
+  instanceLoader: string,
+  instanceMcVersion?: string,
+): Promise<GameServerSyncTarget[]> {
+  const key = `${instanceLoader}:${instanceMcVersion ?? ''}`;
+  return syncTargetsCache.getOrLoad(key, () =>
+    loadGameServerSyncTargetsUncached(instanceLoader, instanceMcVersion),
+  );
+}
+
+export function clearGameServerSyncTargetsCache() {
+  syncTargetsCache.clear();
+}
+
+async function loadGameServerSyncTargetsUncached(
   instanceLoader: string,
   instanceMcVersion?: string,
 ): Promise<GameServerSyncTarget[]> {

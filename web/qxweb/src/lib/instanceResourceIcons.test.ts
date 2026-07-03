@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { api } from '@/api/client';
 import { fetchMissingResourceIcons, instanceResourceIconKey } from './instanceResourceIcons';
+import { clearModCatalogCaches } from './modCatalogCache';
 
 describe('instanceResourceIconKey', () => {
   it('builds stable project key', () => {
@@ -10,6 +11,7 @@ describe('instanceResourceIconKey', () => {
 
 describe('fetchMissingResourceIcons', () => {
   beforeEach(() => {
+    clearModCatalogCaches();
     vi.spyOn(api, 'getModProject').mockResolvedValue({
       id: 'dep-1',
       source: 'curseforge',
@@ -23,6 +25,7 @@ describe('fetchMissingResourceIcons', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    clearModCatalogCaches();
   });
 
   it('fetches icons only for resources without icon_url', async () => {

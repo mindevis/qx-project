@@ -48,7 +48,10 @@ func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVers
 	if limit <= 0 || limit > maxSearchItems {
 		limit = 20
 	}
+	return s.searchUpstream(ctx, query, projectType, loader, mcVersion, limit)
+}
 
+func (s *Service) searchUpstream(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {
 	var (
 		mrItems []SearchItem
 		cfItems []SearchItem
@@ -164,14 +167,17 @@ func (s *Service) GetProject(ctx context.Context, source, projectID string) (*Pr
 	if projectID == "" {
 		return nil, fmt.Errorf("project id required")
 	}
-	switch source {
-	case SourceModrinth:
-		return s.modrinth.getProject(ctx, projectID)
-	case SourceCurseForge:
-		return s.curseforge.getProject(ctx, projectID)
-	default:
-		return nil, fmt.Errorf("unknown source %q", source)
-	}
+	key := cacheKey("project", source, projectID)
+	return projectCache.GetOrLoad(key, func() (*ProjectDetail, error) {
+		switch source {
+		case SourceModrinth:
+			return s.modrinth.getProject(ctx, projectID)
+		case SourceCurseForge:
+			return s.curseforge.getProject(ctx, projectID)
+		default:
+			return nil, fmt.Errorf("unknown source %q", source)
+		}
+	})
 }
 
 func (s *Service) ListVersions(ctx context.Context, source, projectID, loader, mcVersion string) ([]Version, error) {
@@ -180,14 +186,17 @@ func (s *Service) ListVersions(ctx context.Context, source, projectID, loader, m
 	if projectID == "" {
 		return nil, fmt.Errorf("project id required")
 	}
-	switch source {
-	case SourceModrinth:
-		return s.modrinth.listVersions(ctx, projectID, loader, mcVersion)
-	case SourceCurseForge:
-		return s.curseforge.listVersions(ctx, projectID, loader, mcVersion)
-	default:
-		return nil, fmt.Errorf("unknown source %q", source)
-	}
+	key := cacheKey("versions", source, projectID, loader, mcVersion)
+	return versionListCache.GetOrLoad(key, func() ([]Version, error) {
+		switch source {
+		case SourceModrinth:
+			return s.modrinth.listVersions(ctx, projectID, loader, mcVersion)
+		case SourceCurseForge:
+			return s.curseforge.listVersions(ctx, projectID, loader, mcVersion)
+		default:
+			return nil, fmt.Errorf("unknown source %q", source)
+		}
+	})
 }
 
 func (s *Service) GetVersion(ctx context.Context, source, projectID, versionID, loader, mcVersion string) (*Version, error) {
@@ -197,14 +206,17 @@ func (s *Service) GetVersion(ctx context.Context, source, projectID, versionID, 
 	if projectID == "" || versionID == "" {
 		return nil, fmt.Errorf("project id and version id required")
 	}
-	switch source {
-	case SourceModrinth:
-		return s.modrinth.getVersion(ctx, versionID, loader, mcVersion)
-	case SourceCurseForge:
-		return s.curseforge.getVersion(ctx, projectID, versionID, loader, mcVersion)
-	default:
-		return nil, fmt.Errorf("unknown source %q", source)
-	}
+	key := cacheKey("version", source, projectID, versionID, loader, mcVersion)
+	return versionDetailCache.GetOrLoad(key, func() (*Version, error) {
+		switch source {
+		case SourceModrinth:
+			return s.modrinth.getVersion(ctx, versionID, loader, mcVersion)
+		case SourceCurseForge:
+			return s.curseforge.getVersion(ctx, projectID, versionID, loader, mcVersion)
+		default:
+			return nil, fmt.Errorf("unknown source %q", source)
+		}
+	})
 }
 
 func normalizeProjectType(raw string) string {

@@ -15,18 +15,12 @@ import { useModInstall } from '@/hooks/useModInstall';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { isServerOnlyMod } from '@/lib/modSync';
 import { fetchModProjectIcons } from '@/lib/instanceResourceIcons';
+import {
+  cachedGetModVersion,
+  cachedListModVersions,
+  clearModVersionListCache,
+} from '@/lib/modCatalogCache';
 import { useMessage } from '@/hooks/useMessage';
-
-const versionCache = new Map<string, ModVersion[]>();
-
-function cacheKey(
-  source: ModSource,
-  projectId: string,
-  loader: string | undefined,
-  mcVersion: string,
-) {
-  return `${source}:${projectId}:${loader ?? ''}:${mcVersion}`;
-}
 
 export type ModCatalogInstallControlsProps = {
   source: ModSource;
@@ -85,22 +79,12 @@ export function ModCatalogInstallControls({
   );
 
   const loadVersions = useCallback(async () => {
-    const key = cacheKey(source, projectId, loader, mcVersion);
-    const cached = versionCache.get(key);
-    if (cached) {
-      setVersions(cached);
-      setSelectedVersionId((prev) => prev ?? cached[0]?.id);
-      setLoadingVersions(false);
-      return;
-    }
     setLoadingVersions(true);
     try {
-      const res = await api.listModVersions(source, projectId, {
+      const items = await cachedListModVersions(source, projectId, {
         loader,
         mc_version: mcVersion,
       });
-      const items = res.items ?? [];
-      versionCache.set(key, items);
       setVersions(items);
       setSelectedVersionId((prev) => prev ?? items[0]?.id);
     } catch (e) {
@@ -134,7 +118,7 @@ export function ModCatalogInstallControls({
         return version;
       }
       try {
-        const detail = await api.getModVersion(source, projectId, version.id, {
+        const detail = await cachedGetModVersion(source, projectId, version.id, {
           loader,
           mc_version: mcVersion,
         });
@@ -340,5 +324,5 @@ export function ModCatalogInstallControls({
 }
 
 export function clearModVersionCache() {
-  versionCache.clear();
+  clearModVersionListCache();
 }

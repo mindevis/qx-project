@@ -60,6 +60,7 @@ import {
   type McVersionItem,
 } from '@/launcher/mcVersions';
 import { logger } from '@/lib/logger';
+import { cachedListMcVersions } from '@/lib/mcVersionsCache';
 import {
   addVpsGameServer,
   isVpsGameServerProvisioning,
@@ -817,7 +818,7 @@ function AddGameServerModal({
   const loadMcVersions = useCallback(async () => {
     setMcVersionsLoading(true);
     try {
-      const result = await api.listMcVersions();
+      const result = await cachedListMcVersions();
       const items = result.items ?? [];
       mcVersionsRef.current = items;
       const nextDefault = pickDefaultMcVersion(result.latest, items);

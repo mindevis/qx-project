@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Checkbox, Modal, Spin, Typography } from 'antd';
 import {
-  api,
   type ModDependency,
   type ModProjectType,
   type ModSource,
@@ -10,6 +9,7 @@ import {
 import { useI18n } from '@/i18n/I18nContext';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { modalMotionProps } from '@/lib/modal';
+import { cachedGetModVersion } from '@/lib/modCatalogCache';
 import './InstanceResourcesPanel.css';
 
 const { Text, Paragraph } = Typography;
@@ -79,7 +79,7 @@ export function ModInstallDepsModal({
     setOptionalSelected(new Set());
     void (async () => {
       try {
-        const detail = await api.getModVersion(source, projectId, version.id, {
+        const detail = await cachedGetModVersion(source, projectId, version.id, {
           loader: instance.loader,
           mc_version: instance.mc_version,
         });

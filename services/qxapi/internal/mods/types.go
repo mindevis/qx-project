@@ -70,6 +70,16 @@ type Version struct {
 	PublishedAt   string          `json:"published_at,omitempty"`
 }
 
+// CatalogProjectUsesLoader reports whether mod-loader filters apply to a catalog project type.
+func CatalogProjectUsesLoader(projectType string) bool {
+	switch projectType {
+	case ProjectTypeResourcePack, ProjectTypeShader, ProjectTypeDatapack:
+		return false
+	default:
+		return true
+	}
+}
+
 // SyncModRequest is the body for POST .../mods/sync.
 type SyncModRequest struct {
 	Source        string `json:"source"`
