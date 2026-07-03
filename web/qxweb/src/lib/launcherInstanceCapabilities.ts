@@ -28,8 +28,12 @@ export function catalogLoaderForType(
   loader: string,
   projectType: ModProjectType,
 ): string | undefined {
-  if (projectType === 'datapack') {
-    return undefined;
+  switch (projectType) {
+    case 'datapack':
+    case 'resourcepack':
+    case 'shader':
+      return undefined;
+    default:
+      return loader;
   }
-  return loader;
 }

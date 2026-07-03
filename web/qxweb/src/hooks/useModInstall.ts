@@ -72,7 +72,7 @@ export function useModInstall(instanceId: string) {
   const installOne = useCallback(
     async (params: ModInstallParams): Promise<boolean> => {
       const file = params.version.files[0];
-      if (!file) {
+      if (!file?.url) {
         message.error(t('qxmods.install.noFile'));
         return false;
       }

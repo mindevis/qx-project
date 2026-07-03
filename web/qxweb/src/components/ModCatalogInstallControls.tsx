@@ -128,22 +128,47 @@ export function ModCatalogInstallControls({
     [versions],
   );
 
+  const resolveVersionForInstall = useCallback(
+    async (version: ModVersion): Promise<ModVersion | null> => {
+      if (version.files[0]?.url) {
+        return version;
+      }
+      try {
+        const detail = await api.getModVersion(source, projectId, version.id, {
+          loader,
+          mc_version: mcVersion,
+        });
+        if (!detail.files[0]?.url) {
+          message.error(t('qxmods.install.noFile'));
+          return null;
+        }
+        return detail;
+      } catch (e) {
+        message.error(formatModCatalogError(e, t, 'qxmods.install.failed'));
+        return null;
+      }
+    },
+    [loader, mcVersion, message, projectId, source, t],
+  );
+
   const runInstall = (version: ModVersion) => {
     if (projectType === 'datapack' || projectType === 'resourcepack' || projectType === 'shader') {
       void (async () => {
+        const resolved = await resolveVersionForInstall(version);
+        if (!resolved) return;
         const ok = await installBatch([
           {
             source,
             projectId,
             projectName,
-            version,
+            version: resolved,
             resourceType: projectType,
             iconUrl,
             downloads,
-            fileSize: version.files[0]?.size,
+            fileSize: resolved.files[0]?.size,
           },
         ]);
-        if (ok) onInstalled?.(version);
+        if (ok) onInstalled?.(resolved);
       })();
       return;
     }
