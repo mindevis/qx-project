@@ -22,6 +22,7 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/updater"
 	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
+
 type Config struct {
 	APIBase           string
 	DeviceToken       string
@@ -363,7 +364,27 @@ func executeModInstall(ctx context.Context, api *apiclient.Client, dl *minecraft
 		_ = api.CompleteModInstall(ctx, item.ID, "failed", "INSTALL_FAILED")
 		return
 	}
-	_ = api.CompleteModInstall(ctx, item.ID, "completed", "")
+	// The server records the installed resource as part of marking the request
+	// completed, so a failure here means the mod is on disk but not registered.
+	// Retry a few times and log loudly instead of swallowing the error.
+	if err := completeModInstallWithRetry(ctx, api, item.ID); err != nil {
+		slog.Error("mod install completion report failed", "project", item.ProjectID, "file", item.Filename, "err", err)
+	}
+}
+
+func completeModInstallWithRetry(ctx context.Context, api *apiclient.Client, requestID string) error {
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		if err = api.CompleteModInstall(ctx, requestID, "completed", ""); err == nil {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(attempt+1) * time.Second):
+		}
+	}
+	return err
 }
 
 func executeInstanceFile(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.InstanceFileRequestItem) {

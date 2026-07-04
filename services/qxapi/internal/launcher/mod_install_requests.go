@@ -31,18 +31,18 @@ type CreateModInstallRequestInput struct {
 }
 
 type ModInstallRequestView struct {
-	ID            string `json:"id"`
-	Status        string `json:"status"`
-	InstanceID    string `json:"instance_id"`
-	Source        string `json:"source"`
-	ProjectID     string `json:"project_id"`
-	ProjectName   string `json:"project_name"`
-	VersionID     string `json:"version_id"`
-	VersionNumber string `json:"version_number,omitempty"`
-	Filename      string `json:"filename"`
-	DownloadURL   string `json:"download_url,omitempty"`
-	ResourceType  string `json:"resource_type"`
-	ErrorCode     *string `json:"error_code,omitempty"`
+	ID            string    `json:"id"`
+	Status        string    `json:"status"`
+	InstanceID    string    `json:"instance_id"`
+	Source        string    `json:"source"`
+	ProjectID     string    `json:"project_id"`
+	ProjectName   string    `json:"project_name"`
+	VersionID     string    `json:"version_id"`
+	VersionNumber string    `json:"version_number,omitempty"`
+	Filename      string    `json:"filename"`
+	DownloadURL   string    `json:"download_url,omitempty"`
+	ResourceType  string    `json:"resource_type"`
+	ErrorCode     *string   `json:"error_code,omitempty"`
 	ExpiresAt     time.Time `json:"expires_at"`
 }
 
@@ -184,24 +184,31 @@ func (s *Service) UpdateModInstallRequest(ctx context.Context, deviceID, request
 		updates["completed_at"] = now
 	}
 
-	if err := s.db.WithContext(ctx).Model(&req).Updates(updates).Error; err != nil {
+	// Record the installed resource and flip the request to its terminal status in a
+	// single transaction. Persisting the resource first (with a row lock on the
+	// instance) means the request only reports "completed" once the mod is durably
+	// recorded, so a failed or lost write can no longer masquerade as a successful
+	// install.
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if in.Status == models.ModInstallStatusCompleted {
+			if err := recordInstalledResource(tx, req); err != nil {
+				return err
+			}
+		}
+		return tx.Model(&req).Updates(updates).Error
+	}); err != nil {
 		return nil, err
 	}
 	req.Status = in.Status
 	if in.ErrorCode != nil {
 		req.ErrorCode = in.ErrorCode
 	}
-	if in.Status == models.ModInstallStatusCompleted {
-		if err := s.recordInstalledResource(ctx, req); err != nil {
-			return nil, err
-		}
-	}
 	return modInstallViewFromModel(req, false), nil
 }
 
-func (s *Service) recordInstalledResource(ctx context.Context, req models.ModInstallRequest) error {
+func recordInstalledResource(tx *gorm.DB, req models.ModInstallRequest) error {
 	var inst models.LauncherInstance
-	if err := s.db.WithContext(ctx).Where("id = ?", req.InstanceID).First(&inst).Error; err != nil {
+	if err := lockInstanceForUpdate(tx).Where("id = ?", req.InstanceID).First(&inst).Error; err != nil {
 		return err
 	}
 	entry := models.InstanceResourceEntry{
@@ -218,7 +225,7 @@ func (s *Service) recordInstalledResource(ctx context.Context, req models.ModIns
 		InstalledAt:   resourceInstalledAt(),
 	}
 	appendInstanceResource(&inst, entry)
-	return s.db.WithContext(ctx).Model(&inst).Updates(map[string]any{
+	return tx.Model(&inst).Updates(map[string]any{
 		"mods":           inst.Mods,
 		"resource_packs": inst.ResourcePacks,
 		"shaders":        inst.Shaders,

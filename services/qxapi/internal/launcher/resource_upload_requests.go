@@ -137,17 +137,21 @@ func (s *Service) UpdateResourceUploadRequest(ctx context.Context, deviceID, req
 	if in.Status == models.ResourceUploadStatusCompleted || in.Status == models.ResourceUploadStatusFailed {
 		updates["completed_at"] = now
 	}
-	if err := s.db.WithContext(ctx).Model(&req).Updates(updates).Error; err != nil {
+	// Persist the uploaded resource and flip the request to its terminal status in a
+	// single transaction so an upload only reports "completed" once the resource is
+	// durably recorded on the instance.
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if in.Status == models.ResourceUploadStatusCompleted {
+			if err := recordUploadedResource(tx, req); err != nil {
+				return err
+			}
+		}
+		return tx.Model(&req).Updates(updates).Error
+	}); err != nil {
 		return nil, err
 	}
 
 	var bridgeErr error
-	if in.Status == models.ResourceUploadStatusCompleted {
-		if err := s.recordUploadedResource(ctx, req); err != nil {
-			return nil, err
-		}
-		bridgeErr = nil
-	}
 	if in.Status == models.ResourceUploadStatusFailed {
 		code := "UPLOAD_FAILED"
 		if in.ErrorCode != nil && *in.ErrorCode != "" {
@@ -164,9 +168,9 @@ func (s *Service) UpdateResourceUploadRequest(ctx context.Context, deviceID, req
 	return resourceUploadViewFromModel(req, false), nil
 }
 
-func (s *Service) recordUploadedResource(ctx context.Context, req models.InstanceResourceUploadRequest) error {
+func recordUploadedResource(tx *gorm.DB, req models.InstanceResourceUploadRequest) error {
 	var inst models.LauncherInstance
-	if err := s.db.WithContext(ctx).Where("id = ?", req.InstanceID).First(&inst).Error; err != nil {
+	if err := lockInstanceForUpdate(tx).Where("id = ?", req.InstanceID).First(&inst).Error; err != nil {
 		return err
 	}
 	name := strings.TrimSuffix(req.Filename, filepath.Ext(req.Filename))
@@ -179,7 +183,7 @@ func (s *Service) recordUploadedResource(ctx context.Context, req models.Instanc
 		InstalledAt:  resourceInstalledAt(),
 	}
 	appendInstanceResource(&inst, entry)
-	return s.db.WithContext(ctx).Model(&inst).Updates(map[string]any{
+	return tx.Model(&inst).Updates(map[string]any{
 		"mods":           inst.Mods,
 		"resource_packs": inst.ResourcePacks,
 		"shaders":        inst.Shaders,

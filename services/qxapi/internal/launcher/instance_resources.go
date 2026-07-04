@@ -6,7 +6,22 @@ import (
 	"time"
 
 	"github.com/qxproject/qx/services/qxapi/internal/models"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+// lockInstanceForUpdate applies a row-level write lock when the backing store
+// supports it. Production runs on MySQL (InnoDB) where SELECT ... FOR UPDATE
+// serializes concurrent resource writes to the same instance, preventing a
+// lost update when a mod and its dependency finish installing back to back.
+// SQLite (used in tests) has no row locking and rejects the clause, so it is
+// skipped there.
+func lockInstanceForUpdate(tx *gorm.DB) *gorm.DB {
+	if tx.Dialector != nil && tx.Dialector.Name() == "mysql" {
+		return tx.Clauses(clause.Locking{Strength: "UPDATE"})
+	}
+	return tx
+}
 
 type InstanceResourceView struct {
 	Source        string `json:"source"`
