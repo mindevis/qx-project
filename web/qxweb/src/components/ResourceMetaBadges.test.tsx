@@ -15,15 +15,9 @@ const item: InstanceResource = {
   installed_at: '2026-01-01T00:00:00Z',
 };
 
-const t = (key: string) => {
-  if (key === 'qxmods.tabs.mod') return 'Моды';
-  if (key === 'qxmods.installed.downloads') return 'скачиваний';
-  return key;
-};
-
 describe('ResourceMetaBadges', () => {
   it('renders only the version badge for installed resources', () => {
-    render(<ResourceMetaBadges item={item} t={t} />);
+    render(<ResourceMetaBadges item={item} />);
     expect(screen.getByText('journeymap-1.20.1-5.10.3-forge')).toBeInTheDocument();
     expect(screen.queryByText('Моды')).not.toBeInTheDocument();
     expect(screen.queryByText('journeymap-1.20.1-5.10.3-forge.jar')).not.toBeInTheDocument();

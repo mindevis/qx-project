@@ -1,14 +1,12 @@
 import { Tag } from 'antd';
 import type { InstanceResource } from '@/api/client';
-import { formatDownloadCount, formatFileSize } from '@/lib/formatFileSize';
 
 type ResourceMetaBadgesProps = {
   item: InstanceResource;
-  t: (key: string) => string;
   className?: string;
 };
 
-export function ResourceMetaBadges({ item, t, className }: ResourceMetaBadgesProps) {
+export function ResourceMetaBadges({ item, className }: ResourceMetaBadgesProps) {
   const classNames = ['launcher-resource-card-badges', className].filter(Boolean).join(' ');
 
   return (

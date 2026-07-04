@@ -108,7 +108,7 @@ function InstalledResourceItem({
             )}
             <ModSourceBadge source={item.source} />
           </div>
-          <ResourceMetaBadges item={item} t={t} />
+          <ResourceMetaBadges item={item} />
           {sideSelect}
         </div>
         <div className="qxmods-installed-item-actions">
@@ -144,7 +144,7 @@ function InstalledResourceItem({
           )}
           <ModSourceBadge source={item.source} />
         </div>
-        <ResourceMetaBadges item={item} t={t} />
+        <ResourceMetaBadges item={item} />
         {sideSelect}
       </div>
       <div className="launcher-resource-card-actions">
