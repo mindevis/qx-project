@@ -2,13 +2,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Empty, Input, Modal, Select, Spin, Tag, Typography, Upload } from 'antd';
 import { AppstoreOutlined, DeleteOutlined, SearchOutlined, UnorderedListOutlined, UploadOutlined } from '@ant-design/icons';
-import { api, type InstanceResource, type ModProjectType, type ModSyncSide } from '@/api/client';
+import {
+  api,
+  ApiRequestError,
+  type InstanceResource,
+  type ModProjectType,
+  type ModSyncSide,
+} from '@/api/client';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { ResourceMetaBadges } from '@/components/ResourceMetaBadges';
 import {
   InstanceResourceSyncButton,
   InstanceServerSyncProvider,
+  useInstanceServerSync,
 } from '@/components/InstanceServerSyncPanel';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { useInstanceMods } from '@/components/InstanceModsContext';
@@ -32,7 +39,7 @@ type InstalledResourceItemProps = {
   removingKey?: string;
   resourceKey: (item: InstanceResource) => string;
   onRemove: (item: InstanceResource) => void;
-  onSideChange: (item: InstanceResource, side: ModSyncSide | '') => void;
+  onSideChange: (item: InstanceResource, side: ModSyncSide | '') => Promise<boolean>;
   sideSavingKey?: string;
   basePath: string;
   t: ReturnType<typeof useI18n>['t'];
@@ -57,6 +64,7 @@ function InstalledResourceItem({
   basePath,
   t,
 }: InstalledResourceItemProps) {
+  const { offerRemoveFromServerMods } = useInstanceServerSync();
   const removeButton = (
     <Button
       type="text"
@@ -81,7 +89,15 @@ function InstalledResourceItem({
         value={item.side_override ?? ''}
         options={sideOptions(t)}
         aria-label={t('qxmods.side.editAria')}
-        onChange={(value) => onSideChange(item, (value || '') as ModSyncSide | '')}
+        onChange={(value) => {
+          const side = (value || '') as ModSyncSide | '';
+          void (async () => {
+            const ok = await onSideChange(item, side);
+            if (ok && side === 'client') {
+              offerRemoveFromServerMods(item);
+            }
+          })();
+        }}
       />
     ) : null;
 
@@ -267,9 +283,20 @@ export function InstanceInstalledResources() {
     return false;
   };
 
-  const handleSideChange = async (item: InstanceResource, side: ModSyncSide | '') => {
+  const handleSideChange = async (
+    item: InstanceResource,
+    side: ModSyncSide | '',
+  ): Promise<boolean> => {
     const key = resourceKey(item);
+    const previousSide = item.side_override;
     setSideSavingKey(key);
+    // Reflect the choice immediately, then roll back if the save fails so the
+    // dropdown never silently snaps back to the old value.
+    setItems((prev) =>
+      prev.map((entry) =>
+        resourceKey(entry) === key ? { ...entry, side_override: side || undefined } : entry,
+      ),
+    );
     try {
       await api.patchInstanceResource(instance.id, {
         source: item.source,
@@ -278,14 +305,20 @@ export function InstanceInstalledResources() {
         resource_type: item.resource_type,
         side_override: side,
       });
+      message.success(t('qxmods.side.saved'));
+      return true;
+    } catch (e) {
       setItems((prev) =>
         prev.map((entry) =>
-          resourceKey(entry) === key ? { ...entry, side_override: side || undefined } : entry,
+          resourceKey(entry) === key ? { ...entry, side_override: previousSide } : entry,
         ),
       );
-      message.success(t('qxmods.side.saved'));
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : t('qxmods.side.saveFailed'));
+      if (e instanceof ApiRequestError && e.apiCode === 'NOT_FOUND') {
+        message.error(t('qxmods.side.notRegistered'));
+      } else {
+        message.error(e instanceof Error ? e.message : t('qxmods.side.saveFailed'));
+      }
+      return false;
     } finally {
       setSideSavingKey(undefined);
     }
@@ -464,7 +497,7 @@ export function InstanceInstalledResources() {
                     removingKey={removingKey}
                     resourceKey={resourceKey}
                     onRemove={handleRemove}
-                    onSideChange={(entry, side) => void handleSideChange(entry, side)}
+                    onSideChange={handleSideChange}
                     sideSavingKey={sideSavingKey}
                     basePath={basePath}
                     t={t}

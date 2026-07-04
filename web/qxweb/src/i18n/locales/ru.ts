@@ -1096,6 +1096,12 @@ export const ru = {
       editAria: 'Тип мода (сторона)',
       saved: 'Тип мода сохранён',
       saveFailed: 'Не удалось сохранить тип мода',
+      notRegistered: 'Этот мод не зарегистрирован в инстансе. Переустановите его из каталога и попробуйте снова.',
+      serverCleanupTitle: 'Удалить с игрового сервера?',
+      serverCleanupBody: '{{name}} всё ещё в папке «mods» на {{servers}}, где клиентский мод роняет выделенный сервер. Удалить его оттуда?',
+      serverCleanupConfirm: 'Удалить с сервера',
+      serverCleanupDone: 'Удалён с игрового сервера',
+      serverCleanupFailed: 'Не удалось удалить с игрового сервера',
     },
     serverOnlyInstall: {
       title: 'Серверный мод',

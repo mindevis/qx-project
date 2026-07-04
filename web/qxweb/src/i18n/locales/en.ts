@@ -1097,6 +1097,12 @@ export const en: Messages = {
       editAria: 'Mod side type',
       saved: 'Side type saved',
       saveFailed: 'Failed to save side type',
+      notRegistered: 'This mod is not registered on the instance. Reinstall it from the catalog and try again.',
+      serverCleanupTitle: 'Remove from game server?',
+      serverCleanupBody: '{{name}} is still in the server "mods" folder on {{servers}}, where a client-only mod crashes the dedicated server. Remove it there?',
+      serverCleanupConfirm: 'Remove from server',
+      serverCleanupDone: 'Removed from game server',
+      serverCleanupFailed: 'Failed to remove from game server',
     },
     serverOnlyInstall: {
       title: 'Server-only mod',

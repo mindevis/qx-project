@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { api } from '@/api/client';
+import { api, ApiRequestError } from '@/api/client';
 import { INSTALLED_RESOURCES_VIEW_STORAGE_KEY } from '@/lib/installedResourcesView';
 import { renderWithProviders } from '@/test/test-utils';
 import { InstanceInstalledResources } from './InstanceInstalledResources';
@@ -96,6 +96,26 @@ describe('InstanceInstalledResources', () => {
     expect(screen.getByRole('link', { name: 'Sodium' })).toHaveAttribute(
       'href',
       '/launcher/instances/inst-1/resources/catalog/modrinth/sodium',
+    );
+  });
+
+  it('saves the selected client side override for the mod', async () => {
+    const user = userEvent.setup({ delay: null });
+    const patch = vi
+      .spyOn(api, 'patchInstanceResource')
+      .mockRejectedValue(new ApiRequestError('resource not found', undefined, 'NOT_FOUND'));
+    renderInstalledResources();
+
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('combobox', { name: 'Тип мода (сторона)' }));
+    await user.click(await screen.findByTitle('Клиент'));
+
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        'inst-1',
+        expect.objectContaining({ side_override: 'client', filename: 'sodium.jar' }),
+      ),
     );
   });
 });

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Button, Tooltip } from 'antd';
+import { Button, Modal, Tooltip } from 'antd';
 import { CheckCircleOutlined, CloudSyncOutlined } from '@ant-design/icons';
 import { api, type InstanceResource, type ModVersion } from '@/api/client';
 import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
@@ -34,6 +34,7 @@ type InstanceServerSyncContextValue = {
   targets: GameServerSyncTarget[];
   getSyncedTargets: (item: InstanceResource) => GameServerSyncTarget[];
   openSingleSync: (item: InstanceResource) => void;
+  offerRemoveFromServerMods: (item: InstanceResource) => void;
 };
 
 const InstanceServerSyncContext = createContext<InstanceServerSyncContextValue | null>(null);
@@ -68,7 +69,7 @@ async function resolveModVersionForSync(
   };
 }
 
-function useInstanceServerSync() {
+export function useInstanceServerSync() {
   const ctx = useContext(InstanceServerSyncContext);
   if (!ctx) {
     throw new Error('useInstanceServerSync must be used within InstanceServerSyncProvider');
@@ -255,14 +256,59 @@ export function InstanceServerSyncProvider({
     [instance.loader, instance.mc_version, message, t],
   );
 
+  const offerRemoveFromServerMods = useCallback(
+    (item: InstanceResource) => {
+      if (item.resource_type !== 'mod') return;
+      const key = instanceResourceVersionKey(item);
+      const filenames = key ? versionFilenames[key] : undefined;
+      const affected = targets.filter((target) =>
+        isInstanceResourceOnServer(target.serverMods, item, filenames),
+      );
+      if (affected.length === 0) return;
+      Modal.confirm({
+        title: t('qxmods.side.serverCleanupTitle'),
+        content: t('qxmods.side.serverCleanupBody', {
+          name: item.project_name,
+          servers: affected.map((target) => target.gameServer.name).join(', '),
+        }),
+        okText: t('qxmods.side.serverCleanupConfirm'),
+        cancelText: t('common.cancel'),
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          let failed = false;
+          await Promise.all(
+            affected.map(async (target) => {
+              try {
+                await api.deleteVpsGameServerMod(target.vpsId, target.gameServer.id, {
+                  filename: item.filename,
+                  mod_target: 'mods',
+                });
+              } catch {
+                failed = true;
+              }
+            }),
+          );
+          if (failed) {
+            message.error(t('qxmods.side.serverCleanupFailed'));
+          } else {
+            message.success(t('qxmods.side.serverCleanupDone'));
+          }
+          await refreshAllServerMods();
+        },
+      });
+    },
+    [message, refreshAllServerMods, t, targets, versionFilenames],
+  );
+
   const value = useMemo(
     () => ({
       canSync,
       targets,
       getSyncedTargets,
       openSingleSync,
+      offerRemoveFromServerMods,
     }),
-    [canSync, getSyncedTargets, openSingleSync, targets],
+    [canSync, getSyncedTargets, offerRemoveFromServerMods, openSingleSync, targets],
   );
 
   return (
