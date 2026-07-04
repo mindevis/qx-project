@@ -312,6 +312,10 @@ func (s *Service) CreateInstance(ctx context.Context, owner Owner, in CreateInst
 	if loaderVersion != "" {
 		inst.LoaderVersion = &loaderVersion
 	}
+	minRAM := defaultInstanceMemoryMB
+	maxRAM := defaultInstanceMemoryMB
+	inst.MinMemoryMB = &minRAM
+	inst.MaxMemoryMB = &maxRAM
 	if err := s.db.WithContext(ctx).Create(&inst).Error; err != nil {
 		return nil, err
 	}
@@ -383,9 +387,10 @@ type UpdateInstanceInput struct {
 }
 
 const (
-	minInstanceMemoryMB = 512
-	maxInstanceMemoryMB = 65536
-	minWindowDimension  = 320
+	minInstanceMemoryMB     = 512
+	maxInstanceMemoryMB     = 65536
+	defaultInstanceMemoryMB = 4096
+	minWindowDimension      = 320
 	maxWindowDimension  = 7680
 	maxExtraJVMArgs     = 64
 )

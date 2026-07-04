@@ -501,7 +501,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
   it('creates and deletes launcher instance', async () => {
     const user = userEvent.setup({ delay: null });
   const successSpy = testMessage.success;
-  const infoSpy = testMessage.info;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -550,16 +549,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     expect(successSpy).toHaveBeenCalledWith('Инстанс создан');
-    await waitFor(() =>
-      expect(infoSpy).toHaveBeenCalledWith(
-        'Создайте offline-профиль с ником или играйте с Player по умолчанию',
-      ),
-    );
-    await waitFor(() =>
-      expect(screen.getByRole('dialog', { name: 'Новый профиль игрока' })).toBeInTheDocument(),
-    );
-    await user.click(screen.getAllByRole('button', { name: 'Close' })[0]!);
-    await waitForNoDialog();
+    expect(screen.queryByRole('dialog', { name: 'Новый профиль игрока' })).not.toBeInTheDocument();
 
     await openCreateInstanceModal(user);
     await waitFor(() => expect(screen.getByRole('dialog', { name: 'Новый инстанс' })).toBeInTheDocument());
@@ -2615,9 +2605,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Профиль удалён'));
   });
 
-  it('opens profile modal when profiles response omits items', async () => {
+  it('does not open profile modal after create when profiles are missing', async () => {
     const user = userEvent.setup({ delay: null });
-  const infoSpy = testMessage.info;
+    const infoSpy = testMessage.info;
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -2667,11 +2657,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await openCreateInstanceModal(user);
     await user.type(screen.getByLabelText('Название'), 'Survival');
     await user.click(screen.getByRole('button', { name: 'Создать инстанс' }));
-    await waitFor(() =>
-      expect(infoSpy).toHaveBeenCalledWith(
-        'Создайте offline-профиль с ником или играйте с Player по умолчанию',
-      ),
-    );
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Новый профиль игрока' })).not.toBeInTheDocument();
   });
 
   it('shows generic failed launch error without error code', async () => {

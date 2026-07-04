@@ -105,7 +105,7 @@ export function ModsCatalogPanel() {
 
   const isSearchMode = appliedSearch.trim().length > 0;
   const showCurseforgeUnavailable =
-    sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled && !isSearchMode;
+    sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled;
 
   const catalogLoader = catalogLoaderForType(instance.loader, activeTab);
 
@@ -136,6 +136,7 @@ export function ModsCatalogPanel() {
             type: activeTab,
             loader: catalogLoader,
             mc_version: instance.mc_version,
+            source: sourceFilter,
             limit: PAGE_SIZE,
           });
           if (cancelled) return;
@@ -326,7 +327,6 @@ export function ModsCatalogPanel() {
             <Select
               value={sourceFilter}
               options={sourceOptions}
-              disabled={isSearchMode}
               onChange={(value) => setSourceFilter(value as ModCatalogSourceFilter)}
               className="qxmods-filter-select"
             />

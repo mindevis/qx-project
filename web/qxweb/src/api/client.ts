@@ -1207,6 +1207,7 @@ export const api = {
     type?: ModProjectType;
     loader?: string;
     mc_version?: string;
+    source?: ModCatalogSourceFilter;
     limit?: number;
   }) => {
     const search = new URLSearchParams();
@@ -1214,6 +1215,7 @@ export const api = {
     if (params.type) search.set('type', params.type);
     if (params.loader) search.set('loader', params.loader);
     if (params.mc_version) search.set('mc_version', params.mc_version);
+    if (params.source) search.set('source', params.source);
     if (params.limit != null) search.set('limit', String(params.limit));
     return request<{ items: ModCatalogItem[]; curseforge_enabled: boolean }>(
       `/mods/search?${search.toString()}`,

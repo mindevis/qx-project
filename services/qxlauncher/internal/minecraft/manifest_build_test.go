@@ -40,3 +40,13 @@ func TestBuildLaunchManifestUsesBuilder(t *testing.T) {
 		t.Fatalf("unexpected manifest: %+v", got)
 	}
 }
+
+func TestApplyLaunchSettingsDefaultMemory(t *testing.T) {
+	manifest := &mcmanifest.InstanceLaunchManifest{
+		JVMArguments: []string{"-Xmx2G"},
+	}
+	applyLaunchSettings(manifest, LaunchInstance{})
+	if manifest.JVMArguments[0] != "-Xms4G" || manifest.JVMArguments[1] != "-Xmx4G" {
+		t.Fatalf("expected 4G defaults, got %v", manifest.JVMArguments)
+	}
+}

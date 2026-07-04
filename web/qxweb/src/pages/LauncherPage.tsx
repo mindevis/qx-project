@@ -115,6 +115,8 @@ export function LauncherPage() {
   );
 }
 
+const defaultInstanceMemoryMb = 4096;
+
 function LauncherHome() {
   const { t } = useI18n();
   const { isAuthenticated, user, loading: authLoading } = useAuth();
@@ -160,8 +162,8 @@ function LauncherHome() {
   const [settingsInstance, setSettingsInstance] = useState<LauncherInstance | null>(null);
   const [settingsTab, setSettingsTab] = useState<'launch' | 'options' | 'files' | 'mods'>('launch');
   const [settingsName, setSettingsName] = useState('');
-  const [settingsRamMb, setSettingsRamMb] = useState(2048);
-  const [settingsMinRamMb, setSettingsMinRamMb] = useState<number | null>(null);
+  const [settingsRamMb, setSettingsRamMb] = useState(defaultInstanceMemoryMb);
+  const [settingsMinRamMb, setSettingsMinRamMb] = useState(defaultInstanceMemoryMb);
   const [settingsExtraJvmArgs, setSettingsExtraJvmArgs] = useState('');
   const [settingsWindowWidth, setSettingsWindowWidth] = useState<number | null>(null);
   const [settingsWindowHeight, setSettingsWindowHeight] = useState<number | null>(null);
@@ -524,11 +526,6 @@ function LauncherHome() {
       if (created.prepare_request_id) {
         void pollPrepareRequest(created.prepare_request_id, created.id);
       }
-      const prof = await api.listProfiles();
-      if ((prof.items ?? []).length === 0) {
-        message.info(t('launcher.createProfileHint'));
-        setProfileOpen(true);
-      }
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('launcher.createInstanceFailed'));
     } finally {
@@ -708,8 +705,8 @@ function LauncherHome() {
     setSettingsInstance(instance);
     setSettingsTab('launch');
     setSettingsName(instance.name);
-    setSettingsRamMb(instance.max_memory_mb ?? 2048);
-    setSettingsMinRamMb(instance.min_memory_mb ?? null);
+    setSettingsRamMb(instance.max_memory_mb ?? defaultInstanceMemoryMb);
+    setSettingsMinRamMb(instance.min_memory_mb ?? defaultInstanceMemoryMb);
     setSettingsExtraJvmArgs((instance.extra_jvm_args ?? []).join('\n'));
     setSettingsWindowWidth(instance.window_width ?? null);
     setSettingsWindowHeight(instance.window_height ?? null);
@@ -727,7 +724,7 @@ function LauncherHome() {
       const updated = await api.updateInstance(settingsInstance.id, {
         name: settingsName.trim(),
         max_memory_mb: settingsRamMb,
-        ...(settingsMinRamMb != null ? { min_memory_mb: settingsMinRamMb } : {}),
+        min_memory_mb: settingsMinRamMb,
         extra_jvm_args: extraJvmArgs,
         window_width: settingsWindowWidth ?? 0,
         window_height: settingsWindowHeight ?? 0,
@@ -1556,7 +1553,7 @@ function LauncherHome() {
                         step={512}
                         addonAfter={t('common.megabytes')}
                         value={settingsMinRamMb}
-                        onChange={(value) => setSettingsMinRamMb(value)}
+                        onChange={(value) => setSettingsMinRamMb(value ?? defaultInstanceMemoryMb)}
                         style={{ width: '100%' }}
                         placeholder="—"
                       />
@@ -1568,7 +1565,7 @@ function LauncherHome() {
                         step={512}
                         addonAfter={t('common.megabytes')}
                         value={settingsRamMb}
-                        onChange={(value) => setSettingsRamMb(value ?? 2048)}
+                        onChange={(value) => setSettingsRamMb(value ?? defaultInstanceMemoryMb)}
                         style={{ width: '100%' }}
                       />
                     </Form.Item>

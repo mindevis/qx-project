@@ -12,6 +12,8 @@ type ManifestBuilder interface {
 	BuildInstanceManifest(ctx context.Context, instanceID, name, mcVersion, loader, loaderVersion, targetOS string) (*mcmanifest.InstanceLaunchManifest, error)
 }
 
+const defaultInstanceMemoryMB = 4096
+
 type LaunchInstance struct {
 	ID            string
 	Name          string
@@ -26,12 +28,16 @@ type LaunchInstance struct {
 }
 
 func applyLaunchSettings(manifest *mcmanifest.InstanceLaunchManifest, inst LaunchInstance) {
-	if inst.MinMemoryMB > 0 {
-		mcmanifest.ApplyMinMemoryMB(manifest, inst.MinMemoryMB)
+	minMB := inst.MinMemoryMB
+	if minMB <= 0 {
+		minMB = defaultInstanceMemoryMB
 	}
-	if inst.MaxMemoryMB > 0 {
-		mcmanifest.ApplyMaxMemoryMB(manifest, inst.MaxMemoryMB)
+	maxMB := inst.MaxMemoryMB
+	if maxMB <= 0 {
+		maxMB = defaultInstanceMemoryMB
 	}
+	mcmanifest.ApplyMinMemoryMB(manifest, minMB)
+	mcmanifest.ApplyMaxMemoryMB(manifest, maxMB)
 	if len(inst.ExtraJVMArgs) > 0 {
 		mcmanifest.ApplyExtraJVMArgs(manifest, inst.ExtraJVMArgs)
 	}

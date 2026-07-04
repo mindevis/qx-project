@@ -28,9 +28,18 @@ func TestServiceSearchModrinth(t *testing.T) {
 	_ = svc
 }
 
+func TestServiceSearchCurseForgeRequiresKey(t *testing.T) {
+	t.Parallel()
+	svc := mods.NewService(mods.Config{})
+	_, err := svc.Search(context.Background(), "sodium", mods.ProjectTypeMod, "forge", "1.20.1", mods.SourceCurseForge, 10)
+	if err == nil {
+		t.Fatal("expected error when curseforge key missing and source=curseforge")
+	}
+}
+
 func TestServiceSearchRequiresQuery(t *testing.T) {
 	svc := mods.NewService(mods.Config{})
-	_, err := svc.Search(context.Background(), "  ", mods.ProjectTypeMod, "fabric", "1.21.1", 10)
+	_, err := svc.Search(context.Background(), "  ", mods.ProjectTypeMod, "fabric", "1.21.1", mods.SourceModrinth, 10)
 	if err == nil {
 		t.Fatal("expected error for empty query")
 	}

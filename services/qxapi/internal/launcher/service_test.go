@@ -117,6 +117,12 @@ func TestCreateInstanceModLoader(t *testing.T) {
 	if inst.LoaderVersion == nil || *inst.LoaderVersion != "0.16.14" {
 		t.Fatalf("loader version: %+v", inst.LoaderVersion)
 	}
+	if inst.MinMemoryMB == nil || *inst.MinMemoryMB != defaultInstanceMemoryMB {
+		t.Fatalf("min memory: %+v", inst.MinMemoryMB)
+	}
+	if inst.MaxMemoryMB == nil || *inst.MaxMemoryMB != defaultInstanceMemoryMB {
+		t.Fatalf("max memory: %+v", inst.MaxMemoryMB)
+	}
 
 	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:      "Bad",

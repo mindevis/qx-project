@@ -90,7 +90,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 	if len(manifest.JVMArguments) > 0 {
 		args = substituteLaunchArgs(manifest.JVMArguments, subs)
 	} else {
-		args = []string{"-Xmx2G"}
+		args = []string{"-Xms4G", "-Xmx4G"}
 	}
 	if nativesDir != "" && !containsArgPrefix(args, "-Djava.library.path=") {
 		args = append(args, "-Djava.library.path="+filepath.ToSlash(nativesDir))

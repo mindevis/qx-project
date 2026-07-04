@@ -206,6 +206,7 @@ export function GameServerContentPanel({
             type: projectType,
             loader,
             mc_version: mcVersion,
+            source: sourceFilter,
             limit: PAGE_SIZE,
           });
           setCatalogItems(res.items ?? []);
@@ -394,7 +395,7 @@ export function GameServerContentPanel({
   }
 
   const showCurseforgeUnavailable =
-    sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled && !appliedSearch.trim();
+    sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled;
 
   return (
     <div className="game-server-content-panel">

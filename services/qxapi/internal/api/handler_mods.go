@@ -31,6 +31,7 @@ func (h *ModsHandler) Search(c *gin.Context) {
 		c.DefaultQuery("type", mods.ProjectTypeMod),
 		c.Query("loader"),
 		c.Query("mc_version"),
+		c.DefaultQuery("source", "all"),
 		limit,
 	)
 	if err != nil {

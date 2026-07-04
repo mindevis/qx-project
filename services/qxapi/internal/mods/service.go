@@ -39,7 +39,7 @@ func (s *Service) CurseForgeEnabled() bool {
 	return s.curseforge.enabled()
 }
 
-func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {
+func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVersion, source string, limit int) ([]SearchItem, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, fmt.Errorf("query required")
@@ -48,7 +48,18 @@ func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVers
 	if limit <= 0 || limit > maxSearchItems {
 		limit = 20
 	}
-	return s.searchUpstream(ctx, query, projectType, loader, mcVersion, limit)
+	source = strings.ToLower(strings.TrimSpace(source))
+	switch source {
+	case SourceCurseForge:
+		if !s.curseforge.enabled() {
+			return nil, fmt.Errorf("curseforge api key not configured")
+		}
+		return s.curseforge.search(ctx, query, projectType, loader, mcVersion, limit)
+	case SourceModrinth:
+		return s.modrinth.search(ctx, query, projectType, loader, mcVersion, limit)
+	default:
+		return s.searchUpstream(ctx, query, projectType, loader, mcVersion, limit)
+	}
 }
 
 func (s *Service) searchUpstream(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {

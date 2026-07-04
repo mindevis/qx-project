@@ -96,7 +96,29 @@ describe('ModsCatalogPanel', () => {
     await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'sodium');
     await user.click(screen.getByRole('button', { name: 'Найти' }));
 
-    await waitFor(() => expect(api.searchMods).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(api.searchMods).toHaveBeenCalledWith(
+        expect.objectContaining({ q: 'sodium', source: 'all' }),
+      ),
+    );
+  });
+
+  it('searches only selected source', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderCatalog();
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+
+    const [sourceSelect] = screen.getAllByRole('combobox');
+    await user.click(sourceSelect!);
+    await user.click(await screen.findByText('CurseForge'));
+    await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'sodium');
+    await user.click(screen.getByRole('button', { name: 'Найти' }));
+
+    await waitFor(() =>
+      expect(api.searchMods).toHaveBeenCalledWith(
+        expect.objectContaining({ q: 'sodium', source: 'curseforge' }),
+      ),
+    );
   });
 
   it('loads more browse results', async () => {
