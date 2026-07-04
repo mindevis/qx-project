@@ -115,8 +115,8 @@ describe('ModDetailPanel', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Установить' }));
 
-    const depsDialog = await screen.findByRole('dialog');
-    await user.click(within(depsDialog).getByRole('button', { name: 'Установить' }));
+    const syncDialog = await screen.findByRole('dialog');
+    expect(within(syncDialog).getByRole('button', { name: 'Синхронизировать' })).toBeInTheDocument();
 
     await waitFor(() => expect(api.createModInstallRequest).toHaveBeenCalled());
     await waitFor(() => expect(testMessage.success).toHaveBeenCalled(), { timeout: 5000 });
