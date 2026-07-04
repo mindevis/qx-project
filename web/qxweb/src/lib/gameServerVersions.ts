@@ -52,6 +52,12 @@ async function cachedFetchJson<T>(url: string): Promise<T> {
   return promise;
 }
 
+export function clearGameServerVersionsCache() {
+  upstreamJsonCache.clear();
+  forgePromosCache = null;
+  forgeMavenVersionsCache = null;
+}
+
 function compareMcVersionsDesc(a: string, b: string): number {
   const pa = a.split('.').map((part) => Number.parseInt(part, 10) || 0);
   const pb = b.split('.').map((part) => Number.parseInt(part, 10) || 0);

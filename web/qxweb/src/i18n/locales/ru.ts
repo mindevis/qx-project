@@ -118,7 +118,7 @@ export const ru = {
       'Настольное приложение в системном трее: автозапуск, офлайн-кэш и нативная интеграция с Windows, macOS и Linux.',
     qxmodsTitle: 'QXMods',
     qxmodsBody:
-      'Каталог модов, модпаков, ресурспаков и шейдеров из официальных API CurseForge и Modrinth — прямо в лаунчере.',
+      'Каталог модов, ресурспаков и шейдеров из официальных API CurseForge и Modrinth — прямо в лаунчере.',
     qxagentTitle: 'QXAgent',
     qxagentBody:
       'Агент на вашем выделенном сервере: установка контента, мониторинг и удалённое управление инстансом Minecraft.',
@@ -129,8 +129,8 @@ export const ru = {
     benefitAccountDesc: 'Профиль, инстансы и серверы синхронизируются между вебом и лаунчером.',
     benefitDedicated: 'Выделенный сервер',
     benefitDedicatedDesc: 'Подключайте свой Linux выделенный сервер по SSH — данные остаются у вас.',
-    benefitVanilla: 'Vanilla и modpacks',
-    benefitVanillaDesc: 'Старт с Vanilla в MVP, единый пайплайн для модпаков дальше.',
+    benefitVanilla: 'Vanilla и моды',
+    benefitVanillaDesc: 'Старт с Vanilla в MVP, каталог модов и модded-лоадеров уже в лаунчере.',
     stepsTitle: 'Как начать',
     step1Title: 'Создайте аккаунт',
     step1Body: 'Регистрация за минуту — полный доступ к лаунчеру и серверам.',
@@ -911,7 +911,7 @@ export const ru = {
     sectionTitle: 'Ресурсы',
     promoTitle: 'QXMods — каталог модов в лаунчере',
     promoBody:
-      'Просматривайте моды, модпаки, ресурспаки, шейдеры и датапаки из CurseForge и Modrinth. Каталог отфильтрован по версии Minecraft и загрузчику инстанса; серверные моды можно синхронизировать на game server одним кликом.',
+      'Просматривайте моды, ресурспаки, шейдеры и датапаки из CurseForge и Modrinth. Каталог отфильтрован по версии Minecraft и загрузчику инстанса; серверные моды можно синхронизировать на game server одним кликом.',
     tabs: {
       mod: 'Моды',
       modpack: 'Модпаки',

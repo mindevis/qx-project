@@ -120,7 +120,7 @@ export const en: Messages = {
       'Desktop app in the system tray: autostart, offline cache, and native integration with Windows, macOS, and Linux.',
     qxmodsTitle: 'QXMods',
     qxmodsBody:
-      'Browse mods, modpacks, resource packs, and shaders from official CurseForge and Modrinth catalogs — built into the launcher.',
+      'Browse mods, resource packs, and shaders from official CurseForge and Modrinth catalogs — built into the launcher.',
     qxagentTitle: 'QXAgent',
     qxagentBody:
       'Agent on your dedicatedserver: content install, monitoring, and remote Minecraft instance management.',
@@ -131,8 +131,8 @@ export const en: Messages = {
     benefitAccountDesc: 'Profile, instances, and servers sync between web and launcher.',
     benefitDedicated: 'Dedicated server',
     benefitDedicatedDesc: 'Connect your Linux dedicated server over SSH — your data stays with you.',
-    benefitVanilla: 'Vanilla & modpacks',
-    benefitVanillaDesc: 'Start with Vanilla in MVP, unified pipeline for modpacks ahead.',
+    benefitVanilla: 'Vanilla & modded',
+    benefitVanillaDesc: 'Start with Vanilla in MVP, modded loaders and content catalog built in.',
     stepsTitle: 'How to get started',
     step1Title: 'Create an account',
     step1Body: 'Sign up in a minute for full access to the launcher and servers.',
@@ -912,7 +912,7 @@ export const en: Messages = {
     sectionTitle: 'Resources',
     promoTitle: 'QXMods — mod catalog in the launcher',
     promoBody:
-      'Browse mods, modpacks, resource packs, shaders, and datapacks from CurseForge and Modrinth. Filter by your instance version and loader, then sync server-side mods to your game server in one click.',
+      'Browse mods, resource packs, shaders, and datapacks from CurseForge and Modrinth. Filter by your instance version and loader, then sync server-side mods to your game server in one click.',
     tabs: {
       mod: 'Mods',
       modpack: 'Modpacks',

@@ -15,7 +15,7 @@ type ServerOnlyInstallModalProps = {
   projectId: string;
   projectName: string;
   version: ModVersion;
-  projectType?: 'mod' | 'resourcepack' | 'shader' | 'datapack' | 'plugin' | 'modpack';
+  projectType?: 'mod' | 'resourcepack' | 'shader' | 'datapack' | 'plugin';
   instanceLoader: string;
   instanceMcVersion?: string;
   onClose: () => void;

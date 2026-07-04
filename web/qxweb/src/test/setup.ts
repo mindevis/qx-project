@@ -7,6 +7,10 @@ import { __test__ as loggerTest } from '@/lib/logger';
 import { installCanvasMocks } from '@/test/canvas-mock';
 import { installNavigationMock } from '@/test/navigation-mock';
 import { resetTestMessage } from '@/test/test-message';
+import { clearMcVersionsCache } from '@/lib/mcVersionsCache';
+import { clearModCatalogCaches } from '@/lib/modCatalogCache';
+import { clearGameServerSyncTargetsCache } from '@/lib/gameServerSyncTargets';
+import { clearGameServerVersionsCache } from '@/lib/gameServerVersions';
 
 configure({ asyncUtilTimeout: 5000 });
 
@@ -80,6 +84,10 @@ afterEach(async () => {
   mockMatchMedia();
   message.destroy();
   resetTestMessage();
+  clearMcVersionsCache();
+  clearModCatalogCaches();
+  clearGameServerSyncTargetsCache();
+  clearGameServerVersionsCache();
   vi.stubGlobal('ResizeObserver', ResizeObserverMock);
   await flushReactWork();
 });

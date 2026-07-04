@@ -16,7 +16,7 @@ export function launcherSupportsResourcesPage(loader: string): boolean {
 export function launcherCatalogTabs(loader: string): ModProjectType[] {
   const tabs: ModProjectType[] = [];
   if (launcherSupportsModsCatalog(loader)) {
-    tabs.push('mod', 'modpack', 'resourcepack', 'shader');
+    tabs.push('mod', 'resourcepack', 'shader');
   }
   if (launcherSupportsDatapacks(loader)) {
     tabs.push('datapack');

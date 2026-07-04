@@ -124,10 +124,10 @@ describe('ModsCatalogPanel', () => {
     const user = userEvent.setup({ delay: null });
     renderCatalog();
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
-    await user.click(screen.getByText('Модпаки'));
+    await user.click(screen.getByText('Ресурспаки'));
     await waitFor(() =>
       expect(api.browseMods).toHaveBeenLastCalledWith(
-        expect.objectContaining({ type: 'modpack' }),
+        expect.objectContaining({ type: 'resourcepack', loader: undefined }),
       ),
     );
   });

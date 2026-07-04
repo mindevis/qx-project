@@ -25,7 +25,7 @@ describe('launcherInstanceCapabilities', () => {
 
   it('builds catalog tabs per loader', () => {
     expect(launcherCatalogTabs('vanilla')).toEqual(['datapack']);
-    expect(launcherCatalogTabs('forge')).toEqual(['mod', 'modpack', 'resourcepack', 'shader', 'datapack']);
+    expect(launcherCatalogTabs('forge')).toEqual(['mod', 'resourcepack', 'shader', 'datapack']);
   });
 
   it('omits loader filter for non-mod catalog queries', () => {
@@ -33,6 +33,5 @@ describe('launcherInstanceCapabilities', () => {
     expect(catalogLoaderForType('forge', 'resourcepack')).toBeUndefined();
     expect(catalogLoaderForType('forge', 'shader')).toBeUndefined();
     expect(catalogLoaderForType('forge', 'mod')).toBe('forge');
-    expect(catalogLoaderForType('forge', 'modpack')).toBe('forge');
   });
 });

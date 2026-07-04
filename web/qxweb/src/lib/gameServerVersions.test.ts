@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
+  clearGameServerVersionsCache,
   formatGameServerLoaderVersionLabel,
   formatGameServerMcVersionLabel,
   gameServerTypeNeedsLoader,
@@ -27,6 +28,7 @@ const forgeMavenXml = `<?xml version="1.0" encoding="UTF-8"?>
 
 describe('gameServerVersions', () => {
   afterEach(() => {
+    clearGameServerVersionsCache();
     vi.unstubAllGlobals();
   });
 
