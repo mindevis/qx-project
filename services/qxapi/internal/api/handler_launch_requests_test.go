@@ -54,12 +54,13 @@ func TestLaunchRequestsHandlerCreateWithLinkedDevice(t *testing.T) {
 	claims, _ := tokens.Parse(pair.AccessToken)
 	owner := launcher.Owner{UserID: claims.UserID}
 
-	inst, err := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
 	if err != nil {
 		t.Fatalf("instance: %v", err)
 	}
+	inst := createRes.Instance
 
 	body, _ := json.Marshal(map[string]string{"instance_id": inst.ID})
 	w := httptest.NewRecorder()
@@ -77,12 +78,13 @@ func TestLaunchRequestsHandlerCreateNoDevice(t *testing.T) {
 	h, svc, tokens := newLaunchHandler(t)
 	ctx := context.Background()
 	owner := launcher.Owner{UserID: "user-1"}
-	inst, err := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
 	if err != nil {
 		t.Fatalf("instance: %v", err)
 	}
+	inst := createRes.Instance
 	pair, _ := tokens.IssueUserTokens("user-1", "u@test.com")
 	claims, _ := tokens.Parse(pair.AccessToken)
 
@@ -105,9 +107,10 @@ func TestLaunchRequestsHandlerPending(t *testing.T) {
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-poll"})
 	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-poll", UserID: "user-poll"})
 	owner := launcher.Owner{UserID: "user-poll"}
-	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	_, _ = svc.CreateLaunchRequest(ctx, owner, launcher.CreateLaunchRequestInput{
 		InstanceID: inst.ID, DeviceID: "dev-poll",
 	})
@@ -144,9 +147,10 @@ func TestLaunchRequestsHandlerGet(t *testing.T) {
 	pair, _ := tokens.IssueUserTokens("user-get", "u@test.com")
 	claims, _ := tokens.Parse(pair.AccessToken)
 	owner := launcher.Owner{UserID: claims.UserID}
-	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	created, _ := svc.CreateLaunchRequest(ctx, owner, launcher.CreateLaunchRequestInput{
 		InstanceID: inst.ID, DeviceID: "dev-get",
 	})
@@ -169,9 +173,10 @@ func TestLaunchRequestsHandlerUpdate(t *testing.T) {
 	_, _ = svc.RegisterDevice(ctx, launcher.RegisterDeviceInput{DeviceID: "dev-patch"})
 	_, _ = svc.LinkDevice(ctx, launcher.LinkDeviceInput{DeviceID: "dev-patch", UserID: "user-patch"})
 	owner := launcher.Owner{UserID: "user-patch"}
-	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	created, _ := svc.CreateLaunchRequest(ctx, owner, launcher.CreateLaunchRequestInput{
 		InstanceID: inst.ID, DeviceID: "dev-patch",
 	})
@@ -198,9 +203,10 @@ func TestLaunchRequestsHandlerGetPollDoesNotEnrich(t *testing.T) {
 	pair, _ := tokens.IssueUserTokens("user-manifest-h", "u@test.com")
 	claims, _ := tokens.Parse(pair.AccessToken)
 	owner := launcher.Owner{UserID: claims.UserID}
-	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	created, _ := svc.CreateLaunchRequest(ctx, owner, launcher.CreateLaunchRequestInput{
 		InstanceID: inst.ID, DeviceID: "dev-manifest-h",
 	})
@@ -235,9 +241,10 @@ func TestLaunchRequestsHandlerCreateWithXDeviceToken(t *testing.T) {
 	pair, _ := tokens.IssueUserTokens("user-header", "u@test.com")
 	claims, _ := tokens.Parse(pair.AccessToken)
 	owner := launcher.Owner{UserID: claims.UserID}
-	inst, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	status, _ := svc.DeviceStatus(ctx, "dev-header")
 	deviceToken := *status.DeviceToken
 

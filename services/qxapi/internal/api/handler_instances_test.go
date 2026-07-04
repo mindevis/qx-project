@@ -180,12 +180,13 @@ func TestInstancesHandlerManifest(t *testing.T) {
 	claims, _ := tokens.Parse(pair.AccessToken)
 	owner := launcher.Owner{UserID: claims.UserID}
 
-	inst, err := h.Service.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
+	createRes, err := h.Service.CreateInstance(ctx, owner, launcher.CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
+	inst := createRes.Instance
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

@@ -28,7 +28,7 @@ func TestUpdateInstanceRename(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-1"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Original",
 		MCVersion:     "1.21.1",
 		Loader:        "fabric",
@@ -37,6 +37,7 @@ func TestUpdateInstanceRename(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inst := createRes.Instance
 
 	renamed := "Renamed Instance"
 	updated, err := svc.UpdateInstance(ctx, owner, inst.ID, UpdateInstanceInput{
@@ -71,7 +72,7 @@ func TestUpdateInstanceMaxMemory(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-1"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Test",
 		MCVersion:     "1.21.1",
 		Loader:        "fabric",
@@ -80,6 +81,7 @@ func TestUpdateInstanceMaxMemory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inst := createRes.Instance
 
 	ram := 4096
 	updated, err := svc.UpdateInstance(ctx, owner, inst.ID, UpdateInstanceInput{
@@ -106,7 +108,7 @@ func TestUpdateInstanceLaunchSettings(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-1"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Test",
 		MCVersion:     "1.21.1",
 		Loader:        "fabric",
@@ -115,6 +117,7 @@ func TestUpdateInstanceLaunchSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inst := createRes.Instance
 
 	minRAM := 1024
 	maxRAM := 4096
@@ -162,7 +165,7 @@ func TestInstanceManifestAppliesLaunchSettings(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-1"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Test",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderVanilla,
@@ -170,6 +173,7 @@ func TestInstanceManifestAppliesLaunchSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inst := createRes.Instance
 
 	minRAM := 1024
 	maxRAM := 2048

@@ -17,7 +17,7 @@ func TestUpdateInstanceResourceSide(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-side"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Side Test",
 		MCVersion:     "1.21",
 		Loader:        models.LoaderFabric,
@@ -26,6 +26,7 @@ func TestUpdateInstanceResourceSide(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inst := createRes.Instance
 
 	stored, err := svc.GetInstance(ctx, owner, inst.ID)
 	if err != nil {

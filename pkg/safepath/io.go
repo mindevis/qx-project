@@ -124,6 +124,15 @@ func Remove(path string) error {
 	return os.Remove(safe.String())
 }
 
+// RemoveAll deletes a vetted absolute path and all of its children.
+func RemoveAll(path string) error {
+	safe, err := VettedAbs(path)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(safe.String())
+}
+
 // Rename moves a vetted absolute path to another vetted absolute path.
 func Rename(oldPath, newPath string) error {
 	oldSafe, err := VettedAbs(oldPath)

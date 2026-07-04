@@ -273,7 +273,12 @@ func (s *Service) ListInstances(ctx context.Context, owner Owner) ([]models.Laun
 	return items, nil
 }
 
-func (s *Service) CreateInstance(ctx context.Context, owner Owner, in CreateInstanceInput) (*models.LauncherInstance, error) {
+type CreateInstanceResult struct {
+	Instance         *models.LauncherInstance
+	PrepareRequestID *string
+}
+
+func (s *Service) CreateInstance(ctx context.Context, owner Owner, in CreateInstanceInput) (*CreateInstanceResult, error) {
 	name := strings.TrimSpace(in.Name)
 	mcVersion := strings.TrimSpace(in.MCVersion)
 	loader := strings.TrimSpace(in.Loader)
@@ -310,7 +315,11 @@ func (s *Service) CreateInstance(ctx context.Context, owner Owner, in CreateInst
 	if err := s.db.WithContext(ctx).Create(&inst).Error; err != nil {
 		return nil, err
 	}
-	return &inst, nil
+	prepareID, err := s.enqueuePrepareForInstance(ctx, owner, inst.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &CreateInstanceResult{Instance: &inst, PrepareRequestID: prepareID}, nil
 }
 
 func isSupportedInstanceLoader(loader string) bool {

@@ -21,18 +21,19 @@ type InstancesHandler struct {
 }
 
 type instanceResponse struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	MCVersion     string   `json:"mc_version"`
-	Loader        string   `json:"loader"`
-	LoaderVersion *string  `json:"loader_version,omitempty"`
-	MaxMemoryMB   *int     `json:"max_memory_mb,omitempty"`
-	MinMemoryMB   *int     `json:"min_memory_mb,omitempty"`
-	ExtraJVMArgs  []string `json:"extra_jvm_args,omitempty"`
-	WindowWidth   *int     `json:"window_width,omitempty"`
-	WindowHeight  *int     `json:"window_height,omitempty"`
-	CreatedAt     string   `json:"created_at"`
-	UpdatedAt     string   `json:"updated_at"`
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	MCVersion        string   `json:"mc_version"`
+	Loader           string   `json:"loader"`
+	LoaderVersion    *string  `json:"loader_version,omitempty"`
+	MaxMemoryMB      *int     `json:"max_memory_mb,omitempty"`
+	MinMemoryMB      *int     `json:"min_memory_mb,omitempty"`
+	ExtraJVMArgs     []string `json:"extra_jvm_args,omitempty"`
+	WindowWidth      *int     `json:"window_width,omitempty"`
+	WindowHeight     *int     `json:"window_height,omitempty"`
+	PrepareRequestID *string  `json:"prepare_request_id,omitempty"`
+	CreatedAt        string   `json:"created_at"`
+	UpdatedAt        string   `json:"updated_at"`
 }
 
 func instanceFromModel(inst models.LauncherInstance) instanceResponse {
@@ -50,6 +51,12 @@ func instanceFromModel(inst models.LauncherInstance) instanceResponse {
 		CreatedAt:     inst.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:     inst.UpdatedAt.UTC().Format(time.RFC3339),
 	}
+}
+
+func instanceCreateResponse(inst models.LauncherInstance, prepareRequestID *string) instanceResponse {
+	resp := instanceFromModel(inst)
+	resp.PrepareRequestID = prepareRequestID
+	return resp
 }
 
 type createInstanceRequest struct {
@@ -102,7 +109,7 @@ func (h *InstancesHandler) Create(c *gin.Context) {
 		JSONValidation(c, err.Error())
 		return
 	}
-	inst, err := h.Service.CreateInstance(c.Request.Context(), owner, launcher.CreateInstanceInput{
+	result, err := h.Service.CreateInstance(c.Request.Context(), owner, launcher.CreateInstanceInput{
 		Name:          req.Name,
 		MCVersion:     req.MCVersion,
 		Loader:        req.Loader,
@@ -116,7 +123,7 @@ func (h *InstancesHandler) Create(c *gin.Context) {
 		JSONInternal(c)
 		return
 	}
-	c.JSON(http.StatusCreated, instanceFromModel(*inst))
+	c.JSON(http.StatusCreated, instanceCreateResponse(*result.Instance, result.PrepareRequestID))
 }
 
 func (h *InstancesHandler) Get(c *gin.Context) {

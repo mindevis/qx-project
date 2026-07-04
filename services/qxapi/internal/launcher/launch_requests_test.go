@@ -72,12 +72,13 @@ func TestLaunchRequestFlow(t *testing.T) {
 	}
 	owner := Owner{UserID: "user-launch"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
 	if err != nil {
 		t.Fatalf("instance: %v", err)
 	}
+	inst := createRes.Instance
 
 	profile, err := svc.CreateProfile(ctx, owner, CreateProfileInput{Username: "LaunchPlayer"})
 	if err != nil {
@@ -159,9 +160,10 @@ func TestGetLaunchRequestPollDoesNotEnrich(t *testing.T) {
 	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-manifest"})
 	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-manifest", UserID: "user-manifest"})
 	owner := Owner{UserID: "user-manifest"}
-	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	created, _ := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
 		InstanceID: inst.ID, DeviceID: "dev-manifest",
 	})
@@ -191,9 +193,10 @@ func TestLicensedLaunchSkipsMojangRefreshAfterDispatch(t *testing.T) {
 	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-mojang-skip"})
 	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-mojang-skip", UserID: "user-mojang-skip"})
 	owner := Owner{UserID: "user-mojang-skip"}
-	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	created, err := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
 		InstanceID:       inst.ID,
 		DeviceID:         "dev-mojang-skip",
@@ -247,9 +250,10 @@ func TestLicensedLaunchMojangRevokedMarksFailed(t *testing.T) {
 	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-mojang-revoked"})
 	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-mojang-revoked", UserID: "user-mojang-revoked"})
 	owner := Owner{UserID: "user-mojang-revoked"}
-	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	created, _ := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
 		InstanceID:       inst.ID,
 		DeviceID:         "dev-mojang-revoked",
@@ -284,9 +288,10 @@ func TestLicensedLaunchMojangUnavailableDoesNotFail(t *testing.T) {
 	_, _ = svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "dev-mojang-up"})
 	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-mojang-up", UserID: "user-mojang-up"})
 	owner := Owner{UserID: "user-mojang-up"}
-	inst, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, _ := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Survival", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
+	inst := createRes.Instance
 	created, _ := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
 		InstanceID:       inst.ID,
 		DeviceID:         "dev-mojang-up",
@@ -338,12 +343,13 @@ func TestCreateLaunchRequestWithJoinServer(t *testing.T) {
 	_, _ = svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "dev-join", UserID: "user-join"})
 	owner := Owner{UserID: "user-join"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Client", MCVersion: "1.21", Loader: models.LoaderVanilla,
 	})
 	if err != nil {
 		t.Fatalf("instance: %v", err)
 	}
+	inst := createRes.Instance
 
 	created, err := svc.CreateLaunchRequest(ctx, owner, CreateLaunchRequestInput{
 		InstanceID:        inst.ID,

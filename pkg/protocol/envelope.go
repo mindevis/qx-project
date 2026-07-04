@@ -6,6 +6,7 @@ const Version = 1
 
 const (
 	TypeCmdServerInstall   = "cmd.server.install"
+	TypeCmdServerWipe      = "cmd.server.wipe"
 	TypeCmdServerConfigure = "cmd.server.configure"
 	TypeCmdServerStart     = "cmd.server.start"
 	TypeCmdServerStop    = "cmd.server.stop"
@@ -39,6 +40,7 @@ const (
 	TypeEvtServerStatus   = "evt.server.status"
 
 	TypeResServerInstall          = "res.server.install"
+	TypeResServerWipe             = "res.server.wipe"
 	TypeResServerConfigure        = "res.server.configure"
 	TypeResServerStart            = "res.server.start"
 	TypeResServerStop             = "res.server.stop"

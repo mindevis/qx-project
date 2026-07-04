@@ -91,6 +91,11 @@ import {
   isLaunchTerminal,
   type LaunchProgressState,
 } from '@/lib/launchProgress';
+import {
+  isPrepareActive,
+  isPrepareTerminal,
+  type PrepareProgressState,
+} from '@/lib/prepareProgress';
 import { LauncherInstanceResourcesPage } from '@/pages/LauncherInstanceResourcesPage';
 import './LauncherPage.css';
 
@@ -139,6 +144,7 @@ function LauncherHome() {
   const [createMcOptionsLoading, setCreateMcOptionsLoading] = useState(false);
   const [createLoaderOptionsLoading, setCreateLoaderOptionsLoading] = useState(false);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgressState | null>(null);
+  const [prepareProgress, setPrepareProgress] = useState<Record<string, PrepareProgressState>>({});
   const [linkedDevice, setLinkedDevice] = useState<{
     device_id: string;
     status: string;
@@ -504,7 +510,7 @@ function LauncherHome() {
   }) => {
     setCreating(true);
     try {
-      await api.createInstance({
+      const created = await api.createInstance({
         name: values.name,
         mc_version: values.mc_version,
         loader: values.loader,
@@ -515,6 +521,9 @@ function LauncherHome() {
       message.success(t('launcher.instanceCreated'));
       setCreateOpen(false);
       await loadInstances();
+      if (created.prepare_request_id) {
+        void pollPrepareRequest(created.prepare_request_id, created.id);
+      }
       const prof = await api.listProfiles();
       if ((prof.items ?? []).length === 0) {
         message.info(t('launcher.createProfileHint'));
@@ -576,6 +585,37 @@ function LauncherHome() {
         message.error(t('launcher.deleteFailed'));
       }
     }
+  };
+
+  const pollPrepareRequest = async (requestId: string, instanceId: string) => {
+    const started = Date.now();
+    const timeoutMs = 30 * 60 * 1000;
+    while (Date.now() - started < timeoutMs) {
+      const req = await api.getPrepareRequest(requestId);
+      setPrepareProgress((prev) => ({
+        ...prev,
+        [instanceId]: {
+          instanceId,
+          requestId,
+          status: req.status,
+          errorCode: req.error_code,
+        },
+      }));
+      if (isPrepareTerminal(req.status)) {
+        return;
+      }
+      /* v8 ignore next 3 -- @preserve */
+      await new Promise((r) => setTimeout(r, LAUNCH_POLL_MS));
+    }
+    setPrepareProgress((prev) => ({
+      ...prev,
+      [instanceId]: {
+        instanceId,
+        requestId,
+        status: 'failed',
+        errorCode: 'PREPARE_TIMEOUT',
+      },
+    }));
   };
 
   const pollLaunchRequest = async (
@@ -1235,7 +1275,17 @@ function LauncherHome() {
                 {sortedInstances.map((item) => {
                   const progress =
                     launchProgress?.instanceId === item.id ? launchProgress : null;
+                  const prepare =
+                    prepareProgress[item.id] &&
+                    isPrepareActive(prepareProgress[item.id].status)
+                      ? prepareProgress[item.id]
+                      : null;
+                  const prepareFailed =
+                    prepareProgress[item.id]?.status === 'failed'
+                      ? prepareProgress[item.id]
+                      : null;
                   const isLaunching = progress != null && !isLaunchTerminal(progress.status);
+                  const isInstalling = prepare != null;
                   const launchFailed = progress?.status === 'failed';
                   const showResources = launcherSupportsResourcesPage(item.loader);
                   const resourcesLabel = launcherSupportsModsCatalog(item.loader)
@@ -1247,7 +1297,7 @@ function LauncherHome() {
                   return (
                     <div
                       key={item.id}
-                      className={`launcher-instance-card${isLaunching ? ' launcher-instance-card--launching' : ''}${launchFailed ? ' launcher-instance-card--failed' : ''}`}
+                      className={`launcher-instance-card${isLaunching ? ' launcher-instance-card--launching' : ''}${isInstalling ? ' launcher-instance-card--launching' : ''}${launchFailed || prepareFailed ? ' launcher-instance-card--failed' : ''}`}
                     >
                       <div className="launcher-instance-info">
                         <div className="launcher-instance-name-row">
@@ -1271,6 +1321,19 @@ function LauncherHome() {
                                 </span>
                               ) : null}
                             </span>
+                          ) : prepare ? (
+                            <span className="launcher-instance-status launcher-instance-status--active">
+                              <span>{t('launcher.installing')}</span>
+                              <span className="launcher-instance-status-step">
+                                {launchStatusMessage(prepare.status)}
+                              </span>
+                            </span>
+                          ) : prepareFailed ? (
+                            <span className="launcher-instance-status launcher-instance-status--failed">
+                              <span className="launcher-instance-status-step">
+                                {launchErrorMessage(prepareFailed.errorCode)}
+                              </span>
+                            </span>
                           ) : null}
                         </div>
                         <div className="launcher-instance-tags">
@@ -1288,6 +1351,10 @@ function LauncherHome() {
                           <Paragraph type="danger" className="launcher-instance-launch-error">
                             {launchErrorMessage(progress?.errorCode)}
                           </Paragraph>
+                        ) : prepareFailed ? (
+                          <Paragraph type="danger" className="launcher-instance-launch-error">
+                            {launchErrorMessage(prepareFailed.errorCode)}
+                          </Paragraph>
                         ) : null}
                         <InstanceServerBinding instance={item} variant="card" />
                       </div>
@@ -1296,9 +1363,10 @@ function LauncherHome() {
                           type="primary"
                           size="large"
                           icon={<RocketOutlined />}
-                          loading={isLaunching}
+                          loading={isLaunching || isInstalling}
                           disabled={
                             launchBlocked ||
+                            isInstalling ||
                             (launchProgress != null &&
                               launchProgress.instanceId !== item.id &&
                               !isLaunchTerminal(launchProgress.status))

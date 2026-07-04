@@ -17,12 +17,13 @@ func TestDeleteInstanceResource(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-res"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Forge", MCVersion: "1.21", Loader: models.LoaderForge, LoaderVersion: "47.0.0",
 	})
 	if err != nil {
 		t.Fatalf("create instance: %v", err)
 	}
+	inst := createRes.Instance
 
 	var stored models.LauncherInstance
 	if err := db.First(&stored, "id = ?", inst.ID).Error; err != nil {
@@ -58,12 +59,13 @@ func TestDeleteInstanceResourceNotFound(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-res"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "Forge", MCVersion: "1.21", Loader: models.LoaderForge, LoaderVersion: "47.0.0",
 	})
 	if err != nil {
 		t.Fatalf("create instance: %v", err)
 	}
+	inst := createRes.Instance
 
 	err = svc.DeleteInstanceResource(ctx, owner, inst.ID, DeleteInstanceResourceInput{
 		Source: "modrinth", ProjectID: "missing", ResourceType: "mod",

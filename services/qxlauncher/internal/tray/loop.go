@@ -40,6 +40,7 @@ type Config struct {
 var activeLaunches sync.Map
 var activeUpdates sync.Map
 var activeModInstalls sync.Map
+var activePrepares sync.Map
 var activeInstanceFiles sync.Map
 var activeModUninstalls sync.Map
 var activeResourceUploads sync.Map
@@ -147,6 +148,25 @@ func RunLoop(ctx context.Context, cfg Config) {
 				}
 			}
 
+			prepareItem, prepareErr := api.FetchPendingPrepare(ctx)
+			if prepareErr != nil {
+				if apiclient.IsUnauthorized(prepareErr) {
+					tryRefreshDeviceToken(ctx, api, cfg, prepareErr)
+					prepareItem, prepareErr = api.FetchPendingPrepare(ctx)
+				}
+				if prepareErr != nil {
+					logAPIFailure("prepare poll failed", prepareErr)
+				}
+			}
+			if prepareErr == nil && prepareItem != nil {
+				if _, loaded := activePrepares.LoadOrStore(prepareItem.ID, true); !loaded {
+					go func(item *apiclient.PrepareRequestItem) {
+						defer activePrepares.Delete(item.ID)
+						executePrepare(context.Background(), api, downloader, item)
+					}(prepareItem)
+				}
+			}
+
 			fileItem, fileErr := api.FetchPendingInstanceFile(ctx)
 			if fileErr != nil {
 				if apiclient.IsUnauthorized(fileErr) {
@@ -247,6 +267,87 @@ func modInstallFolder(resourceType string) string {
 	default:
 		return "mods"
 	}
+}
+
+func executePrepare(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.PrepareRequestItem) {
+	label := item.InstanceID
+	if item.Instance != nil && item.Instance.Name != "" {
+		label = item.Instance.Name
+	}
+	notify.Show("QXLauncher", "Установка "+label+"…")
+
+	if item.Instance == nil {
+		slog.Error("prepare missing instance metadata")
+		_ = api.UpdatePrepareRequest(ctx, item.ID, "failed", "INSTANCE_MISSING")
+		return
+	}
+
+	loaderVersion := ""
+	if item.Instance.LoaderVersion != "" {
+		loaderVersion = item.Instance.LoaderVersion
+	}
+
+	manifest, err := dl.BuildLaunchManifest(ctx, minecraft.LaunchInstance{
+		ID:            item.Instance.ID,
+		Name:          item.Instance.Name,
+		MCVersion:     item.Instance.MCVersion,
+		Loader:        item.Instance.Loader,
+		LoaderVersion: loaderVersion,
+		MaxMemoryMB:   optionalInt(item.Instance.MaxMemoryMB),
+		MinMemoryMB:   optionalInt(item.Instance.MinMemoryMB),
+		ExtraJVMArgs:  item.Instance.ExtraJVMArgs,
+		WindowWidth:   item.Instance.WindowWidth,
+		WindowHeight:  item.Instance.WindowHeight,
+	})
+	if err != nil {
+		slog.Error("prepare manifest build failed", "err", err)
+		_ = api.UpdatePrepareRequest(ctx, item.ID, "failed", "MANIFEST_UNAVAILABLE")
+		return
+	}
+
+	dl.OnProgress = func(phase, message string) {
+		fields := []any{"phase", phase, "message", message}
+		fields = append(fields, minecraft.FormatLaunchLogFields(manifest)...)
+		slog.Info("prepare", fields...)
+
+		switch phase {
+		case "loader-install", "prepare":
+			switch message {
+			case "java runtime":
+				_ = api.UpdatePrepareRequest(ctx, item.ID, "preparing", "")
+			case "client jar", "libraries", "natives", "assets":
+				_ = api.UpdatePrepareRequest(ctx, item.ID, "downloading", "")
+			default:
+				if strings.Contains(message, "installer") {
+					_ = api.UpdatePrepareRequest(ctx, item.ID, "preparing", "")
+				}
+			}
+		}
+	}
+
+	if _, _, _, _, _, _, err := dl.PrepareInstanceGameFiles(ctx, manifest); err != nil {
+		code := "PREPARE_FAILED"
+		switch {
+		case strings.Contains(err.Error(), "client jar"):
+			code = "DOWNLOAD_FAILED"
+		case strings.Contains(err.Error(), "natives:"):
+			code = "NATIVES_FAILED"
+		case strings.Contains(err.Error(), "libraries"):
+			code = "LIBRARIES_FAILED"
+		case strings.Contains(err.Error(), "assets"):
+			code = "ASSETS_FAILED"
+		case strings.Contains(err.Error(), "java"):
+			code = "JAVA_FAILED"
+		case strings.Contains(err.Error(), "loader install"):
+			code = "LOADER_INSTALL_FAILED"
+		}
+		slog.Error("prepare failed", "err", err, "error_code", code)
+		dl.OnProgress = nil
+		_ = api.UpdatePrepareRequest(ctx, item.ID, "failed", code)
+		return
+	}
+	dl.OnProgress = nil
+	_ = api.UpdatePrepareRequest(ctx, item.ID, "completed", "")
 }
 
 func executeModInstall(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.ModInstallRequestItem) {

@@ -35,7 +35,7 @@ func TestModInstallRequestsHandlerFlow(t *testing.T) {
 		t.Fatalf("link: %v", err)
 	}
 
-	inst, err := svc.CreateInstance(ctx, launcher.Owner{UserID: "user-mod"}, launcher.CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, launcher.Owner{UserID: "user-mod"}, launcher.CreateInstanceInput{
 		Name:          "Forge",
 		MCVersion:     "1.21",
 		Loader:        "forge",
@@ -44,6 +44,7 @@ func TestModInstallRequestsHandlerFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create instance: %v", err)
 	}
+	inst := createRes.Instance
 
 	body := `{
 		"instance_id":"` + inst.ID + `",

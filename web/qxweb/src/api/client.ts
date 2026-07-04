@@ -80,6 +80,7 @@ export type LauncherInstance = {
   extra_jvm_args?: string[];
   window_width?: number;
   window_height?: number;
+  prepare_request_id?: string;
   created_at: string;
   updated_at: string;
 };
@@ -364,6 +365,14 @@ export type PrepareConnectModsResult = {
   skipped?: string[];
   errors?: string[];
   agent_online: boolean;
+};
+
+export type PrepareRequest = {
+  id: string;
+  status: string;
+  instance_id: string;
+  error_code?: string;
+  expires_at: string;
 };
 
 export type ModInstallRequest = {
@@ -899,6 +908,9 @@ export const api = {
 
   getModInstallRequest: (id: string) =>
     request<ModInstallRequest>(`/launcher/mod-install-requests/${id}`, { method: 'GET' }, 'launcher'),
+
+  getPrepareRequest: (id: string) =>
+    request<PrepareRequest>(`/launcher/prepare-requests/${id}`, { method: 'GET' }, 'launcher'),
 
   listProfiles: () =>
     request<{ items: OfflineProfile[] }>('/launcher/profiles', { method: 'GET' }, 'launcher'),

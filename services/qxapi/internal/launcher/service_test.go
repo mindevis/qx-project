@@ -76,7 +76,7 @@ func TestInstancesCRUD(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-1"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:      "Survival",
 		MCVersion: "1.21",
 		Loader:    models.LoaderVanilla,
@@ -84,6 +84,7 @@ func TestInstancesCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
+	inst := createRes.Instance
 
 	items, err := svc.ListInstances(ctx, owner)
 	if err != nil || len(items) != 1 {
@@ -103,7 +104,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 	ctx := context.Background()
 	owner := Owner{UserID: "user-1"}
 
-	inst, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Modded",
 		MCVersion:     "1.20.1",
 		Loader:        models.LoaderFabric,
@@ -112,11 +113,12 @@ func TestCreateInstanceModLoader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create fabric: %v", err)
 	}
+	inst := createRes.Instance
 	if inst.LoaderVersion == nil || *inst.LoaderVersion != "0.16.14" {
 		t.Fatalf("loader version: %+v", inst.LoaderVersion)
 	}
 
-	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:      "Bad",
 		MCVersion: "1.20.1",
 		Loader:    models.LoaderForge,
@@ -125,7 +127,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("expected validation without loader version, got %v", err)
 	}
 
-	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Bad",
 		MCVersion:     "1.20.1",
 		Loader:        "paper",
@@ -135,7 +137,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("expected validation for unsupported loader, got %v", err)
 	}
 
-	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Bad NeoForge",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderNeoForge,
@@ -145,7 +147,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("expected validation for forge version on neoforge, got %v", err)
 	}
 
-	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Bad Forge",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderForge,
@@ -155,7 +157,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("expected validation for neoforge version on forge, got %v", err)
 	}
 
-	inst, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "NeoForge",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderNeoForge,
@@ -164,11 +166,12 @@ func TestCreateInstanceModLoader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create neoforge: %v", err)
 	}
+	inst = createRes.Instance
 	if inst.LoaderVersion == nil || *inst.LoaderVersion != "21.1.234" {
 		t.Fatalf("loader version: %+v", inst.LoaderVersion)
 	}
 
-	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Bad Fabric",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderFabric,
@@ -178,7 +181,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("expected validation for forge version on fabric, got %v", err)
 	}
 
-	inst, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Fabric",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderFabric,
@@ -187,11 +190,12 @@ func TestCreateInstanceModLoader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create fabric: %v", err)
 	}
+	inst = createRes.Instance
 	if inst.LoaderVersion == nil || *inst.LoaderVersion != "0.19.3" {
 		t.Fatalf("loader version: %+v", inst.LoaderVersion)
 	}
 
-	inst, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Quilt",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderQuilt,
@@ -200,6 +204,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create quilt: %v", err)
 	}
+	inst = createRes.Instance
 	if inst.LoaderVersion == nil || *inst.LoaderVersion != "0.28.1" {
 		t.Fatalf("loader version: %+v", inst.LoaderVersion)
 	}
@@ -264,10 +269,9 @@ func TestListInstancesForDevice(t *testing.T) {
 
 	owner := Owner{UserID: "user-sync"}
 
-	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	if _, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name: "A", MCVersion: "1.21", Loader: models.LoaderVanilla,
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 

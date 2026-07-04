@@ -70,6 +70,7 @@ var migrateUsers = func(db *gorm.DB) error {
 		&models.MojangLink{},
 		&models.LaunchRequest{},
 		&models.ModInstallRequest{},
+		&models.PrepareRequest{},
 		&models.ModUninstallRequest{},
 		&models.InstanceFileRequest{},
 		&models.InstanceResourceUploadRequest{},

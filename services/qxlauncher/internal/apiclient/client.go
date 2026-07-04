@@ -93,6 +93,13 @@ type UpdateRequestItem struct {
 	Filename    string `json:"filename"`
 }
 
+type PrepareRequestItem struct {
+	ID         string          `json:"id"`
+	Status     string          `json:"status"`
+	InstanceID string          `json:"instance_id"`
+	Instance   *LaunchInstance `json:"instance"`
+}
+
 type ModInstallRequestItem struct {
 	ID            string `json:"id"`
 	Status        string `json:"status"`
@@ -187,6 +194,30 @@ func (c *Client) CompleteUpdate(ctx context.Context, id, status, launcherVersion
 	}
 	b, _ := json.Marshal(payload)
 	_, err := c.request(ctx, http.MethodPatch, "/launcher/update-requests/"+id, b, true)
+	return err
+}
+
+func (c *Client) FetchPendingPrepare(ctx context.Context) (*PrepareRequestItem, error) {
+	body, err := c.request(ctx, http.MethodGet, "/launcher/prepare-requests/pending", nil, true)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Item *PrepareRequestItem `json:"item"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Item, nil
+}
+
+func (c *Client) UpdatePrepareRequest(ctx context.Context, id, status, errorCode string) error {
+	payload := map[string]any{"status": status}
+	if errorCode != "" {
+		payload["error_code"] = errorCode
+	}
+	b, _ := json.Marshal(payload)
+	_, err := c.request(ctx, http.MethodPatch, "/launcher/prepare-requests/"+id, b, true)
 	return err
 }
 

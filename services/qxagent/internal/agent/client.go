@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/qxproject/qx/pkg/protocol"
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxagent/internal/fs"
 	"github.com/qxproject/qx/services/qxagent/internal/installer"
 )
@@ -357,6 +358,26 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		return &protocol.Envelope{
 			V:         protocol.Version,
 			Type:      protocol.TypeResServerConfigure,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerWipe:
+		var payload protocol.GameServerWorkDirPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		c.runner.StopIfWorkDir(payload.WorkDir, true, 30*time.Second)
+		err := fs.WipeWorkDir(payload.WorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(map[string]string{"status": "ok"})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerWipe,
 			RequestID: env.RequestID,
 			TS:        ts,
 			Payload:   resPayload,
@@ -922,6 +943,25 @@ func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
 	r.startLogFollowLocked(start.WorkDir)
 	go r.watchManagedProcess(cmd, start.WorkDir)
 	return cmd.Process.Pid, nil
+}
+
+func (r *ProcessRunner) StopIfWorkDir(workDir string, graceful bool, timeout time.Duration) {
+	r.mu.Lock()
+	managed := r.managedWorkDir
+	r.mu.Unlock()
+	if managed == "" || !workDirsMatch(managed, workDir) {
+		return
+	}
+	_, _ = r.Stop(graceful, timeout)
+}
+
+func workDirsMatch(a, b string) bool {
+	aRoot, errA := safepath.ResolveRoot(a)
+	bRoot, errB := safepath.ResolveRoot(b)
+	if errA == nil && errB == nil {
+		return aRoot == bRoot
+	}
+	return filepath.Clean(strings.TrimSpace(a)) == filepath.Clean(strings.TrimSpace(b))
 }
 
 func (r *ProcessRunner) Stop(graceful bool, timeout time.Duration) (int, error) {

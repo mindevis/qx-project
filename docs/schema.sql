@@ -304,6 +304,26 @@ CREATE TABLE launch_requests (
 CREATE INDEX idx_launch_pending ON launch_requests (device_id, status);
 
 -- ---------------------------------------------------------------------------
+-- Prepare requests (instance install at create time)
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE prepare_requests (
+    id            CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    device_id     CHAR(36) NOT NULL,
+    instance_id   CHAR(36) NOT NULL,
+    status        ENUM('queued', 'preparing', 'downloading', 'completed', 'failed', 'expired') NOT NULL DEFAULT 'queued',
+    error_code    VARCHAR(64) NULL,
+    expires_at    TIMESTAMP NOT NULL,
+    dispatched_at TIMESTAMP NULL,
+    completed_at  TIMESTAMP NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_prepare_requests_device FOREIGN KEY (device_id) REFERENCES launcher_devices (device_id),
+    CONSTRAINT fk_prepare_requests_instance FOREIGN KEY (instance_id) REFERENCES launcher_instances (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_prepare_pending ON prepare_requests (device_id, status);
+
+-- ---------------------------------------------------------------------------
 -- Game servers (Minecraft instances on dedicated servers)
 -- ---------------------------------------------------------------------------
 

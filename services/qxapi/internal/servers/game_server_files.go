@@ -586,7 +586,8 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerContentInstall,
 		protocol.TypeResServerContentUpload,
 		protocol.TypeResServerContentRead,
-		protocol.TypeResServerContentDelete:
+		protocol.TypeResServerContentDelete,
+		protocol.TypeResServerWipe:
 		return true
 	default:
 		return false

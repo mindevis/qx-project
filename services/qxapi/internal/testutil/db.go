@@ -63,6 +63,7 @@ var autoMigrateUsers = func(db *gorm.DB) error {
 		&models.MojangLink{},
 		&models.LaunchRequest{},
 		&models.ModInstallRequest{},
+		&models.PrepareRequest{},
 		&models.UserCosmetics{},
 		&models.Server{},
 		&models.SSHCredential{},

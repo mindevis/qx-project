@@ -11,6 +11,22 @@ import (
 	"github.com/qxproject/qx/pkg/safepath"
 )
 
+// WipeWorkDir removes all files under workDir and recreates the empty directory.
+func WipeWorkDir(workDir string) error {
+	abs, err := safepath.ResolveRoot(workDir)
+	if err != nil {
+		return err
+	}
+	if _, err := safepath.Stat(abs); err == nil {
+		if err := safepath.RemoveAll(abs); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return safepath.EnsureDir(abs)
+}
+
 func ReadServerProperties(workDir string) ([]protocol.PropertyEntry, error) {
 	path, err := safepath.Join(workDir, "server.properties")
 	if err != nil {

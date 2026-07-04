@@ -65,38 +65,9 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		}
 	}
 
-	d.progress("prepare", "java runtime")
-	javaBin, err := d.EnsureJava(ctx, in.Manifest)
+	jar, libPaths, nativesDir, assetsDir, gameDir, javaBin, err := d.PrepareInstanceGameFiles(ctx, in.Manifest)
 	if err != nil {
-		return nil, fmt.Errorf("java: %w", err)
-	}
-	if err := d.EnsureLoaderInstalled(ctx, in.Manifest, javaBin); err != nil {
-		return nil, fmt.Errorf("loader install: %w", err)
-	}
-	d.progress("prepare", "client jar")
-	jar, err := d.EnsureClientJar(ctx, in.Manifest)
-	if err != nil {
-		return nil, fmt.Errorf("client jar: %w", err)
-	}
-	d.progress("prepare", "libraries")
-	libPaths, err := d.EnsureLibraries(ctx, in.Manifest)
-	if err != nil {
-		return nil, fmt.Errorf("libraries: %w", err)
-	}
-	d.progress("prepare", "natives")
-	nativesDir, err := d.EnsureNatives(ctx, in.Manifest)
-	if err != nil {
-		return nil, fmt.Errorf("natives: %w", err)
-	}
-	d.progress("prepare", "assets")
-	assetsDir, err := d.EnsureAssets(ctx, in.Manifest)
-	if err != nil {
-		return nil, fmt.Errorf("assets: %w", err)
-	}
-
-	gameDir := d.InstanceGameDir(in.Manifest.InstanceID)
-	if err := EnsureGameLanguage(gameDir, DefaultGameLanguage); err != nil {
-		return nil, fmt.Errorf("game language: %w", err)
+		return nil, err
 	}
 
 	gameUUID := offlineUUID
@@ -157,6 +128,46 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		Jar:     jar,
 		LogPath: logPath,
 	}, nil
+}
+
+func (d *Downloader) PrepareInstanceGameFiles(ctx context.Context, manifest *mcmanifest.InstanceLaunchManifest) (jar string, libPaths []string, nativesDir, assetsDir, gameDir, javaBin string, err error) {
+	if manifest == nil {
+		return "", nil, "", "", "", "", fmt.Errorf("missing manifest")
+	}
+	d.progress("prepare", "java runtime")
+	javaBin, err = d.EnsureJava(ctx, manifest)
+	if err != nil {
+		return "", nil, "", "", "", "", fmt.Errorf("java: %w", err)
+	}
+	if err := d.EnsureLoaderInstalled(ctx, manifest, javaBin); err != nil {
+		return "", nil, "", "", "", "", fmt.Errorf("loader install: %w", err)
+	}
+	d.progress("prepare", "client jar")
+	jar, err = d.EnsureClientJar(ctx, manifest)
+	if err != nil {
+		return "", nil, "", "", "", "", fmt.Errorf("client jar: %w", err)
+	}
+	d.progress("prepare", "libraries")
+	libPaths, err = d.EnsureLibraries(ctx, manifest)
+	if err != nil {
+		return "", nil, "", "", "", "", fmt.Errorf("libraries: %w", err)
+	}
+	d.progress("prepare", "natives")
+	nativesDir, err = d.EnsureNatives(ctx, manifest)
+	if err != nil {
+		return "", nil, "", "", "", "", fmt.Errorf("natives: %w", err)
+	}
+	d.progress("prepare", "assets")
+	assetsDir, err = d.EnsureAssets(ctx, manifest)
+	if err != nil {
+		return "", nil, "", "", "", "", fmt.Errorf("assets: %w", err)
+	}
+
+	gameDir = d.InstanceGameDir(manifest.InstanceID)
+	if err := EnsureGameLanguage(gameDir, DefaultGameLanguage); err != nil {
+		return "", nil, "", "", "", "", fmt.Errorf("game language: %w", err)
+	}
+	return jar, libPaths, nativesDir, assetsDir, gameDir, javaBin, nil
 }
 
 func writeLaunchDebug(gameDir string, plan LaunchPlan) error {

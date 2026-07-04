@@ -92,6 +92,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	profilesH := &ProfilesHandler{Service: launcherSvc}
 	launchH := &LaunchRequestsHandler{Service: launcherSvc, Tokens: tokens}
 	modInstallH := &ModInstallRequestsHandler{Service: launcherSvc, Tokens: tokens}
+	prepareH := &PrepareRequestsHandler{Service: launcherSvc}
 	instanceFileH := &InstanceFileRequestsHandler{Service: launcherSvc}
 	modUninstallH := &ModUninstallRequestsHandler{Service: launcherSvc}
 	resourceUploadH := &ResourceUploadRequestsHandler{Service: launcherSvc}
@@ -252,6 +253,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			launcherOwner.GET("/launcher/launch-requests/:id", launchH.Get)
 			launcherOwner.POST("/launcher/mod-install-requests", modInstallH.Create)
 			launcherOwner.GET("/launcher/mod-install-requests/:id", modInstallH.Get)
+			launcherOwner.GET("/launcher/prepare-requests/:id", prepareH.Get)
 		}
 
 		deviceLauncher := v1.Group("")
@@ -269,6 +271,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			deviceAuth.PATCH("/launcher/launch-requests/:id", launchH.Update)
 			deviceAuth.GET("/launcher/mod-install-requests/pending", modInstallH.Pending)
 			deviceAuth.PATCH("/launcher/mod-install-requests/:id", modInstallH.Update)
+			deviceAuth.GET("/launcher/prepare-requests/pending", prepareH.Pending)
+			deviceAuth.PATCH("/launcher/prepare-requests/:id", prepareH.Update)
 			deviceAuth.GET("/launcher/instance-file-requests/pending", instanceFileH.Pending)
 			deviceAuth.PATCH("/launcher/instance-file-requests/:id", instanceFileH.Update)
 			deviceAuth.GET("/launcher/mod-uninstall-requests/pending", modUninstallH.Pending)

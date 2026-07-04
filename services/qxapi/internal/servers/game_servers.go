@@ -182,7 +182,7 @@ func (s *Service) ReinstallGameServer(ctx context.Context, ownerID, vpsID, gameS
 		return nil, ErrGameServerBusy
 	}
 
-	s.stopActiveGameServerProcess(ctx, vpsID, gameServerID)
+	wasRunning := item.Status == models.GameServerStatusRunning || item.Status == models.GameServerStatusStarting
 
 	rconPassword, err := generateRconPassword()
 	if err != nil {
@@ -201,7 +201,15 @@ func (s *Service) ReinstallGameServer(ctx context.Context, ownerID, vpsID, gameS
 	item.RconPassword = &rconPassword
 	item.UpdatedAt = now
 
-	if err := s.beginGameServerInstall(ctx, vpsID, &item); err != nil {
+	if wasRunning {
+		if err := s.sendGameServerStop(ctx, vpsID, gameServerID, "reinstall"); err != nil {
+			_ = s.db.WithContext(ctx).Model(&item).Updates(map[string]any{
+				"status":     models.GameServerStatusError,
+				"updated_at": time.Now().UTC(),
+			}).Error
+			return nil, err
+		}
+	} else if err := s.wipeAndBeginGameServerInstall(ctx, vpsID, &item); err != nil {
 		_ = s.db.WithContext(ctx).Model(&item).Updates(map[string]any{
 			"status":     models.GameServerStatusError,
 			"updated_at": time.Now().UTC(),
@@ -351,31 +359,6 @@ func (s *Service) sendGameServerStop(ctx context.Context, vpsID, gameServerID, p
 	})
 }
 
-func (s *Service) stopActiveGameServerProcess(ctx context.Context, vpsID, gameServerID string) {
-	server, err := s.getByID(ctx, vpsID)
-	if err != nil {
-		return
-	}
-	cfg, err := parseConfig(server.ConfigJSON)
-	if err != nil {
-		return
-	}
-	if cfg.ActiveGameServerID != gameServerID {
-		return
-	}
-	if cfg.McPID == nil || *cfg.McPID <= 0 {
-		return
-	}
-	if s.hub == nil || !s.hub.IsOnline(vpsID) {
-		return
-	}
-	payload, _ := json.Marshal(protocol.ServerStopPayload{Graceful: true, TimeoutSec: 30})
-	_ = s.hub.SendCommand(ctx, vpsID, protocol.Envelope{
-		Type:    protocol.TypeCmdServerStop,
-		Payload: payload,
-	})
-}
-
 func (s *Service) DeleteGameServer(ctx context.Context, ownerID, vpsID, gameServerID string) error {
 	if _, err := s.getOwned(ctx, ownerID, vpsID); err != nil {
 		return err
@@ -468,6 +451,28 @@ func (s *Service) UpdateGameServer(ctx context.Context, ownerID, vpsID, gameServ
 
 	view := gameServerViewFromModel(&item)
 	return &view, nil
+}
+
+func (s *Service) wipeAndBeginGameServerInstall(ctx context.Context, vpsID string, item *models.GameServer) error {
+	if err := s.wipeGameServerWorkDir(ctx, vpsID, item); err != nil {
+		return err
+	}
+	return s.beginGameServerInstall(ctx, vpsID, item)
+}
+
+func (s *Service) wipeGameServerWorkDir(ctx context.Context, vpsID string, item *models.GameServer) error {
+	if item == nil || strings.TrimSpace(item.WorkDir) == "" {
+		return ErrValidation
+	}
+	payload, err := json.Marshal(protocol.GameServerWorkDirPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = s.agentRPC(ctx, vpsID, protocol.TypeCmdServerWipe, protocol.TypeResServerWipe, payload)
+	return err
 }
 
 func (s *Service) beginGameServerInstall(ctx context.Context, vpsID string, item *models.GameServer) error {
@@ -623,15 +628,28 @@ func (s *Service) applyServerStopResult(ctx context.Context, serverID, requestID
 		return
 	}
 	op := raw.(pendingProvision)
-	if op.phase != "restart" {
-		return
-	}
-	var item models.GameServer
-	if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
-		return
-	}
-	if err := s.startGameServerProcess(ctx, serverID, &item); err != nil {
-		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, "")
+	switch op.phase {
+	case "restart":
+		var item models.GameServer
+		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
+			return
+		}
+		if err := s.startGameServerProcess(ctx, serverID, &item); err != nil {
+			s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, "")
+		}
+	case "reinstall":
+		var item models.GameServer
+		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
+			return
+		}
+		gameServerID := op.gameServerID
+		vpsID := serverID
+		go func() {
+			bg := context.Background()
+			if err := s.wipeAndBeginGameServerInstall(bg, vpsID, &item); err != nil {
+				s.setGameServerStatus(bg, gameServerID, models.GameServerStatusError, "")
+			}
+		}()
 	}
 }
 
