@@ -196,10 +196,22 @@ func (c *modrinthClient) listVersions(ctx context.Context, projectID, loader, mc
 	if err != nil {
 		return nil, err
 	}
-	if len(items) > 0 || loader == "" {
+	if len(items) > 0 || (loader == "" && mcVersion == "") {
 		return items, nil
 	}
-	return c.listVersionsOnce(ctx, projectID, "", mcVersion)
+	if loader != "" {
+		items, err = c.listVersionsOnce(ctx, projectID, "", mcVersion)
+		if err != nil {
+			return nil, err
+		}
+		if len(items) > 0 || mcVersion == "" {
+			return items, nil
+		}
+	}
+	if mcVersion != "" {
+		return c.listVersionsOnce(ctx, projectID, "", "")
+	}
+	return items, nil
 }
 
 func (c *modrinthClient) listVersionsOnce(ctx context.Context, projectID, loader, mcVersion string) ([]Version, error) {

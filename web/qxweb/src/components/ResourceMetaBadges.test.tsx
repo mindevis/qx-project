@@ -22,12 +22,11 @@ const t = (key: string) => {
 };
 
 describe('ResourceMetaBadges', () => {
-  it('renders metadata as separate badges', () => {
+  it('renders only the version badge for installed resources', () => {
     render(<ResourceMetaBadges item={item} t={t} />);
-    expect(screen.getByText('Моды')).toBeInTheDocument();
     expect(screen.getByText('journeymap-1.20.1-5.10.3-forge')).toBeInTheDocument();
-    expect(screen.getByText('journeymap-1.20.1-5.10.3-forge.jar')).toBeInTheDocument();
-    expect(screen.getByText('6.8 MB')).toBeInTheDocument();
-    expect(screen.getByText(/338\.7M скачиваний/)).toBeInTheDocument();
+    expect(screen.queryByText('Моды')).not.toBeInTheDocument();
+    expect(screen.queryByText('journeymap-1.20.1-5.10.3-forge.jar')).not.toBeInTheDocument();
+    expect(screen.queryByText('6.8 MB')).not.toBeInTheDocument();
   });
 });

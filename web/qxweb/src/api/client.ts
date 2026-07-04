@@ -867,9 +867,17 @@ export const api = {
       { method: 'POST', body: JSON.stringify(body) },
     ),
 
-  uploadGameServerMod: async (vpsId: string, gameServerId: string, file: File) => {
+  uploadGameServerMod: async (
+    vpsId: string,
+    gameServerId: string,
+    file: File,
+    modTarget?: ModTarget,
+  ) => {
     const form = new FormData();
     form.append('file', file);
+    if (modTarget) {
+      form.append('mod_target', modTarget);
+    }
     const headers = new Headers();
     const tokens = loadTokens();
     if (tokens?.access_token) {

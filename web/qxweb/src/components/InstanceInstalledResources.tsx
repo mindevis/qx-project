@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Modal, Select, Spin, Typography, Upload } from 'antd';
-import { AppstoreOutlined, DeleteOutlined, UnorderedListOutlined, UploadOutlined } from '@ant-design/icons';
+import { Button, Empty, Input, Modal, Select, Spin, Tag, Typography, Upload } from 'antd';
+import { AppstoreOutlined, DeleteOutlined, SearchOutlined, UnorderedListOutlined, UploadOutlined } from '@ant-design/icons';
 import { api, type InstanceResource, type ModProjectType, type ModSyncSide } from '@/api/client';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
@@ -34,6 +34,7 @@ type InstalledResourceItemProps = {
   onRemove: (item: InstanceResource) => void;
   onSideChange: (item: InstanceResource, side: ModSyncSide | '') => void;
   sideSavingKey?: string;
+  basePath: string;
   t: ReturnType<typeof useI18n>['t'];
 };
 
@@ -53,6 +54,7 @@ function InstalledResourceItem({
   onRemove,
   onSideChange,
   sideSavingKey,
+  basePath,
   t,
 }: InstalledResourceItemProps) {
   const removeButton = (
@@ -94,13 +96,25 @@ function InstalledResourceItem({
         />
         <div className="qxmods-installed-item-content">
           <div className="qxmods-installed-item-title">
-            <span>{item.project_name}</span>
+            {item.project_id && item.source !== 'upload' ? (
+              <Link
+                to={`${basePath}/catalog/${item.source}/${item.project_id}`}
+                className="launcher-resource-item-link"
+              >
+                {item.project_name}
+              </Link>
+            ) : (
+              <span>{item.project_name}</span>
+            )}
             <ModSourceBadge source={item.source} />
           </div>
           <ResourceMetaBadges item={item} t={t} />
           {sideSelect}
         </div>
         <div className="qxmods-installed-item-actions">
+          <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--type launcher-resource-type-badge">
+            {t(`qxmods.tabs.${item.resource_type}`)}
+          </Tag>
           <InstanceResourceSyncButton item={item} />
           {removeButton}
         </div>
@@ -118,13 +132,25 @@ function InstalledResourceItem({
       />
       <div className="launcher-resource-card-body">
         <div className="launcher-resource-card-title">
-          <span>{item.project_name}</span>
+          {item.project_id && item.source !== 'upload' ? (
+            <Link
+              to={`${basePath}/catalog/${item.source}/${item.project_id}`}
+              className="launcher-resource-item-link"
+            >
+              {item.project_name}
+            </Link>
+          ) : (
+            <span>{item.project_name}</span>
+          )}
           <ModSourceBadge source={item.source} />
         </div>
         <ResourceMetaBadges item={item} t={t} />
         {sideSelect}
       </div>
       <div className="launcher-resource-card-actions">
+        <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--type launcher-resource-type-badge">
+          {t(`qxmods.tabs.${item.resource_type}`)}
+        </Tag>
         <InstanceResourceSyncButton item={item} />
         {removeButton}
       </div>
@@ -143,6 +169,8 @@ export function InstanceInstalledResources() {
   const [removingKey, setRemovingKey] = useState<string>();
   const [sideSavingKey, setSideSavingKey] = useState<string>();
   const [uploading, setUploading] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,9 +206,20 @@ export function InstanceInstalledResources() {
 
   const typeOrder = useMemo(() => launcherCatalogTabs(instance.loader), [instance.loader]);
 
+  const filteredItems = useMemo(() => {
+    const query = appliedSearch.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((item) => {
+      const name = item.project_name.toLowerCase();
+      const filename = item.filename.toLowerCase();
+      const projectId = item.project_id?.toLowerCase() ?? '';
+      return name.includes(query) || filename.includes(query) || projectId.includes(query);
+    });
+  }, [appliedSearch, items]);
+
   const grouped = useMemo(() => {
     const map = new Map<ModProjectType, InstanceResource[]>();
-    for (const item of items) {
+    for (const item of filteredItems) {
       const list = map.get(item.resource_type) ?? [];
       list.push(item);
       map.set(item.resource_type, list);
@@ -189,7 +228,7 @@ export function InstanceInstalledResources() {
       list.sort((a, b) => a.project_name.localeCompare(b.project_name, undefined, { sensitivity: 'base' }));
     }
     return map;
-  }, [items]);
+  }, [filteredItems]);
 
   const sections = useMemo(
     () =>
@@ -201,11 +240,11 @@ export function InstanceInstalledResources() {
 
   const stats = useMemo(() => {
     const counts = new Map<ModProjectType, number>();
-    for (const item of items) {
+    for (const item of filteredItems) {
       counts.set(item.resource_type, (counts.get(item.resource_type) ?? 0) + 1);
     }
     return counts;
-  }, [items]);
+  }, [filteredItems]);
 
   const resourceKey = (item: InstanceResource) =>
     `${item.source}:${item.project_id ?? item.filename}:${item.resource_type}`;
@@ -315,40 +354,77 @@ export function InstanceInstalledResources() {
       ) : null}
 
       {!loading && items.length > 0 ? (
-        <div className="launcher-resources-toolbar">
-          <div className="launcher-resources-stats" aria-label={t('launcherInstanceResources.statsAria')}>
-            <span className="launcher-resources-stat">
-              {t('launcherInstanceResources.statTotal')}: <strong>{items.length}</strong>
-            </span>
-            {typeOrder.map((type) => {
-              const count = stats.get(type) ?? 0;
-              if (count === 0) return null;
-              return (
-                <span key={type} className="launcher-resources-stat">
-                  {t(`qxmods.tabs.${type}`)}: <strong>{count}</strong>
-                </span>
-              );
-            })}
+        <>
+          <div className="launcher-resources-search">
+            <Input
+              allowClear
+              prefix={<SearchOutlined aria-hidden />}
+              placeholder={t('qxmods.searchFilterPlaceholder')}
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchInput(value);
+                if (!value.trim() && appliedSearch) {
+                  setAppliedSearch('');
+                }
+              }}
+              onPressEnter={() => setAppliedSearch(searchInput.trim())}
+              onClear={() => {
+                setSearchInput('');
+                setAppliedSearch('');
+              }}
+            />
+            <Button
+              type="primary"
+              onClick={() => setAppliedSearch(searchInput.trim())}
+              disabled={!searchInput.trim() && !appliedSearch}
+            >
+              {appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
+            </Button>
+            {appliedSearch ? (
+              <Button type="link" onClick={() => {
+                setSearchInput('');
+                setAppliedSearch('');
+              }}>
+                {t('qxmods.clearSearch')}
+              </Button>
+            ) : null}
           </div>
-          <SegmentedControl
-            iconOnly
-            value={viewMode}
-            onChange={setViewMode}
-            groupLabel={t('launcherInstanceResources.viewModeAria')}
-            options={[
-              {
-                value: 'list',
-                label: <UnorderedListOutlined aria-hidden />,
-                ariaLabel: t('launcherInstanceResources.viewList'),
-              },
-              {
-                value: 'cards',
-                label: <AppstoreOutlined aria-hidden />,
-                ariaLabel: t('launcherInstanceResources.viewCards'),
-              },
-            ]}
-          />
-        </div>
+          <div className="launcher-resources-toolbar">
+            <div className="launcher-resources-stats" aria-label={t('launcherInstanceResources.statsAria')}>
+              <span className="launcher-resources-stat">
+                {t('launcherInstanceResources.statTotal')}: <strong>{filteredItems.length}</strong>
+              </span>
+              {typeOrder.map((type) => {
+                const count = stats.get(type) ?? 0;
+                if (count === 0) return null;
+                return (
+                  <span key={type} className="launcher-resources-stat">
+                    {t(`qxmods.tabs.${type}`)}: <strong>{count}</strong>
+                  </span>
+                );
+              })}
+            </div>
+            <SegmentedControl
+              iconOnly
+              value={viewMode}
+              onChange={setViewMode}
+              groupLabel={t('launcherInstanceResources.viewModeAria')}
+              options={[
+                {
+                  value: 'list',
+                  label: <UnorderedListOutlined aria-hidden />,
+                  ariaLabel: t('launcherInstanceResources.viewList'),
+                },
+                {
+                  value: 'cards',
+                  label: <AppstoreOutlined aria-hidden />,
+                  ariaLabel: t('launcherInstanceResources.viewCards'),
+                },
+              ]}
+            />
+          </div>
+        </>
       ) : null}
 
       {loading ? (
@@ -366,6 +442,8 @@ export function InstanceInstalledResources() {
             </Button>
           </Link>
         </div>
+      ) : filteredItems.length === 0 ? (
+        <Empty description={t('qxmods.empty')} />
       ) : (
         sections.map(({ type, items: sectionItems }) => (
           <div key={type} className="launcher-resources-section">
@@ -388,6 +466,7 @@ export function InstanceInstalledResources() {
                     onRemove={handleRemove}
                     onSideChange={(entry, side) => void handleSideChange(entry, side)}
                     sideSavingKey={sideSavingKey}
+                    basePath={basePath}
                     t={t}
                   />
                 </li>

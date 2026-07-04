@@ -382,6 +382,52 @@ html[data-theme='dark'] .qxmods-version-row {
   padding: 0;
 }
 
+.launcher-resources-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.launcher-resource-item-link {
+  font-weight: 600;
+}
+
+.launcher-resource-type-badge {
+  margin-bottom: 0;
+}
+
+.game-server-content-installed-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.game-server-content-installed-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.game-server-content-installed-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-server-content-upload-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .qxmods-installed-item {
   display: flex;
   gap: 12px;

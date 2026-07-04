@@ -883,7 +883,7 @@ export const en: Messages = {
     connectGuestHint: 'Sign in and bind an instance to launch via QXLauncher — otherwise minecraft:// will open',
     connectMods: {
       title: 'Client mods for {{server}}',
-      hint: 'These files run on your game client. Server mods, resource packs, and shaders sync automatically when you connect.',
+      hint: 'These files run on your game client. Client mods sync when selected; resource packs and shaders sync automatically when you connect.',
       confirm: 'Connect',
       loadFailed: 'Failed to load server mod info',
       clientModsTitle: 'Client mods',
@@ -896,7 +896,7 @@ export const en: Messages = {
       allResourcepacksInstalled: 'All selected resource packs are already installed locally.',
       allShadersInstalled: 'All selected shaders are already installed locally.',
       notInstalled: 'not installed locally',
-      serverModsInfo: '{{count}} server-side mod(s) on the server (sync automatically)',
+      serverModsInfo: '{{count}} server-side mod(s) on the server',
       serverResourcepacksInfo: '{{count}} resource pack(s) on the server (sync automatically)',
       serverShadersInfo: '{{count}} shader(s) on the server (sync automatically)',
       synced: 'Installed {{count}} mod(s) from the server',

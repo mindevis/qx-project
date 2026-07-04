@@ -12,15 +12,15 @@ import (
 )
 
 type PrepareConnectModsResult struct {
-	ClientModsInstalled            []string `json:"client_mods_installed"`
-	ServerModsInstalled            []string `json:"server_mods_installed"`
-	ClientResourcepacksInstalled   []string `json:"client_resourcepacks_installed"`
-	ServerResourcepacksInstalled   []string `json:"server_resourcepacks_installed"`
-	ClientShadersInstalled         []string `json:"client_shaders_installed"`
-	ServerShadersInstalled         []string `json:"server_shaders_installed"`
-	Skipped                        []string `json:"skipped,omitempty"`
-	Errors                         []string `json:"errors,omitempty"`
-	AgentOnline                    bool     `json:"agent_online"`
+	ClientModsInstalled          []string `json:"client_mods_installed"`
+	ServerModsInstalled          []string `json:"server_mods_installed"`
+	ClientResourcepacksInstalled []string `json:"client_resourcepacks_installed"`
+	ServerResourcepacksInstalled []string `json:"server_resourcepacks_installed"`
+	ClientShadersInstalled       []string `json:"client_shaders_installed"`
+	ServerShadersInstalled       []string `json:"server_shaders_installed"`
+	Skipped                      []string `json:"skipped,omitempty"`
+	Errors                       []string `json:"errors,omitempty"`
+	AgentOnline                  bool     `json:"agent_online"`
 }
 
 func (s *Service) PrepareConnectMods(
@@ -108,10 +108,8 @@ func (s *Service) PrepareConnectMods(
 		}
 		pull("mod", "client-mods", "mod", name, &result.ClientModsInstalled)
 	}
-	for _, name := range s.resolveServerModFilenames(ctx, gs) {
-		pull("mod", "", "mod", name, &result.ServerModsInstalled)
-	}
 
+	// Server-only mods are intentionally not synced to launcher instances.
 	enabledResourcepacks := enabledClientModSet(binding.ClientResourcepackEnabled)
 	for _, name := range s.resolveClientResourcepackFilenames(ctx, gs) {
 		if !enabledResourcepacks[strings.ToLower(name)] {

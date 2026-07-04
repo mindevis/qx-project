@@ -75,4 +75,27 @@ describe('InstanceInstalledResources', () => {
     expect(document.querySelector('.launcher-resources-grid')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Карточки', checked: true })).toBeInTheDocument();
   });
+
+  it('filters installed resources with search and links to installed project details', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderInstalledResources();
+
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+
+    const input = screen.getByRole('textbox');
+    await user.type(input, 'missing');
+    await user.click(screen.getByRole('button', { name: /Найти|Search/ }));
+
+    expect(screen.queryByText('Sodium')).not.toBeInTheDocument();
+    expect(screen.getByText(/No results|Нет результатов|Ничего не найдено/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Сбросить поиск|Clear search/ }));
+    await user.type(input, 'Sodium');
+    await user.click(screen.getByRole('button', { name: /Найти|Search/ }));
+
+    expect(screen.getByRole('link', { name: 'Sodium' })).toHaveAttribute(
+      'href',
+      '/launcher/instances/inst-1/resources/catalog/modrinth/sodium',
+    );
+  });
 });

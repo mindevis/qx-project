@@ -153,6 +153,8 @@ export function GameServerContentPanel({
 
   const [installed, setInstalled] = useState<GameServerFileEntry[]>([]);
   const [installedLoading, setInstalledLoading] = useState(true);
+  const [installedSearchInput, setInstalledSearchInput] = useState('');
+  const [appliedInstalledSearch, setAppliedInstalledSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState<ModCatalogSourceFilter>('all');
   const [sort, setSort] = useState<ModCatalogSort>('downloads');
   const [searchInput, setSearchInput] = useState('');
@@ -170,6 +172,7 @@ export function GameServerContentPanel({
   const [installingVersionId, setInstallingVersionId] = useState<string>();
   const [uploading, setUploading] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string>();
+  const [modTarget, setModTarget] = useState<'mods' | 'client-mods'>('mods');
 
   const i18nPrefix = `gameServerDetail.content.${kind}`;
 
@@ -277,6 +280,16 @@ export function GameServerContentPanel({
     }
   };
 
+  const filteredInstalled = useMemo(() => {
+    const query = appliedInstalledSearch.trim().toLowerCase();
+    if (!query) return installed;
+    return installed.filter((item) => {
+      const name = item.name.toLowerCase();
+      const path = item.path.toLowerCase();
+      return name.includes(query) || path.includes(query);
+    });
+  }, [appliedInstalledSearch, installed]);
+
   const promptRestart = () => {
     Modal.confirm({
       title: t('gameServerDetail.content.restartTitle'),
@@ -306,6 +319,7 @@ export function GameServerContentPanel({
         download_url: file.url,
         project_name: item.name,
         version_number: version.version_number,
+        mod_target: modTarget,
       });
       if (res.status === 'already_installed') {
         message.info(t('gameServerDetail.content.alreadyInstalled'));
@@ -375,7 +389,7 @@ export function GameServerContentPanel({
     if (kind !== 'mod') return false;
     setUploading(true);
     try {
-      await api.uploadGameServerMod(vpsId, gameServerId, file);
+      await api.uploadGameServerMod(vpsId, gameServerId, file, modTarget);
       message.success(t('gameServerDetail.content.uploadCompleted'));
       void loadInstalled();
     } catch (e) {
@@ -400,21 +414,68 @@ export function GameServerContentPanel({
   return (
     <div className="game-server-content-panel">
       <div className="game-server-content-installed-header">
-        <Title level={5}>{t(`${i18nPrefix}.installedTitle`)}</Title>
-        {kind === 'mod' ? (
-          <Upload
-            accept=".jar,.zip,.mrpack"
-            showUploadList={false}
-            disabled={uploading}
-            beforeUpload={(file) => {
-              void handleUpload(file);
-              return false;
-            }}
-          >
-            <Button icon={<UploadOutlined />} loading={uploading}>
-              {t('gameServerDetail.content.upload')}
+        <div className="game-server-content-installed-header-main">
+          <Title level={5}>{t(`${i18nPrefix}.installedTitle`)}</Title>
+          <div className="game-server-content-installed-search">
+            <Input
+              allowClear
+              prefix={<SearchOutlined aria-hidden />}
+              placeholder={t('qxmods.searchFilterPlaceholder')}
+              value={installedSearchInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setInstalledSearchInput(value);
+                if (!value.trim() && appliedInstalledSearch) {
+                  setAppliedInstalledSearch('');
+                }
+              }}
+              onPressEnter={() => setAppliedInstalledSearch(installedSearchInput.trim())}
+              onClear={() => {
+                setInstalledSearchInput('');
+                setAppliedInstalledSearch('');
+              }}
+            />
+            <Button
+              type="primary"
+              onClick={() => setAppliedInstalledSearch(installedSearchInput.trim())}
+              disabled={!installedSearchInput.trim() && !appliedInstalledSearch}
+            >
+              {appliedInstalledSearch ? t('qxmods.applySearch') : t('qxmods.search')}
             </Button>
-          </Upload>
+            {appliedInstalledSearch ? (
+              <Button type="link" onClick={() => {
+                setInstalledSearchInput('');
+                setAppliedInstalledSearch('');
+              }}>
+                {t('qxmods.clearSearch')}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        {kind === 'mod' ? (
+          <div className="game-server-content-upload-wrapper">
+            <Segmented
+              value={modTarget}
+              onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
+              options={[
+                { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
+                { value: 'client-mods', label: t('gameServerDetail.content.clientModsFolder') },
+              ]}
+            />
+            <Upload
+              accept=".jar,.zip,.mrpack"
+              showUploadList={false}
+              disabled={uploading}
+              beforeUpload={(file) => {
+                void handleUpload(file);
+                return false;
+              }}
+            >
+              <Button icon={<UploadOutlined />} loading={uploading}>
+                {t('gameServerDetail.content.upload')}
+              </Button>
+            </Upload>
+          </div>
         ) : null}
       </div>
       {installedLoading ? (
@@ -423,13 +484,15 @@ export function GameServerContentPanel({
         </div>
       ) : installed.length === 0 ? (
         <Empty description={t(`${i18nPrefix}.empty`)} />
+      ) : filteredInstalled.length === 0 ? (
+        <Empty description={t('qxmods.empty')} />
       ) : (
         <Table
           className="game-server-mods-table"
           rowKey="path"
           size="small"
           pagination={false}
-          dataSource={installed}
+          dataSource={filteredInstalled}
           columns={[
             { title: t('gameServerDetail.fileName'), dataIndex: 'name', key: 'name' },
             ...(kind === 'mod'

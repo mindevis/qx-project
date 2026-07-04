@@ -895,7 +895,7 @@ export const ru = {
       allResourcepacksInstalled: 'Все выбранные ресурспаки уже установлены локально.',
       allShadersInstalled: 'Все выбранные шейдеры уже установлены локально.',
       notInstalled: 'не установлен локально',
-      serverModsInfo: 'На сервере {{count}} серверных мод(ов) (синхронизируются автоматически)',
+      serverModsInfo: 'На сервере {{count}} серверных мод(ов)',
       serverResourcepacksInfo: 'На сервере {{count}} ресурспак(ов) (синхронизируются автоматически)',
       serverShadersInfo: 'На сервере {{count}} шейдер(ов) (синхронизируются автоматически)',
       synced: 'Установлено модов с сервера: {{count}}',
