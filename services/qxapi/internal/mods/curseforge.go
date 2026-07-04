@@ -101,7 +101,7 @@ type curseForgeFileData struct {
 	FileName     string `json:"fileName"`
 	FileDate     string `json:"fileDate"`
 	GameVersions []string
-	ModLoader    int `json:"modLoader"`
+	ModLoader    int    `json:"modLoader"`
 	DownloadURL  string `json:"downloadUrl"`
 	FileLength   int64  `json:"fileLength"`
 	Hashes       []struct {
@@ -306,6 +306,9 @@ func (c *curseForgeClient) listVersionsOnce(ctx context.Context, projectID, load
 		if downloadURL == "" {
 			downloadURL, _ = c.fileDownloadURL(ctx, projectID, strconv.Itoa(f.ID))
 		}
+		if downloadURL == "" {
+			continue
+		}
 		out = append(out, Version{
 			ID:            strconv.Itoa(f.ID),
 			VersionNumber: f.DisplayName,
@@ -371,6 +374,9 @@ func (c *curseForgeClient) versionFromFileData(
 	downloadURL := f.DownloadURL
 	if downloadURL == "" {
 		downloadURL, _ = c.fileDownloadURL(ctx, projectID, fileID)
+	}
+	if downloadURL == "" {
+		return nil, fmt.Errorf("missing download URL for file %s", fileID)
 	}
 	deps, err := c.resolveFileDependencies(ctx, f.Dependencies, loader, mcVersion)
 	if err != nil {

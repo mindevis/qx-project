@@ -301,6 +301,32 @@ func TestCurseForgeGetVersionFallsBackToList(t *testing.T) {
 	}
 }
 
+func TestCurseForgeGetVersionErrorsWhenDownloadURLMissing(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/mods/32274/files/5789363":
+			_, _ = w.Write([]byte(`{"data":{"id":5789363,"displayName":"5.10.3","fileName":"broken.jar","fileDate":"2024-01-01","gameVersions":["1.20.1"],"modLoader":1,"downloadUrl":"","fileLength":123,"hashes":[]}}`))
+		case "/v1/mods/32274/files/5789363/download-url":
+			_, _ = w.Write([]byte(`{"data":""}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	_, err := c.getVersion(context.Background(), "32274", "5789363", "forge", "1.20.1")
+	if err == nil {
+		t.Fatal("expected error when download URL is missing")
+	}
+}
+
 func TestCurseForgeHTTPError(t *testing.T) {
 	t.Parallel()
 	err := &CurseForgeHTTPError{StatusCode: http.StatusNotFound, Body: "missing"}
