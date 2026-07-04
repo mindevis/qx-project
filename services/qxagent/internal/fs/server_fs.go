@@ -79,6 +79,9 @@ func ListDir(workDir, relPath string) ([]protocol.FileEntry, error) {
 	}
 	entries, err := safepath.ReadDir(abs)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	out := make([]protocol.FileEntry, 0, len(entries))

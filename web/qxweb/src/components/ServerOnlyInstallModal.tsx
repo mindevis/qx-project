@@ -18,6 +18,7 @@ type ServerOnlyInstallModalProps = {
   projectType?: ModProjectType;
   instanceLoader: string;
   instanceMcVersion?: string;
+  preferInstance?: boolean;
   onClose: () => void;
   onInstallToInstance: () => void;
 };
@@ -31,6 +32,7 @@ export function ServerOnlyInstallModal({
   projectType = 'mod',
   instanceLoader,
   instanceMcVersion,
+  preferInstance = false,
   onClose,
   onInstallToInstance,
 }: ServerOnlyInstallModalProps) {
@@ -38,7 +40,7 @@ export function ServerOnlyInstallModal({
   const message = useMessage();
   const [loading, setLoading] = useState(false);
   const [installing, setInstalling] = useState(false);
-  const [destination, setDestination] = useState<'server' | 'instance'>('server');
+  const [destination, setDestination] = useState<'server' | 'instance'>(preferInstance ? 'instance' : 'server');
   const [targets, setTargets] = useState<Awaited<ReturnType<typeof loadGameServerSyncTargets>>>([]);
   const [selectedKey, setSelectedKey] = useState<string>();
 
@@ -49,13 +51,14 @@ export function ServerOnlyInstallModal({
       const loaded = await loadGameServerSyncTargets(instanceLoader, instanceMcVersion);
       setTargets(loaded);
       setSelectedKey(loaded[0] ? gameServerSyncTargetKey(loaded[0]) : undefined);
+      setDestination(preferInstance || loaded.length === 0 ? 'instance' : 'server');
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('qxmods.sync.loadFailed'));
       setTargets([]);
     } finally {
       setLoading(false);
     }
-  }, [instanceLoader, instanceMcVersion, message, open, t]);
+  }, [instanceLoader, instanceMcVersion, message, open, preferInstance, t]);
 
   useEffect(() => {
     if (open) void loadTargets();

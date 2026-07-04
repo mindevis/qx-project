@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { testMessage } from '@/test/test-message';
@@ -192,6 +192,7 @@ describe('ModsCatalogPanel', () => {
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
     const user = userEvent.setup();
     vi.spyOn(api, 'getModVersion').mockResolvedValue({ ...modVersion, dependencies: [] });
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({ ...modVersion, dependencies: [] });
     vi.spyOn(api, 'createModInstallRequest').mockResolvedValue({
       id: 'req-1',
       instance_id: 'inst-1',
@@ -227,8 +228,6 @@ describe('ModsCatalogPanel', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Установить' }));
-    const depsDialog = await screen.findByRole('dialog');
-    await user.click(within(depsDialog).getByRole('button', { name: 'Установить' }));
 
     await waitFor(() => expect(api.createModInstallRequest).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Синхронизация с сервером')).toBeInTheDocument(), {

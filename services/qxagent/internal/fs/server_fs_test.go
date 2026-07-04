@@ -51,3 +51,14 @@ func TestWipeWorkDirMissingDirCreatesEmptyRoot(t *testing.T) {
 		t.Fatalf("expected created dir: err=%v", err)
 	}
 }
+
+func TestListClientModsMissingDirReturnsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	entries, err := ListClientMods(dir, "forge")
+	if err != nil {
+		t.Fatalf("list client mods: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected empty list, got %d entries", len(entries))
+	}
+}

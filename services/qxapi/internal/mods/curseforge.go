@@ -422,6 +422,13 @@ func (c *curseForgeClient) resolveFileDependencies(
 				entry.DownloadURL = best.Files[0].URL
 				entry.FileSize = best.Files[0].Size
 			}
+			if entry.DownloadURL == "" && entry.VersionID != "" {
+				if ver, err := c.getVersion(ctx, modID, entry.VersionID, loader, mcVersion); err == nil && len(ver.Files) > 0 {
+					entry.Filename = ver.Files[0].Filename
+					entry.DownloadURL = ver.Files[0].URL
+					entry.FileSize = ver.Files[0].Size
+				}
+			}
 		}
 		out = append(out, entry)
 	}

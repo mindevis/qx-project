@@ -10,6 +10,7 @@ import { useMessage } from '@/hooks/useMessage';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'expired']);
 const POLL_MS = 1500;
+const INSTALL_TIMEOUT_MS = 5 * 60 * 1000;
 
 export type ModInstallParams = {
   source: ModSource;
@@ -41,12 +42,17 @@ export function useModInstall(instanceId: string) {
   const waitForInstall = useCallback(
     (requestId: string, versionId: string) =>
       new Promise<boolean>((resolve) => {
+        const startedAt = Date.now();
         const finish = (ok: boolean) => {
           clearPoll();
           resolve(ok);
         };
 
         const poll = async () => {
+          if (Date.now()-startedAt > INSTALL_TIMEOUT_MS) {
+            finish(false);
+            return;
+          }
           try {
             const req = await api.getModInstallRequest(requestId);
             if (!TERMINAL_STATUSES.has(req.status)) {

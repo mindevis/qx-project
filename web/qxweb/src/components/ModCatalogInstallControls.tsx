@@ -7,7 +7,8 @@ import {
   type ModSource,
   type ModVersion,
 } from '@/api/client';
-import { ModInstallDepsModal, type InstallItem } from '@/components/ModInstallDepsModal';
+import { ModInstallDepsWizard } from '@/components/ModInstallDepsWizard';
+import type { InstallItem } from '@/components/ModInstallDepsModal';
 import { ServerOnlyInstallModal } from '@/components/ServerOnlyInstallModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
@@ -20,6 +21,7 @@ import {
   cachedListModVersions,
   clearModVersionListCache,
 } from '@/lib/modCatalogCache';
+import { isDependencyResolved, loadModDirectDependencies } from '@/lib/modCatalogDeps';
 import { useMessage } from '@/hooks/useMessage';
 
 export type ModCatalogInstallControlsProps = {
@@ -113,12 +115,16 @@ export function ModCatalogInstallControls({
   );
 
   const resolveVersionForInstall = useCallback(
-    async (version: ModVersion): Promise<ModVersion | null> => {
+    async (
+      version: ModVersion,
+      itemSource: ModSource = source,
+      itemProjectId: string = projectId,
+    ): Promise<ModVersion | null> => {
       if (version.files[0]?.url) {
         return version;
       }
       try {
-        const detail = await cachedGetModVersion(source, projectId, version.id, {
+        const detail = await cachedGetModVersion(itemSource, itemProjectId, version.id, {
           loader,
           mc_version: mcVersion,
         });
@@ -135,47 +141,105 @@ export function ModCatalogInstallControls({
     [loader, mcVersion, message, projectId, source, t],
   );
 
+  const installCatalogItem = async (version: ModVersion, extraItems: InstallItem[] = []) => {
+    const resolved = await resolveVersionForInstall(version);
+    if (!resolved) return false;
+    const ok = await installBatch([
+      ...extraItems,
+      {
+        source,
+        projectId,
+        projectName,
+        version: resolved,
+        resourceType: projectType,
+        iconUrl,
+        downloads,
+        fileSize: resolved.files[0]?.size,
+      },
+    ]);
+    if (ok) onInstalled?.(resolved);
+    return ok;
+  };
+
   const runInstall = (version: ModVersion) => {
     if (projectType === 'datapack' || projectType === 'resourcepack' || projectType === 'shader') {
-      void (async () => {
-        const resolved = await resolveVersionForInstall(version);
-        if (!resolved) return;
-        const ok = await installBatch([
-          {
-            source,
-            projectId,
-            projectName,
-            version: resolved,
-            resourceType: projectType,
-            iconUrl,
-            downloads,
-            fileSize: resolved.files[0]?.size,
-          },
-        ]);
-        if (ok) onInstalled?.(resolved);
-      })();
+      void installCatalogItem(version);
       return;
     }
-    if (
-      projectType === 'mod' &&
-      isServerOnlyMod({ client_side: clientSide, server_side: serverSide })
-    ) {
-      setPendingVersion(version);
-      setServerOnlyOpen(true);
-      return;
-    }
-    setPendingVersion(version);
-    setDepsOpen(true);
+    void (async () => {
+      const resolved = await resolveVersionForInstall(version);
+      if (!resolved) return;
+
+      if (
+        projectType === 'mod' &&
+        isServerOnlyMod({ client_side: clientSide, server_side: serverSide })
+      ) {
+        setPendingVersion(resolved);
+        setServerOnlyOpen(true);
+        return;
+      }
+
+      if (projectType !== 'mod') {
+        await installCatalogItem(resolved);
+        return;
+      }
+
+      let directRequired: Awaited<ReturnType<typeof loadModDirectDependencies>>['required'] = [];
+      let optional: Awaited<ReturnType<typeof loadModDirectDependencies>>['optional'] = [];
+      try {
+        const loaded = await loadModDirectDependencies(source, projectId, resolved, {
+          loader,
+          mcVersion,
+        });
+        directRequired = loaded.required;
+        optional = loaded.optional;
+      } catch (e) {
+        message.error(formatModCatalogError(e, t, 'qxmods.versionsFailed'));
+        return;
+      }
+
+      const pendingRequired = directRequired.filter(
+        (dep) => dep.project_id && !installedProjectIds.has(`${dep.source}:${dep.project_id}`),
+      );
+      const pendingOptional = optional.filter(
+        (dep) => dep.project_id && !installedProjectIds.has(`${dep.source}:${dep.project_id}`),
+      );
+      const unresolvedRequired = pendingRequired.filter((dep) => !isDependencyResolved(dep));
+
+      if (unresolvedRequired.length > 0) {
+        setPendingVersion(resolved);
+        setDepsOpen(true);
+        return;
+      }
+
+      if (pendingRequired.length === 0 && pendingOptional.length === 0) {
+        await installCatalogItem(resolved);
+        return;
+      }
+
+      setPendingVersion(resolved);
+      setDepsOpen(true);
+    })();
   };
 
   const handleInstallConfirm = async (items: InstallItem[]) => {
+    const resolvedItems: InstallItem[] = [];
+    for (const item of items) {
+      const resolvedVersion = await resolveVersionForInstall(
+        item.version,
+        item.source,
+        item.projectId,
+      );
+      if (!resolvedVersion) return;
+      resolvedItems.push({ ...item, version: resolvedVersion });
+    }
     const iconMap = await fetchModProjectIcons(
-      items.map((item) => ({ source: item.source, projectId: item.projectId })),
+      resolvedItems.map((item) => ({ source: item.source, projectId: item.projectId })),
     );
     if (iconUrl) {
       iconMap.set(projectKey, iconUrl);
     }
-    const enriched = items.map((item) => ({
+    const enriched = resolvedItems.map((item) => ({
       ...item,
       iconUrl: iconMap.get(`${item.source}:${item.projectId}`),
       downloads: item.projectId === projectId ? downloads : undefined,
@@ -184,7 +248,8 @@ export function ModCatalogInstallControls({
     const ok = await installBatch(enriched);
     if (ok) {
       setDepsOpen(false);
-      if (pendingVersion) onInstalled?.(pendingVersion);
+      const primary = resolvedItems[resolvedItems.length - 1];
+      if (primary) onInstalled?.(primary.version);
     }
   };
 
@@ -290,7 +355,7 @@ export function ModCatalogInstallControls({
       </div>
       {pendingVersion ? (
         <>
-          <ModInstallDepsModal
+          <ModInstallDepsWizard
             open={depsOpen}
             source={source}
             projectId={projectId}
@@ -300,7 +365,7 @@ export function ModCatalogInstallControls({
             installedProjectIds={installedProjectIds}
             confirming={installingVersionId === pendingVersion.id}
             onCancel={() => setDepsOpen(false)}
-            onConfirm={(items) => void handleInstallConfirm(items)}
+            onComplete={(items) => void handleInstallConfirm(items)}
           />
           <ServerOnlyInstallModal
             open={serverOnlyOpen}
@@ -311,6 +376,7 @@ export function ModCatalogInstallControls({
             projectType={projectType}
             instanceLoader={instance.loader}
             instanceMcVersion={instance.mc_version}
+            preferInstance
             onClose={() => setServerOnlyOpen(false)}
             onInstallToInstance={() => {
               setServerOnlyOpen(false);

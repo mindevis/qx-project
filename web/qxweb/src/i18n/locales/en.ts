@@ -1066,12 +1066,18 @@ export const en: Messages = {
     },
     deps: {
       title: 'Install mod',
+      titleFor: 'Dependencies for {{name}}',
       intro: 'Review dependencies for {{name}} before installing.',
+      nestedIntro:
+        'Choose required and optional dependencies for {{name}}. Optional mods can conflict — install only what you need.',
       required: 'Required dependencies',
       optional: 'Optional dependencies',
       noRequired: 'No required dependencies',
       installed: 'installed',
       unresolved: 'could not resolve',
+      unresolvedBlocked:
+        'Some selected dependencies could not be resolved for your Minecraft version and loader. Change the version filters or install dependencies manually.',
+      continue: 'Continue',
       installAll: 'Install',
     },
     catalog: {
