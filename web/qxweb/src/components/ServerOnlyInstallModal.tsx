@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Modal, Radio, Spin, Typography } from 'antd';
-import { api, type ModSource, type ModVersion } from '@/api/client';
+import { api, type ModProjectType, type ModSource, type ModVersion } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
@@ -15,7 +15,7 @@ type ServerOnlyInstallModalProps = {
   projectId: string;
   projectName: string;
   version: ModVersion;
-  projectType?: 'mod' | 'resourcepack' | 'shader' | 'datapack' | 'plugin';
+  projectType?: ModProjectType;
   instanceLoader: string;
   instanceMcVersion?: string;
   onClose: () => void;
