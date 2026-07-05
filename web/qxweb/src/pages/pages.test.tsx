@@ -331,7 +331,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       created_at: 't',
       updated_at: 't',
     };
-    let items: (typeof instance)[] = [instance];
+    const items: (typeof instance)[] = [instance];
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url, init) => {
       if (url.includes('/instances') && init?.method === 'POST') {

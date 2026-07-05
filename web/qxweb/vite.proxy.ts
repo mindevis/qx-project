@@ -7,7 +7,11 @@ function writeBackendUnavailable(res: unknown) {
     return;
   }
 
-  const response = res as { headersSent?: boolean; writeHead: Function; end: Function };
+  const response = res as {
+    headersSent?: boolean;
+    writeHead: (status: number, headers?: Record<string, string>) => void;
+    end: (chunk?: string) => void;
+  };
   if (response.headersSent) {
     return;
   }
