@@ -146,25 +146,6 @@ func removeFromResourceList(list *models.InstanceResourceList, in DeleteInstance
 	return removed
 }
 
-func (s *Service) DeleteInstanceResource(ctx context.Context, owner Owner, instanceID string, in DeleteInstanceResourceInput) error {
-	if in.Source == "" || (in.ProjectID == "" && in.Filename == "") {
-		return ErrValidation
-	}
-	inst, err := s.GetInstance(ctx, owner, instanceID)
-	if err != nil {
-		return err
-	}
-	if !removeInstanceResource(inst, in) {
-		return ErrNotFound
-	}
-	return s.db.WithContext(ctx).Model(inst).Updates(map[string]any{
-		"mods":           inst.Mods,
-		"resource_packs": inst.ResourcePacks,
-		"shaders":        inst.Shaders,
-		"datapacks":      inst.Datapacks,
-	}).Error
-}
-
 func resourceInstalledAt() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }

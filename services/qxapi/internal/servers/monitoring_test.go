@@ -32,10 +32,9 @@ func TestMonitoringJoinClausesMySQLDialect(t *testing.T) {
 }
 
 func TestListMonitoringServers_PremiumFirst(t *testing.T) {
-	svc, _, _ := newServersService(t)
 	ctx := context.Background()
 	db := testutil.OpenSQLiteDB(t)
-	svc = NewService(db, nil, nil, nil, NoopDeployer{})
+	svc := NewService(db, nil, nil, nil, NoopDeployer{})
 
 	freeOwnerID := "owner-free"
 	premiumOwnerID := "owner-premium"

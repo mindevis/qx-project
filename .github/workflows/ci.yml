@@ -22,13 +22,16 @@ jobs:
           cache: true
           cache-dependency-path: go.work.sum
       - run: cd services/qxapi && go mod tidy && go vet ./...
+      - run: cd services/qxapi && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../../.golangci.yml ./...
+      - run: cd services/qxagent && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../../.golangci.yml ./...
+      - run: cd services/qxlauncher && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --config ../../.golangci.yml ./...
       - run: cd services/qxapi && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init -g internal/api/openapi.go -o docs --parseInternal
       - run: cd services/qxapi && git diff --exit-code docs/ || (echo "Swagger docs out of date — run make swagger" && exit 1)
       - run: cd services/qxapi && go test ./... -count=1
       - run: cd services/qxagent && go test ./... -count=1
       - run: cd services/qxlauncher && go test ./... -count=1
       - run: |
-          for pkg in reporoot envfile log mcmanifest protocol; do
+          for pkg in reporoot envfile log mcmanifest protocol safepath mojangjava; do
             (cd pkg/$pkg && go test ./...)
           done
       - run: cd services/qxapi && go build -o /dev/null ./cmd

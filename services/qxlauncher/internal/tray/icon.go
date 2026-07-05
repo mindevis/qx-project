@@ -7,9 +7,6 @@ import "strings"
 var iconPendingPNG = trayIconData
 var iconLinkedPNG = trayIconData
 
-// iconPNG kept for tests.
-var iconPNG = trayIconData
-
 func LauncherPageURL(webBase string) string {
 	base := strings.TrimRight(webBase, "/")
 	if base == "" {

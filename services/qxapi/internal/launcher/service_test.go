@@ -158,7 +158,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("max memory: %+v", inst.MaxMemoryMB)
 	}
 
-	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:      "Bad",
 		MCVersion: "1.20.1",
 		Loader:    models.LoaderForge,
@@ -167,7 +167,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("expected validation without loader version, got %v", err)
 	}
 
-	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Bad",
 		MCVersion:     "1.20.1",
 		Loader:        "paper",
@@ -177,7 +177,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("expected validation for unsupported loader, got %v", err)
 	}
 
-	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Bad NeoForge",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderNeoForge,
@@ -187,7 +187,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("expected validation for forge version on neoforge, got %v", err)
 	}
 
-	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Bad Forge",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderForge,
@@ -211,7 +211,7 @@ func TestCreateInstanceModLoader(t *testing.T) {
 		t.Fatalf("loader version: %+v", inst.LoaderVersion)
 	}
 
-	createRes, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
+	_, err = svc.CreateInstance(ctx, owner, CreateInstanceInput{
 		Name:          "Bad Fabric",
 		MCVersion:     "1.21.1",
 		Loader:        models.LoaderFabric,

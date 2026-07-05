@@ -104,5 +104,3 @@ func TestSessionHandlerMeta(t *testing.T) {
 		t.Fatalf("meta body: %s", w.Body.String())
 	}
 }
-
-func strPtr(s string) *string { return &s }

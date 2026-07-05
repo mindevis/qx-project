@@ -193,10 +193,6 @@ func (c *Client) writeEnvelope(conn *websocket.Conn, env protocol.Envelope) erro
 	return conn.WriteJSON(env)
 }
 
-func (c *Client) emitConsole(conn *websocket.Conn, line string) {
-	c.emitConsoleStream(conn, "", "stdout", line)
-}
-
 func (c *Client) emitConsoleStream(conn *websocket.Conn, gameServerID, stream, line string) {
 	payload, _ := json.Marshal(protocol.ConsoleOutputPayload{
 		Stream:       stream,
@@ -1009,13 +1005,6 @@ func (r *ProcessRunner) Stop(graceful bool, timeout time.Duration) (int, error) 
 		return -1, err
 	}
 	return cmd.ProcessState.ExitCode(), nil
-}
-
-func javaBin(start ValidatedStart) string {
-	if bin := strings.TrimSpace(start.JavaBin); bin != "" {
-		return bin
-	}
-	return "java"
 }
 
 func applyJavaEnv(cmd *exec.Cmd, javaBinPath string) {

@@ -75,9 +75,6 @@ func TestModrinthListVersionsFallsBackWithoutMCVersion(t *testing.T) {
 	if len(calls) != 3 {
 		t.Fatalf("expected 3 API calls, got %d", len(calls))
 	}
-	if calls[0].Get("loaders") == "" || calls[0].Get("game_versions") != `[",]` {
-		// no-op to satisfy linter; explicit check is performed below via exact query matching.
-	}
 	if !strings.Contains(calls[0].Get("loaders"), "fabric") {
 		t.Fatalf("expected first call to include loader, got %q", calls[0].Get("loaders"))
 	}

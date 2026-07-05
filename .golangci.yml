@@ -1,0 +1,29 @@
+version: "2"
+
+# Curated, high-signal linters. The goal is to catch real bugs and — crucially —
+# dead code (unused), which plain `go vet` does not, so the codebase stops
+# accumulating unreachable functions/types over time.
+linters:
+  default: none
+  enable:
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    staticcheck:
+      # Keep SA* (bugs) and S1* (simplifications); drop the stylistic ST* naming
+      # checks and the noisy QF* "quickfix" suggestions.
+      checks:
+        - all
+        - -ST1*
+        - -QF1*
+        # S1021: split var decl is required for self-referential (recursive) closures.
+        - -S1021
+  exclusions:
+    rules:
+      # openapi.go / openapi_types.go are swagger annotation carriers: the Go
+      # stubs exist only for `swag` doc generation and are intentionally unused.
+      - path: internal/api/openapi.*\.go
+        linters:
+          - unused

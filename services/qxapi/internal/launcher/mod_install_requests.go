@@ -3,7 +3,6 @@ package launcher
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -264,17 +263,4 @@ func (s *Service) expireStaleModInstalls(ctx context.Context, deviceIDs []string
 	_ = s.db.WithContext(ctx).Model(&models.ModInstallRequest{}).
 		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.ModInstallStatusQueued, now).
 		Update("status", models.ModInstallStatusExpired).Error
-}
-
-func ResourceInstallFolder(resourceType string) string {
-	switch normalizeResourceType(resourceType) {
-	case "resourcepack":
-		return "resourcepacks"
-	case "shader":
-		return "shaderpacks"
-	case "datapack":
-		return filepath.Join("saves", "world", "datapacks")
-	default:
-		return "mods"
-	}
 }

@@ -276,26 +276,6 @@ func (s *Service) ReadCapePNG(userID string) ([]byte, error) {
 	return s.readCapeForRow(row)
 }
 
-func (s *Service) ReadSkinPNGForGameUUID(ctx context.Context, gameUUID string) ([]byte, error) {
-	userID, err := s.ResolveUserByGameUUID(ctx, gameUUID)
-	if err != nil {
-		return nil, err
-	}
-	return s.ReadSkinPNG(userID)
-}
-
-func (s *Service) ReadCapePNGForGameUUID(ctx context.Context, gameUUID string) ([]byte, error) {
-	userID, err := s.ResolveUserByGameUUID(ctx, gameUUID)
-	if err != nil {
-		return nil, err
-	}
-	row, err := s.readRowByUserID(userID)
-	if err != nil {
-		return nil, err
-	}
-	return s.readCapeForRow(row)
-}
-
 func (s *Service) readCapeForRow(row *models.UserCosmetics) ([]byte, error) {
 	if !row.HasCape {
 		return nil, ErrNoCape
@@ -565,18 +545,5 @@ func normalizeCapeType(cape string) string {
 		return models.CosmeticsCapeCustom
 	default:
 		return models.CosmeticsCapeNone
-	}
-}
-
-func normalizeWingsType(wings string) string {
-	switch strings.ToLower(strings.TrimSpace(wings)) {
-	case models.CosmeticsWingsAngel:
-		return models.CosmeticsWingsAngel
-	case models.CosmeticsWingsDemon:
-		return models.CosmeticsWingsDemon
-	case models.CosmeticsWingsDragon:
-		return models.CosmeticsWingsDragon
-	default:
-		return models.CosmeticsWingsNone
 	}
 }

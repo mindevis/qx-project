@@ -127,9 +127,8 @@ func TestReadLoopReplaysCachedResult(t *testing.T) {
 	defer conn.Close()
 
 	c := NewClient(Config{DryRun: true})
-	if err := c.readLoop(conn); err != nil && !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-		// readLoop exits when peer closes.
-	}
+	// readLoop runs until the peer closes; the exit error is not asserted here.
+	_ = c.readLoop(conn)
 
 	mu.Lock()
 	n := len(results)

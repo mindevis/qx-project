@@ -97,13 +97,6 @@ func (c *Cache[V]) GetOrLoad(key string, load func() (V, error)) (V, error) {
 	return call.val, call.err
 }
 
-func (c *Cache[V]) Clear() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.items = make(map[string]entry[V])
-	c.order = nil
-}
-
 func (c *Cache[V]) evictLocked() {
 	for len(c.items) > c.max && len(c.order) > 0 {
 		key := c.order[0]
