@@ -15,22 +15,22 @@ import (
 	"github.com/qxproject/qx/pkg/mcmanifest"
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
 	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
-	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
+	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 )
 
 var (
-	ErrNotFound         = errors.New("not found")
-	ErrValidation       = errors.New("validation error")
-	ErrDeviceNotLinked  = errors.New("device not linked")
-	ErrLinkExpired      = errors.New("link expired")
-	ErrAuthRequired     = errors.New("authentication required")
-	ErrDeviceNotPending = errors.New("device is not pending link")
-	ErrManifest            = errors.New("manifest build failed")
-	ErrMojangSession       = errors.New("mojang session failed")
-	ErrMojangUnavailable   = errors.New("mojang auth unavailable")
-	ErrDeviceOffline       = errors.New("device offline")
-	ErrBridgeTimeout       = errors.New("launcher bridge timeout")
+	ErrNotFound          = errors.New("not found")
+	ErrValidation        = errors.New("validation error")
+	ErrDeviceNotLinked   = errors.New("device not linked")
+	ErrLinkExpired       = errors.New("link expired")
+	ErrAuthRequired      = errors.New("authentication required")
+	ErrDeviceNotPending  = errors.New("device is not pending link")
+	ErrManifest          = errors.New("manifest build failed")
+	ErrMojangSession     = errors.New("mojang session failed")
+	ErrMojangUnavailable = errors.New("mojang auth unavailable")
+	ErrDeviceOffline     = errors.New("device offline")
+	ErrBridgeTimeout     = errors.New("launcher bridge timeout")
 )
 
 type mojangLauncher interface {
@@ -159,8 +159,8 @@ type DeviceStatusResult struct {
 	LinkExpiresAt   *time.Time `json:"link_expires_at,omitempty"`
 	LastSeenAt      *time.Time `json:"last_seen_at,omitempty"`
 	DeviceToken     *string    `json:"device_token,omitempty"`
-	OwnerType *string `json:"owner_type,omitempty"`
-	UserID    *string `json:"user_id,omitempty"`
+	OwnerType       *string    `json:"owner_type,omitempty"`
+	UserID          *string    `json:"user_id,omitempty"`
 }
 
 func (s *Service) DeviceStatus(ctx context.Context, deviceID string) (*DeviceStatusResult, error) {
@@ -250,7 +250,17 @@ func (s *Service) LinkDevice(ctx context.Context, in LinkDeviceInput) (*LinkDevi
 		"user_id":          userID,
 		"guest_session_id": nil,
 	}
-	if err := s.db.WithContext(ctx).Model(device).Updates(updates).Error; err != nil {
+	// A user may have only one linked launcher. Revoke any device previously
+	// linked to this user before linking the new one, otherwise stale linked
+	// records accumulate and requests bound to them by device selection hang.
+	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.LauncherDevice{}).
+			Where("user_id = ? AND status = ? AND device_id <> ?", userID, models.DeviceStatusLinked, deviceID).
+			Update("status", models.DeviceStatusRevoked).Error; err != nil {
+			return err
+		}
+		return tx.Model(device).Updates(updates).Error
+	}); err != nil {
 		return nil, err
 	}
 	return &LinkDeviceResult{Status: models.DeviceStatusLinked, OwnerType: "user"}, nil
@@ -391,8 +401,8 @@ const (
 	maxInstanceMemoryMB     = 65536
 	defaultInstanceMemoryMB = 4096
 	minWindowDimension      = 320
-	maxWindowDimension  = 7680
-	maxExtraJVMArgs     = 64
+	maxWindowDimension      = 7680
+	maxExtraJVMArgs         = 64
 )
 
 func validateMemoryMB(mb int) error {

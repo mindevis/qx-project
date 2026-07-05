@@ -56,6 +56,40 @@ func TestRegisterAndLinkDevice(t *testing.T) {
 	}
 }
 
+func TestLinkDeviceRevokesPreviousLinkedDevice(t *testing.T) {
+	svc, _, _ := newLauncherService(t)
+	ctx := context.Background()
+
+	link := func(deviceID string) {
+		if _, err := svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: deviceID}); err != nil {
+			t.Fatalf("register %s: %v", deviceID, err)
+		}
+		if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: deviceID, UserID: "user-1"}); err != nil {
+			t.Fatalf("link %s: %v", deviceID, err)
+		}
+	}
+
+	link("dev-first")
+	link("dev-second")
+
+	// A user keeps only one linked launcher: the most recent link wins.
+	id, err := svc.FindLinkedDevice(ctx, Owner{UserID: "user-1"})
+	if err != nil {
+		t.Fatalf("find linked: %v", err)
+	}
+	if id != "dev-second" {
+		t.Fatalf("FindLinkedDevice = %q, want dev-second", id)
+	}
+
+	var first models.LauncherDevice
+	if err := svc.db.First(&first, "device_id = ?", "dev-first").Error; err != nil {
+		t.Fatalf("reload first device: %v", err)
+	}
+	if first.Status != models.DeviceStatusRevoked {
+		t.Fatalf("previous device status = %q, want revoked", first.Status)
+	}
+}
+
 func TestLinkDeviceAsUser(t *testing.T) {
 	svc, _, _ := newLauncherService(t)
 	ctx := context.Background()
