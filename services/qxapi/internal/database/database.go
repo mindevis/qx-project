@@ -86,7 +86,54 @@ var migrateUsers = func(db *gorm.DB) error {
 		return err
 	}
 	fixMonitoringTablesCollation(db)
+	widenModListColumns(db)
 	return nil
+}
+
+// modListColumns are columns that hold JSON lists of per-mod metadata and can
+// exceed MySQL's 64 KB TEXT limit for a large modpack.
+var modListColumns = map[string][]string{
+	"launcher_instances": {"mods", "resource_packs", "shaders", "datapacks"},
+	"game_servers": {
+		"monitoring_mods_json", "monitoring_client_mods_json",
+		"monitoring_resourcepacks_json", "monitoring_client_resourcepacks_json",
+		"monitoring_shaders_json", "monitoring_client_shaders_json",
+		"monitoring_plugins_json",
+	},
+	"game_server_instance_bindings": {"client_mod_enabled", "client_resourcepack_enabled", "client_shader_enabled"},
+}
+
+// widenModListColumns upgrades mod/resource list columns from TEXT (64 KB) to
+// MEDIUMTEXT (16 MB) on MySQL. A large modpack's mod metadata exceeds the TEXT
+// limit, which fails the write and blocks any further install. Applied
+// explicitly (and idempotently) so existing databases are guaranteed widened
+// even if AutoMigrate does not detect the text-subtype change.
+func widenModListColumns(db *gorm.DB) {
+	if db == nil || db.Dialector == nil || db.Dialector.Name() != "mysql" {
+		return
+	}
+	m := db.Migrator()
+	for table, columns := range modListColumns {
+		if !m.HasTable(table) {
+			continue
+		}
+		for _, col := range columns {
+			var dataType string
+			if err := db.Raw(
+				`SELECT DATA_TYPE FROM information_schema.COLUMNS
+				 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+				table, col,
+			).Scan(&dataType).Error; err != nil {
+				continue
+			}
+			if dataType == "" || dataType == "mediumtext" || dataType == "longtext" {
+				continue
+			}
+			if err := db.Exec("ALTER TABLE " + table + " MODIFY COLUMN " + col + " MEDIUMTEXT").Error; err != nil {
+				log.Printf("warning: widen %s.%s to mediumtext: %v", table, col, err)
+			}
+		}
+	}
 }
 
 // fixMonitoringTablesCollation aligns monitoring tables on MySQL.
