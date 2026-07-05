@@ -132,11 +132,15 @@ func (s *Service) FetchPendingModInstall(ctx context.Context, deviceID string) (
 		return nil, ErrValidation
 	}
 	now := time.Now().UTC()
-	s.expireStaleModInstalls(ctx, deviceID, now)
+	deviceIDs, err := s.deliveryDeviceIDs(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	s.expireStaleModInstalls(ctx, deviceIDs, now)
 
 	var reqs []models.ModInstallRequest
-	err := s.db.WithContext(ctx).
-		Where("device_id = ? AND status = ?", deviceID, models.ModInstallStatusQueued).
+	err = s.db.WithContext(ctx).
+		Where("device_id IN ? AND status = ?", deviceIDs, models.ModInstallStatusQueued).
 		Order("created_at asc").
 		Limit(1).
 		Find(&reqs).Error
@@ -149,13 +153,17 @@ func (s *Service) FetchPendingModInstall(ctx context.Context, deviceID string) (
 	req := reqs[0]
 
 	dispatched := now
+	// Claim the request for the polling device so completion (matched by
+	// device_id) is handled by whichever launcher actually downloads it.
 	if err := s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
 		"status":        models.ModInstallStatusDispatched,
 		"dispatched_at": dispatched,
+		"device_id":     deviceID,
 	}).Error; err != nil {
 		return nil, err
 	}
 	req.Status = models.ModInstallStatusDispatched
+	req.DeviceID = deviceID
 	req.DispatchedAt = &dispatched
 	return modInstallViewFromModel(req, true), nil
 }
@@ -249,9 +257,12 @@ func (s *Service) getModInstallRequestForOwner(ctx context.Context, owner Owner,
 	return &req, nil
 }
 
-func (s *Service) expireStaleModInstalls(ctx context.Context, deviceID string, now time.Time) {
+func (s *Service) expireStaleModInstalls(ctx context.Context, deviceIDs []string, now time.Time) {
+	if len(deviceIDs) == 0 {
+		return
+	}
 	_ = s.db.WithContext(ctx).Model(&models.ModInstallRequest{}).
-		Where("device_id = ? AND status = ? AND expires_at < ?", deviceID, models.ModInstallStatusQueued, now).
+		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.ModInstallStatusQueued, now).
 		Update("status", models.ModInstallStatusExpired).Error
 }
 

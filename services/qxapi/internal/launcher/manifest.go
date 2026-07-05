@@ -134,6 +134,45 @@ func (s *Service) ListInstancesForDevice(ctx context.Context, deviceID string) (
 	return s.ListInstances(ctx, Owner{UserID: *device.UserID})
 }
 
+// deliveryDeviceIDs returns every device_id that belongs to the same owner as
+// the polling device. Web-created requests (launch, mod install, …) are bound to
+// a single device chosen at creation time; if the owner has more than one linked
+// device that request could otherwise be delivered to a device that is not
+// running, hanging forever in "queued". Fetching against the whole owner set lets
+// whichever launcher is actually polling claim and process the work.
+func (s *Service) deliveryDeviceIDs(ctx context.Context, deviceID string) ([]string, error) {
+	device, err := s.getDevice(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	q := s.db.WithContext(ctx).Model(&models.LauncherDevice{}).
+		Where("status = ?", models.DeviceStatusLinked)
+	switch {
+	case device.UserID != nil:
+		q = q.Where("user_id = ?", *device.UserID)
+	case device.GuestSessionID != nil:
+		q = q.Where("guest_session_id = ?", *device.GuestSessionID)
+	default:
+		// Unlinked device: it can only claim work addressed to itself.
+		return []string{deviceID}, nil
+	}
+	var ids []string
+	if err := q.Pluck("device_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	seen := false
+	for _, id := range ids {
+		if id == deviceID {
+			seen = true
+			break
+		}
+	}
+	if !seen {
+		ids = append(ids, deviceID)
+	}
+	return ids, nil
+}
+
 func (s *Service) ValidateDeviceForOwner(ctx context.Context, owner Owner, deviceID string) error {
 	device, err := s.getDevice(ctx, deviceID)
 	if err != nil {
