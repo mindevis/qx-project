@@ -137,11 +137,15 @@ func (s *Service) FetchPendingLaunch(ctx context.Context, deviceID string) (*Lau
 		return nil, ErrValidation
 	}
 	now := time.Now().UTC()
-	s.expireStaleRequests(ctx, deviceID, now)
+	deviceIDs, err := s.deliveryDeviceIDs(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	s.expireStaleRequests(ctx, deviceIDs, now)
 
 	var reqs []models.LaunchRequest
-	err := s.db.WithContext(ctx).
-		Where("device_id = ? AND status = ?", deviceID, models.LaunchStatusQueued).
+	err = s.db.WithContext(ctx).
+		Where("device_id IN ? AND status = ?", deviceIDs, models.LaunchStatusQueued).
 		Order("created_at asc").
 		Limit(1).
 		Find(&reqs).Error
@@ -154,13 +158,16 @@ func (s *Service) FetchPendingLaunch(ctx context.Context, deviceID string) (*Lau
 	req := reqs[0]
 
 	dispatched := now
+	// Claim for the polling device so any online launcher of the owner handles it.
 	if err := s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
 		"status":        models.LaunchStatusDispatched,
 		"dispatched_at": dispatched,
+		"device_id":     deviceID,
 	}).Error; err != nil {
 		return nil, err
 	}
 	req.Status = models.LaunchStatusDispatched
+	req.DeviceID = deviceID
 	req.DispatchedAt = &dispatched
 
 	view, err := s.enrichLaunchView(ctx, req)
@@ -251,9 +258,12 @@ func (s *Service) failLaunchRequestOnEnrichError(ctx context.Context, requestID 
 	return &req, nil
 }
 
-func (s *Service) expireStaleRequests(ctx context.Context, deviceID string, now time.Time) {
+func (s *Service) expireStaleRequests(ctx context.Context, deviceIDs []string, now time.Time) {
+	if len(deviceIDs) == 0 {
+		return
+	}
 	_ = s.db.WithContext(ctx).Model(&models.LaunchRequest{}).
-		Where("device_id = ? AND status = ? AND expires_at < ?", deviceID, models.LaunchStatusQueued, now).
+		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.LaunchStatusQueued, now).
 		Update("status", models.LaunchStatusExpired).Error
 }
 

@@ -92,11 +92,15 @@ func (s *Service) FetchPendingResourceExport(ctx context.Context, deviceID strin
 		return nil, ErrValidation
 	}
 	now := time.Now().UTC()
-	s.expireStaleResourceExports(ctx, deviceID, now)
+	deviceIDs, err := s.deliveryDeviceIDs(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	s.expireStaleResourceExports(ctx, deviceIDs, now)
 
 	var reqs []models.InstanceResourceExportRequest
-	err := s.db.WithContext(ctx).
-		Where("device_id = ? AND status = ?", deviceID, models.ResourceExportStatusQueued).
+	err = s.db.WithContext(ctx).
+		Where("device_id IN ? AND status = ?", deviceIDs, models.ResourceExportStatusQueued).
 		Order("created_at asc").
 		Limit(1).
 		Find(&reqs).Error
@@ -108,13 +112,16 @@ func (s *Service) FetchPendingResourceExport(ctx context.Context, deviceID strin
 	}
 	req := reqs[0]
 	dispatched := now
+	// Claim for the polling device so any online launcher of the owner handles it.
 	if err := s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
 		"status":        models.ResourceExportStatusDispatched,
 		"dispatched_at": dispatched,
+		"device_id":     deviceID,
 	}).Error; err != nil {
 		return nil, err
 	}
 	req.Status = models.ResourceExportStatusDispatched
+	req.DeviceID = deviceID
 	return resourceExportViewFromModel(req), nil
 }
 
@@ -206,9 +213,12 @@ func resourceExportViewFromModel(req models.InstanceResourceExportRequest) *Inst
 	}
 }
 
-func (s *Service) expireStaleResourceExports(ctx context.Context, deviceID string, now time.Time) {
+func (s *Service) expireStaleResourceExports(ctx context.Context, deviceIDs []string, now time.Time) {
+	if len(deviceIDs) == 0 {
+		return
+	}
 	_ = s.db.WithContext(ctx).Model(&models.InstanceResourceExportRequest{}).
-		Where("device_id = ? AND status = ? AND expires_at < ?", deviceID, models.ResourceExportStatusQueued, now).
+		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.ResourceExportStatusQueued, now).
 		Update("status", models.ResourceExportStatusExpired).Error
 }
 

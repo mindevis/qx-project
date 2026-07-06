@@ -91,11 +91,15 @@ func (s *Service) FetchPendingResourceUpload(ctx context.Context, deviceID strin
 		return nil, ErrValidation
 	}
 	now := time.Now().UTC()
-	s.expireStaleResourceUploads(ctx, deviceID, now)
+	deviceIDs, err := s.deliveryDeviceIDs(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	s.expireStaleResourceUploads(ctx, deviceIDs, now)
 
 	var reqs []models.InstanceResourceUploadRequest
-	err := s.db.WithContext(ctx).
-		Where("device_id = ? AND status = ?", deviceID, models.ResourceUploadStatusQueued).
+	err = s.db.WithContext(ctx).
+		Where("device_id IN ? AND status = ?", deviceIDs, models.ResourceUploadStatusQueued).
 		Order("created_at asc").
 		Limit(1).
 		Find(&reqs).Error
@@ -107,13 +111,16 @@ func (s *Service) FetchPendingResourceUpload(ctx context.Context, deviceID strin
 	}
 	req := reqs[0]
 	dispatched := now
+	// Claim for the polling device so any online launcher of the owner handles it.
 	if err := s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
 		"status":        models.ResourceUploadStatusDispatched,
 		"dispatched_at": dispatched,
+		"device_id":     deviceID,
 	}).Error; err != nil {
 		return nil, err
 	}
 	req.Status = models.ResourceUploadStatusDispatched
+	req.DeviceID = deviceID
 	return resourceUploadViewFromModel(req, true), nil
 }
 
@@ -222,8 +229,11 @@ func resourceUploadViewFromModel(req models.InstanceResourceUploadRequest, inclu
 	return view
 }
 
-func (s *Service) expireStaleResourceUploads(ctx context.Context, deviceID string, now time.Time) {
+func (s *Service) expireStaleResourceUploads(ctx context.Context, deviceIDs []string, now time.Time) {
+	if len(deviceIDs) == 0 {
+		return
+	}
 	_ = s.db.WithContext(ctx).Model(&models.InstanceResourceUploadRequest{}).
-		Where("device_id = ? AND status = ? AND expires_at < ?", deviceID, models.ResourceUploadStatusQueued, now).
+		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.ResourceUploadStatusQueued, now).
 		Update("status", models.ResourceUploadStatusExpired).Error
 }

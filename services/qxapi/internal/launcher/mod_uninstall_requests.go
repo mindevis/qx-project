@@ -113,11 +113,15 @@ func (s *Service) FetchPendingModUninstall(ctx context.Context, deviceID string)
 		return nil, ErrValidation
 	}
 	now := time.Now().UTC()
-	s.expireStaleModUninstalls(ctx, deviceID, now)
+	deviceIDs, err := s.deliveryDeviceIDs(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	s.expireStaleModUninstalls(ctx, deviceIDs, now)
 
 	var reqs []models.ModUninstallRequest
-	err := s.db.WithContext(ctx).
-		Where("device_id = ? AND status = ?", deviceID, models.ModUninstallStatusQueued).
+	err = s.db.WithContext(ctx).
+		Where("device_id IN ? AND status = ?", deviceIDs, models.ModUninstallStatusQueued).
 		Order("created_at asc").
 		Limit(1).
 		Find(&reqs).Error
@@ -129,13 +133,16 @@ func (s *Service) FetchPendingModUninstall(ctx context.Context, deviceID string)
 	}
 	req := reqs[0]
 	dispatched := now
+	// Claim for the polling device so any online launcher of the owner handles it.
 	if err := s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
 		"status":        models.ModUninstallStatusDispatched,
 		"dispatched_at": dispatched,
+		"device_id":     deviceID,
 	}).Error; err != nil {
 		return nil, err
 	}
 	req.Status = models.ModUninstallStatusDispatched
+	req.DeviceID = deviceID
 	return modUninstallViewFromModel(req), nil
 }
 
@@ -211,8 +218,11 @@ func modUninstallViewFromModel(req models.ModUninstallRequest) *ModUninstallRequ
 	}
 }
 
-func (s *Service) expireStaleModUninstalls(ctx context.Context, deviceID string, now time.Time) {
+func (s *Service) expireStaleModUninstalls(ctx context.Context, deviceIDs []string, now time.Time) {
+	if len(deviceIDs) == 0 {
+		return
+	}
 	_ = s.db.WithContext(ctx).Model(&models.ModUninstallRequest{}).
-		Where("device_id = ? AND status = ? AND expires_at < ?", deviceID, models.ModUninstallStatusQueued, now).
+		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.ModUninstallStatusQueued, now).
 		Update("status", models.ModUninstallStatusExpired).Error
 }

@@ -143,6 +143,10 @@ func (s *Service) ListInstancesForDevice(ctx context.Context, deviceID string) (
 func (s *Service) deliveryDeviceIDs(ctx context.Context, deviceID string) ([]string, error) {
 	device, err := s.getDevice(ctx, deviceID)
 	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			// Unknown device (e.g. never registered): it can only claim its own work.
+			return []string{deviceID}, nil
+		}
 		return nil, err
 	}
 	q := s.db.WithContext(ctx).Model(&models.LauncherDevice{}).

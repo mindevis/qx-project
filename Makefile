@@ -83,7 +83,7 @@ test:
 	cd web/qxweb && npm test
 
 test-coverage:
-	cd services/qxapi && go test ./cmd/... -coverprofile=coverage.out && go tool cover -func coverage.out | findstr /C:"total:"
+	cd services/qxapi && go test ./... -coverprofile=coverage.out && go tool cover -func coverage.out | findstr /C:"total:"
 	cd services/qxagent && go test ./... -coverprofile=coverage.out && go tool cover -func coverage.out | findstr /C:"total:"
 	cd services/qxlauncher && go test ./... -coverprofile=coverage.out && go tool cover -func coverage.out | findstr /C:"total:"
 	cd web/qxweb && npm run test:coverage

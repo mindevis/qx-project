@@ -80,11 +80,15 @@ func (s *Service) FetchPendingPrepare(ctx context.Context, deviceID string) (*Pr
 		return nil, ErrValidation
 	}
 	now := time.Now().UTC()
-	s.expireStalePrepareRequests(ctx, deviceID, now)
+	deviceIDs, err := s.deliveryDeviceIDs(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	s.expireStalePrepareRequests(ctx, deviceIDs, now)
 
 	var reqs []models.PrepareRequest
-	err := s.db.WithContext(ctx).
-		Where("device_id = ? AND status = ?", deviceID, models.PrepareStatusQueued).
+	err = s.db.WithContext(ctx).
+		Where("device_id IN ? AND status = ?", deviceIDs, models.PrepareStatusQueued).
 		Order("created_at asc").
 		Limit(1).
 		Find(&reqs).Error
@@ -97,13 +101,16 @@ func (s *Service) FetchPendingPrepare(ctx context.Context, deviceID string) (*Pr
 	req := reqs[0]
 
 	dispatched := now
+	// Claim for the polling device so any online launcher of the owner handles it.
 	if err := s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
 		"status":        models.PrepareStatusPreparing,
 		"dispatched_at": dispatched,
+		"device_id":     deviceID,
 	}).Error; err != nil {
 		return nil, err
 	}
 	req.Status = models.PrepareStatusPreparing
+	req.DeviceID = deviceID
 	req.DispatchedAt = &dispatched
 
 	var inst models.LauncherInstance
@@ -158,9 +165,12 @@ func (s *Service) getPrepareRequestForOwner(ctx context.Context, owner Owner, re
 	return &req, nil
 }
 
-func (s *Service) expireStalePrepareRequests(ctx context.Context, deviceID string, now time.Time) {
+func (s *Service) expireStalePrepareRequests(ctx context.Context, deviceIDs []string, now time.Time) {
+	if len(deviceIDs) == 0 {
+		return
+	}
 	_ = s.db.WithContext(ctx).Model(&models.PrepareRequest{}).
-		Where("device_id = ? AND status = ? AND expires_at < ?", deviceID, models.PrepareStatusQueued, now).
+		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.PrepareStatusQueued, now).
 		Update("status", models.PrepareStatusExpired).Error
 }
 
