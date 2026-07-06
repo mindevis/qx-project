@@ -158,35 +158,4 @@ export async function installServersApiMock(page: Page, state: ServersMockState)
   });
 }
 
-export async function installMockWebSocket(page: Page) {
-  await page.addInitScript(() => {
-    class MockWebSocket {
-      static OPEN = 1;
-      readyState = MockWebSocket.OPEN;
-      onopen: (() => void) | null = null;
-      onmessage: ((ev: { data: string }) => void) | null = null;
-      onclose: (() => void) | null = null;
-      onerror: (() => void) | null = null;
-
-      constructor(_url: string) {
-        queueMicrotask(() => {
-          this.onmessage?.({
-            data: JSON.stringify({ type: 'status', status: 'connected', detail: 'e2e mock' }),
-          });
-          this.onmessage?.({
-            data: JSON.stringify({ type: 'output', stream: 'stdout', line: 'Done (0.05s)!' }),
-          });
-        });
-      }
-
-      close() {
-        this.onclose?.();
-      }
-
-      send(_data: string) {}
-    }
-    window.WebSocket = MockWebSocket as unknown as typeof WebSocket;
-  });
-}
-
 export { seedAuthSession } from './mock-api';

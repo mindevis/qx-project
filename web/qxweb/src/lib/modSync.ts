@@ -206,7 +206,7 @@ export function isInstanceResourceOnServer(
   return isFilenameOnServer(serverFiles, resource.filename);
 }
 
-export function instanceResourceEffectiveSide(
+function instanceResourceEffectiveSide(
   resource: Pick<InstanceResource, 'side_override'>,
   catalogSide?: ModSyncSide,
 ): ModSyncSide {
@@ -217,7 +217,7 @@ export function instanceResourceEffectiveSide(
   return catalogSide ?? 'unknown';
 }
 
-export function contentTargetForSide(side: ModSyncSide, resourceType: string): ContentTarget {
+function contentTargetForSide(side: ModSyncSide, resourceType: string): ContentTarget {
   switch (resourceType) {
     case 'resourcepack':
       return side === 'client' ? 'client-resourcepacks' : 'resourcepacks';
@@ -226,10 +226,6 @@ export function contentTargetForSide(side: ModSyncSide, resourceType: string): C
     default:
       return side === 'client' ? 'client-mods' : 'mods';
   }
-}
-
-export function modTargetForSide(side: ModSyncSide): ModTarget {
-  return contentTargetForSide(side, 'mod');
 }
 
 export function instanceResourceContentTarget(
@@ -257,23 +253,11 @@ export function isServerOnlyMod(item: Pick<ModCatalogItem, 'client_side' | 'serv
   return modSyncSide(item) === 'server';
 }
 
-export function isClientOnlyMod(item: Pick<ModCatalogItem, 'client_side' | 'server_side'>): boolean {
-  return modSyncSide(item) === 'client';
-}
-
 export function mergeServerModLists(
   serverMods: GameServerFileEntry[],
   clientMods: GameServerFileEntry[],
 ): GameServerFileEntry[] {
   return [...serverMods, ...clientMods];
-}
-
-export function isFilenameOnServerLists(
-  serverFiles: GameServerFileEntry[],
-  clientFiles: GameServerFileEntry[],
-  filename: string,
-): boolean {
-  return isFilenameOnServer(serverFiles, filename) || isFilenameOnServer(clientFiles, filename);
 }
 
 export function instanceResourceSupportsServerSync(resource: InstanceResource): boolean {

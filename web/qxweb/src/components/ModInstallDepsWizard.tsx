@@ -39,16 +39,6 @@ function splitStepItems(items: InstallItem[], step: ModDepsWizardStep) {
   return { primary, dependencies };
 }
 
-function stepToInstallItem(step: ModDepsWizardStep): InstallItem {
-  return {
-    source: step.source,
-    projectId: step.projectId,
-    projectName: step.projectName,
-    version: step.version,
-    resourceType: step.resourceType,
-  };
-}
-
 export function ModInstallDepsWizard({
   open,
   source,
@@ -157,5 +147,3 @@ export function ModInstallDepsWizard({
     />
   );
 }
-
-export { stepToInstallItem };

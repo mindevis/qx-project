@@ -1,15 +1,5 @@
 export const OG_IMAGE_PATH = '/og-image.svg';
 
-export const SITEMAP_ROUTES = [
-  { path: '/', changefreq: 'weekly', priority: '1.0' },
-  { path: '/launcher', changefreq: 'weekly', priority: '0.9' },
-  { path: '/launcher/link', changefreq: 'monthly', priority: '0.6' },
-  { path: '/monitoring', changefreq: 'daily', priority: '0.8' },
-  { path: '/servers', changefreq: 'weekly', priority: '0.7' },
-  { path: '/profile', changefreq: 'monthly', priority: '0.5' },
-  { path: '/skins', changefreq: 'monthly', priority: '0.5' },
-] as const;
-
 const SEO_PAGE_KEYS = [
   'home',
   'launcher',

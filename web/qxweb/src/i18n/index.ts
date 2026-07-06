@@ -56,11 +56,6 @@ export function getDedicatedHostStatusKey(status: string): string {
   return `servers.dedicatedHostStatus.${status}`;
 }
 
-/** @deprecated Use getDedicatedHostStatusKey */
-export function getVpsHostStatusKey(status: string): string {
-  return getDedicatedHostStatusKey(status);
-}
-
 export function getAgentDeployStatusKey(status: string): string {
   return `servers.agentDeploy.${status}`;
 }
