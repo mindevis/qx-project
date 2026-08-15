@@ -81,6 +81,8 @@ func Install(ctx context.Context, opts Options, cfg InstallConfig) (StartSpec, e
 	switch strings.ToLower(strings.TrimSpace(cfg.ServerType)) {
 	case "forge":
 		return installForge(ctx, opts, cfg)
+	case "neoforge":
+		return installNeoForge(ctx, opts, cfg)
 	default:
 		return StartSpec{}, fmt.Errorf("%w: %s", ErrUnsupportedServerType, cfg.ServerType)
 	}

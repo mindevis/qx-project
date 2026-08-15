@@ -13,16 +13,22 @@ import (
 )
 
 const (
-	forgeMavenBase  = "https://maven.minecraftforge.net/net/minecraftforge/forge"
-	forgeDownloadTO = 10 * time.Minute
-	forgeInstallTO  = 20 * time.Minute
+	forgeMavenBase    = "https://maven.minecraftforge.net/net/minecraftforge/forge"
+	neoForgeMavenBase = "https://maven.neoforged.net/releases/net/neoforged/neoforge"
+	forgeDownloadTO   = 10 * time.Minute
+	forgeInstallTO    = 20 * time.Minute
 )
 
+type loaderInstallKind struct {
+	label         string
+	artifact      string
+	installerURL  string
+	installerFile string
+	unixArgsRel   string
+	fallbackJar   string
+}
+
 func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSpec, error) {
-	workDir, err := safepath.ResolveRoot(cfg.WorkDir)
-	if err != nil {
-		return StartSpec{}, fmt.Errorf("work dir: %w", err)
-	}
 	mcVersion := strings.TrimSpace(cfg.MCVersion)
 	loaderVersion := strings.TrimSpace(cfg.LoaderVersion)
 	if mcVersion == "" || loaderVersion == "" {
@@ -32,13 +38,47 @@ func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSp
 	if err := validateArtifact(artifact); err != nil {
 		return StartSpec{}, err
 	}
-	javaBin, err := ensureJava(ctx, opts, mcVersion)
+	return installLoaderServer(ctx, opts, cfg, loaderInstallKind{
+		label:         "Forge",
+		artifact:      artifact,
+		installerURL:  forgeInstallerURL(artifact),
+		installerFile: "forge-installer.jar",
+		unixArgsRel:   filepath.ToSlash(filepath.Join("libraries", "net", "minecraftforge", "forge", artifact, "unix_args.txt")),
+		fallbackJar:   "forge-" + artifact + ".jar",
+	})
+}
+
+func installNeoForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSpec, error) {
+	mcVersion := strings.TrimSpace(cfg.MCVersion)
+	loaderVersion := strings.TrimSpace(cfg.LoaderVersion)
+	if mcVersion == "" || loaderVersion == "" {
+		return StartSpec{}, fmt.Errorf("neoforge install requires mc_version and loader_version")
+	}
+	if err := validateArtifact(loaderVersion); err != nil {
+		return StartSpec{}, err
+	}
+	return installLoaderServer(ctx, opts, cfg, loaderInstallKind{
+		label:         "NeoForge",
+		artifact:      loaderVersion,
+		installerURL:  neoForgeInstallerURL(loaderVersion),
+		installerFile: "neoforge-installer.jar",
+		unixArgsRel:   filepath.ToSlash(filepath.Join("libraries", "net", "neoforged", "neoforge", loaderVersion, "unix_args.txt")),
+		fallbackJar:   "neoforge-" + loaderVersion + ".jar",
+	})
+}
+
+func installLoaderServer(ctx context.Context, opts Options, cfg InstallConfig, kind loaderInstallKind) (StartSpec, error) {
+	workDir, err := safepath.ResolveRoot(cfg.WorkDir)
+	if err != nil {
+		return StartSpec{}, fmt.Errorf("work dir: %w", err)
+	}
+	javaBin, err := ensureJava(ctx, opts, strings.TrimSpace(cfg.MCVersion))
 	if err != nil {
 		return StartSpec{}, err
 	}
 	if opts.DryRun {
-		logLine(opts, "[QX] Forge install dry-run for "+artifact)
-		jarPath, err := safepath.Join(workDir, "forge-"+artifact+".jar")
+		logLine(opts, "[QX] "+kind.label+" install dry-run for "+kind.artifact)
+		jarPath, err := safepath.Join(workDir, kind.fallbackJar)
 		if err != nil {
 			return StartSpec{}, err
 		}
@@ -50,24 +90,23 @@ func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSp
 		}, nil
 	}
 
-	logLine(opts, "[QX] Preparing Forge "+artifact+" in "+workDir)
+	logLine(opts, "[QX] Preparing "+kind.label+" "+kind.artifact+" in "+workDir)
 	if err := safepath.EnsureDir(workDir); err != nil {
 		return StartSpec{}, fmt.Errorf("mkdir work dir: %w", err)
 	}
 
-	installerURL := forgeInstallerURL(artifact)
-	installerPath, err := safepath.Join(workDir, "forge-installer.jar")
+	installerPath, err := safepath.Join(workDir, kind.installerFile)
 	if err != nil {
 		return StartSpec{}, err
 	}
 	logLine(opts, "[QX] Downloading installer…")
 	downloadCtx, cancelDownload := context.WithTimeout(ctx, forgeDownloadTO)
-	err = downloadFile(downloadCtx, installerURL, installerPath)
+	err = downloadFile(downloadCtx, kind.installerURL, installerPath)
 	cancelDownload()
 	if err != nil {
 		return StartSpec{}, err
 	}
-	logLine(opts, "[QX] Running Forge installer (may take several minutes)…")
+	logLine(opts, "[QX] Running "+kind.label+" installer (may take several minutes)…")
 
 	installCtx, cancelInstall := context.WithTimeout(ctx, forgeInstallTO)
 	defer cancelInstall()
@@ -85,9 +124,9 @@ func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSp
 		if len(tail) > 2000 {
 			tail = tail[len(tail)-2000:]
 		}
-		return StartSpec{}, fmt.Errorf("forge installer: %w: %s", err, tail)
+		return StartSpec{}, fmt.Errorf("%s installer: %w: %s", strings.ToLower(kind.label), err, tail)
 	}
-	logLine(opts, "[QX] Forge installer finished")
+	logLine(opts, "[QX] "+kind.label+" installer finished")
 
 	if err := acceptEULA(workDir); err != nil {
 		return StartSpec{}, err
@@ -101,7 +140,7 @@ func installForge(ctx context.Context, opts Options, cfg InstallConfig) (StartSp
 		return StartSpec{}, err
 	}
 
-	spec, err := forgeStartSpec(workDir, artifact, javaBin)
+	spec, err := loaderStartSpec(workDir, kind.unixArgsRel, kind.fallbackJar, javaBin)
 	if err != nil {
 		return StartSpec{}, err
 	}
@@ -123,6 +162,10 @@ func validateArtifact(artifact string) error {
 
 func forgeInstallerURL(artifact string) string {
 	return fmt.Sprintf("%s/%s/forge-%s-installer.jar", forgeMavenBase, artifact, artifact)
+}
+
+func neoForgeInstallerURL(loaderVersion string) string {
+	return fmt.Sprintf("%s/%s/neoforge-%s-installer.jar", neoForgeMavenBase, loaderVersion, loaderVersion)
 }
 
 func downloadFile(ctx context.Context, url, dest string) error {
@@ -152,6 +195,10 @@ func acceptEULA(workDir string) error {
 
 func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
 	unixRel := filepath.ToSlash(filepath.Join("libraries", "net", "minecraftforge", "forge", artifact, "unix_args.txt"))
+	return loaderStartSpec(workDir, unixRel, "forge-"+artifact+".jar", javaBin)
+}
+
+func loaderStartSpec(workDir, unixRel, fallbackJar, javaBin string) (StartSpec, error) {
 	unixPath, err := safepath.JoinRel(workDir, unixRel)
 	if err != nil {
 		return StartSpec{}, err
@@ -182,12 +229,12 @@ func forgeStartSpec(workDir, artifact, javaBin string) (StartSpec, error) {
 			JavaBin: javaBin,
 		}, nil
 	}
-	jarPath, err := safepath.Join(workDir, "forge-"+artifact+".jar")
+	jarPath, err := safepath.Join(workDir, fallbackJar)
 	if err != nil {
 		return StartSpec{}, err
 	}
 	if _, err := safepath.Stat(jarPath); err != nil {
-		return StartSpec{}, fmt.Errorf("forge server jar not found in %s", workDir)
+		return StartSpec{}, fmt.Errorf("server jar not found in %s", workDir)
 	}
 	return StartSpec{
 		WorkDir: workDir,
