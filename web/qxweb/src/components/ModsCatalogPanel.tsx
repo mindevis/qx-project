@@ -7,6 +7,7 @@ import {
   Segmented,
   Select,
   Spin,
+  Switch,
   Table,
   Typography,
 } from 'antd';
@@ -65,6 +66,7 @@ export function ModsCatalogPanel() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [installedProjectIds, setInstalledProjectIds] = useState<Set<string>>(new Set());
   const [installedResources, setInstalledResources] = useState<InstanceResource[]>([]);
+  const [showInstalledOnly, setShowInstalledOnly] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncSelection, setSyncSelection] = useState<ModSyncSelection | null>(null);
 
@@ -224,6 +226,59 @@ export function ModsCatalogPanel() {
     }
   };
 
+  const catalogByKey = useMemo(() => {
+    const map = new Map<string, ModCatalogItem>();
+    for (const item of items) {
+      map.set(`${item.source}:${item.id}`, item);
+    }
+    return map;
+  }, [items]);
+
+  const visibleItems = useMemo(() => {
+    if (showInstalledOnly) {
+      const query = appliedSearch.trim().toLowerCase();
+      return installedResources
+        .filter((resource) => {
+          if (!resource.project_id || resource.resource_type !== activeTab) {
+            return false;
+          }
+          if (sourceFilter !== 'all' && resource.source !== sourceFilter) {
+            return false;
+          }
+          if (query && !resource.project_name.toLowerCase().includes(query)) {
+            return false;
+          }
+          return true;
+        })
+        .map((resource) => {
+          const fromCatalog = catalogByKey.get(`${resource.source}:${resource.project_id}`);
+          if (fromCatalog) {
+            return fromCatalog;
+          }
+          return {
+            id: resource.project_id!,
+            source: resource.source,
+            slug: resource.project_id!,
+            name: resource.project_name,
+            icon_url: resource.icon_url,
+            downloads: resource.downloads,
+            project_type: resource.resource_type,
+            external_url: '',
+          } satisfies ModCatalogItem;
+        });
+    }
+    return items.filter((item) => !installedProjectIds.has(`${item.source}:${item.id}`));
+  }, [
+    activeTab,
+    appliedSearch,
+    catalogByKey,
+    installedProjectIds,
+    installedResources,
+    items,
+    showInstalledOnly,
+    sourceFilter,
+  ]);
+
   const sourceOptions = useMemo(
     () => [
       { value: 'all', label: t('qxmods.filters.sourceAll') },
@@ -369,6 +424,16 @@ export function ModsCatalogPanel() {
               className="qxmods-filter-select"
             />
           </label>
+          <label className="qxmods-filter-field qxmods-filter-field--switch">
+            <Text type="secondary" className="qxmods-filter-label">
+              {t('qxmods.filters.installedOnly')}
+            </Text>
+            <Switch
+              checked={showInstalledOnly}
+              onChange={setShowInstalledOnly}
+              aria-label={t('qxmods.filters.installedOnly')}
+            />
+          </label>
         </div>
         <div className="qxmods-search-filter">
           <Input
@@ -411,7 +476,7 @@ export function ModsCatalogPanel() {
           loader: instance.loader,
         })}
       </Paragraph>
-      {loading && items.length === 0 ? (
+      {loading && items.length === 0 && !showInstalledOnly ? (
         <div className="qxmods-loading">
           <Spin />
         </div>
@@ -423,14 +488,20 @@ export function ModsCatalogPanel() {
             className="qxmods-catalog-table qxmods-catalog-table--install"
             rowKey={(item) => `${item.source}:${item.id}`}
             columns={columns}
-            dataSource={items}
-            loading={loading}
+            dataSource={visibleItems}
+            loading={loading && !showInstalledOnly}
             pagination={false}
             scroll={{ x: 960 }}
             tableLayout="fixed"
-            locale={{ emptyText: isSearchMode ? t('qxmods.empty') : t('qxmods.catalogEmpty') }}
+            locale={{
+              emptyText: showInstalledOnly
+                ? t('qxmods.installed.empty')
+                : isSearchMode
+                  ? t('qxmods.empty')
+                  : t('qxmods.catalogEmpty'),
+            }}
           />
-          {!isSearchMode && hasMore ? (
+          {!showInstalledOnly && !isSearchMode && hasMore ? (
             <div className="qxmods-load-more">
               <Button loading={loadingMore} onClick={() => void loadMore()}>
                 {t('qxmods.loadMore')}

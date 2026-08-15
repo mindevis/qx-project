@@ -62,6 +62,11 @@ html[data-theme='dark'] .instance-resources-panel {
   min-width: 160px;
 }
 
+.qxmods-filter-field--switch {
+  min-width: auto;
+  justify-content: flex-end;
+}
+
 .qxmods-search-filter {
   display: flex;
   flex-wrap: wrap;

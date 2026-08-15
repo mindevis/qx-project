@@ -948,6 +948,7 @@ export const en: Messages = {
       sortNewest: 'Newest',
       sortUpdated: 'Recently updated',
       sortRelevance: 'Relevance',
+      installedOnly: 'Installed only',
     },
     attribution:
       'QXMods loads metadata from official CurseForge and Modrinth APIs. Files are downloaded from the catalog providers.',

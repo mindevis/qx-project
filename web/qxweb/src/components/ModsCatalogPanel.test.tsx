@@ -214,7 +214,12 @@ describe('ModsCatalogPanel', () => {
     );
   });
 
-  it('shows installed badge for installed catalog item', async () => {
+  it('hides installed catalog items by default', async () => {
+    vi.mocked(api.browseMods).mockResolvedValue({
+      items: [catalogItem, { ...catalogItem, id: 'lithium', name: 'Lithium' }],
+      has_more: false,
+      curseforge_enabled: true,
+    });
     vi.mocked(api.listInstanceResources).mockResolvedValue({
       items: [
         {
@@ -229,7 +234,38 @@ describe('ModsCatalogPanel', () => {
       ],
     });
     renderCatalog();
-    await waitFor(() => expect(screen.getByText('Установлен')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Lithium')).toBeInTheDocument());
+    expect(screen.queryByText('Sodium')).not.toBeInTheDocument();
+  });
+
+  it('shows only installed mods when toggle is enabled', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.mocked(api.browseMods).mockResolvedValue({
+      items: [catalogItem, { ...catalogItem, id: 'lithium', name: 'Lithium' }],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+    vi.mocked(api.listInstanceResources).mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          project_id: 'sodium',
+          project_name: 'Sodium',
+          version_number: '0.5.0',
+          filename: 'sodium.jar',
+          resource_type: 'mod',
+          installed_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+    });
+    renderCatalog();
+    await waitFor(() => expect(screen.getByText('Lithium')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('switch', { name: 'Только установленные' }));
+
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    expect(screen.queryByText('Lithium')).not.toBeInTheDocument();
+    expect(screen.getByText('Установлен')).toBeInTheDocument();
   });
 
   it('opens server sync modal after catalog install', async () => {

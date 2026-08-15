@@ -947,6 +947,7 @@ export const ru = {
       sortNewest: 'Новые',
       sortUpdated: 'Недавно обновлённые',
       sortRelevance: 'По релевантности',
+      installedOnly: 'Только установленные',
     },
     attribution:
       'Каталог QXMods загружает метаданные из официальных API CurseForge и Modrinth. Файлы скачиваются через API поставщиков каталога.',
