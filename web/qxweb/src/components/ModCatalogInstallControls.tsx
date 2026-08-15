@@ -302,7 +302,7 @@ export function ModCatalogInstallControls({
 
   const ensureVersionAndInstall = () => {
     void (async () => {
-      let version = selectedVersion;
+      let version: ModVersion | undefined = selectedVersion;
       if (!version) {
         const items = versionsLoaded ? versions : await loadVersions();
         version = selectLatestCompatibleVersion(items, loader, mcVersion);
