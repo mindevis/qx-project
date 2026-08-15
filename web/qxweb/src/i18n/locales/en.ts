@@ -879,8 +879,11 @@ export const en: Messages = {
     launchCompleted: 'Game launched',
     launchFailed: 'Failed to launch via QXLauncher',
     launchTimeout: 'Launch is taking longer than expected',
-    connectNeedsLauncher: 'Link QXLauncher to join with your bound instance',
-    connectGuestHint: 'Sign in and bind an instance to launch via QXLauncher — otherwise minecraft:// will open',
+    connectNeedsLauncher: 'Link QXLauncher to create an instance and join the server',
+    connectGuestHint: 'Sign in and link QXLauncher — an instance and game files will be created automatically',
+    connectInstanceFailed: 'Failed to create an instance for this server',
+    connectPrepareFailed: 'Failed to download game files for this server',
+    connectProfileFailed: 'Failed to create a player profile for this server',
     connectMods: {
       title: 'Client mods for {{server}}',
       hint: 'These files run on your game client. Client mods sync when selected; resource packs and shaders sync automatically when you connect.',

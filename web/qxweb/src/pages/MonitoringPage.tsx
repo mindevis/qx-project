@@ -39,6 +39,13 @@ import { useMessage } from '@/hooks/useMessage';
 import { ALL_GAME_SERVER_TYPES, gameServerTypeLabelText } from '@/lib/gameServerTypes';
 import { isLaunchTerminal } from '@/lib/launchProgress';
 import { cachedListMcVersions } from '@/lib/mcVersionsCache';
+import {
+  findCompatibleInstance,
+  launcherSpecForMonitoringServer,
+  offlineUsernameFromIdentity,
+} from '@/lib/monitoringConnect';
+import { isPrepareTerminal } from '@/lib/prepareProgress';
+import { launcherLoaderNeedsVersion } from '@/lib/launcherLoaders';
 import { ConnectClientModsModal } from '@/components/ConnectClientModsModal';
 import { highlightMinecraft } from '@/pages/HomePage';
 import './MonitoringPage.css';
@@ -47,6 +54,7 @@ const { Title, Paragraph, Text } = Typography;
 
 const LAUNCH_POLL_MS = 1500;
 const LAUNCH_POLL_MAX = 120;
+const PREPARE_POLL_MAX = 400;
 
 type Filters = {
   mc_version: string;
@@ -285,7 +293,7 @@ function MonitoringServerCard({
 export function MonitoringPage() {
   const { t } = useI18n();
   const message = useMessage();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [draftQuery, setDraftQuery] = useState('');
@@ -483,21 +491,81 @@ export function MonitoringPage() {
 
   const pollLaunchRequest = async (requestId: string) => {
     for (let attempt = 0; attempt < LAUNCH_POLL_MAX; attempt += 1) {
-      await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
       const req = await api.getLaunchRequest(requestId);
       if (isLaunchTerminal(req.status)) {
         return;
       }
+      await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
     }
+  };
+
+  const pollPrepareRequest = async (requestId: string) => {
+    for (let attempt = 0; attempt < PREPARE_POLL_MAX; attempt += 1) {
+      const req = await api.getPrepareRequest(requestId);
+      if (isPrepareTerminal(req.status)) {
+        return req.status;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
+    }
+    return 'timeout';
+  };
+
+  const ensureOfflineProfile = async (): Promise<string | undefined> => {
+    if (mojangStatus?.linked) return undefined;
+    if (profiles[0]?.id) return profiles[0].id;
+    const profile = await api.createProfile({
+      username: offlineUsernameFromIdentity(user),
+    });
+    setProfiles([profile]);
+    return profile.id;
+  };
+
+  const ensureBindingForServer = async (
+    server: MonitoringServer,
+  ): Promise<MonitoringInstanceBinding> => {
+    const existing = bindings.get(server.id);
+    if (existing) return existing;
+
+    const spec = launcherSpecForMonitoringServer(server);
+    if (!spec) {
+      throw new Error(t('monitoring.connectInstanceFailed'));
+    }
+
+    const compatible = findCompatibleInstance(instances, spec);
+    const instance =
+      compatible ??
+      (await api.createInstance({
+        name: spec.name,
+        mc_version: spec.mc_version,
+        loader: spec.loader,
+        loader_version: launcherLoaderNeedsVersion(spec.loader)
+          ? spec.loader_version
+          : undefined,
+      }));
+
+    if (!compatible) {
+      setInstances((prev) => [instance, ...prev]);
+      if (instance.prepare_request_id) {
+        const prepareStatus = await pollPrepareRequest(instance.prepare_request_id);
+        if (prepareStatus !== 'completed') {
+          throw new Error(t('monitoring.connectPrepareFailed'));
+        }
+      }
+    }
+
+    const binding = await api.setMonitoringBinding(server.id, instance.id);
+    setBindings((prev) => new Map(prev).set(server.id, binding));
+    return binding;
   };
 
   const launchToServer = async (server: MonitoringServer, binding: MonitoringInstanceBinding) => {
     setConnectingServerId(server.id);
     try {
       const useLicensed = mojangStatus?.linked === true;
+      const offlineProfileId = useLicensed ? undefined : await ensureOfflineProfile();
       const req = await api.createLaunchRequest({
         instance_id: binding.instance_id,
-        offline_profile_id: useLicensed ? undefined : profiles[0]?.id,
+        offline_profile_id: offlineProfileId,
         use_mojang_account: useLicensed,
         join_server_address: server.address,
         join_server_port: server.port,
@@ -511,16 +579,25 @@ export function MonitoringPage() {
   };
 
   const handleConnect = async (server: MonitoringServer) => {
-    const binding = bindings.get(server.id);
-    if (!isAuthenticated || !binding || !linkedDevice) {
-      openMinecraftLink(server);
-      if (isAuthenticated && binding && !linkedDevice) {
-        message.info(t('monitoring.connectNeedsLauncher'));
-      }
+    if (!isAuthenticated) {
+      openAuthModal('login');
+      return;
+    }
+    if (!linkedDevice) {
+      message.info(t('monitoring.connectNeedsLauncher'));
       return;
     }
 
-    setConnectModsServer(server);
+    setConnectingServerId(server.id);
+    try {
+      await ensureBindingForServer(server);
+      await ensureOfflineProfile();
+      setConnectModsServer(server);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('monitoring.connectInstanceFailed'));
+    } finally {
+      setConnectingServerId(null);
+    }
   };
 
   const handleConnectModsConfirmed = async () => {

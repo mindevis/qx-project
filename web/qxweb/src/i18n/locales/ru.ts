@@ -878,8 +878,11 @@ export const ru = {
     launchCompleted: 'Игра запущена',
     launchFailed: 'Не удалось запустить через QXLauncher',
     launchTimeout: 'Запуск занимает больше времени, чем ожидалось',
-    connectNeedsLauncher: 'Привяжите QXLauncher, чтобы подключаться с выбранным инстансом',
-    connectGuestHint: 'Войдите и привяжите инстанс, чтобы запустить игру через QXLauncher — иначе откроется minecraft://',
+    connectNeedsLauncher: 'Привяжите QXLauncher, чтобы создать инстанс и подключиться к серверу',
+    connectGuestHint: 'Войдите и привяжите QXLauncher — инстанс и файлы игры создадутся автоматически',
+    connectInstanceFailed: 'Не удалось создать инстанс для подключения',
+    connectPrepareFailed: 'Не удалось загрузить файлы игры для подключения',
+    connectProfileFailed: 'Не удалось создать игровой профиль для подключения',
     connectMods: {
       title: 'Клиентские моды — {{server}}',
       hint: 'Эти файлы работают на вашем клиенте. Серверные моды, ресурспаки и шейдеры синхронизируются автоматически.',
