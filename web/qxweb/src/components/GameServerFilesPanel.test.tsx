@@ -138,7 +138,7 @@ describe('GameServerFilesPanel', () => {
     await waitFor(() => expect(screen.getByText('world')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Удалить' }));
     const folderDialog = await screen.findByRole('dialog');
-    expect(within(folderDialog).getByText('Удалить папку?')).toBeInTheDocument();
+    expect(folderDialog).toHaveAccessibleName('Удалить папку?');
     await user.click(within(folderDialog).getByRole('button', { name: 'Удалить' }));
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('srv-1', 'gs-1', 'world'));
     expect(api.listVpsGameServerFiles).toHaveBeenCalledWith('srv-1', 'gs-1', '');
