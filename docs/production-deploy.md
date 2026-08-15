@@ -4,8 +4,7 @@ Platform host: **Docker Compose** в `/opt/qxsystem`. Образы в **GHCR**, 
 
 > **Домен:** `mc.qx-dev.ru` (панель + API `/api/v1`)  
 > **Platform host:** `178.172.136.26` · **Чеклист:** [mvp §7.1](./mvp.md#71-prod-readiness)  
-> **Статус:** ✅ **production live** (2026-06-29)  
-> **Соседний сервис:** qTranslator на том же nginx/MySQL — vhost `nginx/qtranslator.conf` (`qt.qx-dev.ru`), сеть `qxsystem_qx`. Не затирать при деплое (CI/up.sh сохраняют).
+> **Статус:** ✅ **production live** (2026-06-29)
 
 Push в `main` → **CI green** → **Prod release** → GHCR → bootstrap platform host → `/opt/qxsystem` + `.env.prod` из Secrets → `docker compose up`.
 

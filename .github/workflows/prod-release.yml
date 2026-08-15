@@ -185,7 +185,6 @@ jobs:
           cp infra/docker/nginx/spa-security-headers.conf .deploy/nginx/
           cp infra/docker/nginx/gzip.conf .deploy/nginx/
           cp infra/docker/nginx/upstream-proxies.conf .deploy/nginx/
-          cp infra/docker/nginx/qtranslator.conf .deploy/nginx/
           cp infra/docker/nginx/prod-http.conf .deploy/nginx/active.conf
           cp infra/scripts/prod-certbot-cloudflare.sh .deploy/certbot-cloudflare.sh
           cp infra/scripts/prod-remote-up.sh .deploy/up.sh
@@ -231,19 +230,8 @@ jobs:
           PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
         run: |
           set -euo pipefail
-          # Keep qTranslator vhost if already installed (scp would overwrite with placeholder).
-          ssh -i ~/.ssh/prod_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
-            "${PROD_SSH_USER}@${PROD_SSH_HOST}" \
-            'if [ -f /opt/qxsystem/nginx/qtranslator.conf ] && grep -q qtranslator-api /opt/qxsystem/nginx/qtranslator.conf 2>/dev/null; then
-               cp /opt/qxsystem/nginx/qtranslator.conf /tmp/qtranslator.conf.bak
-             fi'
           scp -i ~/.ssh/prod_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new -r \
             .deploy/. "${PROD_SSH_USER}@${PROD_SSH_HOST}:/opt/qxsystem/"
-          ssh -i ~/.ssh/prod_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
-            "${PROD_SSH_USER}@${PROD_SSH_HOST}" \
-            'if [ -f /tmp/qtranslator.conf.bak ]; then
-               mv /tmp/qtranslator.conf.bak /opt/qxsystem/nginx/qtranslator.conf
-             fi'
 
       - name: Pull images and restart stack
         env:

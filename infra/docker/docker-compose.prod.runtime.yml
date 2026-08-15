@@ -92,7 +92,6 @@ services:
       - ./nginx/gzip.conf:/etc/nginx/conf.d/gzip.conf:ro
       - ./nginx/spa-security-headers.conf:/etc/nginx/spa-security-headers.conf:ro
       - ./nginx/upstream-proxies.conf:/etc/nginx/upstream-proxies.conf:ro
-      - ./nginx/qtranslator.conf:/etc/nginx/conf.d/qtranslator.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - api
