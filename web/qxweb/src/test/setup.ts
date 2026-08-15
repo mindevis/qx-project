@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { afterAll, afterEach, beforeEach, vi } from 'vitest';
 import { act, cleanup, configure } from '@testing-library/react';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import { clearTokens } from '@/api/client';
 import { __test__ as loggerTest } from '@/lib/logger';
 import { installCanvasMocks } from '@/test/canvas-mock';
@@ -78,6 +78,7 @@ async function flushReactWork() {
 
 afterEach(async () => {
   cleanup();
+  Modal.destroyAll();
   clearTokens();
   localStorage.clear();
   window.history.pushState({}, '', '/');

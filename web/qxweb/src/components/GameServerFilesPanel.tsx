@@ -14,6 +14,7 @@ import { FolderOutlined, FileOutlined, ArrowLeftOutlined, DeleteOutlined } from 
 import { api, type GameServerFileEntry } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { modalMotionProps } from '@/lib/modal';
 
 type GameServerFilesPanelProps = {
   vpsId: string;
@@ -133,6 +134,7 @@ export function GameServerFilesPanel({
 
   const handleDelete = (row: GameServerFileEntry) => {
     Modal.confirm({
+      ...modalMotionProps,
       title: row.dir ? t('gameServerDetail.folderDeleteTitle') : t('gameServerDetail.fileDeleteTitle'),
       content: row.dir
         ? t('gameServerDetail.folderDeleteConfirm', { name: row.name })
@@ -280,7 +282,10 @@ export function GameServerFilesPanel({
                   icon={<DeleteOutlined />}
                   loading={deletingPath === row.path}
                   aria-label={t('common.delete')}
-                  onClick={() => handleDelete(row)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleDelete(row);
+                  }}
                 />
               ),
             },

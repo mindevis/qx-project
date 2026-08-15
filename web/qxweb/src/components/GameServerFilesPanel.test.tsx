@@ -1,16 +1,16 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi, afterEach } from 'vitest';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Modal } from 'antd';
 import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { GameServerFilesPanel } from './GameServerFilesPanel';
 
 describe('GameServerFilesPanel', () => {
-  beforeEach(() => {
-  });
-
   afterEach(() => {
+    Modal.destroyAll();
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -114,7 +114,8 @@ describe('GameServerFilesPanel', () => {
     );
     await waitFor(() => expect(screen.getByText('eula.txt')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Удалить' }));
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
+    const fileDialog = await screen.findByRole('dialog');
+    await user.click(within(fileDialog).getByRole('button', { name: 'Удалить' }));
     await waitFor(() =>
       expect(deleteSpy).toHaveBeenCalledWith('srv-1', 'gs-1', 'eula.txt'),
     );
@@ -136,8 +137,9 @@ describe('GameServerFilesPanel', () => {
     );
     await waitFor(() => expect(screen.getByText('world')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Удалить' }));
-    expect(screen.getByText('Удалить папку?')).toBeInTheDocument();
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
+    const folderDialog = await screen.findByRole('dialog');
+    expect(within(folderDialog).getByText('Удалить папку?')).toBeInTheDocument();
+    await user.click(within(folderDialog).getByRole('button', { name: 'Удалить' }));
     await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('srv-1', 'gs-1', 'world'));
     expect(api.listVpsGameServerFiles).toHaveBeenCalledWith('srv-1', 'gs-1', '');
   });

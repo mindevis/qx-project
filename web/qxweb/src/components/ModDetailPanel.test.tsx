@@ -140,7 +140,7 @@ describe('ModDetailPanel', () => {
       ],
     });
     renderDetail();
-    await waitFor(() => expect(screen.getByText('Установлен')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Установлен').length).toBeGreaterThan(0));
   });
 
   it('shows not found when project missing', async () => {

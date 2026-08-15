@@ -362,6 +362,7 @@ export function ModCatalogInstallControls({
           type="primary"
           size="small"
           className="qxmods-install-action"
+          aria-label={t('qxmods.install.action')}
           loading={installing || (!versionsLoaded && loadingVersions)}
           disabled={disabled || (versionsLoaded && !selectedVersion)}
           onClick={ensureVersionAndInstall}

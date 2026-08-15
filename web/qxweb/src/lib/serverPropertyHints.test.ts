@@ -6,7 +6,8 @@ describe('serverPropertyHints', () => {
     const motd = getServerPropertyMeta('ru', 'motd');
     expect(motd.title).toBe('Сообщение дня');
     expect(motd.description).toMatch(/списке серверов/i);
-    expect(getServerPropertyHint('ru', 'online-mode')).toMatch(/лицензион/i);
+    expect(getServerPropertyMeta('ru', 'online-mode').title).toMatch(/лицензион/i);
+    expect(getServerPropertyHint('ru', 'online-mode')).toMatch(/Mojang/i);
   });
 
   it('falls back to the raw key when the setting is unknown', () => {
