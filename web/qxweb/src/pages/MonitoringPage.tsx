@@ -37,7 +37,7 @@ import { useAuthModal } from '@/auth/AuthModalContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { ALL_GAME_SERVER_TYPES, gameServerTypeLabelText } from '@/lib/gameServerTypes';
-import { isLaunchTerminal } from '@/lib/launchProgress';
+import { isLaunchStarted } from '@/lib/launchProgress';
 import { cachedListMcVersions } from '@/lib/mcVersionsCache';
 import {
   findCompatibleInstance,
@@ -492,11 +492,12 @@ export function MonitoringPage() {
   const pollLaunchRequest = async (requestId: string) => {
     for (let attempt = 0; attempt < LAUNCH_POLL_MAX; attempt += 1) {
       const req = await api.getLaunchRequest(requestId);
-      if (isLaunchTerminal(req.status)) {
-        return;
+      if (isLaunchStarted(req.status)) {
+        return req.status;
       }
       await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
     }
+    return 'timeout';
   };
 
   const pollPrepareRequest = async (requestId: string) => {
@@ -570,7 +571,13 @@ export function MonitoringPage() {
         join_server_address: server.address,
         join_server_port: server.port,
       });
-      await pollLaunchRequest(req.id);
+      const status = await pollLaunchRequest(req.id);
+      if (status === 'running' || status === 'completed') {
+        message.success(t('monitoring.launchCompleted'));
+      } else if (status === 'failed' || status === 'expired') {
+        message.error(t('monitoring.launchFailed'));
+        openMinecraftLink(server);
+      }
     } catch {
       openMinecraftLink(server);
     } finally {

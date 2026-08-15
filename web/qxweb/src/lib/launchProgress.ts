@@ -24,6 +24,10 @@ export function isLaunchTerminal(status: string): boolean {
   return LAUNCH_TERMINAL_STATUSES.has(status);
 }
 
+export function isLaunchStarted(status: string): boolean {
+  return status === 'running' || isLaunchTerminal(status);
+}
+
 export function getLaunchErrorKey(errorCode?: string): string | undefined {
   if (!errorCode) {
     return undefined;

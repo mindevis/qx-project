@@ -3,6 +3,7 @@ import {
   LAUNCH_ACTIVE_STATUSES,
   LAUNCH_TERMINAL_STATUSES,
   getLaunchErrorKey,
+  isLaunchStarted,
   isLaunchTerminal,
 } from './launchProgress';
 
@@ -13,6 +14,9 @@ describe('launchProgress', () => {
     expect(isLaunchTerminal('expired')).toBe(true);
     expect(isLaunchTerminal('running')).toBe(false);
     expect(isLaunchTerminal('preparing')).toBe(false);
+    expect(isLaunchStarted('running')).toBe(true);
+    expect(isLaunchStarted('completed')).toBe(true);
+    expect(isLaunchStarted('preparing')).toBe(false);
   });
 
   it('tracks active statuses', () => {

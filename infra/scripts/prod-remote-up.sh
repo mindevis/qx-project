@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # On dedicated server: TLS (optional Cloudflare DNS) → pull GHCR → restart stack (/opt/qxsystem).
 set -euo pipefail
 
@@ -38,7 +38,27 @@ else
   echo "Nginx: HTTP only (set PROD_CLOUDFLARE_API_TOKEN + PROD_CERTBOT_EMAIL for HTTPS)"
 fi
 
-for f in spa-security-headers.conf upstream-proxies.conf gzip.conf; do
+# Preserve qTranslator vhost across QX releases (managed by /opt/qtranslator deploy).
+QT_CONF="$ROOT/nginx/qtranslator.conf"
+QT_CONF_LIVE="/opt/qtranslator/nginx/qtranslator.conf"
+if [[ -f "$QT_CONF_LIVE" ]] && grep -q "qtranslator-api" "$QT_CONF_LIVE" 2>/dev/null; then
+  cp "$QT_CONF_LIVE" "$QT_CONF"
+  echo "Nginx: restored qTranslator vhost from $QT_CONF_LIVE"
+elif [[ -f "$QT_CONF" ]] && grep -q "qtranslator-api" "$QT_CONF" 2>/dev/null; then
+  echo "Nginx: keeping existing qTranslator vhost"
+elif [[ ! -f "$QT_CONF" ]]; then
+  cat > "$QT_CONF" <<'PLACEHOLDER'
+# Placeholder — replaced by qTranslator deploy.
+server {
+    listen 80;
+    server_name qt.qx-dev.ru;
+    return 503;
+}
+PLACEHOLDER
+  echo "Nginx: wrote qTranslator placeholder vhost"
+fi
+
+for f in spa-security-headers.conf upstream-proxies.conf gzip.conf qtranslator.conf; do
   if [[ ! -f "$ROOT/nginx/$f" ]]; then
     echo "Missing nginx/$f (deploy bundle incomplete)." >&2
     exit 1
