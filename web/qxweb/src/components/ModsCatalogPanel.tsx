@@ -316,7 +316,6 @@ export function ModsCatalogPanel() {
           loader={catalogLoader}
           mcVersion={instance.mc_version}
           installedProjectIds={installedProjectIds}
-          eagerVersions={false}
           layout="inline"
           selectClassName="qxmods-install-version-select--table"
           onInstalled={(version) => handleInstalled(item, version)}

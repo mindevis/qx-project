@@ -87,45 +87,11 @@ describe('ModsCatalogPanel', () => {
     expect(icon).toHaveAttribute('src', catalogItem.icon_url);
     expect(screen.getByText('jellysquid3')).toBeInTheDocument();
     expect(screen.getByText('1.2M')).toBeInTheDocument();
-    expect(api.listModVersions).not.toHaveBeenCalled();
+    await waitFor(() => expect(api.listModVersions).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('0.5.0')).toBeInTheDocument());
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument(),
     );
-  });
-
-  it('loads versions only when installing from the catalog', async () => {
-    const user = userEvent.setup({ delay: null });
-    vi.spyOn(api, 'getModVersion').mockResolvedValue({ ...modVersion, dependencies: [] });
-    vi.spyOn(api, 'createModInstallRequest').mockResolvedValue({
-      id: 'req-1',
-      instance_id: 'inst-1',
-      status: 'queued',
-      source: 'modrinth',
-      project_id: 'sodium',
-      project_name: 'Sodium',
-      version_id: 'ver-1',
-      filename: 'sodium.jar',
-      resource_type: 'mod',
-      expires_at: '2099-01-01T00:00:00Z',
-    });
-    vi.spyOn(api, 'getModInstallRequest').mockResolvedValue({
-      id: 'req-1',
-      instance_id: 'inst-1',
-      status: 'completed',
-      source: 'modrinth',
-      project_id: 'sodium',
-      project_name: 'Sodium',
-      version_id: 'ver-1',
-      filename: 'sodium.jar',
-      resource_type: 'mod',
-      expires_at: '2099-01-01T00:00:00Z',
-    });
-
-    renderCatalog();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument());
-    expect(api.listModVersions).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'Установить' }));
-    await waitFor(() => expect(api.listModVersions).toHaveBeenCalled());
   });
 
   it('runs search when query submitted', async () => {

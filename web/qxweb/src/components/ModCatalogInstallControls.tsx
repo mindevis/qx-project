@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Modal, Select, Spin, Tag } from 'antd';
+import { Button, Modal, Select, Tag } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import {
   api,
@@ -22,6 +22,7 @@ import {
   clearModVersionListCache,
 } from '@/lib/modCatalogCache';
 import { isDependencyResolved, loadModDirectDependencies } from '@/lib/modCatalogDeps';
+import { selectLatestCompatibleVersion } from '@/lib/selectLatestModVersion';
 import { useMessage } from '@/hooks/useMessage';
 
 export type ModCatalogInstallControlsProps = {
@@ -90,8 +91,9 @@ export function ModCatalogInstallControls({
         loader,
         mc_version: mcVersion,
       });
+      const latest = selectLatestCompatibleVersion(items, loader, mcVersion);
       setVersions(items);
-      setSelectedVersionId((prev) => prev ?? items[0]?.id);
+      setSelectedVersionId((prev) => prev ?? latest?.id);
       setVersionsLoaded(true);
       return items;
     } catch (e) {
@@ -303,7 +305,7 @@ export function ModCatalogInstallControls({
       let version = selectedVersion;
       if (!version) {
         const items = versionsLoaded ? versions : await loadVersions();
-        version = items[0];
+        version = selectLatestCompatibleVersion(items, loader, mcVersion);
       }
       if (version) {
         runInstall(version);
@@ -313,10 +315,6 @@ export function ModCatalogInstallControls({
 
   const installing = selectedVersion != null && installingVersionId === selectedVersion.id;
   const disabled = (installingVersionId != null && !installing) || uninstalling;
-
-  if (eagerVersions && loadingVersions && versions.length === 0) {
-    return <Spin size="small" />;
-  }
 
   if (versionsLoaded && versions.length === 0) {
     return (
