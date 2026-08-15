@@ -144,15 +144,15 @@ describe('ModsCatalogPanel', () => {
   });
 
   it('debounces catalog search input', async () => {
+    const user = userEvent.setup({ delay: null });
     renderCatalog();
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
 
-    vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'jei');
     expect(api.searchMods).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(400);
-    expect(api.searchMods).toHaveBeenCalledWith(expect.objectContaining({ q: 'jei' }));
+    await waitFor(() =>
+      expect(api.searchMods).toHaveBeenCalledWith(expect.objectContaining({ q: 'jei' })),
+    );
   });
 
   it('keeps previous rows visible while filters reload', async () => {
