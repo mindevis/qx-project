@@ -165,6 +165,25 @@ describe('ModSyncModal', () => {
     expect(testMessage.success).toHaveBeenCalledWith('Игровой сервер перезапускается…');
   });
 
+  it('does not ask to restart after syncing a client-only mod', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderWithTheme(
+      <ModSyncModal
+        open
+        selection={selection}
+        instanceLoader="forge"
+        modTarget="client-mods"
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Forge')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Синхронизировать' }));
+    await waitFor(() => expect(api.syncModToGameServer).toHaveBeenCalled());
+    expect(Modal.confirm).not.toHaveBeenCalled();
+    expect(vpsGameServers.restartVpsGameServer).not.toHaveBeenCalled();
+  });
+
   it('does not restart when user declines after sync', async () => {
     const user = userEvent.setup({ delay: null });
     renderWithTheme(

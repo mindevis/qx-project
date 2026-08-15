@@ -33,7 +33,7 @@ import {
 } from '@/lib/gameServerTypes';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { cachedListModVersions } from '@/lib/modCatalogCache';
-import { isModOnServer } from '@/lib/modSync';
+import { isModOnServer, needsServerRestartAfterSync } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 import './InstanceResourcesPanel.css';
@@ -325,7 +325,9 @@ export function GameServerContentPanel({
         message.info(t('gameServerDetail.content.alreadyInstalled'));
       } else {
         message.success(t('gameServerDetail.content.installed'));
-        promptRestart();
+        if (needsServerRestartAfterSync(modTarget)) {
+          promptRestart();
+        }
         void loadInstalled();
       }
       setDetailOpen(false);
@@ -374,7 +376,9 @@ export function GameServerContentPanel({
           await deleteContent(kind, vpsId, gameServerId, row.name, modTargetFromPath(row.path));
           message.success(t('gameServerDetail.content.deleteCompleted'));
           void loadInstalled();
-          promptRestart();
+          if (needsServerRestartAfterSync(modTargetFromPath(row.path))) {
+            promptRestart();
+          }
         } catch (e) {
           message.error(e instanceof Error ? e.message : t('gameServerDetail.content.deleteFailed'));
           throw e;

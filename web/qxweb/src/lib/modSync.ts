@@ -253,6 +253,17 @@ export function isServerOnlyMod(item: Pick<ModCatalogItem, 'client_side' | 'serv
   return modSyncSide(item) === 'server';
 }
 
+export function needsServerRestartAfterSync(target?: string): boolean {
+  switch (target) {
+    case 'client-mods':
+    case 'client-resourcepacks':
+    case 'client-shaders':
+      return false;
+    default:
+      return true;
+  }
+}
+
 export function mergeServerModLists(
   serverMods: GameServerFileEntry[],
   clientMods: GameServerFileEntry[],

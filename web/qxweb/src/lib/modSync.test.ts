@@ -6,6 +6,7 @@ import {
   instanceResourceContentTarget,
   instanceResourceSupportsServerSync,
   isServerOnlyMod,
+  needsServerRestartAfterSync,
   instanceResourceVersionKey,
   isInstanceResourceOnServer,
   isModOnServer,
@@ -108,6 +109,19 @@ describe('modSyncSide', () => {
 
   it('treats blank side metadata as unknown', () => {
     expect(modSyncSide({ client_side: '', server_side: '' })).toBe('unknown');
+  });
+});
+
+describe('needsServerRestartAfterSync', () => {
+  it('skips restart for client-only sync targets', () => {
+    expect(needsServerRestartAfterSync('client-mods')).toBe(false);
+    expect(needsServerRestartAfterSync('client-resourcepacks')).toBe(false);
+    expect(needsServerRestartAfterSync('client-shaders')).toBe(false);
+  });
+
+  it('requires restart for server-loaded content', () => {
+    expect(needsServerRestartAfterSync('mods')).toBe(true);
+    expect(needsServerRestartAfterSync(undefined)).toBe(true);
   });
 });
 

@@ -9,7 +9,14 @@ import {
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
-import { isFilenameOnServer, isModOnServer, resolveModSyncBodies, applyModTargetToBodies, type ModTarget } from '@/lib/modSync';
+import {
+  isFilenameOnServer,
+  isModOnServer,
+  needsServerRestartAfterSync,
+  resolveModSyncBodies,
+  applyModTargetToBodies,
+  type ModTarget,
+} from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 
@@ -139,7 +146,9 @@ export function ModSyncModal({
         message.success(
           res.status === 'installed' ? t('qxmods.sync.installed') : t('qxmods.sync.queued'),
         );
-        promptServerRestart(target);
+        if (needsServerRestartAfterSync(modTarget)) {
+          promptServerRestart(target);
+        }
         onClose();
         return;
       }
@@ -180,7 +189,9 @@ export function ModSyncModal({
           ? t('qxmods.sync.installedWithDeps', { count: bodies.length })
           : messageText,
       );
-      promptServerRestart(target);
+      if (needsServerRestartAfterSync(modTarget)) {
+        promptServerRestart(target);
+      }
       onClose();
     } catch (e) {
       const messageText = e instanceof Error ? e.message : t('qxmods.sync.failed');
