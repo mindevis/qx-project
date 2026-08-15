@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // CurseForgeHTTPError is returned when the CurseForge API responds with a non-200 status.
@@ -127,6 +128,13 @@ func (c *curseForgeClient) browse(ctx context.Context, projectType, loader, mcVe
 	return c.searchProjects(ctx, "", projectType, loader, mcVersion, sort, limit, offset)
 }
 
+func (c *curseForgeClient) browseStrict(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
+	if !c.enabled() {
+		return nil, nil
+	}
+	return c.searchProjectsOnce(ctx, "", projectType, loader, mcVersion, sort, limit, offset)
+}
+
 func (c *curseForgeClient) searchProjects(
 	ctx context.Context,
 	query, projectType, loader, mcVersion, sort string,
@@ -135,11 +143,15 @@ func (c *curseForgeClient) searchProjects(
 	if !c.enabled() {
 		return nil, nil
 	}
+	started := time.Now()
 	items, err := c.searchProjectsOnce(ctx, query, projectType, loader, mcVersion, sort, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	if len(items) > 0 || query != "" {
+		return items, nil
+	}
+	if time.Since(started) > catalogRelaxBudget {
 		return items, nil
 	}
 	// Browse with strict filters often returns zero rows on CurseForge; relax filters progressively.
