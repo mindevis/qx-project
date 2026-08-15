@@ -133,20 +133,28 @@ export function groupConfigFilesByMod(
 
 export async function listConfigPaths(
   listDirFn: (path: string) => Promise<ListDirEntry[]>,
+  maxDepth = 3,
 ): Promise<ModConfigFileEntry[]> {
   const files: ModConfigFileEntry[] = [];
-  const rootEntries = await listDirFn('config');
-  for (const entry of rootEntries) {
-    if (entry.dir) {
-      const subEntries = await listDirFn(entry.path);
-      for (const sub of subEntries) {
-        if (!sub.dir && isConfigFilePath(sub.path)) {
-          files.push({ path: sub.path, size: sub.size });
-        }
-      }
-    } else if (isConfigFilePath(entry.path)) {
-      files.push({ path: entry.path, size: entry.size });
+
+  const walk = async (path: string, depth: number) => {
+    let entries: ListDirEntry[] = [];
+    try {
+      entries = await listDirFn(path);
+    } catch {
+      return;
     }
-  }
+    for (const entry of entries) {
+      if (entry.dir) {
+        if (depth < maxDepth) {
+          await walk(entry.path, depth + 1);
+        }
+      } else if (isConfigFilePath(entry.path)) {
+        files.push({ path: entry.path, size: entry.size });
+      }
+    }
+  };
+
+  await walk('config', 0);
   return files.sort((a, b) => a.path.localeCompare(b.path));
 }

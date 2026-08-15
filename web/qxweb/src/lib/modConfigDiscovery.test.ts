@@ -77,7 +77,7 @@ describe('groupConfigFilesByMod', () => {
 });
 
 describe('listConfigPaths', () => {
-  it('lists top-level and one-level nested config files with sizes', async () => {
+  it('lists top-level and nested config files with sizes', async () => {
     const paths = await listConfigPaths(async (path) => {
       if (path === 'config') {
         return [
@@ -86,13 +86,20 @@ describe('listConfigPaths', () => {
         ];
       }
       if (path === 'config/fabric-api') {
-        return [{ path: 'config/fabric-api/client.json', dir: false, name: 'client.json', size: 32 }];
+        return [
+          { path: 'config/fabric-api/client.json', dir: false, name: 'client.json', size: 32 },
+          { path: 'config/fabric-api/nested', dir: true, name: 'nested' },
+        ];
+      }
+      if (path === 'config/fabric-api/nested') {
+        return [{ path: 'config/fabric-api/nested/extra.toml', dir: false, name: 'extra.toml', size: 16 }];
       }
       return [];
     });
 
     expect(paths).toEqual([
       { path: 'config/fabric-api/client.json', size: 32 },
+      { path: 'config/fabric-api/nested/extra.toml', size: 16 },
       { path: 'config/server.properties', size: 64 },
     ]);
   });

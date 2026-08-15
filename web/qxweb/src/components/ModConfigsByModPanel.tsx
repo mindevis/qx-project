@@ -132,11 +132,13 @@ export function ModConfigsByModPanel({
       mod: group.mod,
       files: group.files,
     }));
-    items.push({
-      key: 'other',
-      label: t('qxmods.configSync.otherTab'),
-      files: grouped.other,
-    });
+    if (grouped.other.length > 0) {
+      items.push({
+        key: 'other',
+        label: t('qxmods.configSync.otherTab'),
+        files: grouped.other,
+      });
+    }
     return items;
   }, [grouped, t]);
 
@@ -346,7 +348,7 @@ export function ModConfigsByModPanel({
       <div className="game-server-files-editor mod-configs-editor">
         <Space className="game-server-files-toolbar" wrap>
           <Button icon={<ArrowLeftOutlined />} onClick={requestCloseEditor}>
-            {t('gameServerDetail.backToFiles')}
+            {t('qxmods.configSync.backToList')}
           </Button>
           <Typography.Text code className="mod-configs-editor-path">
             {selectedFile}
@@ -537,10 +539,19 @@ export function instanceResourceToModConfig(resource: InstanceResource): ModConf
   };
 }
 
+export function prettyModFileLabel(filename: string): string {
+  const withoutExt = filename.replace(/\.(jar|zip|mrpack)$/i, '');
+  const stripped = withoutExt
+    .replace(/[-_+]v?\d+(\.\d+)*([+_].*)?$/i, '')
+    .replace(/[-_]+$/g, '')
+    .trim();
+  return stripped || withoutExt;
+}
+
 export function serverModToModConfig(entry: GameServerFileEntry): ModConfigMod {
   return {
     key: entry.path,
-    label: entry.name.replace(/\.jar$/i, ''),
+    label: prettyModFileLabel(entry.name),
     filename: entry.name,
   };
 }

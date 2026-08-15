@@ -136,6 +136,33 @@ func ReadFile(workDir, relPath string) (string, int64, error) {
 	return string(data), info.Size(), nil
 }
 
+func DeletePath(workDir, relPath string) error {
+	relPath = strings.TrimSpace(relPath)
+	relPath = strings.TrimPrefix(relPath, "/")
+	if relPath == "" || relPath == "." {
+		return fmt.Errorf("cannot delete work directory")
+	}
+	abs, err := safepath.JoinRel(workDir, relPath)
+	if err != nil {
+		return err
+	}
+	root, err := safepath.ResolveRoot(workDir)
+	if err != nil {
+		return err
+	}
+	if abs == root {
+		return fmt.Errorf("cannot delete work directory")
+	}
+	info, err := safepath.Stat(abs)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return safepath.RemoveAll(abs)
+	}
+	return safepath.Remove(abs)
+}
+
 func WriteFile(workDir, relPath, content string) error {
 	abs, err := safepath.JoinRel(workDir, relPath)
 	if err != nil {

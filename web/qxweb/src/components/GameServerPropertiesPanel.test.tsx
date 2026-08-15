@@ -36,12 +36,12 @@ describe('GameServerPropertiesPanel', () => {
       <GameServerPropertiesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
     );
 
-    await waitFor(() => expect(screen.getByText('motd')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Сообщение дня')).toBeInTheDocument());
 
     await user.click(screen.getByRole('switch'));
     await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
 
-    const textInput = screen.getByLabelText('motd');
+    const textInput = screen.getByLabelText(/motd/);
     await user.clear(textInput);
     await user.type(textInput, 'Updated');
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -61,14 +61,14 @@ describe('GameServerPropertiesPanel', () => {
     renderWithTheme(
       <GameServerPropertiesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
     );
-    await waitFor(() => expect(screen.getByLabelText('max-players')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText(/max-players/)).toBeInTheDocument());
 
-    const playersInput = screen.getByRole('spinbutton', { name: 'max-players' });
+    const playersInput = screen.getByRole('spinbutton', { name: /max-players/ });
     await user.click(playersInput);
     await user.keyboard('{ArrowUp}');
     await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
 
-    const textInput = screen.getByLabelText('motd');
+    const textInput = screen.getByLabelText(/motd/);
     await user.type(textInput, ' world');
     await user.keyboard('{Enter}');
     await waitFor(() => expect(testMessage.success).toHaveBeenCalledTimes(2));
@@ -92,8 +92,7 @@ describe('GameServerPropertiesPanel', () => {
     await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('props failed'));
   });
 
-  it('shows localized hint tooltip on property key hover', async () => {
-    const user = userEvent.setup({ delay: null });
+  it('shows localized titles and descriptions for known properties', async () => {
     vi.spyOn(api, 'getVpsGameServerProperties').mockResolvedValue({
       properties: [
         { key: 'motd', value: 'Hello', boolean: false },
@@ -105,20 +104,14 @@ describe('GameServerPropertiesPanel', () => {
       <GameServerPropertiesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
     );
 
-    await waitFor(() => expect(screen.getByText('motd')).toBeInTheDocument());
-
-    const motdLabel = screen.getByText('motd').closest('label');
-    expect(motdLabel).toHaveClass('game-server-property-label--hint');
-
-    await user.hover(screen.getByText('motd'));
-    await waitFor(() =>
-      expect(screen.getByRole('tooltip')).toHaveTextContent(
-        /сообщение дня, отображаемое в списке серверов/i,
-      ),
-    );
+    await waitFor(() => expect(screen.getByText('Сообщение дня')).toBeInTheDocument());
+    expect(screen.getByText('motd')).toBeInTheDocument();
+    expect(
+      screen.getByText(/текст под названием сервера в списке серверов/i),
+    ).toBeInTheDocument();
 
     const unknownLabel = screen.getByText('custom-unknown-key').closest('label');
-    expect(unknownLabel).not.toHaveClass('game-server-property-label--hint');
+    expect(unknownLabel?.querySelector('.game-server-property-desc')).toBeNull();
   });
 
   it('reloads after save error', async () => {
@@ -136,8 +129,8 @@ describe('GameServerPropertiesPanel', () => {
     renderWithTheme(
       <GameServerPropertiesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
     );
-    await waitFor(() => expect(screen.getByLabelText('motd')).toBeInTheDocument());
-    const input = screen.getByLabelText('motd');
+    await waitFor(() => expect(screen.getByLabelText(/motd/)).toBeInTheDocument());
+    const input = screen.getByLabelText(/motd/);
     await user.clear(input);
     await user.type(input, 'Fail');
     await user.click(screen.getByRole('button', { name: 'Сохранить' }));

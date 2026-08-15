@@ -95,4 +95,58 @@ describe('GameServerContentPanel', () => {
     );
     await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('datapacks failed'));
   });
+
+  it('hides installed catalog items by default and can show only them', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
+      items: [{ name: 'sodium-fabric-0.5.8.jar', path: 'mods/sodium-fabric-0.5.8.jar', dir: false, size: 10 }],
+    });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'sodium',
+          slug: 'sodium',
+          name: 'Sodium',
+          summary: 'Performance',
+          project_type: 'mod',
+          external_url: '',
+        },
+        {
+          source: 'modrinth',
+          id: 'jei',
+          slug: 'jei',
+          name: 'JEI',
+          summary: 'Items',
+          project_type: 'mod',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('sodium-fabric-0.5.8.jar')).toBeInTheDocument());
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByText('JEI')).toBeInTheDocument());
+    expect(screen.queryByText('Sodium')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('switch', { name: 'Только установленные' }));
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    expect(screen.queryByText('JEI')).not.toBeInTheDocument();
+  });
 });

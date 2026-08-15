@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Button,
   Empty,
   Input,
@@ -7,6 +8,7 @@ import {
   Select,
   Segmented,
   Spin,
+  Switch,
   Table,
   Typography,
   Upload,
@@ -24,6 +26,7 @@ import {
   type ModSource,
   type ModVersion,
 } from '@/api/client';
+import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -33,13 +36,15 @@ import {
 } from '@/lib/gameServerTypes';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { cachedListModVersions } from '@/lib/modCatalogCache';
-import { isModOnServer, needsServerRestartAfterSync } from '@/lib/modSync';
+import { formatCompactCount } from '@/lib/formatCompactCount';
+import { isCatalogItemOnServer, isModOnServer, needsServerRestartAfterSync } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 import './InstanceResourcesPanel.css';
 
-const { Paragraph, Title } = Typography;
+const { Paragraph, Text, Title } = Typography;
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 400;
 
 type GameServerContentPanelProps = {
   kind: GameServerContentKind;
@@ -161,10 +166,13 @@ export function GameServerContentPanel({
   const [appliedSearch, setAppliedSearch] = useState('');
   const [catalogItems, setCatalogItems] = useState<ModCatalogItem[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const [curseforgeEnabled, setCurseforgeEnabled] = useState(false);
+  const [section, setSection] = useState<'installed' | 'catalog'>('installed');
+  const [showInstalledOnly, setShowInstalledOnly] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<ModCatalogItem | null>(null);
   const [versions, setVersions] = useState<ModVersion[]>([]);
@@ -197,12 +205,29 @@ export function GameServerContentPanel({
     void loadInstalled();
   }, [loadInstalled]);
 
-  const loadCatalog = useCallback(
-    async (append = false) => {
-      if (!agentOnline || !supported) return;
+  useEffect(() => {
+    const trimmed = searchInput.trim();
+    if (trimmed === appliedSearch) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setAppliedSearch(trimmed);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [appliedSearch, searchInput]);
+
+  useEffect(() => {
+    if (!agentOnline || !supported) {
+      setCatalogItems([]);
+      setCatalogLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    setCatalogLoaded(false);
+    void (async () => {
       setCatalogLoading(true);
+      setLoadingMore(false);
       try {
-        const nextOffset = append ? offset : 0;
         if (appliedSearch.trim()) {
           const res = await api.searchMods({
             q: appliedSearch.trim(),
@@ -212,55 +237,79 @@ export function GameServerContentPanel({
             source: sourceFilter,
             limit: PAGE_SIZE,
           });
+          if (cancelled) return;
           setCatalogItems(res.items ?? []);
           setHasMore(false);
           setOffset(0);
           setCurseforgeEnabled(res.curseforge_enabled ?? false);
-        } else {
-          const res = await api.browseMods({
-            type: projectType,
-            loader,
-            mc_version: mcVersion,
-            source: sourceFilter,
-            sort,
-            limit: PAGE_SIZE,
-            offset: nextOffset,
-          });
-          setCatalogItems((prev) => (append ? [...prev, ...(res.items ?? [])] : res.items ?? []));
-          setHasMore(res.has_more ?? false);
-          setOffset(nextOffset + (res.items?.length ?? 0));
-          setCurseforgeEnabled(res.curseforge_enabled ?? false);
+          return;
         }
-        setCatalogLoaded(true);
+        const res = await api.browseMods({
+          type: projectType,
+          loader,
+          mc_version: mcVersion,
+          source: sourceFilter,
+          sort,
+          limit: PAGE_SIZE,
+          offset: 0,
+        });
+        if (cancelled) return;
+        const nextItems = res.items ?? [];
+        setCatalogItems(nextItems);
+        setHasMore(res.has_more ?? false);
+        setOffset(nextItems.length);
+        setCurseforgeEnabled(res.curseforge_enabled ?? false);
       } catch (e) {
+        if (cancelled) return;
         message.error(formatModCatalogError(e, t, `${i18nPrefix}.browseFailed`));
-        if (!append) {
-          setCatalogItems([]);
-          setHasMore(false);
-        }
+        setCatalogItems([]);
+        setHasMore(false);
+        setOffset(0);
       } finally {
-        setCatalogLoading(false);
+        if (!cancelled) {
+          setCatalogLoading(false);
+          setCatalogLoaded(true);
+        }
       }
-    },
-    [
-      agentOnline,
-      appliedSearch,
-      i18nPrefix,
-      loader,
-      mcVersion,
-      message,
-      offset,
-      projectType,
-      sort,
-      sourceFilter,
-      supported,
-      t,
-    ],
-  );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [agentOnline, appliedSearch, i18nPrefix, loader, mcVersion, message, projectType, sort, sourceFilter, supported, t]);
 
-  useEffect(() => {
-    void loadCatalog(false);
-  }, [appliedSearch, sourceFilter, sort, projectType, loader, mcVersion]);
+  const loadMore = async () => {
+    if (appliedSearch.trim() || !agentOnline || !supported) return;
+    setLoadingMore(true);
+    try {
+      const res = await api.browseMods({
+        type: projectType,
+        loader,
+        mc_version: mcVersion,
+        source: sourceFilter,
+        sort,
+        limit: PAGE_SIZE,
+        offset,
+      });
+      const nextItems = res.items ?? [];
+      setCatalogItems((prev) => [...prev, ...nextItems]);
+      setHasMore(res.has_more ?? false);
+      setOffset((prev) => prev + nextItems.length);
+      setCurseforgeEnabled(res.curseforge_enabled ?? false);
+    } catch (e) {
+      message.error(formatModCatalogError(e, t, `${i18nPrefix}.browseFailed`));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const isSearchMode = appliedSearch.trim().length > 0;
+
+  const visibleCatalogItems = useMemo(() => {
+    if (showInstalledOnly) {
+      return catalogItems.filter((item) => isCatalogItemOnServer(item, installed));
+    }
+    return catalogItems.filter((item) => !isCatalogItemOnServer(item, installed));
+  }, [catalogItems, installed, showInstalledOnly]);
 
   const openDetail = async (item: ModCatalogItem) => {
     setDetailItem(item);
@@ -341,26 +390,61 @@ export function GameServerContentPanel({
   const catalogColumns: ColumnsType<ModCatalogItem> = useMemo(
     () => [
       {
-        title: t('gameServerDetail.content.catalogName'),
-        key: 'name',
+        title: '',
+        key: 'icon',
+        width: 56,
         render: (_, row) => (
-          <button type="button" className="qxmods-catalog-link" onClick={() => void openDetail(row)}>
-            {row.name}
-          </button>
+          <ModCatalogIcon url={row.icon_url} name={row.name} size={44} className="qxmods-catalog-table-icon" />
         ),
       },
       {
-        title: t('gameServerDetail.content.catalogSource'),
-        key: 'source',
-        render: (_, row) => <ModSourceBadge source={row.source} />,
+        title: t('gameServerDetail.content.catalogName'),
+        key: 'name',
+        width: 220,
+        ellipsis: true,
+        render: (_, row) => (
+          <div className="qxmods-catalog-name-cell">
+            <button type="button" className="qxmods-catalog-link" onClick={() => void openDetail(row)}>
+              {row.name}
+            </button>
+            <div className="qxmods-catalog-name-meta">
+              <ModSourceBadge source={row.source} />
+              {row.author ? (
+                <Text type="secondary" className="qxmods-catalog-author">
+                  {row.author}
+                </Text>
+              ) : null}
+            </div>
+          </div>
+        ),
+      },
+      {
+        title: t('qxmods.catalog.summary'),
+        dataIndex: 'summary',
+        key: 'summary',
+        ellipsis: true,
+        responsive: ['md'],
       },
       {
         title: t('gameServerDetail.content.catalogDownloads'),
         key: 'downloads',
-        render: (_, row) => (row.downloads != null ? row.downloads.toLocaleString() : '—'),
+        width: 96,
+        render: (_, row) => (row.downloads != null ? formatCompactCount(row.downloads) : '—'),
+      },
+      {
+        title: t('gameServerDetail.content.install'),
+        key: 'install',
+        width: 140,
+        render: (_, row) => (
+          <Button type="primary" size="small" onClick={() => void openDetail(row)}>
+            {isCatalogItemOnServer(row, installed)
+              ? t('gameServerDetail.content.alreadyInstalled')
+              : t('gameServerDetail.content.install')}
+          </Button>
+        ),
       },
     ],
-    [t],
+    [installed, t],
   );
 
   const handleDelete = (row: GameServerFileEntry) => {
@@ -415,8 +499,38 @@ export function GameServerContentPanel({
   const showCurseforgeUnavailable =
     sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled;
 
+  const sourceOptions = useMemo(
+    () => [
+      { value: 'all', label: t('qxmods.filters.sourceAll') },
+      { value: 'modrinth', label: t('qxmods.source.modrinth') },
+      { value: 'curseforge', label: t('qxmods.source.curseforge') },
+    ],
+    [t],
+  );
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'downloads', label: t('qxmods.filters.sortDownloads') },
+      { value: 'newest', label: t('qxmods.filters.sortNewest') },
+      { value: 'updated', label: t('qxmods.filters.sortUpdated') },
+      { value: 'relevance', label: t('qxmods.filters.sortRelevance') },
+    ],
+    [t],
+  );
+
   return (
     <div className="game-server-content-panel">
+      <Segmented
+        className="game-server-content-sections"
+        value={section}
+        onChange={(value) => setSection(value as 'installed' | 'catalog')}
+        options={[
+          { value: 'installed', label: t('gameServerDetail.content.tabInstalled') },
+          { value: 'catalog', label: t('gameServerDetail.content.tabCatalog') },
+        ]}
+      />
+      {section === 'installed' ? (
+      <>
       <div className="game-server-content-installed-header">
         <div className="game-server-content-installed-header-main">
           <Title level={5}>{t(`${i18nPrefix}.installedTitle`)}</Title>
@@ -537,68 +651,121 @@ export function GameServerContentPanel({
           ]}
         />
       )}
-
-      <Title level={5} className="game-server-content-browse-title">
-        {t(`${i18nPrefix}.browseTitle`)}
-      </Title>
-      <div className="qxmods-catalog-toolbar">
-        <Input
-          allowClear
-          prefix={<SearchOutlined aria-hidden />}
-          placeholder={t(`${i18nPrefix}.searchPlaceholder`)}
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onPressEnter={() => setAppliedSearch(searchInput.trim())}
-        />
-        <Button type="primary" onClick={() => setAppliedSearch(searchInput.trim())}>
-          {t('gameServerDetail.content.search')}
-        </Button>
-        <Segmented
-          value={sourceFilter}
-          onChange={(value) => setSourceFilter(value as ModCatalogSourceFilter)}
-          options={[
-            { value: 'all', label: t('gameServerDetail.content.sourceAll') },
-            { value: 'curseforge', label: 'CurseForge' },
-            { value: 'modrinth', label: 'Modrinth' },
-          ]}
-        />
-        <Select
-          value={sort}
-          onChange={(value) => setSort(value as ModCatalogSort)}
-          options={[
-            { value: 'downloads', label: t('gameServerDetail.content.sortDownloads') },
-            { value: 'newest', label: t('gameServerDetail.content.sortNewest') },
-            { value: 'updated', label: t('gameServerDetail.content.sortUpdated') },
-          ]}
-        />
+      </>
+      ) : (
+      <>
+      <div className="qxmods-filters">
+        <div className="qxmods-filters-row">
+          <label className="qxmods-filter-field">
+            <Text type="secondary" className="qxmods-filter-label">
+              {t('qxmods.filters.source')}
+            </Text>
+            <Select
+              value={sourceFilter}
+              options={sourceOptions}
+              onChange={(value) => setSourceFilter(value as ModCatalogSourceFilter)}
+              className="qxmods-filter-select"
+            />
+          </label>
+          <label className="qxmods-filter-field">
+            <Text type="secondary" className="qxmods-filter-label">
+              {t('qxmods.filters.sort')}
+            </Text>
+            <Select
+              value={sort}
+              options={sortOptions}
+              disabled={isSearchMode}
+              onChange={(value) => setSort(value as ModCatalogSort)}
+              className="qxmods-filter-select"
+            />
+          </label>
+          <label className="qxmods-filter-field qxmods-filter-field--switch">
+            <Text type="secondary" className="qxmods-filter-label">
+              {t('qxmods.filters.installedOnly')}
+            </Text>
+            <Switch
+              checked={showInstalledOnly}
+              onChange={setShowInstalledOnly}
+              aria-label={t('qxmods.filters.installedOnly')}
+            />
+          </label>
+        </div>
+        <div className="qxmods-search-filter">
+          <Input
+            allowClear
+            prefix={<SearchOutlined aria-hidden />}
+            placeholder={t(`${i18nPrefix}.searchPlaceholder`)}
+            value={searchInput}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchInput(value);
+              if (!value.trim() && appliedSearch) {
+                setAppliedSearch('');
+              }
+            }}
+            onPressEnter={() => setAppliedSearch(searchInput.trim())}
+            onClear={() => {
+              setSearchInput('');
+              setAppliedSearch('');
+            }}
+          />
+          <Button
+            onClick={() => setAppliedSearch(searchInput.trim())}
+            disabled={!searchInput.trim() && !appliedSearch}
+          >
+            {appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
+          </Button>
+          {appliedSearch ? (
+            <Button
+              type="link"
+              onClick={() => {
+                setSearchInput('');
+                setAppliedSearch('');
+              }}
+            >
+              {t('qxmods.clearSearch')}
+            </Button>
+          ) : null}
+        </div>
       </div>
+      <Paragraph type="secondary" className="qxmods-filter-context">
+        {t('qxmods.filterContext', { mcVersion, loader: loader ?? serverType })}
+      </Paragraph>
       {showCurseforgeUnavailable ? (
-        <Typography.Text type="secondary">
-          {t('gameServerDetail.content.curseforgeUnavailable')}
-        </Typography.Text>
-      ) : null}
-      {catalogLoading && catalogItems.length === 0 ? (
+        <Alert type="warning" showIcon title={t('qxmods.curseforgeDisabled')} />
+      ) : catalogLoading && catalogItems.length === 0 && !showInstalledOnly ? (
         <div className="servers-loading">
           <Spin />
         </div>
-      ) : catalogItems.length === 0 ? (
-        <Empty description={t(`${i18nPrefix}.browseEmpty`)} />
       ) : (
         <>
           <Table
-            className="qxmods-catalog-table"
+            className="qxmods-catalog-table qxmods-catalog-table--install"
             rowKey={(row) => `${row.source}:${row.id}`}
             size="small"
             pagination={false}
-            dataSource={catalogItems}
+            loading={catalogLoading && !showInstalledOnly}
+            dataSource={visibleCatalogItems}
             columns={catalogColumns}
+            scroll={{ x: 860 }}
+            locale={{
+              emptyText: showInstalledOnly
+                ? t('qxmods.installed.empty')
+                : isSearchMode
+                  ? t('qxmods.empty')
+                  : t(`${i18nPrefix}.browseEmpty`),
+            }}
           />
-          {hasMore && !appliedSearch.trim() ? (
-            <Button loading={catalogLoading} onClick={() => void loadCatalog(true)}>
-              {t('gameServerDetail.content.loadMore')}
-            </Button>
+          {!showInstalledOnly && !isSearchMode && hasMore ? (
+            <div className="qxmods-load-more">
+              <Button loading={loadingMore} onClick={() => void loadMore()}>
+                {t('gameServerDetail.content.loadMore')}
+              </Button>
+            </div>
           ) : null}
         </>
+      )}
+      </>
       )}
 
       <Modal

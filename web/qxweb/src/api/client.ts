@@ -1151,6 +1151,12 @@ export const api = {
       { method: 'PUT', body: JSON.stringify({ content }) },
     ),
 
+  deleteVpsGameServerFile: (vpsId: string, gameServerId: string, path: string) =>
+    request<{ status: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files?path=${encodeURIComponent(path)}`,
+      { method: 'DELETE' },
+    ),
+
   listMonitoringServers: (params?: {
     mc_version?: string;
     loader?: string;

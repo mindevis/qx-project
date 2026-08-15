@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
@@ -98,6 +98,48 @@ describe('GameServerFilesPanel', () => {
       <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
     );
     await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('list failed'));
+  });
+
+  it('deletes a file after confirmation', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles')
+      .mockResolvedValueOnce({
+        items: [{ name: 'eula.txt', path: 'eula.txt', dir: false, size: 10 }],
+      })
+      .mockResolvedValueOnce({ items: [] });
+    const deleteSpy = vi.spyOn(api, 'deleteVpsGameServerFile').mockResolvedValue({ status: 'ok' });
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(screen.getByText('eula.txt')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Удалить' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
+    await waitFor(() =>
+      expect(deleteSpy).toHaveBeenCalledWith('srv-1', 'gs-1', 'eula.txt'),
+    );
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Папка пуста')).toBeInTheDocument());
+  });
+
+  it('deletes a folder after confirmation without opening it', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles')
+      .mockResolvedValueOnce({
+        items: [{ name: 'world', path: 'world', dir: true }],
+      })
+      .mockResolvedValueOnce({ items: [] });
+    const deleteSpy = vi.spyOn(api, 'deleteVpsGameServerFile').mockResolvedValue({ status: 'ok' });
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(screen.getByText('world')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Удалить' }));
+    expect(screen.getByText('Удалить папку?')).toBeInTheDocument();
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
+    await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith('srv-1', 'gs-1', 'world'));
+    expect(api.listVpsGameServerFiles).toHaveBeenCalledWith('srv-1', 'gs-1', '');
   });
 
   it('shows save error', async () => {

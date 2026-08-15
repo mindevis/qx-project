@@ -163,6 +163,27 @@ func (s *Service) WriteGameServerFile(ctx context.Context, ownerID, vpsID, gameS
 	return err
 }
 
+func (s *Service) DeleteGameServerFile(ctx context.Context, ownerID, vpsID, gameServerID, path string) error {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return err
+	}
+	path = strings.TrimSpace(path)
+	if path == "" || path == "." {
+		return ErrValidation
+	}
+	payload, err := json.Marshal(protocol.ServerFilesPathPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		Path:         path,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = s.agentRPC(ctx, vpsID, protocol.TypeCmdServerFilesDelete, protocol.TypeResServerFilesDelete, payload)
+	return err
+}
+
 func (s *Service) ListGameServerClientMods(ctx context.Context, ownerID, vpsID, gameServerID string) ([]protocol.FileEntry, error) {
 	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
 	if err != nil {
@@ -575,6 +596,7 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerFilesList,
 		protocol.TypeResServerFilesRead,
 		protocol.TypeResServerFilesWrite,
+		protocol.TypeResServerFilesDelete,
 		protocol.TypeResServerModsList,
 		protocol.TypeResServerClientModsList,
 		protocol.TypeResServerResourcepacksList,

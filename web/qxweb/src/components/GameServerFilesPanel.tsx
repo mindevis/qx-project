@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import {
   Breadcrumb,
   Button,
   Empty,
   Input,
+  Modal,
   Space,
   Spin,
   Table,
   Typography,
 } from 'antd';
-import { FolderOutlined, FileOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { FolderOutlined, FileOutlined, ArrowLeftOutlined, DeleteOutlined } from '@ant-design/icons';
 import { api, type GameServerFileEntry } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -70,6 +71,7 @@ export function GameServerFilesPanel({
   const [fileContent, setFileContent] = useState('');
   const [fileLoading, setFileLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingPath, setDeletingPath] = useState<string>();
 
   const normalizedRoot = rootPath?.replace(/^\/+|\/+$/g, '') ?? '';
 
@@ -127,6 +129,35 @@ export function GameServerFilesPanel({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDelete = (row: GameServerFileEntry) => {
+    Modal.confirm({
+      title: row.dir ? t('gameServerDetail.folderDeleteTitle') : t('gameServerDetail.fileDeleteTitle'),
+      content: row.dir
+        ? t('gameServerDetail.folderDeleteConfirm', { name: row.name })
+        : t('gameServerDetail.fileDeleteConfirm', { name: row.name }),
+      okText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setDeletingPath(row.path);
+        try {
+          await api.deleteVpsGameServerFile(vpsId, gameServerId, row.path);
+          message.success(t('gameServerDetail.fileDeleted'));
+          if (selectedFile === row.path || selectedFile?.startsWith(`${row.path}/`)) {
+            setSelectedFile(null);
+            setFileContent('');
+          }
+          await loadDir();
+        } catch (e) {
+          message.error(e instanceof Error ? e.message : t('gameServerDetail.fileDeleteFailed'));
+          throw e;
+        } finally {
+          setDeletingPath(undefined);
+        }
+      },
+    });
   };
 
   if (!agentOnline) {
@@ -233,6 +264,25 @@ export function GameServerFilesPanel({
               title: t('gameServerDetail.fileSize'),
               key: 'size',
               render: (_, row) => (row.dir ? '—' : formatFileSize(row.size)),
+            },
+            {
+              title: '',
+              key: 'actions',
+              width: 56,
+              onCell: () => ({
+                onClick: (event: MouseEvent) => event.stopPropagation(),
+              }),
+              render: (_, row) => (
+                <Button
+                  type="text"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  loading={deletingPath === row.path}
+                  aria-label={t('common.delete')}
+                  onClick={() => handleDelete(row)}
+                />
+              ),
             },
           ]}
         />

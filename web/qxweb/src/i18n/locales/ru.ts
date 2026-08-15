@@ -751,6 +751,12 @@ export const ru = {
     fileReadFailed: 'Не удалось прочитать файл',
     fileSaved: 'Файл сохранён',
     backToFiles: 'К списку файлов',
+    fileDeleteTitle: 'Удалить файл?',
+    folderDeleteTitle: 'Удалить папку?',
+    fileDeleteConfirm: 'Удалить «{{name}}»? Это действие нельзя отменить.',
+    folderDeleteConfirm: 'Удалить папку «{{name}}» и всё её содержимое? Это действие нельзя отменить.',
+    fileDeleted: 'Удалено',
+    fileDeleteFailed: 'Не удалось удалить',
     crashTitle: 'Сервер неожиданно остановился',
     summaryAgent: 'QXAgent',
     content: {
@@ -784,6 +790,8 @@ export const ru = {
       folder: 'Папка',
       modsFolder: 'Серверные моды',
       clientModsFolder: 'Клиентские моды',
+      tabInstalled: 'Установленные',
+      tabCatalog: 'Каталог',
       mod: {
         installedTitle: 'Установленные моды',
         browseTitle: 'Каталог модов',
@@ -1029,6 +1037,9 @@ export const ru = {
       syncUnavailableLoader: 'Для выбора сервера синхронизации нужен загрузчик инстанса.',
       summary: '{{count}} конфиг. файлов',
       filePath: 'Путь',
+      backToList: 'К списку конфигов',
+      serverTitle: 'Конфиги модов',
+      serverIntro: 'Файлы из папки config, сгруппированные по установленным модам. Откройте файл, чтобы изменить его.',
     },
     install: {
       action: 'Установить',

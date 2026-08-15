@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, loadLinkedDevice } from '@/api/client';
+import { Typography } from 'antd';
+import { api, loadLinkedDevice, type GameServerFileEntry } from '@/api/client';
 import { ModConfigsByModPanel, serverModToModConfig, type ConfigSyncContext } from '@/components/ModConfigsByModPanel';
+import { useI18n } from '@/i18n/I18nContext';
+import { useMessage } from '@/hooks/useMessage';
 
 type GameServerModConfigsPanelProps = {
   vpsId: string;
@@ -17,7 +20,9 @@ export function GameServerModConfigsPanel({
   mcVersion,
   loader,
 }: GameServerModConfigsPanelProps) {
-  const [serverMods, setServerMods] = useState<Awaited<ReturnType<typeof api.listVpsGameServerMods>>['items']>([]);
+  const { t } = useI18n();
+  const message = useMessage();
+  const [serverMods, setServerMods] = useState<GameServerFileEntry[]>([]);
   const [boundInstanceId, setBoundInstanceId] = useState<string | undefined>();
   const deviceLinked = loadLinkedDevice() != null;
 
@@ -27,12 +32,18 @@ export function GameServerModConfigsPanel({
       return;
     }
     try {
-      const res = await api.listVpsGameServerMods(vpsId, gameServerId);
-      setServerMods(res.items ?? []);
-    } catch {
+      const [modsRes, clientRes] = await Promise.all([
+        api.listVpsGameServerMods(vpsId, gameServerId),
+        api.listVpsGameServerClientMods(vpsId, gameServerId).catch(() => ({ items: [] })),
+      ]);
+      setServerMods(
+        [...(modsRes.items ?? []), ...(clientRes.items ?? [])].filter((item) => !item.dir),
+      );
+    } catch (e) {
       setServerMods([]);
+      message.error(e instanceof Error ? e.message : t('gameServerDetail.content.mod.loadFailed'));
     }
-  }, [agentOnline, gameServerId, vpsId]);
+  }, [agentOnline, gameServerId, message, t, vpsId]);
 
   const loadBinding = useCallback(async () => {
     try {
@@ -82,12 +93,20 @@ export function GameServerModConfigsPanel({
   );
 
   return (
-    <ModConfigsByModPanel
-      mode="server"
-      available={agentOnline}
-      mods={modConfigs}
-      fileApi={fileApi}
-      configSync={configSync}
-    />
+    <div className="mod-configs-page">
+      <Typography.Title level={5} className="mod-configs-page-title">
+        {t('qxmods.configSync.serverTitle')}
+      </Typography.Title>
+      <Typography.Paragraph type="secondary" className="mod-configs-page-intro">
+        {t('qxmods.configSync.serverIntro')}
+      </Typography.Paragraph>
+      <ModConfigsByModPanel
+        mode="server"
+        available={agentOnline}
+        mods={modConfigs}
+        fileApi={fileApi}
+        configSync={configSync}
+      />
+    </div>
   );
 }

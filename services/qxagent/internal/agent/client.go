@@ -493,6 +493,25 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 			TS:        ts,
 			Payload:   resPayload,
 		}, nil
+	case protocol.TypeCmdServerFilesDelete:
+		var payload protocol.ServerFilesPathPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := fs.DeletePath(payload.WorkDir, payload.Path)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(map[string]string{"status": "ok"})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerFilesDelete,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
 	case protocol.TypeCmdServerModsList:
 		var payload protocol.ServerModsListPayload
 		if err := json.Unmarshal(env.Payload, &payload); err != nil {

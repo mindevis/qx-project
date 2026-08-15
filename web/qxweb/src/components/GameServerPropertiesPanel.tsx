@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Input, InputNumber, Space, Spin, Switch, Tooltip, Typography } from 'antd';
+import { Button, Input, InputNumber, Space, Spin, Switch, Typography } from 'antd';
 import { api, type GameServerProperty } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
-import { getServerPropertyHint } from '@/lib/serverPropertyHints';
+import { getServerPropertyMeta } from '@/lib/serverPropertyHints';
 
 type GameServerPropertiesPanelProps = {
   vpsId: string;
@@ -82,24 +82,17 @@ export function GameServerPropertiesPanel({
   return (
     <div className="game-server-properties">
       {properties.map((item) => {
-        const hint = getServerPropertyHint(locale, item.key);
+        const meta = getServerPropertyMeta(locale, item.key);
         return (
           <div key={item.key} className="game-server-property-row">
-            <label
-              className={
-                hint
-                  ? 'game-server-property-label game-server-property-label--hint'
-                  : 'game-server-property-label'
-              }
-              htmlFor={`prop-${item.key}`}
-            >
-              {hint ? (
-                <Tooltip title={hint}>
-                  <span>{item.key}</span>
-                </Tooltip>
-              ) : (
-                item.key
-              )}
+            <label className="game-server-property-label" htmlFor={`prop-${item.key}`}>
+              <span className="game-server-property-title">{meta.title}</span>
+              {meta.title !== item.key ? (
+                <span className="game-server-property-key">{item.key}</span>
+              ) : null}
+              {meta.description ? (
+                <span className="game-server-property-desc">{meta.description}</span>
+              ) : null}
             </label>
             <div className="game-server-property-control">
               {item.boolean ? (

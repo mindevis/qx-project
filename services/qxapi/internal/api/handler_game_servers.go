@@ -361,6 +361,31 @@ func (h *GameServersHandler) WriteFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+func (h *GameServersHandler) DeleteFile(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	path := c.Query("path")
+	if path == "" {
+		JSONValidation(c, "path required")
+		return
+	}
+	err := h.Service.DeleteGameServerFile(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		path,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 func gameServerError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, servers.ErrNotFound):

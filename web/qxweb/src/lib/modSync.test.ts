@@ -10,6 +10,7 @@ import {
   instanceResourceVersionKey,
   isInstanceResourceOnServer,
   isModOnServer,
+  isCatalogItemOnServer,
   modSupportsServerSync,
   modSyncSide,
 } from './modSync';
@@ -283,6 +284,18 @@ describe('isInstanceResourceOnServer', () => {
         { filename: 'launcher-local-name.jar' },
         ['other-file.jar'],
       ),
+    ).toBe(false);
+  });
+});
+
+describe('isCatalogItemOnServer', () => {
+  it('matches catalog slug or name against installed filenames', () => {
+    const installed = [{ name: 'sodium-fabric-0.5.8.jar', path: 'mods/sodium-fabric-0.5.8.jar', dir: false }];
+    expect(
+      isCatalogItemOnServer({ id: 'AANobbMI', slug: 'sodium', name: 'Sodium' }, installed),
+    ).toBe(true);
+    expect(
+      isCatalogItemOnServer({ id: 'jei', slug: 'jei', name: 'JEI' }, installed),
     ).toBe(false);
   });
 });

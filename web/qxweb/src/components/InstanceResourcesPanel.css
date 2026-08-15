@@ -417,6 +417,10 @@ html[data-theme='dark'] .qxmods-version-row {
   margin-bottom: 0;
 }
 
+.game-server-content-sections {
+  margin-bottom: 16px;
+}
+
 .game-server-content-installed-header {
   display: flex;
   flex-wrap: wrap;

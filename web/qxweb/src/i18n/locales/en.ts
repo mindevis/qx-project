@@ -752,6 +752,12 @@ export const en: Messages = {
     fileReadFailed: 'Failed to read file',
     fileSaved: 'File saved',
     backToFiles: 'Back to file list',
+    fileDeleteTitle: 'Delete file?',
+    folderDeleteTitle: 'Delete folder?',
+    fileDeleteConfirm: 'Delete «{{name}}»? This cannot be undone.',
+    folderDeleteConfirm: 'Delete folder «{{name}}» and all of its contents? This cannot be undone.',
+    fileDeleted: 'Deleted',
+    fileDeleteFailed: 'Failed to delete',
     crashTitle: 'Server stopped unexpectedly',
     summaryAgent: 'QXAgent',
     content: {
@@ -785,6 +791,8 @@ export const en: Messages = {
       folder: 'Folder',
       modsFolder: 'Server mods',
       clientModsFolder: 'Client mods',
+      tabInstalled: 'Installed',
+      tabCatalog: 'Catalog',
       mod: {
         installedTitle: 'Installed mods',
         browseTitle: 'Browse mods',
@@ -1030,6 +1038,9 @@ export const en: Messages = {
       syncUnavailableLoader: 'Instance loader is required to pick a sync target.',
       summary: '{{count}} config files',
       filePath: 'Path',
+      backToList: 'Back to configs',
+      serverTitle: 'Mod configs',
+      serverIntro: 'Files from the config folder, grouped by installed mods. Open a file to edit it.',
     },
     install: {
       action: 'Install',

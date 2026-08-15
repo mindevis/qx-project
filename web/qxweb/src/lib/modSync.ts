@@ -175,6 +175,25 @@ export function isModOnServer(
   return serverMods.some((entry) => !entry.dir && filenames.includes(entry.name.toLowerCase()));
 }
 
+export function isCatalogItemOnServer(
+  item: Pick<ModCatalogItem, 'id' | 'slug' | 'name'>,
+  serverFiles: GameServerFileEntry[],
+): boolean {
+  const tokens = [item.slug, item.id]
+    .filter((value): value is string => Boolean(value && value.length >= 3))
+    .map((value) => value.toLowerCase());
+  const nameNorm = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return serverFiles.some((entry) => {
+    if (entry.dir) return false;
+    const filename = entry.name.toLowerCase();
+    const filenameNorm = filename.replace(/[^a-z0-9]+/g, '');
+    if (tokens.some((token) => filename.includes(token))) {
+      return true;
+    }
+    return nameNorm.length >= 4 && filenameNorm.includes(nameNorm);
+  });
+}
+
 export function instanceResourceVersionKey(
   resource: Pick<InstanceResource, 'source' | 'project_id' | 'version_id' | 'filename'>,
 ): string | undefined {
