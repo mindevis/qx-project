@@ -66,19 +66,7 @@ export function ProfileModelViewer({ model, width = 112, height = 128 }: Profile
       viewer.dispose();
       viewerRef.current = null;
     };
-  }, [height, useFallback, width]);
-
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer || viewer.disposed || useFallback) {
-      return;
-    }
-    void viewer.loadSkin(SKIN_SRC[model], { model: MODEL_TYPE[model] }).then(() => {
-      if (!viewer.disposed) {
-        viewer.resetCameraPose();
-      }
-    });
-  }, [model, useFallback]);
+  }, [height, model, useFallback, width]);
 
   if (useFallback) {
     return <ProfileModelAvatar model={model} size="md" />;

@@ -311,7 +311,7 @@ export function GameServerContentPanel({
     return catalogItems.filter((item) => !isCatalogItemOnServer(item, installed));
   }, [catalogItems, installed, showInstalledOnly]);
 
-  const openDetail = async (item: ModCatalogItem) => {
+  const openDetail = useCallback(async (item: ModCatalogItem) => {
     setDetailItem(item);
     setDetailOpen(true);
     setVersions([]);
@@ -327,7 +327,7 @@ export function GameServerContentPanel({
     } finally {
       setVersionsLoading(false);
     }
-  };
+  }, [i18nPrefix, loader, mcVersion, message, t]);
 
   const filteredInstalled = useMemo(() => {
     const query = appliedInstalledSearch.trim().toLowerCase();
@@ -444,7 +444,7 @@ export function GameServerContentPanel({
         ),
       },
     ],
-    [installed, t],
+    [installed, openDetail, t],
   );
 
   const handleDelete = (row: GameServerFileEntry) => {
@@ -488,17 +488,6 @@ export function GameServerContentPanel({
     return false;
   };
 
-  if (!supported) {
-    return <Paragraph type="secondary">{t(`${i18nPrefix}.notSupported`)}</Paragraph>;
-  }
-
-  if (!agentOnline) {
-    return <Paragraph type="secondary">{t('servers.gameServersAgentRequired')}</Paragraph>;
-  }
-
-  const showCurseforgeUnavailable =
-    sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled;
-
   const sourceOptions = useMemo(
     () => [
       { value: 'all', label: t('qxmods.filters.sourceAll') },
@@ -517,6 +506,17 @@ export function GameServerContentPanel({
     ],
     [t],
   );
+
+  if (!supported) {
+    return <Paragraph type="secondary">{t(`${i18nPrefix}.notSupported`)}</Paragraph>;
+  }
+
+  if (!agentOnline) {
+    return <Paragraph type="secondary">{t('servers.gameServersAgentRequired')}</Paragraph>;
+  }
+
+  const showCurseforgeUnavailable =
+    sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled;
 
   return (
     <div className="game-server-content-panel">
