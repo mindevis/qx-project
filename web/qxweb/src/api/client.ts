@@ -563,6 +563,24 @@ export async function checkBackendHealth(): Promise<boolean> {
   }
 }
 
+export const CATALOG_REQUEST_TIMEOUT_MS = 12_000;
+
+function catalogRequestSignal(): AbortSignal {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), CATALOG_REQUEST_TIMEOUT_MS);
+  return controller.signal;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    (error instanceof DOMException || error instanceof Error) &&
+    (error.name === 'AbortError' || error.name === 'TimeoutError')
+  );
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -588,7 +606,10 @@ async function request<T>(
     }
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers }).catch(() => {
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers }).catch((error: unknown) => {
+    if (isAbortError(error) || init.signal?.aborted) {
+      throw new ApiRequestError('', undefined, 'UPSTREAM_UNAVAILABLE');
+    }
     throwBackendUnavailable();
   });
 
@@ -1227,6 +1248,7 @@ export const api = {
     if (params.limit != null) search.set('limit', String(params.limit));
     return request<{ items: ModCatalogItem[]; curseforge_enabled: boolean }>(
       `/mods/search?${search.toString()}`,
+      { signal: catalogRequestSignal() },
     );
   },
 
@@ -1250,6 +1272,7 @@ export const api = {
     const qs = search.toString();
     return request<{ items: ModCatalogItem[]; has_more: boolean; curseforge_enabled: boolean }>(
       `/mods/browse${qs ? `?${qs}` : ''}`,
+      { signal: catalogRequestSignal() },
     );
   },
 

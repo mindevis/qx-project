@@ -33,6 +33,7 @@ import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { formatCompactCount } from '@/lib/formatCompactCount';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { modSupportsServerSync } from '@/lib/modSync';
 import {
@@ -43,6 +44,7 @@ import './InstanceResourcesPanel.css';
 
 const { Text, Paragraph } = Typography;
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 400;
 
 export function ModsCatalogPanel() {
   const { t } = useI18n();
@@ -122,6 +124,17 @@ export function ModsCatalogPanel() {
   useEffect(() => {
     clearModVersionCache();
   }, [activeTab, appliedSearch, catalogLoader, instance.mc_version, sort, sourceFilter]);
+
+  useEffect(() => {
+    const trimmed = searchInput.trim();
+    if (trimmed === appliedSearch) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setAppliedSearch(trimmed);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [appliedSearch, searchInput]);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,6 +266,11 @@ export function ModsCatalogPanel() {
           </Link>
           <div className="qxmods-catalog-name-meta">
             <ModSourceBadge source={item.source} />
+            {item.author ? (
+              <Text type="secondary" className="qxmods-catalog-author">
+                {item.author}
+              </Text>
+            ) : null}
           </div>
         </div>
       ),
@@ -273,9 +291,17 @@ export function ModsCatalogPanel() {
       render: (_, item) => (activeTab === 'mod' ? <ModSideBadge item={item} /> : null),
     },
     {
+      title: t('qxmods.catalog.downloads'),
+      key: 'downloads',
+      width: 96,
+      className: 'qxmods-catalog-downloads-col',
+      render: (_, item) =>
+        item.downloads != null ? formatCompactCount(item.downloads) : '—',
+    },
+    {
       title: t('qxmods.catalog.install'),
       key: 'install',
-      width: 400,
+      width: 260,
       className: 'qxmods-catalog-install-cell',
       render: (_, item) => (
         <ModCatalogInstallControls
@@ -290,6 +316,7 @@ export function ModsCatalogPanel() {
           loader={catalogLoader}
           mcVersion={instance.mc_version}
           installedProjectIds={installedProjectIds}
+          eagerVersions={false}
           layout="inline"
           selectClassName="qxmods-install-version-select--table"
           onInstalled={(version) => handleInstalled(item, version)}
@@ -385,7 +412,7 @@ export function ModsCatalogPanel() {
           loader: instance.loader,
         })}
       </Paragraph>
-      {loading ? (
+      {loading && items.length === 0 ? (
         <div className="qxmods-loading">
           <Spin />
         </div>
@@ -398,6 +425,7 @@ export function ModsCatalogPanel() {
             rowKey={(item) => `${item.source}:${item.id}`}
             columns={columns}
             dataSource={items}
+            loading={loading}
             pagination={false}
             scroll={{ x: 960 }}
             tableLayout="fixed"

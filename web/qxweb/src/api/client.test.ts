@@ -254,6 +254,17 @@ describe('api client', () => {
     });
   });
 
+  it('maps catalog request abort to upstream unavailable', async () => {
+    saveTokens(tokens);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockRejectedValue(new DOMException('Aborted', 'AbortError'));
+
+    await expect(api.browseMods({ type: 'mod' })).rejects.toMatchObject({
+      apiCode: 'UPSTREAM_UNAVAILABLE',
+    });
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
   it('throws api error message when present', async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValue(

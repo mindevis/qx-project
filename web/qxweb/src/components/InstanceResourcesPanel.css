@@ -140,7 +140,16 @@ html[data-theme='dark'] .instance-resources-panel {
 .qxmods-catalog-name-meta {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+}
+
+.qxmods-catalog-author {
+  font-size: 12px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qxmods-catalog-table--install .ant-table-cell {
@@ -183,9 +192,9 @@ html[data-theme='dark'] .instance-resources-panel {
 }
 
 .qxmods-install-version-select--table {
-  flex: 1 1 160px;
-  min-width: 140px;
-  max-width: 240px;
+  flex: 1 1 120px;
+  min-width: 110px;
+  max-width: 160px;
 }
 
 .qxmods-install-version-select--detail {
@@ -199,7 +208,12 @@ html[data-theme='dark'] .instance-resources-panel {
 }
 
 .qxmods-catalog-install-cell {
-  min-width: 320px;
+  min-width: 220px;
+}
+
+.qxmods-catalog-downloads-col {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .qxmods-catalog-table--install .qxmods-catalog-install-cell .ant-table-cell {

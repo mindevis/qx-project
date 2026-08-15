@@ -1088,6 +1088,7 @@ export const en: Messages = {
       name: 'Name',
       summary: 'Description',
       side: 'Side',
+      downloads: 'Downloads',
       install: 'Install',
       backToInstalled: 'Back to installed',
     },

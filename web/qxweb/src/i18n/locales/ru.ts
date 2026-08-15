@@ -1087,6 +1087,7 @@ export const ru = {
       name: 'Название',
       summary: 'Описание',
       side: 'Сторона',
+      downloads: 'Загрузки',
       install: 'Установка',
       backToInstalled: 'К установленным',
     },

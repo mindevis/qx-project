@@ -25,6 +25,8 @@ const catalogItem = {
   id: 'sodium',
   name: 'Sodium',
   summary: 'Performance mod',
+  author: 'jellysquid3',
+  downloads: 1_200_000,
   external_url: 'https://modrinth.com/mod/sodium',
   icon_url: 'https://cdn.modrinth.com/data/AANobbMI/icon.png',
   client_side: 'required',
@@ -68,6 +70,7 @@ describe('ModsCatalogPanel', () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -82,10 +85,47 @@ describe('ModsCatalogPanel', () => {
     );
     const icon = container.querySelector('img.qxmods-catalog-table-icon');
     expect(icon).toHaveAttribute('src', catalogItem.icon_url);
-    await waitFor(() => expect(api.listModVersions).toHaveBeenCalled());
+    expect(screen.getByText('jellysquid3')).toBeInTheDocument();
+    expect(screen.getByText('1.2M')).toBeInTheDocument();
+    expect(api.listModVersions).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument(),
     );
+  });
+
+  it('loads versions only when installing from the catalog', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({ ...modVersion, dependencies: [] });
+    vi.spyOn(api, 'createModInstallRequest').mockResolvedValue({
+      id: 'req-1',
+      instance_id: 'inst-1',
+      status: 'queued',
+      source: 'modrinth',
+      project_id: 'sodium',
+      project_name: 'Sodium',
+      version_id: 'ver-1',
+      filename: 'sodium.jar',
+      resource_type: 'mod',
+      expires_at: '2099-01-01T00:00:00Z',
+    });
+    vi.spyOn(api, 'getModInstallRequest').mockResolvedValue({
+      id: 'req-1',
+      instance_id: 'inst-1',
+      status: 'completed',
+      source: 'modrinth',
+      project_id: 'sodium',
+      project_name: 'Sodium',
+      version_id: 'ver-1',
+      filename: 'sodium.jar',
+      resource_type: 'mod',
+      expires_at: '2099-01-01T00:00:00Z',
+    });
+
+    renderCatalog();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument());
+    expect(api.listModVersions).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Установить' }));
+    await waitFor(() => expect(api.listModVersions).toHaveBeenCalled());
   });
 
   it('runs search when query submitted', async () => {
@@ -101,6 +141,48 @@ describe('ModsCatalogPanel', () => {
         expect.objectContaining({ q: 'sodium', source: 'all' }),
       ),
     );
+  });
+
+  it('debounces catalog search input', async () => {
+    renderCatalog();
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'jei');
+    expect(api.searchMods).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(api.searchMods).toHaveBeenCalledWith(expect.objectContaining({ q: 'jei' }));
+  });
+
+  it('keeps previous rows visible while filters reload', async () => {
+    const user = userEvent.setup({ delay: null });
+    let finishReload: ((value: Awaited<ReturnType<typeof api.browseMods>>) => void) | undefined;
+    vi.mocked(api.browseMods)
+      .mockResolvedValueOnce({
+        items: [catalogItem],
+        has_more: false,
+        curseforge_enabled: true,
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishReload = resolve;
+          }),
+      );
+
+    renderCatalog();
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    const [sourceSelect] = screen.getAllByRole('combobox');
+    await user.click(sourceSelect!);
+    await user.click(await screen.findByText('CurseForge'));
+    expect(screen.getByText('Sodium')).toBeInTheDocument();
+    finishReload?.({
+      items: [{ ...catalogItem, id: 'jei', name: 'JEI' }],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+    await waitFor(() => expect(screen.getByText('JEI')).toBeInTheDocument());
   });
 
   it('searches only selected source', async () => {

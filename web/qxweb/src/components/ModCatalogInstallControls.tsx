@@ -38,6 +38,7 @@ export type ModCatalogInstallControlsProps = {
   installedProjectIds: Set<string>;
   layout?: 'inline' | 'stacked';
   selectClassName?: string;
+  eagerVersions?: boolean;
   onInstalled?: (version: ModVersion) => void;
   onUninstalled?: () => void;
 };
@@ -56,6 +57,7 @@ export function ModCatalogInstallControls({
   installedProjectIds,
   layout = 'inline',
   selectClassName,
+  eagerVersions = true,
   onInstalled,
   onUninstalled,
 }: ModCatalogInstallControlsProps) {
@@ -66,7 +68,8 @@ export function ModCatalogInstallControls({
 
   const [versions, setVersions] = useState<ModVersion[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string>();
-  const [loadingVersions, setLoadingVersions] = useState(true);
+  const [loadingVersions, setLoadingVersions] = useState(eagerVersions);
+  const [versionsLoaded, setVersionsLoaded] = useState(false);
   const [depsOpen, setDepsOpen] = useState(false);
   const [serverOnlyOpen, setServerOnlyOpen] = useState(false);
   const [pendingVersion, setPendingVersion] = useState<ModVersion | null>(null);
@@ -89,10 +92,14 @@ export function ModCatalogInstallControls({
       });
       setVersions(items);
       setSelectedVersionId((prev) => prev ?? items[0]?.id);
+      setVersionsLoaded(true);
+      return items;
     } catch (e) {
       message.error(formatModCatalogError(e, t, 'qxmods.versionsFailed'));
       setVersions([]);
       setSelectedVersionId(undefined);
+      setVersionsLoaded(true);
+      return [] as ModVersion[];
     } finally {
       setLoadingVersions(false);
     }
@@ -101,9 +108,12 @@ export function ModCatalogInstallControls({
   useEffect(() => {
     setVersions([]);
     setSelectedVersionId(undefined);
-    setLoadingVersions(true);
-    void loadVersions();
-  }, [loadVersions, source, projectId, loader, mcVersion]);
+    setVersionsLoaded(false);
+    setLoadingVersions(eagerVersions);
+    if (eagerVersions) {
+      void loadVersions();
+    }
+  }, [eagerVersions, loadVersions, source, projectId, loader, mcVersion]);
 
   const versionOptions = useMemo(
     () =>
@@ -288,14 +298,27 @@ export function ModCatalogInstallControls({
     });
   };
 
+  const ensureVersionAndInstall = () => {
+    void (async () => {
+      let version = selectedVersion;
+      if (!version) {
+        const items = versionsLoaded ? versions : await loadVersions();
+        version = items[0];
+      }
+      if (version) {
+        runInstall(version);
+      }
+    })();
+  };
+
   const installing = selectedVersion != null && installingVersionId === selectedVersion.id;
   const disabled = (installingVersionId != null && !installing) || uninstalling;
 
-  if (loadingVersions && versions.length === 0) {
+  if (eagerVersions && loadingVersions && versions.length === 0) {
     return <Spin size="small" />;
   }
 
-  if (versions.length === 0) {
+  if (versionsLoaded && versions.length === 0) {
     return (
       <div className="qxmods-install-controls qxmods-install-controls--inline">
         {isInstalled ? (
@@ -331,8 +354,8 @@ export function ModCatalogInstallControls({
           value={selectedVersion?.id}
           options={versionOptions}
           onChange={setSelectedVersionId}
-          onDropdownVisibleChange={(open) => {
-            if (open && versions.length === 0) {
+          onOpenChange={(open) => {
+            if (open && !versionsLoaded && !loadingVersions) {
               void loadVersions();
             }
           }}
@@ -341,9 +364,9 @@ export function ModCatalogInstallControls({
           type="primary"
           size="small"
           className="qxmods-install-action"
-          loading={installing}
-          disabled={disabled || !selectedVersion}
-          onClick={() => selectedVersion && runInstall(selectedVersion)}
+          loading={installing || (!versionsLoaded && loadingVersions)}
+          disabled={disabled || (versionsLoaded && !selectedVersion)}
+          onClick={ensureVersionAndInstall}
         >
           {t('qxmods.install.action')}
         </Button>
