@@ -129,13 +129,18 @@ describe('gameServerVersions', () => {
         if (url.includes('/upstream/neoforge') || host === 'maven.neoforged.net') {
           return Promise.resolve(
             new Response(
-              JSON.stringify([
-                '21.1.234',
-                '21.1.233',
-                '21.0.167',
-                '20.6.139',
-                '26.0.0-beta',
-              ]),
+              JSON.stringify({
+                isSnapshot: false,
+                versions: [
+                  '21.1.234',
+                  '21.1.233',
+                  '21.0.167',
+                  '20.6.139',
+                  '21.2.1-beta',
+                  '26.1.2.76',
+                  '26.0.0-beta',
+                ],
+              }),
               { status: 200 },
             ),
           );
@@ -149,6 +154,22 @@ describe('gameServerVersions', () => {
 
     const loaderOptions = await listGameServerLoaderVersions('neoforge', '1.21.1');
     expect(loaderOptions.map((item) => item.value)).toEqual(['21.1.234', '21.1.233']);
+  });
+
+  it('accepts a raw neoforge version array from older mirrors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/upstream/neoforge')) {
+          return Promise.resolve(new Response(JSON.stringify(['21.1.10', '21.1.9']), { status: 200 }));
+        }
+        return Promise.reject(new Error(`unexpected ${url}`));
+      }),
+    );
+
+    const loaderOptions = await listGameServerLoaderVersions('neoforge', '1.21.1');
+    expect(loaderOptions.map((item) => item.value)).toEqual(['21.1.10', '21.1.9']);
   });
 
   it('loads purpur mc and build versions', async () => {

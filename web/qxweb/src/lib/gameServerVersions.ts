@@ -221,6 +221,10 @@ function neoForgeVersionPrefix(mcVersion: string): string | null {
   return `${parts[1]}.${parts[2]}.`;
 }
 
+function isPreReleaseNeoForgeVersion(version: string): boolean {
+  return version.includes('beta') || version.includes('alpha');
+}
+
 function neoForgeMcVersion(neoforgeVersion: string): string | null {
   const parts = neoforgeVersion.split('.');
   if (parts.length < 2) return null;
@@ -236,10 +240,30 @@ function neoForgeMcVersion(neoforgeVersion: string): string | null {
   return null;
 }
 
+/** Maven JSON API returns `{ versions: string[] }`; tests and older mirrors may return a raw array. */
+function parseNeoForgeVersionsPayload(data: unknown): string[] {
+  if (Array.isArray(data)) {
+    return data.filter((item): item is string => typeof item === 'string');
+  }
+  if (data && typeof data === 'object' && 'versions' in data) {
+    const versions = (data as { versions: unknown }).versions;
+    if (Array.isArray(versions)) {
+      return versions.filter((item): item is string => typeof item === 'string');
+    }
+  }
+  throw new Error('unexpected neoforge versions payload');
+}
+
+async function fetchNeoForgeVersionList(): Promise<string[]> {
+  const data = await cachedFetchJson<unknown>(NEOFORGE_VERSIONS);
+  return parseNeoForgeVersionsPayload(data);
+}
+
 async function fetchNeoForgeMcVersions(): Promise<VersionOption[]> {
-  const versions = await cachedFetchJson<string[]>(NEOFORGE_VERSIONS);
+  const versions = await fetchNeoForgeVersionList();
   const mcVersions = new Set<string>();
   for (const loaderVersion of versions) {
+    if (isPreReleaseNeoForgeVersion(loaderVersion)) continue;
     const mcVersion = neoForgeMcVersion(loaderVersion);
     if (mcVersion) mcVersions.add(mcVersion);
   }
@@ -251,13 +275,11 @@ async function fetchNeoForgeMcVersions(): Promise<VersionOption[]> {
 async function fetchNeoForgeLoaderVersions(mcVersion: string): Promise<VersionOption[]> {
   const prefix = neoForgeVersionPrefix(mcVersion);
   if (!prefix) return [];
-  const versions = await cachedFetchJson<string[]>(NEOFORGE_VERSIONS);
+  const versions = await fetchNeoForgeVersionList();
   return versions
     .filter(
       (loaderVersion) =>
-        !loaderVersion.includes('beta') &&
-        !loaderVersion.includes('alpha') &&
-        loaderVersion.startsWith(prefix),
+        !isPreReleaseNeoForgeVersion(loaderVersion) && loaderVersion.startsWith(prefix),
     )
     .sort(compareVersionsDesc)
     .map((version) => ({ value: version, label: version }));
