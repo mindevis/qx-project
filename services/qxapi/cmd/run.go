@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,6 +17,8 @@ import (
 )
 
 var connectDB = database.Connect
+var openBlobs = blob.Open
+var blobOpenTimeout = 25 * time.Second
 
 func bootstrap(cfg config.Config) (*gin.Engine, error) {
 	db, err := connectDB(cfg.DatabaseDSN)
@@ -24,7 +27,9 @@ func bootstrap(cfg config.Config) (*gin.Engine, error) {
 	}
 	tokens := auth.NewTokenService(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
 	authSvc := auth.NewService(db, tokens)
-	blobs, err := blob.Open(context.Background(), blob.Config{
+	blobCtx, cancelBlobs := context.WithTimeout(context.Background(), blobOpenTimeout)
+	defer cancelBlobs()
+	blobs, err := openBlobs(blobCtx, blob.Config{
 		Endpoint:  cfg.MinioEndpoint,
 		AccessKey: cfg.MinioAccessKey,
 		SecretKey: cfg.MinioSecretKey,
@@ -32,7 +37,8 @@ func bootstrap(cfg config.Config) (*gin.Engine, error) {
 		UseSSL:    cfg.MinioUseSSL,
 	})
 	if err != nil {
-		return nil, err
+		slog.Error("minio unavailable, starting without object store", "error", err)
+		blobs = blob.NewMemory()
 	}
 	return api.NewRouter(db, authSvc, cfg.CORSOrigin, cfg.SSHMasterKey, api.DeploySettings{
 		PublicAPIURL:    cfg.PublicAPIURL,

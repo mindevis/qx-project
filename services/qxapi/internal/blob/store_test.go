@@ -44,6 +44,16 @@ func TestSanitizeRejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestOpenMemory(t *testing.T) {
+	store, err := Open(context.Background(), Config{Endpoint: "memory"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := store.(*Memory); !ok {
+		t.Fatalf("got %T", store)
+	}
+}
+
 func TestNormalizeEndpoint(t *testing.T) {
 	ep, secure := normalizeEndpoint("https://minio.example:9000", false)
 	if ep != "minio.example:9000" || !secure {

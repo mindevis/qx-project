@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,6 +10,7 @@ import (
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
+	"github.com/qxproject/qx/services/qxapi/internal/blob"
 	"github.com/qxproject/qx/services/qxapi/internal/config"
 	"github.com/qxproject/qx/services/qxapi/internal/database"
 )
@@ -42,6 +45,29 @@ func TestRunInvalidDatabase(t *testing.T) {
 	chdirRepo(t, "database_dsn = \"invalid-dsn\"\n")
 	if err := run(); err == nil {
 		t.Fatal("expected database error")
+	}
+}
+
+func TestBootstrapWhenMinioDown(t *testing.T) {
+	oldDB := connectDB
+	oldBlobs := openBlobs
+	connectDB = func(_ string) (*gorm.DB, error) {
+		return database.Open(sqlite.Open("file:miniodown?mode=memory&cache=shared"))
+	}
+	openBlobs = func(_ context.Context, _ blob.Config) (blob.Store, error) {
+		return nil, errors.New("minio down")
+	}
+	t.Cleanup(func() {
+		connectDB = oldDB
+		openBlobs = oldBlobs
+	})
+
+	router, err := bootstrap(config.Load())
+	if err != nil {
+		t.Fatalf("bootstrap should not fail when minio is down: %v", err)
+	}
+	if router == nil {
+		t.Fatal("expected router")
 	}
 }
 

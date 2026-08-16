@@ -87,7 +87,6 @@ var migrateUsers = func(db *gorm.DB) error {
 	}
 	fixMonitoringTablesCollation(db)
 	widenModListColumns(db)
-	dropResourceBlobColumns(db)
 	return nil
 }
 
@@ -138,7 +137,8 @@ func widenModListColumns(db *gorm.DB) {
 }
 
 // resourceBlobTables used to store jar/zip bytes as LONGTEXT. Files live in
-// MinIO now; leftover columns (and old rows) still crush InnoDB until dropped.
+// MinIO now. Do not DROP these columns during API boot — ALTER rebuilds the
+// table and can keep qxapi from listening. Use docs/migrations/2026-08-16_drop_resource_content_b64.sql.
 var resourceBlobTables = []string{
 	"instance_resource_upload_requests",
 	"instance_resource_export_requests",

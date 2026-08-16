@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -42,7 +43,9 @@ func NewS3(ctx context.Context, cfg Config) (*S3, error) {
 	if err != nil {
 		return nil, err
 	}
-	ok, err := client.BucketExists(ctx, bucket)
+	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ok, err := client.BucketExists(checkCtx, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("minio bucket check: %w", err)
 	}
@@ -60,7 +63,24 @@ func Open(ctx context.Context, cfg Config) (Store, error) {
 	if endpoint == "" || strings.EqualFold(endpoint, "memory") {
 		return NewMemory(), nil
 	}
-	return NewS3(ctx, cfg)
+	var last error
+	for attempt := 1; attempt <= 8; attempt++ {
+		store, err := NewS3(ctx, cfg)
+		if err == nil {
+			return store, nil
+		}
+		last = err
+		delay := time.Duration(attempt) * time.Second
+		select {
+		case <-ctx.Done():
+			if last != nil {
+				return nil, last
+			}
+			return nil, ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+	return nil, last
 }
 
 func (s *S3) Put(ctx context.Context, key string, data []byte) error {
