@@ -87,6 +87,7 @@ var migrateUsers = func(db *gorm.DB) error {
 	}
 	fixMonitoringTablesCollation(db)
 	widenModListColumns(db)
+	dropResourceBlobColumns(db)
 	return nil
 }
 
@@ -132,6 +133,36 @@ func widenModListColumns(db *gorm.DB) {
 			if err := db.Exec("ALTER TABLE " + table + " MODIFY COLUMN " + col + " MEDIUMTEXT").Error; err != nil {
 				log.Printf("warning: widen %s.%s to mediumtext: %v", table, col, err)
 			}
+		}
+	}
+}
+
+// resourceBlobTables used to store jar/zip bytes as LONGTEXT. Files live in
+// MinIO now; leftover columns (and old rows) still crush InnoDB until dropped.
+var resourceBlobTables = []string{
+	"instance_resource_upload_requests",
+	"instance_resource_export_requests",
+}
+
+func dropResourceBlobColumns(db *gorm.DB) {
+	if db == nil || db.Dialector == nil || db.Dialector.Name() != "mysql" {
+		return
+	}
+	m := db.Migrator()
+	for _, table := range resourceBlobTables {
+		if !m.HasTable(table) {
+			continue
+		}
+		var dataType string
+		if err := db.Raw(
+			`SELECT DATA_TYPE FROM information_schema.COLUMNS
+			 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'content_b64'`,
+			table,
+		).Scan(&dataType).Error; err != nil || dataType == "" {
+			continue
+		}
+		if err := db.Exec("ALTER TABLE `" + table + "` DROP COLUMN content_b64").Error; err != nil {
+			log.Printf("warning: drop %s.content_b64: %v", table, err)
 		}
 	}
 }

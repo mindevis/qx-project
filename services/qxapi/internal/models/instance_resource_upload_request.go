@@ -17,7 +17,6 @@ type InstanceResourceUploadRequest struct {
 	Filename     string     `gorm:"type:varchar(256);not null" json:"filename"`
 	ResourceType string     `gorm:"type:varchar(32);not null;default:mod" json:"resource_type"`
 	ObjectKey    string     `gorm:"type:varchar(512)" json:"object_key,omitempty"`
-	ContentB64   string     `gorm:"type:longtext" json:"-"`
 	FileSize     int64      `gorm:"type:bigint" json:"file_size"`
 	Status       string     `gorm:"type:varchar(32);not null;default:queued;index" json:"status"`
 	ErrorCode    *string    `gorm:"type:varchar(64);column:error_code" json:"error_code,omitempty"`

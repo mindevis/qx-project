@@ -4,11 +4,29 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/qxproject/qx/services/qxapi/internal/models"
+	"gorm.io/gorm"
 )
+
+func assertNoContentB64Column(t *testing.T, db *gorm.DB, table string) {
+	t.Helper()
+	type col struct {
+		Name string `gorm:"column:name"`
+	}
+	var cols []col
+	if err := db.Raw("PRAGMA table_info(" + table + ")").Scan(&cols).Error; err != nil {
+		t.Fatalf("pragma table_info %s: %v", table, err)
+	}
+	for _, c := range cols {
+		if strings.EqualFold(c.Name, "content_b64") {
+			t.Fatalf("%s must not have content_b64", table)
+		}
+	}
+}
 
 func TestCreateInstanceResourceUploadStoresObjectNotSQL(t *testing.T) {
 	svc, db, _ := newLauncherService(t)
@@ -83,10 +101,8 @@ func TestCreateInstanceResourceUploadStoresObjectNotSQL(t *testing.T) {
 	if err := db.Where("id = ?", view.ID).First(&row).Error; err != nil {
 		t.Fatalf("load row: %v", err)
 	}
-	if row.ContentB64 != "" {
-		t.Fatalf("jar must not be stored in MySQL, got %d bytes", len(row.ContentB64))
-	}
 	if row.ObjectKey == "" {
 		t.Fatal("expected object key")
 	}
+	assertNoContentB64Column(t, db, "instance_resource_upload_requests")
 }

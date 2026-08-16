@@ -16,7 +16,6 @@ type InstanceResourceExportRequest struct {
 	InstanceID   string     `gorm:"type:char(36);not null;index" json:"instance_id"`
 	Filename     string     `gorm:"type:varchar(256);not null" json:"filename"`
 	ResourceType string     `gorm:"type:varchar(32);not null;default:mod" json:"resource_type"`
-	ContentB64   string     `gorm:"type:longtext" json:"content_b64,omitempty"`
 	FileSize     int64      `gorm:"type:bigint" json:"file_size,omitempty"`
 	Status       string     `gorm:"type:varchar(32);not null;default:queued;index" json:"status"`
 	ErrorCode    *string    `gorm:"type:varchar(64);column:error_code" json:"error_code,omitempty"`

@@ -38,6 +38,14 @@ func TestFixMonitoringTablesCollationSkipsSQLite(t *testing.T) {
 	fixMonitoringTablesCollation(db) // must not error on non-MySQL
 }
 
+func TestDropResourceBlobColumnsSkipsSQLite(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(testutil.MemoryDSN(t)), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	dropResourceBlobColumns(db) // must not error on non-MySQL
+}
+
 func TestDropRedundantUsersEmailIndex(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(testutil.MemoryDSN(t)), &gorm.Config{})
 	if err != nil {

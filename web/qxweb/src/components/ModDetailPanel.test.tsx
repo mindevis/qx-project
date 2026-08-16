@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { testMessage } from '@/test/test-message';
@@ -40,7 +40,7 @@ const modVersion = {
   version_number: '0.5.0',
   game_versions: ['1.21'],
   loaders: ['forge'],
-  files: [{ filename: 'sodium.jar', url: 'https://example.com/sodium.jar', primary: true }],
+  files: [{ filename: 'sodium.jar', url: 'https://example.com/sodium.jar', primary: true, size: 1024 }],
 };
 
 function renderDetail(canSync = true) {
@@ -109,20 +109,21 @@ describe('ModDetailPanel', () => {
     });
     vi.spyOn(vpsGameServers, 'listVpsGameServers').mockResolvedValue([]);
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
-    const user = userEvent.setup();
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    const user = userEvent.setup({ delay: null });
     renderDetail();
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument());
+    await waitFor(() => {
+      const installButton = screen.getByRole('button', { name: 'Установить' });
+      expect(installButton).toBeEnabled();
+      expect(installButton).not.toHaveClass('ant-btn-loading');
+    });
     await user.click(screen.getByRole('button', { name: 'Установить' }));
 
-    const syncDialog = await screen.findByRole('dialog');
-    expect(within(syncDialog).getByRole('button', { name: 'Синхронизировать' })).toBeInTheDocument();
-
     await waitFor(() => expect(api.createModInstallRequest).toHaveBeenCalled());
-    await waitFor(() => expect(testMessage.success).toHaveBeenCalled(), { timeout: 5000 });
-    await waitFor(() => expect(screen.getByText('Синхронизация с сервером')).toBeInTheDocument(), {
-      timeout: 5000,
-    });
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Синхронизация с сервером')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Синхронизировать' })).toBeInTheDocument();
   });
 
   it('shows installed badge when mod is already installed', async () => {

@@ -142,18 +142,12 @@ func (s *Service) UpdateResourceExportRequest(
 	}
 
 	updates := map[string]any{"status": in.Status}
-	if in.ContentB64 != "" {
-		updates["content_b64"] = in.ContentB64
-	}
 	if in.ErrorCode != nil {
 		updates["error_code"] = in.ErrorCode
 	}
 	now := time.Now().UTC()
 	if in.Status == models.ResourceExportStatusCompleted || in.Status == models.ResourceExportStatusFailed {
 		updates["completed_at"] = now
-	}
-	if err := s.db.WithContext(ctx).Model(&req).Updates(updates).Error; err != nil {
-		return nil, err
 	}
 
 	var bridgeRes exportRPCResult
@@ -168,9 +162,14 @@ func (s *Service) UpdateResourceExportRequest(
 				bridgeRes.err = err
 			} else {
 				bridgeRes.data = data
+				updates["file_size"] = int64(len(data))
 			}
 		}
 	}
+	if err := s.db.WithContext(ctx).Model(&req).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+
 	if in.Status == models.ResourceExportStatusFailed {
 		code := "EXPORT_FAILED"
 		if in.ErrorCode != nil && *in.ErrorCode != "" {
