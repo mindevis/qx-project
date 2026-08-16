@@ -4,6 +4,12 @@
   gap: 20px;
 }
 
+.game-server-mods-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .game-server-mods-hero {
   display: flex;
   flex-wrap: wrap;

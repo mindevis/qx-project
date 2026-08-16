@@ -70,6 +70,23 @@ describe('mergeCatalogCardsByName', () => {
     expect(cards[1].items).toEqual([extraMr]);
   });
 
+  it('merges when a parenthetical suffix is the only name difference', () => {
+    const cards = mergeCatalogCardsByName(
+      [
+        item({ id: 'yacl', source: 'modrinth', slug: 'yacl', name: 'YetAnotherConfigLib (YACL)' }),
+        item({
+          id: '667299',
+          source: 'curseforge',
+          slug: 'yetanotherconfiglib',
+          name: 'YetAnotherConfigLib',
+        }),
+      ],
+      'all',
+    );
+    expect(cards).toHaveLength(1);
+    expect(cards[0].items).toHaveLength(2);
+  });
+
   it('merges by slug when display names differ', () => {
     const cards = mergeCatalogCardsByName(
       [

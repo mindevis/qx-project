@@ -4,6 +4,7 @@ import {
   applyModTargetToBodies,
   instanceResourceModTarget,
   instanceResourceContentTarget,
+  contentTargetFromPath,
   gameServerInstallSide,
   instanceResourceSupportsServerSync,
   isServerOnlyMod,
@@ -184,6 +185,15 @@ describe('instanceResourceModTarget', () => {
     expect(instanceResourceModTarget({ side_override: 'client' })).toBe('client-mods');
     expect(instanceResourceModTarget({ side_override: 'server' })).toBe('mods');
     expect(instanceResourceModTarget({ side_override: 'both' })).toBe('mods');
+  });
+});
+
+describe('contentTargetFromPath', () => {
+  it('maps installed folders to content targets', () => {
+    expect(contentTargetFromPath('client-resourcepacks/pack.zip')).toBe('client-resourcepacks');
+    expect(contentTargetFromPath('resourcepacks/pack.zip')).toBe('resourcepacks');
+    expect(contentTargetFromPath('shaderpacks/shaders.zip')).toBe('shaderpacks');
+    expect(contentTargetFromPath('client-shaders/shaders.zip')).toBe('client-shaders');
   });
 });
 

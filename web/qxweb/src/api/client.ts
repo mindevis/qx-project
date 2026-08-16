@@ -242,7 +242,7 @@ export type ModCatalogSort = 'downloads' | 'newest' | 'updated' | 'relevance';
 
 export type ModProjectType = 'mod' | 'modpack' | 'resourcepack' | 'shader' | 'datapack' | 'plugin';
 
-export type GameServerContentKind = 'mod' | 'plugin' | 'datapack';
+export type GameServerContentKind = 'mod' | 'plugin' | 'datapack' | 'resourcepack' | 'shader';
 
 export type ModCatalogItem = {
   id: string;
@@ -1171,6 +1171,46 @@ export const api = {
   listVpsGameServerDatapacks: (vpsId: string, gameServerId: string) =>
     request<{ items: GameServerFileEntry[] }>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/datapacks`,
+    ),
+
+  listVpsGameServerResourcepacks: (vpsId: string, gameServerId: string) =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/resourcepacks`,
+    ),
+
+  listVpsGameServerClientResourcepacks: (vpsId: string, gameServerId: string) =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/client-resourcepacks`,
+    ),
+
+  listVpsGameServerShaders: (vpsId: string, gameServerId: string) =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/shaders`,
+    ),
+
+  listVpsGameServerClientShaders: (vpsId: string, gameServerId: string) =>
+    request<{ items: GameServerFileEntry[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/client-shaders`,
+    ),
+
+  deleteVpsGameServerResourcepack: (
+    vpsId: string,
+    gameServerId: string,
+    body: { filename: string; mod_target?: ModTarget },
+  ) =>
+    request<{ status: string; filename: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/resourcepacks`,
+      { method: 'DELETE', body: JSON.stringify(body) },
+    ),
+
+  deleteVpsGameServerShader: (
+    vpsId: string,
+    gameServerId: string,
+    body: { filename: string; mod_target?: ModTarget },
+  ) =>
+    request<{ status: string; filename: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/shaders`,
+      { method: 'DELETE', body: JSON.stringify(body) },
     ),
 
   listVpsGameServerFiles: (vpsId: string, gameServerId: string, path = '') =>

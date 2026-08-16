@@ -3,17 +3,10 @@ import { api, type GameServerContentKind, type ModProjectType } from '@/api/clie
 import { ModCatalogProvider } from '@/components/ModCatalogContext';
 import { useGameServerModInstall } from '@/hooks/useGameServerModInstall';
 import { pluginLoaderForServerType, type VpsGameServerType } from '@/lib/gameServerTypes';
-import { instanceResourceModTarget } from '@/lib/modSync';
+import { instanceResourceContentTarget, instanceResourceModTarget } from '@/lib/modSync';
 
 function projectTypeForKind(kind: GameServerContentKind): ModProjectType {
-  switch (kind) {
-    case 'plugin':
-      return 'plugin';
-    case 'datapack':
-      return 'datapack';
-    default:
-      return 'mod';
-  }
+  return kind;
 }
 
 export function GameServerCatalogProvider({
@@ -63,6 +56,23 @@ export function GameServerCatalogProvider({
             case 'datapack':
               await api.deleteVpsGameServerDatapack(vpsId, gameServerId, { filename });
               break;
+            case 'resourcepack':
+            case 'shader': {
+              const res = await api.listGameServerResources(vpsId, gameServerId, { kind });
+              const match = (res.items ?? []).find(
+                (item) => item.filename.toLowerCase() === filename.toLowerCase(),
+              );
+              const body = {
+                filename,
+                mod_target: match ? instanceResourceContentTarget(match) : undefined,
+              };
+              if (kind === 'resourcepack') {
+                await api.deleteVpsGameServerResourcepack(vpsId, gameServerId, body);
+              } else {
+                await api.deleteVpsGameServerShader(vpsId, gameServerId, body);
+              }
+              break;
+            }
             default: {
               const res = await api.listGameServerResources(vpsId, gameServerId, { kind: 'mod' });
               const match = (res.items ?? []).find(

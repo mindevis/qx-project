@@ -9,6 +9,18 @@ describe('GameServerModsPanel', () => {
   beforeEach(() => {
     vi.spyOn(api, 'listGameServerResources').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'listModVersions').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [],
+      has_more: false,
+      curseforge_enabled: false,
+    });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerResourcepacks').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientResourcepacks').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerShaders').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientShaders').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerDatapacks').mockResolvedValue({ items: [] });
   });
 
   afterEach(() => {
@@ -120,5 +132,44 @@ describe('GameServerModsPanel', () => {
       />,
     );
     await waitFor(() => expect(screen.getByText('—')).toBeInTheDocument());
+  });
+
+  it('switches the catalog to resource packs, shaders, and datapacks', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    const browse = vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [],
+      has_more: false,
+      curseforge_enabled: false,
+    });
+
+    renderWithTheme(
+      <GameServerModsPanel
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supportsMods={true}
+        serverType="forge"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Ресурспаки')).toBeInTheDocument());
+    expect(screen.getByText('Шейдеры')).toBeInTheDocument();
+    expect(screen.getByText('Датапаки')).toBeInTheDocument();
+
+    await user.click(screen.getByText('Ресурспаки'));
+    await waitFor(() =>
+      expect(browse).toHaveBeenCalledWith(expect.objectContaining({ type: 'resourcepack' })),
+    );
+
+    await user.click(screen.getByText('Шейдеры'));
+    await waitFor(() =>
+      expect(browse).toHaveBeenCalledWith(expect.objectContaining({ type: 'shader' })),
+    );
+
+    await user.click(screen.getByText('Датапаки'));
+    await waitFor(() =>
+      expect(browse).toHaveBeenCalledWith(expect.objectContaining({ type: 'datapack' })),
+    );
   });
 });

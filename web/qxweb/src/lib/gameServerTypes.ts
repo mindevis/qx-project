@@ -49,6 +49,26 @@ export function gameServerSupportsDatapacks(_type: VpsGameServerType): boolean {
   return true;
 }
 
+export function gameServerSupportsClientContent(_type: VpsGameServerType): boolean {
+  return true;
+}
+
+export function gameServerCatalogTabs(type: VpsGameServerType): Array<
+  'mod' | 'resourcepack' | 'shader' | 'datapack'
+> {
+  const tabs: Array<'mod' | 'resourcepack' | 'shader' | 'datapack'> = [];
+  if (gameServerSupportsMods(type)) {
+    tabs.push('mod');
+  }
+  if (gameServerSupportsClientContent(type)) {
+    tabs.push('resourcepack', 'shader');
+  }
+  if (gameServerSupportsDatapacks(type)) {
+    tabs.push('datapack');
+  }
+  return tabs;
+}
+
 export function pluginLoaderForServerType(type: VpsGameServerType): string {
   switch (type) {
     case 'paper':
@@ -68,11 +88,13 @@ export function gameServerTypeCapabilities(type: VpsGameServerType): {
   plugins: boolean;
   mods: boolean;
   datapacks: boolean;
+  clientContent: boolean;
 } {
   return {
     plugins: gameServerSupportsPlugins(type),
     mods: gameServerSupportsMods(type),
     datapacks: gameServerSupportsDatapacks(type),
+    clientContent: gameServerSupportsClientContent(type),
   };
 }
 

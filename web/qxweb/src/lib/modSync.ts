@@ -293,6 +293,21 @@ export function instanceResourceModTarget(
   return 'mods';
 }
 
+export function contentKindHasSide(kind: string): boolean {
+  return kind === 'mod' || kind === 'resourcepack' || kind === 'shader';
+}
+
+export function contentTargetFromPath(path: string): ModTarget | undefined {
+  const normalized = path.replace(/\\/g, '/').toLowerCase();
+  if (normalized.startsWith('client-mods/')) return 'client-mods';
+  if (normalized.startsWith('mods/')) return 'mods';
+  if (normalized.startsWith('client-resourcepacks/')) return 'client-resourcepacks';
+  if (normalized.startsWith('resourcepacks/')) return 'resourcepacks';
+  if (normalized.startsWith('client-shaders/')) return 'client-shaders';
+  if (normalized.startsWith('shaderpacks/')) return 'shaderpacks';
+  return undefined;
+}
+
 export function gameServerInstallSide(side?: ModSyncSide): ModSyncSide {
   if (side === 'client' || side === 'server' || side === 'both') {
     return side;

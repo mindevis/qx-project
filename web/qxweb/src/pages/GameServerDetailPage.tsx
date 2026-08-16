@@ -18,6 +18,8 @@ import {
   DatabaseOutlined,
   DeleteOutlined,
   FolderOutlined,
+  HighlightOutlined,
+  PictureOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
   SettingOutlined,
@@ -267,6 +269,40 @@ export function GameServerDetailPage() {
                 agentOnline={agentOnline}
                 mcVersion={game.mc_version ?? '1.21'}
                 loader={serverType}
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(!caps.mods && caps.clientContent
+      ? [
+          {
+            key: 'resourcepacks',
+            label: tabLabel(<PictureOutlined aria-hidden />, t('gameServerDetail.tabResourcepacks')),
+            children: (
+              <GameServerContentPanel
+                kind="resourcepack"
+                vpsId={vpsId}
+                gameServerId={game.id}
+                agentOnline={agentOnline}
+                supported={caps.clientContent}
+                serverType={serverType}
+                mcVersion={game.mc_version ?? '1.21'}
+              />
+            ),
+          },
+          {
+            key: 'shaders',
+            label: tabLabel(<HighlightOutlined aria-hidden />, t('gameServerDetail.tabShaders')),
+            children: (
+              <GameServerContentPanel
+                kind="shader"
+                vpsId={vpsId}
+                gameServerId={game.id}
+                agentOnline={agentOnline}
+                supported={caps.clientContent}
+                serverType={serverType}
+                mcVersion={game.mc_version ?? '1.21'}
               />
             ),
           },

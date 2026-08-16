@@ -7,7 +7,11 @@ import {
 import type { ModInstallParams } from '@/hooks/useModInstall';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
-import { gameServerInstallSide, instanceResourceModTarget } from '@/lib/modSync';
+import {
+  contentKindHasSide,
+  gameServerInstallSide,
+  instanceResourceContentTarget,
+} from '@/lib/modSync';
 
 function syncContent(
   kind: GameServerContentKind,
@@ -20,6 +24,10 @@ function syncContent(
       return api.syncPluginToGameServer(vpsId, gameServerId, body);
     case 'datapack':
       return api.syncDatapackToGameServer(vpsId, gameServerId, body);
+    case 'resourcepack':
+      return api.syncResourcepackToGameServer(vpsId, gameServerId, body);
+    case 'shader':
+      return api.syncShaderToGameServer(vpsId, gameServerId, body);
     default:
       return api.syncModToGameServer(vpsId, gameServerId, body);
   }
@@ -41,7 +49,7 @@ export function useGameServerModInstall(
         message.error(t('qxmods.install.noFile'));
         return false;
       }
-      const side = kind === 'mod' ? gameServerInstallSide(params.side) : undefined;
+      const side = contentKindHasSide(kind) ? gameServerInstallSide(params.side) : undefined;
       try {
         const res = await syncContent(kind, vpsId, gameServerId, {
           source: params.source,
@@ -54,10 +62,9 @@ export function useGameServerModInstall(
           icon_url: params.iconUrl,
           downloads: params.downloads,
           file_size: params.fileSize ?? file.size,
-          mod_target:
-            kind === 'mod'
-              ? instanceResourceModTarget({ side_override: side, resource_type: 'mod' })
-              : undefined,
+          mod_target: contentKindHasSide(kind)
+            ? instanceResourceContentTarget({ side_override: side, resource_type: kind })
+            : undefined,
           side_override: side,
         });
         if (res.status === 'already_installed') {

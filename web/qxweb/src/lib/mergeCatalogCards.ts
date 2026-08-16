@@ -20,7 +20,7 @@ export function catalogItemMatchKeys(item: Pick<ModCatalogItem, 'name' | 'slug'>
   const keys = new Set<string>();
   const name = catalogItemNameKey(item.name);
   if (name) keys.add(`n:${name}`);
-  const stripped = catalogItemNameKey(item.name.replace(/\s*[\(\[][^)\]]*[)\]]/g, ' '));
+  const stripped = catalogItemNameKey(item.name.replace(/\s*[([][^)\]]*[)\]]/g, ' '));
   if (stripped) keys.add(`n:${stripped}`);
   const slug = item.slug?.trim().toLowerCase();
   if (slug) keys.add(`s:${slug}`);

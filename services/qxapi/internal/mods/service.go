@@ -279,26 +279,6 @@ func clampSearchLimit(limit int) int {
 	return limit
 }
 
-func interleaveSearch(primary, secondary []SearchItem, limit int) []SearchItem {
-	limit = clampSearchLimit(limit)
-	out := make([]SearchItem, 0, maxSearchItems)
-	i, j := 0, 0
-	for len(out) < limit && (i < len(primary) || j < len(secondary)) {
-		if i < len(primary) {
-			out = append(out, primary[i])
-			i++
-			if len(out) >= limit {
-				break
-			}
-		}
-		if j < len(secondary) {
-			out = append(out, secondary[j])
-			j++
-		}
-	}
-	return out
-}
-
 func min(a, b int) int {
 	if a < b {
 		return a

@@ -534,4 +534,42 @@ describe('GameServerContentPanel', () => {
     await waitFor(() => expect(screen.getByText('Обязательные зависимости')).toBeInTheDocument());
     expect(screen.getByText('Cloth Config API')).toBeInTheDocument();
   });
+
+  it('lists installed resource packs and browses the resource pack catalog', async () => {
+    vi.spyOn(api, 'listVpsGameServerResourcepacks').mockResolvedValue({
+      items: [{ name: 'faithful.zip', path: 'resourcepacks/faithful.zip', dir: false, size: 2048 }],
+    });
+    vi.spyOn(api, 'listVpsGameServerClientResourcepacks').mockResolvedValue({ items: [] });
+    const browse = vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'faithful',
+          slug: 'faithful',
+          name: 'Faithful 32x',
+          project_type: 'resourcepack',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: false,
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="resourcepack"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('faithful.zip')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(browse).toHaveBeenCalledWith(expect.objectContaining({ type: 'resourcepack' })),
+    );
+  });
 });

@@ -31,6 +31,7 @@ import {
   type ModProjectType,
   type ModSource,
   type ModSyncSide,
+  type ModTarget,
 } from '@/api/client';
 import { CatalogSourceLinks, CatalogSourceSwitch } from '@/components/CatalogSourceSwitch';
 import { GameServerCatalogProvider } from '@/components/GameServerCatalogProvider';
@@ -57,7 +58,10 @@ import {
   type CatalogCard,
 } from '@/lib/mergeCatalogCards';
 import {
+  contentKindHasSide,
+  contentTargetFromPath,
   gameServerInstallSide,
+  instanceResourceContentTarget,
   instanceResourceModTarget,
   isCatalogItemOnServer,
   modSyncSide,
@@ -99,14 +103,7 @@ function formatFileSize(size?: number): string {
 }
 
 function projectTypeForKind(kind: GameServerContentKind): ModProjectType {
-  switch (kind) {
-    case 'plugin':
-      return 'plugin';
-    case 'datapack':
-      return 'datapack';
-    default:
-      return 'mod';
-  }
+  return kind;
 }
 
 function listInstalled(
@@ -119,6 +116,20 @@ function listInstalled(
       return api.listVpsGameServerPlugins(vpsId, gameServerId);
     case 'datapack':
       return api.listVpsGameServerDatapacks(vpsId, gameServerId);
+    case 'resourcepack':
+      return Promise.all([
+        api.listVpsGameServerResourcepacks(vpsId, gameServerId),
+        api.listVpsGameServerClientResourcepacks(vpsId, gameServerId),
+      ]).then(([serverRes, clientRes]) => ({
+        items: [...(serverRes.items ?? []), ...(clientRes.items ?? [])],
+      }));
+    case 'shader':
+      return Promise.all([
+        api.listVpsGameServerShaders(vpsId, gameServerId),
+        api.listVpsGameServerClientShaders(vpsId, gameServerId),
+      ]).then(([serverRes, clientRes]) => ({
+        items: [...(serverRes.items ?? []), ...(clientRes.items ?? [])],
+      }));
     default:
       return Promise.all([
         api.listVpsGameServerMods(vpsId, gameServerId),
@@ -129,19 +140,20 @@ function listInstalled(
   }
 }
 
-function modTargetFromPath(path: string): 'mods' | 'client-mods' | undefined {
-  const normalized = path.replace(/\\/g, '/').toLowerCase();
-  if (normalized.startsWith('client-mods/')) return 'client-mods';
-  if (normalized.startsWith('mods/')) return 'mods';
-  return undefined;
-}
-
-function installedModSide(file: GameServerFileEntry, resource?: InstanceResource): ModSyncSide {
+function installedModSide(
+  file: GameServerFileEntry,
+  resource: InstanceResource | undefined,
+  kind: GameServerContentKind,
+): ModSyncSide {
   const override = resource?.side_override?.trim();
   if (override === 'client' || override === 'server' || override === 'both') {
     return override;
   }
-  return modTargetFromPath(file.path) === 'client-mods' ? 'client' : 'both';
+  const target = contentTargetFromPath(file.path);
+  if (target === 'client-mods' || target === 'client-resourcepacks' || target === 'client-shaders') {
+    return 'client';
+  }
+  return kind === 'mod' ? 'both' : 'server';
 }
 
 function sideFolderKind(side: ModSyncSide): 'client' | 'server' {
@@ -153,13 +165,23 @@ function deleteContent(
   vpsId: string,
   gameServerId: string,
   filename: string,
-  modTarget?: 'mods' | 'client-mods',
+  modTarget?: ModTarget,
 ) {
   switch (kind) {
     case 'plugin':
       return api.deleteVpsGameServerPlugin(vpsId, gameServerId, { filename });
     case 'datapack':
       return api.deleteVpsGameServerDatapack(vpsId, gameServerId, { filename });
+    case 'resourcepack':
+      return api.deleteVpsGameServerResourcepack(vpsId, gameServerId, {
+        filename,
+        mod_target: modTarget,
+      });
+    case 'shader':
+      return api.deleteVpsGameServerShader(vpsId, gameServerId, {
+        filename,
+        mod_target: modTarget,
+      });
     default:
       return api.deleteVpsGameServerMod(vpsId, gameServerId, {
         filename,
@@ -481,10 +503,10 @@ export function GameServerContentPanel({
       onOk: async () => {
         setDeletingPath(row.path);
         try {
-          await deleteContent(kind, vpsId, gameServerId, row.name, modTargetFromPath(row.path));
+          await deleteContent(kind, vpsId, gameServerId, row.name, contentTargetFromPath(row.path));
           message.success(t('gameServerDetail.content.deleteCompleted'));
           void loadInstalled();
-          if (needsServerRestartAfterSync(modTargetFromPath(row.path))) {
+          if (needsServerRestartAfterSync(contentTargetFromPath(row.path))) {
             promptRestart();
           }
         } catch (e) {
@@ -524,12 +546,12 @@ export function GameServerContentPanel({
 
   const handleSideChange = async (row: GameServerFileEntry, side: ModSyncSide) => {
     const resource = matchResource(row, installedResources);
-    const previous = installedModSide(row, resource);
+    const previous = installedModSide(row, resource, kind);
     setSideSavingPath(row.path);
     try {
       await api.patchGameServerResource(vpsId, gameServerId, {
         filename: row.name,
-        resource_type: kind === 'datapack' ? 'datapack' : kind === 'plugin' ? 'plugin' : 'mod',
+        resource_type: projectType,
         side_override: side,
       });
       message.success(t('qxmods.side.saved'));
@@ -578,7 +600,11 @@ export function GameServerContentPanel({
       ? 'gameServerDetail.content.introPlugin'
       : kind === 'datapack'
         ? 'gameServerDetail.content.introDatapack'
-        : 'gameServerDetail.content.introMod';
+        : kind === 'resourcepack'
+          ? 'gameServerDetail.content.introResourcepack'
+          : kind === 'shader'
+            ? 'gameServerDetail.content.introShader'
+            : 'gameServerDetail.content.introMod';
   const loaderLabel = gameServerTypeLabelText(t, serverType);
   const catalogEmptyText = showInstalledOnly
     ? t('qxmods.installed.empty')
@@ -605,16 +631,15 @@ export function GameServerContentPanel({
         if (layout === 'stacked') setDetailOpen(false);
         void loadInstalled();
         if (
-          kind === 'mod' &&
           needsServerRestartAfterSync(
-            instanceResourceModTarget({
-              side_override: gameServerInstallSide(modSyncSide(row)),
-              resource_type: 'mod',
-            }),
+            contentKindHasSide(kind)
+              ? instanceResourceContentTarget({
+                  side_override: gameServerInstallSide(modSyncSide(row)),
+                  resource_type: projectType,
+                })
+              : undefined,
           )
         ) {
-          promptRestart();
-        } else if (kind !== 'mod') {
           promptRestart();
         }
       }}
@@ -650,13 +675,13 @@ export function GameServerContentPanel({
   ];
 
   const renderInstalledSideSelect = (row: GameServerFileEntry, resource?: InstanceResource) => {
-    if (kind !== 'mod') return null;
+    if (!contentKindHasSide(kind)) return null;
     return (
       <Select
         size="small"
         className="launcher-resource-side-select"
         loading={sideSavingPath === row.path}
-        value={installedModSide(row, resource)}
+        value={installedModSide(row, resource, kind)}
         options={sideSelectOptions}
         aria-label={t('qxmods.side.editAria')}
         onChange={(value) => void handleSideChange(row, value as ModSyncSide)}
@@ -716,7 +741,7 @@ export function GameServerContentPanel({
       title: t('qxmods.catalog.side'),
       key: 'side',
       width: 132,
-      render: (_, card) => (kind === 'mod' ? <ModSideBadge item={itemForCard(card)} /> : null),
+      render: (_, card) => (contentKindHasSide(kind) ? <ModSideBadge item={itemForCard(card)} /> : null),
     },
     {
       title: t('qxmods.catalog.downloads'),
@@ -1118,7 +1143,7 @@ export function GameServerContentPanel({
                                   <p className="game-server-mods-card-summary">{row.summary}</p>
                                 ) : null}
                                 <div className="game-server-mods-card-meta">
-                                  {kind === 'mod' ? <ModSideBadge item={row} /> : null}
+                                  {contentKindHasSide(kind) ? <ModSideBadge item={row} /> : null}
                                   {row.downloads != null ? (
                                     <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--downloads">
                                       {t('gameServerDetail.content.downloadsLabel', {
@@ -1174,7 +1199,7 @@ export function GameServerContentPanel({
                       value={detailItem.source}
                       onChange={(source) => setCardSource(detailCard, source)}
                     />
-                    {kind === 'mod' ? <ModSideBadge item={detailItem} /> : null}
+                    {contentKindHasSide(kind) ? <ModSideBadge item={detailItem} /> : null}
                     {detailItem.author ? (
                       <Text type="secondary">
                         {t('gameServerDetail.content.byAuthor', { author: detailItem.author })}

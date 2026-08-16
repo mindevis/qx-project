@@ -173,6 +173,25 @@ func (h *GameServersHandler) DeleteShader(c *gin.Context) {
 	h.deleteGameServerContent(c, "shader", gameServerSupportsClientContent)
 }
 
+func (h *GameServersHandler) ListResourcepacks(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	entries, err := h.Service.ListGameServerResourcepacks(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": entries})
+}
+
 func (h *GameServersHandler) ListClientResourcepacks(c *gin.Context) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {
@@ -180,6 +199,25 @@ func (h *GameServersHandler) ListClientResourcepacks(c *gin.Context) {
 		return
 	}
 	entries, err := h.Service.ListGameServerClientResourcepacks(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": entries})
+}
+
+func (h *GameServersHandler) ListShaders(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	entries, err := h.Service.ListGameServerShaders(
 		c.Request.Context(),
 		userID.(string),
 		c.Param("id"),
@@ -348,11 +386,24 @@ func contentAlreadyInstalled(
 	userID, vpsID, gameServerID, contentKind, modTarget, filename string,
 ) (bool, error) {
 	targets := []string{modTarget}
-	if contentKind == "mod" {
+	switch contentKind {
+	case "mod":
 		if strings.EqualFold(modTarget, "client-mods") {
 			targets = append(targets, "")
 		} else {
 			targets = append(targets, "client-mods")
+		}
+	case "resourcepack":
+		if strings.EqualFold(modTarget, "client-resourcepacks") {
+			targets = append(targets, "")
+		} else {
+			targets = append(targets, "client-resourcepacks")
+		}
+	case "shader":
+		if strings.EqualFold(modTarget, "client-shaders") {
+			targets = append(targets, "")
+		} else {
+			targets = append(targets, "client-shaders")
 		}
 	}
 	for _, target := range targets {
@@ -504,11 +555,6 @@ func gameServerSupportsDatapacks(_ string) bool {
 	return true
 }
 
-func gameServerSupportsClientContent(serverType string) bool {
-	switch strings.ToLower(serverType) {
-	case "forge", "neoforge", "fabric", "quilt":
-		return true
-	default:
-		return false
-	}
+func gameServerSupportsClientContent(_ string) bool {
+	return true
 }

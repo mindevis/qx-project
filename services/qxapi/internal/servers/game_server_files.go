@@ -514,12 +514,7 @@ func validateGameServerContentKind(serverType, contentKind string) error {
 	case "datapack":
 		return nil
 	case "resourcepack", "shader":
-		switch strings.ToLower(strings.TrimSpace(serverType)) {
-		case "forge", "neoforge", "fabric", "quilt":
-			return nil
-		default:
-			return ErrValidation
-		}
+		return nil
 	default:
 		return ErrValidation
 	}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ALL_GAME_SERVER_TYPES,
   DEFAULT_GAME_SERVER_TYPE,
+  gameServerCatalogTabs,
   gameServerSupportsMods,
   gameServerSupportsPlugins,
   gameServerTypeCapabilities,
@@ -36,12 +37,16 @@ describe('gameServerTypes', () => {
       plugins: true,
       mods: true,
       datapacks: true,
+      clientContent: true,
     });
     expect(gameServerTypeCapabilities('vanilla')).toEqual({
       plugins: false,
       mods: false,
       datapacks: true,
+      clientContent: true,
     });
+    expect(gameServerCatalogTabs('forge')).toEqual(['mod', 'resourcepack', 'shader', 'datapack']);
+    expect(gameServerCatalogTabs('vanilla')).toEqual(['resourcepack', 'shader', 'datapack']);
   });
 
   it('formats labels for known and unknown types', () => {

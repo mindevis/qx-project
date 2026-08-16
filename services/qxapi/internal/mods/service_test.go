@@ -72,7 +72,6 @@ func TestServiceCurseForgeEnabled(t *testing.T) {
 
 func TestInterleaveSearch(t *testing.T) {
 	t.Parallel()
-	// interleaveSearch is unexported; covered indirectly via service_test helper duplicate
 	a := []mods.SearchItem{{ID: "1", Source: mods.SourceCurseForge}, {ID: "2", Source: mods.SourceCurseForge}}
 	b := []mods.SearchItem{{ID: "3", Source: mods.SourceModrinth}}
 	merged := make([]mods.SearchItem, 0, 3)

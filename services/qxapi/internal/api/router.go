@@ -9,12 +9,12 @@ import (
 	"github.com/qxproject/qx/services/qxapi/internal/agenthub"
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
 	"github.com/qxproject/qx/services/qxapi/internal/blob"
-	"github.com/qxproject/qx/services/qxapi/internal/crypto"
 	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
+	"github.com/qxproject/qx/services/qxapi/internal/crypto"
 	"github.com/qxproject/qx/services/qxapi/internal/deploy"
 	"github.com/qxproject/qx/services/qxapi/internal/launcher"
-	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"github.com/qxproject/qx/services/qxapi/internal/mods"
+	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"github.com/qxproject/qx/services/qxapi/internal/servers"
 )
 
@@ -194,9 +194,11 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.POST("/servers/:id/game-servers/:gameServerId/mods/sync", gameServersH.SyncMod)
 			authed.DELETE("/servers/:id/game-servers/:gameServerId/mods", gameServersH.DeleteMod)
 			authed.POST("/servers/:id/game-servers/:gameServerId/mods/upload", gameServersH.UploadMod)
+			authed.GET("/servers/:id/game-servers/:gameServerId/resourcepacks", gameServersH.ListResourcepacks)
 			authed.GET("/servers/:id/game-servers/:gameServerId/client-resourcepacks", gameServersH.ListClientResourcepacks)
 			authed.POST("/servers/:id/game-servers/:gameServerId/resourcepacks/sync", gameServersH.SyncResourcepack)
 			authed.DELETE("/servers/:id/game-servers/:gameServerId/resourcepacks", gameServersH.DeleteResourcepack)
+			authed.GET("/servers/:id/game-servers/:gameServerId/shaders", gameServersH.ListShaders)
 			authed.GET("/servers/:id/game-servers/:gameServerId/client-shaders", gameServersH.ListClientShaders)
 			authed.POST("/servers/:id/game-servers/:gameServerId/shaders/sync", gameServersH.SyncShader)
 			authed.DELETE("/servers/:id/game-servers/:gameServerId/shaders", gameServersH.DeleteShader)
