@@ -2,19 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Button,
-  Empty,
   Input,
   Modal,
   Select,
   Segmented,
   Spin,
   Switch,
-  Table,
+  Tag,
   Typography,
   Upload,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { SearchOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { LinkOutlined, SearchOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
   api,
   type GameServerContentKind,
@@ -29,19 +27,23 @@ import {
 import { GameServerCatalogProvider } from '@/components/GameServerCatalogProvider';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { ModCatalogInstallControls } from '@/components/ModCatalogInstallControls';
+import { ModSideBadge } from '@/components/ModSideBadge';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import {
+  gameServerTypeLabelText,
   pluginLoaderForServerType,
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
+import { cachedGetModProject } from '@/lib/modCatalogCache';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { formatCompactCount } from '@/lib/formatCompactCount';
 import { isCatalogItemOnServer, needsServerRestartAfterSync } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 import './InstanceResourcesPanel.css';
+import './GameServerContentPanel.css';
 
 const { Paragraph, Text, Title } = Typography;
 const PAGE_SIZE = 20;
@@ -56,6 +58,14 @@ type GameServerContentPanelProps = {
   serverType: VpsGameServerType;
   mcVersion: string;
 };
+
+function matchResource(
+  file: GameServerFileEntry,
+  resources: InstanceResource[],
+): InstanceResource | undefined {
+  const name = file.name.toLowerCase();
+  return resources.find((item) => item.filename.toLowerCase() === name);
+}
 
 function formatFileSize(size?: number): string {
   if (size == null || size <= 0) return '—';
@@ -336,6 +346,14 @@ export function GameServerContentPanel({
   const openDetail = useCallback((item: ModCatalogItem) => {
     setDetailItem(item);
     setDetailOpen(true);
+    if (item.source === 'upload') return;
+    void cachedGetModProject(item.source, item.id)
+      .then((full) => {
+        setDetailItem((prev) => (prev && prev.id === full.id ? { ...prev, ...full } : prev));
+      })
+      .catch(() => {
+        /* keep the catalog row */
+      });
   }, []);
 
   const filteredInstalled = useMemo(() => {
@@ -360,85 +378,6 @@ export function GameServerContentPanel({
       },
     });
   };
-
-  const catalogColumns: ColumnsType<ModCatalogItem> = useMemo(
-    () => [
-      {
-        title: '',
-        key: 'icon',
-        width: 56,
-        render: (_, row) => (
-          <ModCatalogIcon url={row.icon_url} name={row.name} size={44} className="qxmods-catalog-table-icon" />
-        ),
-      },
-      {
-        title: t('gameServerDetail.content.catalogName'),
-        key: 'name',
-        width: 220,
-        ellipsis: true,
-        render: (_, row) => (
-          <div className="qxmods-catalog-name-cell">
-            <button type="button" className="qxmods-catalog-link" onClick={() => void openDetail(row)}>
-              {row.name}
-            </button>
-            <div className="qxmods-catalog-name-meta">
-              <ModSourceBadge source={row.source} />
-              {row.author ? (
-                <Text type="secondary" className="qxmods-catalog-author">
-                  {row.author}
-                </Text>
-              ) : null}
-            </div>
-          </div>
-        ),
-      },
-      {
-        title: t('qxmods.catalog.summary'),
-        dataIndex: 'summary',
-        key: 'summary',
-        ellipsis: true,
-        responsive: ['md'],
-      },
-      {
-        title: t('gameServerDetail.content.catalogDownloads'),
-        key: 'downloads',
-        width: 96,
-        render: (_, row) => (row.downloads != null ? formatCompactCount(row.downloads) : '—'),
-      },
-      {
-        title: t('gameServerDetail.content.install'),
-        key: 'install',
-        width: 260,
-        className: 'qxmods-catalog-install-cell',
-        render: (_, row) => (
-          <ModCatalogInstallControls
-            source={row.source as ModSource}
-            projectId={row.id}
-            projectName={row.name}
-            projectType={row.project_type ?? projectType}
-            iconUrl={row.icon_url}
-            downloads={row.downloads}
-            clientSide={row.client_side}
-            serverSide={row.server_side}
-            loader={loader}
-            mcVersion={mcVersion}
-            installedProjectIds={installedProjectIds}
-            layout="inline"
-            eagerVersions={false}
-            selectClassName="qxmods-install-version-select--table"
-            onInstalled={() => {
-              void loadInstalled();
-              if (needsServerRestartAfterSync(modTarget)) {
-                promptRestart();
-              }
-            }}
-            onUninstalled={() => void loadInstalled()}
-          />
-        ),
-      },
-    ],
-    [installedProjectIds, loadInstalled, loader, mcVersion, modTarget, openDetail, projectType, t],
-  );
 
   const handleDelete = (row: GameServerFileEntry) => {
     Modal.confirm({
@@ -510,6 +449,44 @@ export function GameServerContentPanel({
 
   const showCurseforgeUnavailable =
     sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled;
+  const introKey =
+    kind === 'plugin'
+      ? 'gameServerDetail.content.introPlugin'
+      : kind === 'datapack'
+        ? 'gameServerDetail.content.introDatapack'
+        : 'gameServerDetail.content.introMod';
+  const loaderLabel = gameServerTypeLabelText(t, serverType);
+  const catalogEmptyText = showInstalledOnly
+    ? t('qxmods.installed.empty')
+    : isSearchMode
+      ? t('qxmods.empty')
+      : t(`${i18nPrefix}.browseEmpty`);
+
+  const renderInstallControls = (row: ModCatalogItem, layout: 'inline' | 'stacked') => (
+    <ModCatalogInstallControls
+      source={row.source as ModSource}
+      projectId={row.id}
+      projectName={row.name}
+      projectType={row.project_type ?? projectType}
+      iconUrl={row.icon_url}
+      downloads={row.downloads}
+      clientSide={row.client_side}
+      serverSide={row.server_side}
+      loader={loader}
+      mcVersion={mcVersion}
+      installedProjectIds={installedProjectIds}
+      layout={layout}
+      eagerVersions={layout === 'stacked'}
+      onInstalled={() => {
+        if (layout === 'stacked') setDetailOpen(false);
+        void loadInstalled();
+        if (needsServerRestartAfterSync(modTarget)) {
+          promptRestart();
+        }
+      }}
+      onUninstalled={() => void loadInstalled()}
+    />
+  );
 
   return (
     <GameServerCatalogProvider
@@ -520,296 +497,417 @@ export function GameServerContentPanel({
       mcVersion={mcVersion}
       modTarget={kind === 'mod' ? modTarget : undefined}
     >
-    <div className="game-server-content-panel">
-      <Segmented
-        className="game-server-content-sections"
-        value={section}
-        onChange={(value) => setSection(value as 'installed' | 'catalog')}
-        options={[
-          { value: 'installed', label: t('gameServerDetail.content.tabInstalled') },
-          { value: 'catalog', label: t('gameServerDetail.content.tabCatalog') },
-        ]}
-      />
-      {section === 'installed' ? (
-      <>
-      <div className="game-server-content-installed-header">
-        <div className="game-server-content-installed-header-main">
-          <Title level={5}>{t(`${i18nPrefix}.installedTitle`)}</Title>
-          <div className="game-server-content-installed-search">
-            <Input
-              allowClear
-              prefix={<SearchOutlined aria-hidden />}
-              placeholder={t('qxmods.searchFilterPlaceholder')}
-              value={installedSearchInput}
-              onChange={(e) => {
-                const value = e.target.value;
-                setInstalledSearchInput(value);
-                if (!value.trim() && appliedInstalledSearch) {
-                  setAppliedInstalledSearch('');
-                }
-              }}
-              onPressEnter={() => setAppliedInstalledSearch(installedSearchInput.trim())}
-              onClear={() => {
-                setInstalledSearchInput('');
-                setAppliedInstalledSearch('');
-              }}
-            />
-            <Button
-              type="primary"
-              onClick={() => setAppliedInstalledSearch(installedSearchInput.trim())}
-              disabled={!installedSearchInput.trim() && !appliedInstalledSearch}
-            >
-              {appliedInstalledSearch ? t('qxmods.applySearch') : t('qxmods.search')}
-            </Button>
-            {appliedInstalledSearch ? (
-              <Button type="link" onClick={() => {
-                setInstalledSearchInput('');
-                setAppliedInstalledSearch('');
-              }}>
-                {t('qxmods.clearSearch')}
-              </Button>
-            ) : null}
+      <section className="game-server-mods">
+        <header className="game-server-mods-hero">
+          <div className="game-server-mods-hero-main">
+            <Title level={3} className="game-server-mods-title">
+              {t(`${i18nPrefix}.browseTitle`)}
+            </Title>
+            <Paragraph type="secondary" className="game-server-mods-intro">
+              {t(introKey)}
+            </Paragraph>
           </div>
-        </div>
-        {kind === 'mod' ? (
-          <div className="game-server-content-upload-wrapper">
-            <Segmented
-              value={modTarget}
-              aria-label={t('gameServerDetail.content.folder')}
-              onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
-              options={[
-                { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
-                { value: 'client-mods', label: t('gameServerDetail.content.clientModsFolder') },
-              ]}
-            />
-            <Upload
-              accept=".jar,.zip,.mrpack"
-              showUploadList={false}
-              disabled={uploading}
-              beforeUpload={(file) => {
-                void handleUpload(file);
-                return false;
-              }}
-            >
-              <Button icon={<UploadOutlined />} loading={uploading}>
-                {t('gameServerDetail.content.upload')}
-              </Button>
-            </Upload>
+          <div className="game-server-mods-chips">
+            <span className="game-server-mods-chip">
+              Minecraft <strong>{mcVersion}</strong>
+            </span>
+            <span className="game-server-mods-chip">
+              <strong>{loaderLabel}</strong>
+            </span>
+            <span className="game-server-mods-chip">
+              {t('gameServerDetail.content.installedCount', { count: installedForTarget.length })}
+            </span>
           </div>
-        ) : null}
-      </div>
-      {installedLoading ? (
-        <div className="servers-loading">
-          <Spin />
-        </div>
-      ) : installedForTarget.length === 0 ? (
-        <Empty description={t(`${i18nPrefix}.empty`)} />
-      ) : filteredInstalled.length === 0 ? (
-        <Empty description={t('qxmods.empty')} />
-      ) : (
-        <Table
-          className="game-server-mods-table"
-          rowKey="path"
-          size="small"
-          pagination={false}
-          dataSource={filteredInstalled}
-          columns={[
-            { title: t('gameServerDetail.fileName'), dataIndex: 'name', key: 'name' },
-            {
-              title: t('gameServerDetail.fileSize'),
-              key: 'size',
-              render: (_, row) => formatFileSize(row.size),
-            },
-            {
-              title: '',
-              key: 'actions',
-              width: 56,
-              render: (_, row) => (
-                <Button
-                  type="text"
-                  danger
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  loading={deletingPath === row.path}
-                  aria-label={t('gameServerDetail.content.deleteAction')}
-                  onClick={() => handleDelete(row)}
-                />
-              ),
-            },
-          ]}
-        />
-      )}
-      </>
-      ) : (
-      <>
-      <div className="qxmods-filters">
-        <div className="qxmods-filters-row">
-          <label className="qxmods-filter-field">
-            <Text type="secondary" className="qxmods-filter-label">
-              {t('qxmods.filters.source')}
-            </Text>
-            <Select
-              value={sourceFilter}
-              options={sourceOptions}
-              onChange={(value) => setSourceFilter(value as ModCatalogSourceFilter)}
-              className="qxmods-filter-select"
-            />
-          </label>
-          <label className="qxmods-filter-field">
-            <Text type="secondary" className="qxmods-filter-label">
-              {t('qxmods.filters.sort')}
-            </Text>
-            <Select
-              value={sort}
-              options={sortOptions}
-              disabled={isSearchMode}
-              onChange={(value) => setSort(value as ModCatalogSort)}
-              className="qxmods-filter-select"
-            />
-          </label>
-          {kind === 'mod' ? (
-            <label className="qxmods-filter-field">
-              <Text type="secondary" className="qxmods-filter-label">
-                {t('gameServerDetail.content.folder')}
-              </Text>
-              <Segmented
-                value={modTarget}
-                aria-label={t('gameServerDetail.content.folder')}
-                onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
-                options={[
-                  { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
-                  { value: 'client-mods', label: t('gameServerDetail.content.clientModsFolder') },
-                ]}
-              />
-            </label>
-          ) : null}
-          <label className="qxmods-filter-field qxmods-filter-field--switch">
-            <Text type="secondary" className="qxmods-filter-label">
-              {t('qxmods.filters.installedOnly')}
-            </Text>
-            <Switch
-              checked={showInstalledOnly}
-              onChange={setShowInstalledOnly}
-              aria-label={t('qxmods.filters.installedOnly')}
-            />
-          </label>
-        </div>
-        <div className="qxmods-search-filter">
-          <Input
-            allowClear
-            prefix={<SearchOutlined aria-hidden />}
-            placeholder={t(`${i18nPrefix}.searchPlaceholder`)}
-            value={searchInput}
-            onChange={(e) => {
-              const value = e.target.value;
-              setSearchInput(value);
-              if (!value.trim() && appliedSearch) {
-                setAppliedSearch('');
-              }
-            }}
-            onPressEnter={() => setAppliedSearch(searchInput.trim())}
-            onClear={() => {
-              setSearchInput('');
-              setAppliedSearch('');
-            }}
-          />
-          <Button
-            onClick={() => setAppliedSearch(searchInput.trim())}
-            disabled={!searchInput.trim() && !appliedSearch}
+        </header>
+
+        <div className="game-server-mods-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            className={`game-server-mods-tab${section === 'installed' ? ' game-server-mods-tab--active' : ''}`}
+            aria-selected={section === 'installed'}
+            onClick={() => setSection('installed')}
           >
-            {appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
-          </Button>
-          {appliedSearch ? (
-            <Button
-              type="link"
-              onClick={() => {
-                setSearchInput('');
-                setAppliedSearch('');
-              }}
-            >
-              {t('qxmods.clearSearch')}
-            </Button>
-          ) : null}
+            {t('gameServerDetail.content.tabInstalled')}
+            <span className="game-server-mods-tab-count">{installedForTarget.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`game-server-mods-tab${section === 'catalog' ? ' game-server-mods-tab--active' : ''}`}
+            aria-selected={section === 'catalog'}
+            onClick={() => setSection('catalog')}
+          >
+            {t('gameServerDetail.content.tabCatalog')}
+          </button>
         </div>
-      </div>
-      <Paragraph type="secondary" className="qxmods-filter-context">
-        {t('qxmods.filterContext', { mcVersion, loader: loader ?? serverType })}
-      </Paragraph>
-      {showCurseforgeUnavailable ? (
-        <Alert type="warning" showIcon title={t('qxmods.curseforgeDisabled')} />
-      ) : catalogLoading && catalogItems.length === 0 && !showInstalledOnly ? (
-        <div className="servers-loading">
-          <Spin />
-        </div>
-      ) : (
-        <>
-          <Table
-            className="qxmods-catalog-table qxmods-catalog-table--install"
-            rowKey={(row) => `${row.source}:${row.id}`}
-            size="small"
-            pagination={false}
-            loading={catalogLoading && !showInstalledOnly}
-            dataSource={visibleCatalogItems}
-            columns={catalogColumns}
-            scroll={{ x: 860 }}
-            locale={{
-              emptyText: showInstalledOnly
-                ? t('qxmods.installed.empty')
-                : isSearchMode
-                  ? t('qxmods.empty')
-                  : t(`${i18nPrefix}.browseEmpty`),
-            }}
-          />
-          {!showInstalledOnly && !isSearchMode && hasMore ? (
-            <div className="qxmods-load-more">
-              <Button loading={loadingMore} onClick={() => void loadMore()}>
-                {t('gameServerDetail.content.loadMore')}
-              </Button>
+
+        {section === 'installed' ? (
+          <>
+            <div className="game-server-mods-toolbar">
+              <div className="game-server-mods-search">
+                <Input
+                  allowClear
+                  prefix={<SearchOutlined aria-hidden />}
+                  placeholder={t('qxmods.searchFilterPlaceholder')}
+                  value={installedSearchInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setInstalledSearchInput(value);
+                    if (!value.trim() && appliedInstalledSearch) {
+                      setAppliedInstalledSearch('');
+                    }
+                  }}
+                  onPressEnter={() => setAppliedInstalledSearch(installedSearchInput.trim())}
+                  onClear={() => {
+                    setInstalledSearchInput('');
+                    setAppliedInstalledSearch('');
+                  }}
+                />
+                <Button
+                  type="primary"
+                  onClick={() => setAppliedInstalledSearch(installedSearchInput.trim())}
+                  disabled={!installedSearchInput.trim() && !appliedInstalledSearch}
+                >
+                  {appliedInstalledSearch ? t('qxmods.applySearch') : t('qxmods.search')}
+                </Button>
+                {appliedInstalledSearch ? (
+                  <Button
+                    type="link"
+                    onClick={() => {
+                      setInstalledSearchInput('');
+                      setAppliedInstalledSearch('');
+                    }}
+                  >
+                    {t('qxmods.clearSearch')}
+                  </Button>
+                ) : null}
+              </div>
+              {kind === 'mod' ? (
+                <div className="game-server-content-upload-wrapper">
+                  <Segmented
+                    value={modTarget}
+                    aria-label={t('gameServerDetail.content.folder')}
+                    onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
+                    options={[
+                      { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
+                      { value: 'client-mods', label: t('gameServerDetail.content.clientModsFolder') },
+                    ]}
+                  />
+                  <Upload
+                    accept=".jar,.zip,.mrpack"
+                    showUploadList={false}
+                    disabled={uploading}
+                    beforeUpload={(file) => {
+                      void handleUpload(file);
+                      return false;
+                    }}
+                  >
+                    <Button icon={<UploadOutlined />} loading={uploading}>
+                      {t('gameServerDetail.content.upload')}
+                    </Button>
+                  </Upload>
+                </div>
+              ) : null}
+            </div>
+            {installedLoading ? (
+              <div className="servers-loading">
+                <Spin />
+              </div>
+            ) : installedForTarget.length === 0 ? (
+              <div className="game-server-mods-empty">
+                <Paragraph>{t(`${i18nPrefix}.empty`)}</Paragraph>
+                <Button type="primary" onClick={() => setSection('catalog')}>
+                  {t('gameServerDetail.content.openCatalog')}
+                </Button>
+              </div>
+            ) : filteredInstalled.length === 0 ? (
+              <div className="game-server-mods-empty">
+                <Paragraph>{t('qxmods.empty')}</Paragraph>
+              </div>
+            ) : (
+              <ul className="game-server-mods-grid">
+                {filteredInstalled.map((row) => {
+                  const resource = matchResource(row, resourcesForTarget);
+                  const title = resource?.project_name || row.name;
+                  const side =
+                    kind === 'mod'
+                      ? (modTargetFromPath(row.path) ?? 'mods') === 'client-mods'
+                        ? t('qxmods.side.client')
+                        : t('qxmods.side.server')
+                      : undefined;
+                  return (
+                    <li key={row.path}>
+                      <article className="game-server-mods-card">
+                        <div className="game-server-mods-card-top">
+                          <ModCatalogIcon
+                            url={resource?.icon_url}
+                            name={title}
+                            size={48}
+                            className="launcher-resource-card-icon"
+                          />
+                          <div className="game-server-mods-card-body">
+                            <div className="game-server-mods-card-title">
+                              <Text strong>{title}</Text>
+                              {resource?.source && resource.source !== 'upload' ? (
+                                <ModSourceBadge source={resource.source} />
+                              ) : (
+                                <Tag bordered={false}>{t('gameServerDetail.content.uploaded')}</Tag>
+                              )}
+                            </div>
+                            <div className="game-server-mods-card-meta">
+                              {resource?.version_number ? (
+                                <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
+                                  {resource.version_number}
+                                </Tag>
+                              ) : null}
+                              {side ? <Tag bordered={false}>{side}</Tag> : null}
+                              <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
+                                {formatFileSize(row.size ?? resource?.file_size)}
+                              </Tag>
+                            </div>
+                            {title !== row.name ? (
+                              <Text className="game-server-mods-card-file">{row.name}</Text>
+                            ) : null}
+                          </div>
+                          <Button
+                            type="text"
+                            danger
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            loading={deletingPath === row.path}
+                            aria-label={t('gameServerDetail.content.deleteAction')}
+                            onClick={() => handleDelete(row)}
+                          />
+                        </div>
+                      </article>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="qxmods-filters">
+              <div className="qxmods-filters-row">
+                <label className="qxmods-filter-field">
+                  <Text type="secondary" className="qxmods-filter-label">
+                    {t('qxmods.filters.source')}
+                  </Text>
+                  <Select
+                    value={sourceFilter}
+                    options={sourceOptions}
+                    onChange={(value) => setSourceFilter(value as ModCatalogSourceFilter)}
+                    className="qxmods-filter-select"
+                  />
+                </label>
+                <label className="qxmods-filter-field">
+                  <Text type="secondary" className="qxmods-filter-label">
+                    {t('qxmods.filters.sort')}
+                  </Text>
+                  <Select
+                    value={sort}
+                    options={sortOptions}
+                    disabled={isSearchMode}
+                    onChange={(value) => setSort(value as ModCatalogSort)}
+                    className="qxmods-filter-select"
+                  />
+                </label>
+                {kind === 'mod' ? (
+                  <label className="qxmods-filter-field">
+                    <Text type="secondary" className="qxmods-filter-label">
+                      {t('gameServerDetail.content.folder')}
+                    </Text>
+                    <Segmented
+                      value={modTarget}
+                      aria-label={t('gameServerDetail.content.folder')}
+                      onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
+                      options={[
+                        { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
+                        { value: 'client-mods', label: t('gameServerDetail.content.clientModsFolder') },
+                      ]}
+                    />
+                  </label>
+                ) : null}
+                <label className="qxmods-filter-field qxmods-filter-field--switch">
+                  <Text type="secondary" className="qxmods-filter-label">
+                    {t('qxmods.filters.installedOnly')}
+                  </Text>
+                  <Switch
+                    checked={showInstalledOnly}
+                    onChange={setShowInstalledOnly}
+                    aria-label={t('qxmods.filters.installedOnly')}
+                  />
+                </label>
+              </div>
+              <div className="qxmods-search-filter">
+                <Input
+                  allowClear
+                  prefix={<SearchOutlined aria-hidden />}
+                  placeholder={t(`${i18nPrefix}.searchPlaceholder`)}
+                  value={searchInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSearchInput(value);
+                    if (!value.trim() && appliedSearch) {
+                      setAppliedSearch('');
+                    }
+                  }}
+                  onPressEnter={() => setAppliedSearch(searchInput.trim())}
+                  onClear={() => {
+                    setSearchInput('');
+                    setAppliedSearch('');
+                  }}
+                />
+                <Button
+                  onClick={() => setAppliedSearch(searchInput.trim())}
+                  disabled={!searchInput.trim() && !appliedSearch}
+                >
+                  {appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
+                </Button>
+                {appliedSearch ? (
+                  <Button
+                    type="link"
+                    onClick={() => {
+                      setSearchInput('');
+                      setAppliedSearch('');
+                    }}
+                  >
+                    {t('qxmods.clearSearch')}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <Paragraph type="secondary" className="qxmods-filter-context">
+              {t('qxmods.filterContext', { mcVersion, loader: loader ?? serverType })}
+            </Paragraph>
+            {showCurseforgeUnavailable ? (
+              <Alert type="warning" showIcon title={t('qxmods.curseforgeDisabled')} />
+            ) : catalogLoading && catalogItems.length === 0 && !showInstalledOnly ? (
+              <div className="servers-loading">
+                <Spin />
+              </div>
+            ) : visibleCatalogItems.length === 0 ? (
+              <div className="game-server-mods-empty">
+                <Paragraph>{catalogEmptyText}</Paragraph>
+              </div>
+            ) : (
+              <>
+                <ul className="game-server-mods-grid">
+                  {visibleCatalogItems.map((row) => (
+                    <li key={`${row.source}:${row.id}`}>
+                      <article className="game-server-mods-card">
+                        <div className="game-server-mods-card-top">
+                          <ModCatalogIcon
+                            url={row.icon_url}
+                            name={row.name}
+                            size={48}
+                            className="launcher-resource-card-icon"
+                          />
+                          <div className="game-server-mods-card-body">
+                            <div className="game-server-mods-card-title">
+                              <button
+                                type="button"
+                                className="game-server-mods-card-name"
+                                onClick={() => void openDetail(row)}
+                              >
+                                {row.name}
+                              </button>
+                              <ModSourceBadge source={row.source} />
+                            </div>
+                            {row.author ? (
+                              <Text type="secondary">
+                                {t('gameServerDetail.content.byAuthor', { author: row.author })}
+                              </Text>
+                            ) : null}
+                            {row.summary ? (
+                              <p className="game-server-mods-card-summary">{row.summary}</p>
+                            ) : null}
+                            <div className="game-server-mods-card-meta">
+                              {kind === 'mod' ? <ModSideBadge item={row} /> : null}
+                              {row.downloads != null ? (
+                                <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--downloads">
+                                  {t('gameServerDetail.content.downloadsLabel', {
+                                    count: formatCompactCount(row.downloads),
+                                  })}
+                                </Tag>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="game-server-mods-card-actions">
+                          {renderInstallControls(row, 'inline')}
+                        </div>
+                      </article>
+                    </li>
+                  ))}
+                </ul>
+                {!showInstalledOnly && !isSearchMode && hasMore ? (
+                  <div className="qxmods-load-more">
+                    <Button loading={loadingMore} onClick={() => void loadMore()}>
+                      {t('gameServerDetail.content.loadMore')}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </>
+        )}
+
+        <Modal
+          {...modalMotionProps}
+          title={detailItem?.name ?? t(`${i18nPrefix}.detailTitle`)}
+          open={detailOpen}
+          onCancel={() => setDetailOpen(false)}
+          footer={null}
+          width={680}
+        >
+          {detailItem ? (
+            <div className="game-server-mods-detail">
+              <div className="game-server-mods-detail-head">
+                <ModCatalogIcon
+                  url={detailItem.icon_url}
+                  name={detailItem.name}
+                  size={72}
+                  className="launcher-resource-card-icon"
+                />
+                <div className="game-server-mods-detail-copy">
+                  <div className="game-server-mods-detail-meta">
+                    <ModSourceBadge source={detailItem.source} />
+                    {kind === 'mod' ? <ModSideBadge item={detailItem} /> : null}
+                    {detailItem.author ? (
+                      <Text type="secondary">
+                        {t('gameServerDetail.content.byAuthor', { author: detailItem.author })}
+                      </Text>
+                    ) : null}
+                    {detailItem.downloads != null ? (
+                      <Text type="secondary">
+                        {t('gameServerDetail.content.downloadsLabel', {
+                          count: formatCompactCount(detailItem.downloads),
+                        })}
+                      </Text>
+                    ) : null}
+                  </div>
+                  {detailItem.summary ? <Paragraph>{detailItem.summary}</Paragraph> : null}
+                  {detailItem.external_url ? (
+                    <Button
+                      type="link"
+                      href={detailItem.external_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      icon={<LinkOutlined />}
+                    >
+                      {t('gameServerDetail.content.viewSource', { source: detailItem.source })}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              {renderInstallControls(detailItem, 'stacked')}
             </div>
           ) : null}
-        </>
-      )}
-      </>
-      )}
-
-      <Modal
-        {...modalMotionProps}
-        title={detailItem?.name ?? t(`${i18nPrefix}.detailTitle`)}
-        open={detailOpen}
-        onCancel={() => setDetailOpen(false)}
-        footer={null}
-        width={640}
-      >
-        {detailItem ? (
-          <>
-            <Paragraph type="secondary">{detailItem.summary}</Paragraph>
-            <ModCatalogInstallControls
-              source={detailItem.source as ModSource}
-              projectId={detailItem.id}
-              projectName={detailItem.name}
-              projectType={detailItem.project_type ?? projectType}
-              iconUrl={detailItem.icon_url}
-              downloads={detailItem.downloads}
-              clientSide={detailItem.client_side}
-              serverSide={detailItem.server_side}
-              loader={loader}
-              mcVersion={mcVersion}
-              installedProjectIds={installedProjectIds}
-              layout="stacked"
-              eagerVersions
-              onInstalled={() => {
-                setDetailOpen(false);
-                void loadInstalled();
-                if (needsServerRestartAfterSync(modTarget)) {
-                  promptRestart();
-                }
-              }}
-              onUninstalled={() => void loadInstalled()}
-            />
-          </>
-        ) : null}
-      </Modal>
-    </div>
+        </Modal>
+      </section>
     </GameServerCatalogProvider>
   );
 }

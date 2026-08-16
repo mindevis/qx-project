@@ -804,6 +804,16 @@ export const en: Messages = {
       clientModsFolder: 'Client mods',
       tabInstalled: 'Installed',
       tabCatalog: 'Catalog',
+      introMod:
+        'Install from Modrinth and CurseForge straight onto this server. Server mods run on the VPS; client mods reach players when they connect.',
+      introPlugin: 'Browse the catalog and install plugins into this server’s plugins folder.',
+      introDatapack: 'Catalog datapacks are copied into world/datapacks on this server.',
+      installedCount: '{{count}} on the server',
+      openCatalog: 'Open catalog',
+      uploaded: 'Uploaded manually',
+      viewSource: 'Open on {{source}}',
+      downloadsLabel: '{{count}} downloads',
+      byAuthor: '{{author}}',
       mod: {
         installedTitle: 'Installed mods',
         browseTitle: 'Browse mods',

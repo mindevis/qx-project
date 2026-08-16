@@ -2,6 +2,10 @@
   margin-bottom: 20px;
 }
 
+.connect-progress-steps .ant-steps-item-title {
+  white-space: nowrap;
+}
+
 .connect-progress-alert,
 .connect-progress-body {
   margin-top: 8px;

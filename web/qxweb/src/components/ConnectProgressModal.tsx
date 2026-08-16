@@ -68,7 +68,7 @@ export function ConnectProgressModal({
       }
       maskClosable={failed}
       closable
-      width={560}
+      width={800}
     >
       <Steps
         size="small"

@@ -803,6 +803,16 @@ export const ru = {
       clientModsFolder: 'Клиентские моды',
       tabInstalled: 'Установленные',
       tabCatalog: 'Каталог',
+      introMod:
+        'Каталог Modrinth и CurseForge ставит файлы сразу на этот сервер. Серверные моды работают на VPS, клиентские приедут игрокам при подключении.',
+      introPlugin: 'Ищите плагины в каталоге и ставьте их в папку plugins на этом сервере.',
+      introDatapack: 'Датапаки из каталога копируются в world/datapacks на этом сервере.',
+      installedCount: '{{count}} на сервере',
+      openCatalog: 'Открыть каталог',
+      uploaded: 'Загружен вручную',
+      viewSource: 'Открыть на {{source}}',
+      downloadsLabel: '{{count}} загрузок',
+      byAuthor: '{{author}}',
       mod: {
         installedTitle: 'Установленные моды',
         browseTitle: 'Каталог модов',
