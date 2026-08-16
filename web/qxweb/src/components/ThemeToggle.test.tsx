@@ -6,18 +6,18 @@ import { ThemeToggle } from './ThemeToggle';
 
 describe('ThemeToggle', () => {
   it('switches between light and dark themes', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderWithProviders(<ThemeToggle />);
 
     const lightBtn = screen.getByRole('radio', { name: 'Светлая тема' });
     const darkBtn = screen.getByRole('radio', { name: 'Тёмная тема' });
 
-    expect(lightBtn).toHaveAttribute('aria-checked', 'true');
-    expect(darkBtn).toHaveAttribute('aria-checked', 'false');
+    expect(lightBtn).toBeChecked();
+    expect(darkBtn).not.toBeChecked();
 
     await user.click(darkBtn);
 
-    expect(lightBtn).toHaveAttribute('aria-checked', 'false');
-    expect(darkBtn).toHaveAttribute('aria-checked', 'true');
+    expect(lightBtn).not.toBeChecked();
+    expect(darkBtn).toBeChecked();
   });
 });

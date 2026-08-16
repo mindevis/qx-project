@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Input, InputNumber, Space, Spin, Switch, Typography } from 'antd';
+import { Button, Empty, Form, Input, InputNumber, Space, Spin, Switch } from 'antd';
 import { api, type GameServerProperty } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -11,6 +11,16 @@ type GameServerPropertiesPanelProps = {
   agentOnline: boolean;
 };
 
+function fieldValue(item: GameServerProperty): boolean | number | string {
+  if (item.boolean) {
+    return item.value.toLowerCase() === 'true';
+  }
+  if (/^\d+$/.test(item.value)) {
+    return Number(item.value);
+  }
+  return item.value;
+}
+
 export function GameServerPropertiesPanel({
   vpsId,
   gameServerId,
@@ -18,6 +28,7 @@ export function GameServerPropertiesPanel({
 }: GameServerPropertiesPanelProps) {
   const { locale, t } = useI18n();
   const message = useMessage();
+  const [form] = Form.useForm<Record<string, boolean | number | string>>();
   const [properties, setProperties] = useState<GameServerProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -31,13 +42,15 @@ export function GameServerPropertiesPanel({
     setLoading(true);
     try {
       const res = await api.getVpsGameServerProperties(vpsId, gameServerId);
-      setProperties(res.properties ?? []);
+      const next = res.properties ?? [];
+      setProperties(next);
+      form.setFieldsValue(Object.fromEntries(next.map((item) => [item.key, fieldValue(item)])));
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('gameServerDetail.propertiesLoadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [agentOnline, gameServerId, message, t, vpsId]);
+  }, [agentOnline, form, gameServerId, message, t, vpsId]);
 
   useEffect(() => {
     void load();
@@ -59,11 +72,19 @@ export function GameServerPropertiesPanel({
     }
   };
 
+  const saveTextField = (key: string, current: string) => {
+    const value = String(form.getFieldValue(key) ?? '');
+    if (value !== current) {
+      void save(key, value);
+    }
+  };
+
   if (!agentOnline) {
     return (
-      <Typography.Paragraph type="secondary">
-        {t('servers.gameServersAgentRequired')}
-      </Typography.Paragraph>
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={t('servers.gameServersAgentRequired')}
+      />
     );
   }
 
@@ -76,11 +97,16 @@ export function GameServerPropertiesPanel({
   }
 
   if (properties.length === 0) {
-    return <Typography.Paragraph type="secondary">{t('gameServerDetail.propertiesEmpty')}</Typography.Paragraph>;
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={t('gameServerDetail.propertiesEmpty')}
+      />
+    );
   }
 
   return (
-    <div className="game-server-properties">
+    <Form form={form} component="div" className="game-server-properties">
       {properties.map((item) => {
         const meta = getServerPropertyMeta(locale, item.key);
         return (
@@ -96,45 +122,37 @@ export function GameServerPropertiesPanel({
             </label>
             <div className="game-server-property-control">
               {item.boolean ? (
-                <Switch
-                  id={`prop-${item.key}`}
-                  checked={item.value.toLowerCase() === 'true'}
-                  loading={savingKey === item.key}
-                  onChange={(checked) => void save(item.key, checked ? 'true' : 'false')}
-                />
-              ) : /^\d+$/.test(item.value) ? (
-                <InputNumber
-                  id={`prop-${item.key}`}
-                  value={Number(item.value)}
-                  disabled={savingKey === item.key}
-                  onChange={(value) => {
-                    if (value != null) {
-                      void save(item.key, String(value));
-                    }
-                  }}
-                />
-              ) : (
-                <Space.Compact className="game-server-property-text">
-                  <Input
+                <Form.Item name={item.key} noStyle valuePropName="checked">
+                  <Switch
                     id={`prop-${item.key}`}
-                    defaultValue={item.value}
+                    loading={savingKey === item.key}
+                    onChange={(checked) => void save(item.key, checked ? 'true' : 'false')}
+                  />
+                </Form.Item>
+              ) : /^\d+$/.test(item.value) ? (
+                <Form.Item name={item.key} noStyle>
+                  <InputNumber
+                    id={`prop-${item.key}`}
                     disabled={savingKey === item.key}
-                    onPressEnter={(e) => {
-                      const target = e.target as HTMLInputElement;
-                      if (target.value !== item.value) {
-                        void save(item.key, target.value);
+                    onChange={(value) => {
+                      if (value != null) {
+                        void save(item.key, String(value));
                       }
                     }}
                   />
+                </Form.Item>
+              ) : (
+                <Space.Compact className="game-server-property-text">
+                  <Form.Item name={item.key} noStyle>
+                    <Input
+                      id={`prop-${item.key}`}
+                      disabled={savingKey === item.key}
+                      onPressEnter={() => saveTextField(item.key, item.value)}
+                    />
+                  </Form.Item>
                   <Button
                     loading={savingKey === item.key}
-                    onClick={(e) => {
-                      const row = (e.currentTarget as HTMLElement).closest('.game-server-property-row');
-                      const input = row?.querySelector('input') as HTMLInputElement | null;
-                      if (input && input.value !== item.value) {
-                        void save(item.key, input.value);
-                      }
-                    }}
+                    onClick={() => saveTextField(item.key, item.value)}
                   >
                     {t('common.save')}
                   </Button>
@@ -144,6 +162,6 @@ export function GameServerPropertiesPanel({
           </div>
         );
       })}
-    </div>
+    </Form>
   );
 }

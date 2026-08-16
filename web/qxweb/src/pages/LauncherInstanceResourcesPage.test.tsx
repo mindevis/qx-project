@@ -59,17 +59,17 @@ describe('LauncherInstanceResourcesPage', () => {
     renderResources();
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Forge'));
     expect(screen.getByRole('navigation', { name: 'Разделы ресурсов инстанса' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Установленные/ })).toHaveClass('launcher-resources-tab--active');
+    expect(screen.getByRole('radio', { name: /Установленные/ })).toBeChecked();
     expect(screen.getByLabelText('Ресурсы')).toBeInTheDocument();
     expect(screen.getByText('Назад к лаунчеру')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Пока ничего не установлено')).toBeInTheDocument());
   });
 
   it('switches to catalog tab', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderResources();
-    await waitFor(() => expect(screen.getByRole('link', { name: /Каталог/ })).toBeInTheDocument());
-    await user.click(screen.getByRole('link', { name: /Каталог/ }));
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Каталог/ })).toBeInTheDocument());
+    await user.click(screen.getByRole('radio', { name: /Каталог/ }));
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
     expect(api.browseMods).toHaveBeenCalled();
   });

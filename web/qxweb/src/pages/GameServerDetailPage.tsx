@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Breadcrumb,
   Button,
+  Descriptions,
   Popconfirm,
   Space,
   Spin,
@@ -15,11 +16,8 @@ import {
   AppstoreOutlined,
   BuildOutlined,
   CodeOutlined,
-  DatabaseOutlined,
   DeleteOutlined,
   FolderOutlined,
-  HighlightOutlined,
-  PictureOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
   SettingOutlined,
@@ -91,6 +89,8 @@ export function GameServerDetailPage() {
   const navigate = useNavigate();
   const gameStatusLabel = useGameServerStatusLabel();
   const { id: vpsId, gameServerId } = useParams<{ id: string; gameServerId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showRconPassword, setShowRconPassword] = useState(false);
   const [vps, setVps] = useState<GameServer | null>(null);
   const [game, setGame] = useState<VpsGameServer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -277,49 +277,14 @@ export function GameServerDetailPage() {
     ...(!caps.mods && caps.clientContent
       ? [
           {
-            key: 'resourcepacks',
-            label: tabLabel(<PictureOutlined aria-hidden />, t('gameServerDetail.tabResourcepacks')),
+            key: 'resources',
+            label: tabLabel(<AppstoreOutlined aria-hidden />, t('gameServerDetail.tabResources')),
             children: (
-              <GameServerContentPanel
-                kind="resourcepack"
+              <GameServerModsPanel
                 vpsId={vpsId}
                 gameServerId={game.id}
                 agentOnline={agentOnline}
-                supported={caps.clientContent}
-                serverType={serverType}
-                mcVersion={game.mc_version ?? '1.21'}
-              />
-            ),
-          },
-          {
-            key: 'shaders',
-            label: tabLabel(<HighlightOutlined aria-hidden />, t('gameServerDetail.tabShaders')),
-            children: (
-              <GameServerContentPanel
-                kind="shader"
-                vpsId={vpsId}
-                gameServerId={game.id}
-                agentOnline={agentOnline}
-                supported={caps.clientContent}
-                serverType={serverType}
-                mcVersion={game.mc_version ?? '1.21'}
-              />
-            ),
-          },
-        ]
-      : []),
-    ...(caps.datapacks
-      ? [
-          {
-            key: 'datapacks',
-            label: tabLabel(<DatabaseOutlined aria-hidden />, t('gameServerDetail.tabDatapacks')),
-            children: (
-              <GameServerContentPanel
-                kind="datapack"
-                vpsId={vpsId}
-                gameServerId={game.id}
-                agentOnline={agentOnline}
-                supported={caps.datapacks}
+                supportsMods={false}
                 serverType={serverType}
                 mcVersion={game.mc_version ?? '1.21'}
               />
@@ -358,11 +323,6 @@ export function GameServerDetailPage() {
   return (
     <div className="servers-page servers-page--detail">
       <section className="servers-hero servers-hero--detail game-server-detail-hero">
-        <div className="servers-hero-ambient" aria-hidden>
-          <span className="servers-hero-blob servers-hero-blob--1" />
-          <span className="servers-hero-blob servers-hero-blob--2" />
-          <span className="servers-hero-grid-pattern" />
-        </div>
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
             <Breadcrumb
@@ -379,9 +339,8 @@ export function GameServerDetailPage() {
                 },
               ]}
             />
-            <span className="servers-badge">{t('gameServerDetail.badge')}</span>
             <Title level={1} className="servers-title">
-              <span className="servers-title-highlight">{game.name}</span>
+              {game.name}
             </Title>
           </div>
         </div>
@@ -389,48 +348,44 @@ export function GameServerDetailPage() {
 
       <section className="servers-section">
         <div className="servers-panel">
-          <div className="game-server-detail-summary">
-            <div className="game-server-detail-summary-item">
-              <span className="game-server-detail-summary-label">
-                {t('servers.gameServerStatus')}
-              </span>
-              <span className="game-server-detail-summary-value">
-                <Tag color={gameServerStatusColor(game.status)}>{gameStatusLabel(game.status)}</Tag>
-              </span>
-            </div>
-            <div className="game-server-detail-summary-item">
-              <span className="game-server-detail-summary-label">
-                {t('servers.gameServerMcVersion')}
-              </span>
-              <span className="game-server-detail-summary-value">
-                {formatGameServerMcVersionLabel(game.mc_version)}
-              </span>
-            </div>
-            <div className="game-server-detail-summary-item">
-              <span className="game-server-detail-summary-label">
-                {t('servers.gameServerTypeLabel')}
-              </span>
-              <span className="game-server-detail-summary-value">
-                {gameServerTypeLabelText(t, serverType)}
-              </span>
-            </div>
-            <div className="game-server-detail-summary-item">
-              <span className="game-server-detail-summary-label">
-                {t('servers.gameServerPort')}
-              </span>
-              <span className="game-server-detail-summary-value">
-                {game.address ? `${game.address}:${game.port ?? '—'}` : '—'}
-              </span>
-            </div>
-            <div
-              className={`game-server-detail-summary-item game-server-detail-summary-item--agent-${agentOnline ? 'online' : 'offline'}`}
-            >
-              <span className="game-server-detail-summary-label">
-                {t('gameServerDetail.summaryAgent')}
-              </span>
-              <span className="game-server-detail-summary-value">{agentConnectionLabel}</span>
-            </div>
-          </div>
+          <Descriptions
+            className="game-server-detail-summary"
+            size="small"
+            column={{ xs: 1, sm: 2, md: 3 }}
+            items={[
+              {
+                key: 'status',
+                label: t('servers.gameServerStatus'),
+                children: (
+                  <Tag color={gameServerStatusColor(game.status)}>{gameStatusLabel(game.status)}</Tag>
+                ),
+              },
+              {
+                key: 'mc',
+                label: t('servers.gameServerMcVersion'),
+                children: formatGameServerMcVersionLabel(game.mc_version),
+              },
+              {
+                key: 'type',
+                label: t('servers.gameServerTypeLabel'),
+                children: gameServerTypeLabelText(t, serverType),
+              },
+              {
+                key: 'address',
+                label: t('servers.gameServerPort'),
+                children: game.address ? (
+                  <Text copyable>{`${game.address}:${game.port ?? '—'}`}</Text>
+                ) : (
+                  '—'
+                ),
+              },
+              {
+                key: 'agent',
+                label: t('gameServerDetail.summaryAgent'),
+                children: agentConnectionLabel,
+              },
+            ]}
+          />
 
           <div className="servers-game-card-actions game-server-detail-actions">
             <Button
@@ -472,9 +427,15 @@ export function GameServerDetailPage() {
             <Space className="game-server-detail-rcon" wrap>
               <Text type="secondary">{t('servers.gameServerRconPort')}: {game.rcon_port}</Text>
               {game.rcon_password ? (
-                <Text copyable={{ text: game.rcon_password }} code>
-                  {t('servers.gameServerRconPassword')}: {game.rcon_password}
-                </Text>
+                <Space size={8}>
+                  <Text copyable={{ text: game.rcon_password }} code>
+                    {t('servers.gameServerRconPassword')}:{' '}
+                    {showRconPassword ? game.rcon_password : '••••••••'}
+                  </Text>
+                  <Button type="link" size="small" onClick={() => setShowRconPassword((open) => !open)}>
+                    {showRconPassword ? t('common.hide') : t('common.show')}
+                  </Button>
+                </Space>
               ) : null}
             </Space>
           ) : null}
@@ -498,7 +459,24 @@ export function GameServerDetailPage() {
 
           <Tabs
             className="game-server-detail-tabs"
-            defaultActiveKey={showConsole ? 'console' : 'settings'}
+            activeKey={
+              tabItems.some((item) => item.key === searchParams.get('tab'))
+                ? searchParams.get('tab')!
+                : showConsole
+                  ? 'console'
+                  : 'settings'
+            }
+            destroyOnHidden
+            onChange={(key) => {
+              setSearchParams(
+                (prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.set('tab', key);
+                  return next;
+                },
+                { replace: true },
+              );
+            }}
             items={tabItems}
           />
         </div>

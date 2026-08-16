@@ -64,15 +64,15 @@ describe('ModConfigsByModPanel', () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText('fabric-api.toml')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('fabric-api.toml').length).toBeGreaterThan(0));
     expect(screen.getByText('100 B')).toBeInTheDocument();
-    expect(screen.getByText(/2 конфиг/i)).toBeInTheDocument();
+    expect(screen.getByText(/Файлы: 2/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: /Прочее/i }));
-    await waitFor(() => expect(screen.getByText('sodium-options.json')).toBeInTheDocument());
-    await user.type(screen.getByPlaceholderText(/Поиск конфигов/i), 'sodium');
+    await user.click(screen.getByRole('button', { name: /Прочее/i }));
+    await waitFor(() => expect(screen.getAllByText('sodium-options.json').length).toBeGreaterThan(0));
+    await user.type(screen.getByPlaceholderText(/Поиск мода или файла/i), 'sodium');
     await waitFor(() => expect(screen.queryByText('fabric-api.toml')).not.toBeInTheDocument());
-    expect(screen.getByText('sodium-options.json')).toBeInTheDocument();
+    expect(screen.getAllByText('sodium-options.json').length).toBeGreaterThan(0);
   });
 
   it('tracks unsaved changes and saves edits', async () => {
@@ -87,8 +87,8 @@ describe('ModConfigsByModPanel', () => {
       <ModConfigsByModPanel mode="instance" available mods={[fabricMod]} fileApi={fileApi} />,
     );
 
-    await waitFor(() => expect(screen.getByText('fabric-api.toml')).toBeInTheDocument());
-    await user.click(screen.getByText('fabric-api.toml'));
+    await waitFor(() => expect(screen.getAllByText('fabric-api.toml').length).toBeGreaterThan(0));
+    await user.click(screen.getByRole('button', { name: /fabric-api\.toml/i }));
     await waitFor(() => expect(screen.getByDisplayValue('enabled=true')).toBeInTheDocument());
 
     const saveButton = screen.getByRole('button', { name: 'Сохранить' });
@@ -111,6 +111,17 @@ describe('ModConfigsByModPanel', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Конфигурационные файлы не найдены')).toBeInTheDocument());
-    expect(screen.getByText(/Запустите игру/i)).toBeInTheDocument();
+    expect(screen.getByText(/Запустите сервер/i)).toBeInTheDocument();
+  });
+
+  it('does not ask to link QXLauncher on the game server', async () => {
+    fileApi.listDir.mockResolvedValue([]);
+
+    renderWithTheme(
+      <ModConfigsByModPanel mode="server" available mods={[]} fileApi={fileApi} />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Конфигурационные файлы не найдены')).toBeInTheDocument());
+    expect(screen.queryByText(/Привяжите QXLauncher/i)).not.toBeInTheDocument();
   });
 });

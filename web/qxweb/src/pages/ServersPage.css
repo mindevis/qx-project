@@ -6,8 +6,8 @@
 
 .servers-hero {
   position: relative;
-  margin: -64px 0 0;
-  padding: 120px clamp(24px, 5vw, 48px) 72px;
+  margin: 0;
+  padding: 48px clamp(24px, 5vw, 48px) 56px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   overflow: hidden;
   background: linear-gradient(180deg, rgba(22, 119, 255, 0.07) 0%, transparent 85%);
@@ -79,10 +79,6 @@ html[data-theme='dark'] .servers-hero-grid-pattern {
 .servers-hero-inner {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.9fr);
-  gap: 40px;
-  align-items: center;
   max-width: 1120px;
   margin: 0 auto;
 }
@@ -1447,70 +1443,3 @@ html[data-theme='dark'] .game-server-property-desc {
   margin-bottom: 8px;
 }
 
-.mod-configs-page-title {
-  margin-bottom: 4px !important;
-}
-
-.mod-configs-page-intro {
-  margin-bottom: 16px !important;
-}
-
-.mod-configs-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.mod-configs-toolbar-search {
-  flex: 1 1 200px;
-  min-width: 160px;
-  max-width: 320px;
-}
-
-.mod-configs-tabs .ant-tabs-nav {
-  margin-bottom: 12px;
-}
-
-.mod-configs-tab-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 180px;
-}
-
-.mod-configs-tab-label > span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mod-configs-path {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-}
-
-.mod-configs-editor-path {
-  word-break: break-all;
-}
-
-.mod-configs-sync-hint,
-.mod-configs-binding-hint {
-  margin-bottom: 12px;
-}
-
-.mod-configs-textarea {
-  min-height: 320px;
-}
-
-@media (max-width: 767px) {
-  .mod-configs-toolbar-search {
-    max-width: none;
-    flex-basis: 100%;
-  }
-
-  .mod-configs-tab-label {
-    max-width: 120px;
-  }
-}

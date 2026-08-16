@@ -1,5 +1,38 @@
 import '@testing-library/jest-dom/vitest';
 import { afterAll, afterEach, beforeEach, vi } from 'vitest';
+
+function installLocalStoragePolyfill() {
+  const target = typeof window === 'undefined' ? globalThis : window;
+  try {
+    if (target.localStorage?.getItem && target.localStorage.removeItem) {
+      return;
+    }
+  } catch {
+    // jsdom/Node 24 can expose a broken localStorage getter.
+  }
+  const store = new Map<string, string>();
+  const memory: Storage = {
+    getItem: (key) => store.get(key) ?? null,
+    setItem: (key, value) => {
+      store.set(key, String(value));
+    },
+    removeItem: (key) => {
+      store.delete(key);
+    },
+    clear: () => store.clear(),
+    key: (index) => [...store.keys()][index] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+  Object.defineProperty(target, 'localStorage', {
+    configurable: true,
+    writable: true,
+    value: memory,
+  });
+}
+
+installLocalStoragePolyfill();
 import { act, cleanup, configure } from '@testing-library/react';
 import { message, Modal } from 'antd';
 import { clearTokens } from '@/api/client';
@@ -27,6 +60,19 @@ vi.mock('skinview3d', async () => {
 vi.mock('@/hooks/useMessage', async () => {
   const { testMessage } = await import('@/test/test-message');
   return { useMessage: () => testMessage };
+});
+
+vi.mock('@/hooks/useModal', async () => {
+  const { Modal } = await import('antd');
+  return {
+    useModal: () => ({
+      confirm: (config: Parameters<typeof Modal.confirm>[0]) => Modal.confirm(config),
+      info: (config: Parameters<typeof Modal.info>[0]) => Modal.info(config),
+      success: (config: Parameters<typeof Modal.success>[0]) => Modal.success(config),
+      error: (config: Parameters<typeof Modal.error>[0]) => Modal.error(config),
+      warning: (config: Parameters<typeof Modal.warning>[0]) => Modal.warning(config),
+    }),
+  };
 });
 
 vi.mock('@/backend/BackendStatusContext', () => ({

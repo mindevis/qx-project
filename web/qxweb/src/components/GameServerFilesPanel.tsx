@@ -4,7 +4,7 @@ import {
   Button,
   Empty,
   Input,
-  Modal,
+  Popconfirm,
   Space,
   Spin,
   Table,
@@ -14,7 +14,6 @@ import { FolderOutlined, FileOutlined, ArrowLeftOutlined, DeleteOutlined } from 
 import { api, type GameServerFileEntry } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
-import { modalMotionProps } from '@/lib/modal';
 
 type GameServerFilesPanelProps = {
   vpsId: string;
@@ -132,41 +131,29 @@ export function GameServerFilesPanel({
     }
   };
 
-  const handleDelete = (row: GameServerFileEntry) => {
-    Modal.confirm({
-      ...modalMotionProps,
-      title: row.dir ? t('gameServerDetail.folderDeleteTitle') : t('gameServerDetail.fileDeleteTitle'),
-      content: row.dir
-        ? t('gameServerDetail.folderDeleteConfirm', { name: row.name })
-        : t('gameServerDetail.fileDeleteConfirm', { name: row.name }),
-      okText: t('common.delete'),
-      cancelText: t('common.cancel'),
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        setDeletingPath(row.path);
-        try {
-          await api.deleteVpsGameServerFile(vpsId, gameServerId, row.path);
-          message.success(t('gameServerDetail.fileDeleted'));
-          if (selectedFile === row.path || selectedFile?.startsWith(`${row.path}/`)) {
-            setSelectedFile(null);
-            setFileContent('');
-          }
-          await loadDir();
-        } catch (e) {
-          message.error(e instanceof Error ? e.message : t('gameServerDetail.fileDeleteFailed'));
-          throw e;
-        } finally {
-          setDeletingPath(undefined);
-        }
-      },
-    });
+  const handleDelete = async (row: GameServerFileEntry) => {
+    setDeletingPath(row.path);
+    try {
+      await api.deleteVpsGameServerFile(vpsId, gameServerId, row.path);
+      message.success(t('gameServerDetail.fileDeleted'));
+      if (selectedFile === row.path || selectedFile?.startsWith(`${row.path}/`)) {
+        setSelectedFile(null);
+        setFileContent('');
+      }
+      await loadDir();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('gameServerDetail.fileDeleteFailed'));
+    } finally {
+      setDeletingPath(undefined);
+    }
   };
 
   if (!agentOnline) {
     return (
-      <Typography.Paragraph type="secondary">
-        {t('servers.gameServersAgentRequired')}
-      </Typography.Paragraph>
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={t('servers.gameServersAgentRequired')}
+      />
     );
   }
 
@@ -225,7 +212,7 @@ export function GameServerFilesPanel({
           <Spin />
         </div>
       ) : entries.length === 0 ? (
-        <Empty description={t('gameServerDetail.filesEmpty')} />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('gameServerDetail.filesEmpty')} />
       ) : (
         <Table
           className="game-server-files-table"
@@ -275,18 +262,28 @@ export function GameServerFilesPanel({
                 onClick: (event: MouseEvent) => event.stopPropagation(),
               }),
               render: (_, row) => (
-                <Button
-                  type="text"
-                  danger
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  loading={deletingPath === row.path}
-                  aria-label={t('common.delete')}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleDelete(row);
-                  }}
-                />
+                <Popconfirm
+                  title={row.dir ? t('gameServerDetail.folderDeleteTitle') : t('gameServerDetail.fileDeleteTitle')}
+                  description={
+                    row.dir
+                      ? t('gameServerDetail.folderDeleteConfirm', { name: row.name })
+                      : t('gameServerDetail.fileDeleteConfirm', { name: row.name })
+                  }
+                  okText={t('common.delete')}
+                  cancelText={t('common.cancel')}
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => void handleDelete(row)}
+                >
+                  <Button
+                    type="text"
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    loading={deletingPath === row.path}
+                    aria-label={t('common.delete')}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                </Popconfirm>
               ),
             },
           ]}

@@ -29,7 +29,7 @@ export function GameServerModsPanel({
 
   return (
     <div className="game-server-mods-catalog">
-      {supportsMods && tabTypes.length > 1 ? (
+      {tabTypes.length > 1 ? (
         <Segmented
           className="qxmods-type-segmented"
           value={kind}

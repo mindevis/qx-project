@@ -36,6 +36,8 @@ describe('AppLayout', () => {
 
     await waitFor(() => expect(screen.getByText('QXSystem')).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'Вход' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Серверы' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'QXSkins' })).toBeInTheDocument();
   });
 
   it('disables login button when backend is unavailable', async () => {
@@ -73,7 +75,7 @@ describe('AppLayout', () => {
   });
 
   it('shows servers link in dark theme', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     window.localStorage.setItem('qxweb-theme', 'dark');
     saveTokens({
       access_token: 'a',
@@ -163,7 +165,7 @@ describe('AppLayout', () => {
     await waitFor(() => expect(header?.className).toContain('app-header--scrolled'));
   });
 
-  it('uses landing sticky header on launcher route', () => {
+  it('uses solid sticky header on launcher route', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
@@ -174,7 +176,7 @@ describe('AppLayout', () => {
     );
 
     const header = document.querySelector('header');
-    expect(header?.className).toContain('app-header--landing');
+    expect(header?.className).not.toContain('app-header--landing');
     expect(header?.className).toContain('app-header--sticky');
   });
 

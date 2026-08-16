@@ -3,16 +3,19 @@ import { Link } from 'react-router-dom';
 import {
   Alert,
   Button,
+  Empty,
+  Grid,
   Input,
   Segmented,
   Select,
   Spin,
   Switch,
   Table,
+  Tag,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { SearchOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, SearchOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import {
   api,
   type ModCatalogItem,
@@ -48,6 +51,7 @@ import {
   launcherCatalogTabs,
 } from '@/lib/launcherInstanceCapabilities';
 import './InstanceResourcesPanel.css';
+import './GameServerContentPanel.css';
 
 const { Text, Paragraph } = Typography;
 const PAGE_SIZE = 20;
@@ -75,6 +79,8 @@ export function ModsCatalogPanel() {
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncSelection, setSyncSelection] = useState<ModSyncSelection | null>(null);
   const [cardSourceByKey, setCardSourceByKey] = useState<Partial<Record<string, ModSource>>>({});
+  const screens = Grid.useBreakpoint();
+  const [viewMode, setViewMode] = useState<'list' | 'cards'>(screens.md === false ? 'cards' : 'list');
 
   const refreshInstalled = useCallback(async () => {
     try {
@@ -521,8 +527,9 @@ export function ModsCatalogPanel() {
           </label>
         </div>
         <div className="qxmods-search-filter">
-          <Input
+          <Input.Search
             allowClear
+            enterButton={appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
             prefix={<SearchOutlined />}
             placeholder={t('qxmods.searchFilterPlaceholder')}
             value={searchInput}
@@ -533,26 +540,36 @@ export function ModsCatalogPanel() {
                 setAppliedSearch('');
               }
             }}
-            onPressEnter={() => setAppliedSearch(searchInput.trim())}
+            onSearch={(value) => setAppliedSearch(value.trim())}
             onClear={() => {
               setSearchInput('');
               setAppliedSearch('');
             }}
           />
-          <Button
-            onClick={() => setAppliedSearch(searchInput.trim())}
-            disabled={!searchInput.trim() && !appliedSearch}
-          >
-            {appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
-          </Button>
-          {appliedSearch ? (
-            <Button type="link" onClick={() => {
-              setSearchInput('');
-              setAppliedSearch('');
-            }}>
-              {t('qxmods.clearSearch')}
-            </Button>
-          ) : null}
+          <Segmented
+            size="small"
+            value={viewMode}
+            aria-label={t('gameServerDetail.content.viewModeAria')}
+            onChange={(value) => setViewMode(value as 'list' | 'cards')}
+            options={[
+              {
+                value: 'list',
+                label: (
+                  <span aria-label={t('gameServerDetail.content.viewList')}>
+                    <UnorderedListOutlined aria-hidden />
+                  </span>
+                ),
+              },
+              {
+                value: 'cards',
+                label: (
+                  <span aria-label={t('gameServerDetail.content.viewCards')}>
+                    <AppstoreOutlined aria-hidden />
+                  </span>
+                ),
+              },
+            ]}
+          />
         </div>
       </div>
       <Paragraph type="secondary" className="qxmods-filter-context">
@@ -569,23 +586,102 @@ export function ModsCatalogPanel() {
         <Alert type="warning" showIcon title={t('qxmods.curseforgeDisabled')} />
       ) : (
         <>
-          <Table
-            className="qxmods-catalog-table qxmods-catalog-table--install"
-            rowKey={(card) => card.key}
-            columns={columns}
-            dataSource={visibleCards}
-            loading={loading && !showInstalledOnly}
-            pagination={false}
-            scroll={{ x: 960 }}
-            tableLayout="fixed"
-            locale={{
-              emptyText: showInstalledOnly
-                ? t('qxmods.installed.empty')
-                : isSearchMode
-                  ? t('qxmods.empty')
-                  : t('qxmods.catalogEmpty'),
-            }}
-          />
+          {viewMode === 'list' ? (
+            <Table
+              className="qxmods-catalog-table qxmods-catalog-table--install"
+              rowKey={(card) => card.key}
+              columns={columns}
+              dataSource={visibleCards}
+              loading={loading && !showInstalledOnly}
+              pagination={false}
+              scroll={{ x: 960 }}
+              tableLayout="fixed"
+              locale={{
+                emptyText: (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      showInstalledOnly
+                        ? t('qxmods.installed.empty')
+                        : isSearchMode
+                          ? t('qxmods.empty')
+                          : t('qxmods.catalogEmpty')
+                    }
+                  />
+                ),
+              }}
+            />
+          ) : (
+            <ul className="game-server-mods-grid">
+              {visibleCards.map((card) => {
+                const item = itemForCard(card);
+                return (
+                  <li key={card.key}>
+                    <article className="game-server-mods-card">
+                      <div className="game-server-mods-card-top">
+                        <ModCatalogIcon
+                          url={item.icon_url}
+                          name={item.name}
+                          size={48}
+                          className="launcher-resource-card-icon"
+                        />
+                        <div className="game-server-mods-card-body">
+                          <div className="game-server-mods-card-title">
+                            <Link
+                              to={`${basePath}/catalog/${item.source}/${item.id}`}
+                              state={card.items.length > 1 ? { catalogSiblings: card.items } : undefined}
+                              className="game-server-mods-card-name"
+                            >
+                              {card.name}
+                            </Link>
+                            <CatalogSourceSwitch
+                              items={card.items}
+                              value={item.source}
+                              onChange={(source) =>
+                                setCardSourceByKey((prev) => ({ ...prev, [card.key]: source }))
+                              }
+                            />
+                          </div>
+                          {item.author ? (
+                            <Text type="secondary">{item.author}</Text>
+                          ) : null}
+                          {item.summary ? (
+                            <p className="game-server-mods-card-summary">{item.summary}</p>
+                          ) : null}
+                          <div className="game-server-mods-card-meta">
+                            {activeTab === 'mod' ? <ModSideBadge item={item} /> : null}
+                            {item.downloads != null ? (
+                              <Tag variant="filled">
+                                {formatCompactCount(item.downloads)}
+                              </Tag>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="game-server-mods-card-actions">
+                        <ModCatalogInstallControls
+                          source={item.source as ModSource}
+                          projectId={item.id}
+                          projectName={item.name}
+                          projectType={item.project_type ?? activeTab}
+                          iconUrl={item.icon_url}
+                          downloads={item.downloads}
+                          clientSide={item.client_side}
+                          serverSide={item.server_side}
+                          loader={catalogLoader}
+                          mcVersion={instance.mc_version}
+                          installedProjectIds={installedProjectIds}
+                          layout="inline"
+                          onInstalled={(version) => handleInstalled(item, version)}
+                          onUninstalled={() => void refreshInstalled()}
+                        />
+                      </div>
+                    </article>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           {!showInstalledOnly && !isSearchMode && hasMore ? (
             <div className="qxmods-load-more">
               <Button loading={loadingMore} onClick={() => void loadMore()}>

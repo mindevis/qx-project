@@ -109,6 +109,33 @@ export function filterConfigFileEntries(
   });
 }
 
+export function configFileExtension(path: string): string {
+  const name = path.split('/').pop() ?? path;
+  const dot = name.lastIndexOf('.');
+  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+}
+
+export function filterGroupedConfigs(
+  grouped: GroupConfigResult,
+  query: string,
+  otherLabel: string,
+): GroupConfigResult {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return grouped;
+
+  const groups = grouped.groups
+    .map((group) => {
+      const nameHit = group.mod.label.toLowerCase().includes(trimmed);
+      const files = nameHit ? group.files : filterConfigFileEntries(group.files, trimmed);
+      return { ...group, files };
+    })
+    .filter((group) => group.files.length > 0);
+
+  const otherNameHit = otherLabel.toLowerCase().includes(trimmed);
+  const other = otherNameHit ? grouped.other : filterConfigFileEntries(grouped.other, trimmed);
+  return { groups, other };
+}
+
 export function groupConfigFilesByMod(
   mods: ModConfigMod[],
   configFiles: ModConfigFileEntry[],

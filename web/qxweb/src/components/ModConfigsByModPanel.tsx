@@ -1,41 +1,41 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  Badge,
   Button,
   Empty,
   Input,
   Modal,
   Radio,
-  Space,
   Spin,
-  Table,
-  Tabs,
+  Tag,
   Typography,
 } from 'antd';
 import {
   ArrowLeftOutlined,
   CloudDownloadOutlined,
   CloudUploadOutlined,
-  FileOutlined,
   ReloadOutlined,
+  RightOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
 import { api, type GameServerFileEntry, type InstanceResource } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { useModal } from '@/hooks/useModal';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
 import { formatFileSize } from '@/lib/formatFileSize';
 import {
+  configFileExtension,
   configRelativePath,
-  filterConfigFileEntries,
+  filterGroupedConfigs,
   groupConfigFilesByMod,
   listConfigPaths,
   type ModConfigFileEntry,
   type ModConfigMod,
 } from '@/lib/modConfigDiscovery';
 import { modalMotionProps } from '@/lib/modal';
+import './ModConfigsByModPanel.css';
 
 type FileApi = {
   listDir: (path: string) => Promise<GameServerFileEntry[]>;
@@ -61,26 +61,20 @@ type ModConfigsByModPanelProps = {
   configSync?: ConfigSyncContext;
 };
 
+type ConfigTab = {
+  key: string;
+  label: string;
+  mod?: ModConfigMod;
+  files: ModConfigFileEntry[];
+};
+
 function basename(path: string): string {
   const parts = path.split('/');
   return parts[parts.length - 1] ?? path;
 }
 
 function formatSize(size?: number): string {
-  const formatted = formatFileSize(size);
-  return formatted || '—';
-}
-
-function renderTabLabel(label: string, count: number, iconUrl?: string) {
-  return (
-    <span className="mod-configs-tab-label">
-      {iconUrl ? <ModCatalogIcon url={iconUrl} name={label} size={18} /> : null}
-      <span>{label}</span>
-      {count > 0 ? (
-        <Badge count={count} size="small" color="default" className="mod-configs-tab-badge" />
-      ) : null}
-    </span>
-  );
+  return formatFileSize(size) || '—';
 }
 
 export function ModConfigsByModPanel({
@@ -92,6 +86,7 @@ export function ModConfigsByModPanel({
 }: ModConfigsByModPanelProps) {
   const { t } = useI18n();
   const message = useMessage();
+  const modal = useModal();
   const [loading, setLoading] = useState(true);
   const [configFiles, setConfigFiles] = useState<ModConfigFileEntry[]>([]);
   const [activeTab, setActiveTab] = useState('');
@@ -109,10 +104,11 @@ export function ModConfigsByModPanel({
   const userPickedTab = useRef(false);
 
   const dirty = selectedFile != null && fileContent !== savedContent;
+  const otherLabel = t('qxmods.configSync.otherTab');
 
   const grouped = useMemo(
-    () => groupConfigFilesByMod(mods, configFiles),
-    [configFiles, mods],
+    () => filterGroupedConfigs(groupConfigFilesByMod(mods, configFiles), searchQuery, otherLabel),
+    [configFiles, mods, otherLabel, searchQuery],
   );
 
   const totalConfigCount = useMemo(
@@ -121,12 +117,7 @@ export function ModConfigsByModPanel({
   );
 
   const tabItems = useMemo(() => {
-    const items: Array<{
-      key: string;
-      label: string;
-      mod?: ModConfigMod;
-      files: ModConfigFileEntry[];
-    }> = grouped.groups.map((group) => ({
+    const items: ConfigTab[] = grouped.groups.map((group) => ({
       key: group.mod.key,
       label: group.mod.label,
       mod: group.mod,
@@ -135,12 +126,12 @@ export function ModConfigsByModPanel({
     if (grouped.other.length > 0) {
       items.push({
         key: 'other',
-        label: t('qxmods.configSync.otherTab'),
+        label: otherLabel,
         files: grouped.other,
       });
     }
     return items;
-  }, [grouped, t]);
+  }, [grouped, otherLabel]);
 
   const effectiveActiveTab = useMemo(() => {
     if (tabItems.length === 0) return '';
@@ -151,29 +142,14 @@ export function ModConfigsByModPanel({
         tabItems[0];
       return preferred.key;
     }
-    let resolved = tabItems.some((item) => item.key === activeTab) ? activeTab : '';
-    if (!resolved) {
-      const preferred =
-        tabItems.find((item) => item.key !== 'other' && item.files.length > 0) ?? tabItems[0];
-      resolved = preferred.key;
+    if (tabItems.some((item) => item.key === activeTab)) {
+      return activeTab;
     }
-    const current = tabItems.find((item) => item.key === resolved);
-    if (current && current.files.length === 0) {
-      const fallback = tabItems.find((item) => item.files.length > 0);
-      if (fallback) resolved = fallback.key;
-    }
-    return resolved;
+    return (tabItems.find((item) => item.files.length > 0) ?? tabItems[0]).key;
   }, [activeTab, tabItems]);
 
-  const activeFiles = useMemo(
-    () => tabItems.find((item) => item.key === effectiveActiveTab)?.files ?? [],
-    [effectiveActiveTab, tabItems],
-  );
-
-  const filteredFiles = useMemo(
-    () => filterConfigFileEntries(activeFiles, searchQuery),
-    [activeFiles, searchQuery],
-  );
+  const activeItem = tabItems.find((item) => item.key === effectiveActiveTab);
+  const activeFiles = activeItem?.files ?? [];
 
   const loadConfigTree = useCallback(async () => {
     if (!available) {
@@ -183,10 +159,7 @@ export function ModConfigsByModPanel({
     }
     setLoading(true);
     try {
-      const files = await listConfigPaths(async (path) => {
-        const res = await fileApi.listDir(path);
-        return res;
-      });
+      const files = await listConfigPaths(async (path) => fileApi.listDir(path));
       setConfigFiles(files);
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('gameServerDetail.filesLoadFailed'));
@@ -211,7 +184,7 @@ export function ModConfigsByModPanel({
       closeEditor();
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: t('qxmods.configSync.discardChangesTitle'),
       content: t('qxmods.configSync.discardChangesBody'),
       okText: t('qxmods.configSync.discardChangesConfirm'),
@@ -237,8 +210,8 @@ export function ModConfigsByModPanel({
     }
   };
 
-  const saveFile = async () => {
-    if (!selectedFile || !dirty) return;
+  const saveFile = useCallback(async () => {
+    if (!selectedFile || fileContent === savedContent) return;
     setSaving(true);
     try {
       await fileApi.writeFile(selectedFile, fileContent);
@@ -249,7 +222,19 @@ export function ModConfigsByModPanel({
     } finally {
       setSaving(false);
     }
-  };
+  }, [fileApi, fileContent, message, savedContent, selectedFile, t]);
+
+  useEffect(() => {
+    if (!selectedFile) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        void saveFile();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [saveFile, selectedFile]);
 
   const canSyncToServer =
     mode === 'instance' &&
@@ -263,14 +248,9 @@ export function ModConfigsByModPanel({
     configSync.agentOnline === true;
 
   const syncUnavailableReason = useMemo(() => {
-    if (mode === 'instance') {
-      if (!configSync?.deviceLinked) return t('qxmods.configSync.syncUnavailableDevice');
-      if (!configSync.instanceLoader) return t('qxmods.configSync.syncUnavailableLoader');
-      return null;
-    }
+    if (mode !== 'instance') return null;
     if (!configSync?.deviceLinked) return t('qxmods.configSync.syncUnavailableDevice');
-    if (!configSync.instanceId) return t('qxmods.configSync.syncUnavailableBinding');
-    if (!configSync.agentOnline) return t('servers.gameServersAgentRequired');
+    if (!configSync.instanceLoader) return t('qxmods.configSync.syncUnavailableLoader');
     return null;
   }, [configSync, mode, t]);
 
@@ -329,111 +309,164 @@ export function ModConfigsByModPanel({
     }
   };
 
+  const selectTab = (key: string) => {
+    userPickedTab.current = true;
+    setActiveTab(key);
+  };
+
+  const title =
+    mode === 'instance' ? t('qxmods.configSync.instanceTitle') : t('qxmods.configSync.serverTitle');
+  const intro =
+    mode === 'instance' ? t('qxmods.configSync.instanceIntro') : t('qxmods.configSync.serverIntro');
+
   if (!available) {
     return (
-      <Alert
-        type="info"
-        showIcon
-        message={
-          mode === 'instance'
-            ? t('launcher.instanceSettingsModsConfigNote')
-            : t('servers.gameServersAgentRequired')
-        }
-      />
+      <section className="mod-configs">
+        <header className="mod-configs-hero">
+          <div className="mod-configs-hero-main">
+            <Typography.Title level={3} className="mod-configs-title">
+              {title}
+            </Typography.Title>
+            <Typography.Paragraph type="secondary" className="mod-configs-intro">
+              {intro}
+            </Typography.Paragraph>
+          </div>
+        </header>
+        <Alert
+          type="info"
+          showIcon
+          message={
+            mode === 'instance'
+              ? t('launcher.instanceSettingsModsConfigNote')
+              : t('servers.gameServersAgentRequired')
+          }
+        />
+      </section>
     );
   }
 
+  const serverPicker = (
+    <Modal
+      title={t('qxmods.configSync.toServer')}
+      open={serverPickerOpen}
+      onCancel={() => setServerPickerOpen(false)}
+      onOk={() => void syncToServer()}
+      confirmLoading={syncing}
+      okText={t('qxmods.configSync.toServer')}
+      cancelText={t('common.cancel')}
+      {...modalMotionProps}
+    >
+      {serverTargetsLoading ? (
+        <div className="servers-loading">
+          <Spin />
+        </div>
+      ) : serverTargets.length === 0 ? (
+        <Empty description={t('qxmods.sync.noServers')} />
+      ) : (
+        <Radio.Group
+          value={selectedServerKey}
+          onChange={(e) => setSelectedServerKey(e.target.value as string)}
+          style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+        >
+          {serverTargets.map((target) => (
+            <Radio key={gameServerSyncTargetKey(target)} value={gameServerSyncTargetKey(target)}>
+              {target.vpsName} · {target.gameServer.name}
+            </Radio>
+          ))}
+        </Radio.Group>
+      )}
+    </Modal>
+  );
+
   if (selectedFile) {
     return (
-      <div className="game-server-files-editor mod-configs-editor">
-        <Space className="game-server-files-toolbar" wrap>
-          <Button icon={<ArrowLeftOutlined />} onClick={requestCloseEditor}>
-            {t('qxmods.configSync.backToList')}
-          </Button>
-          <Typography.Text code className="mod-configs-editor-path">
-            {selectedFile}
-          </Typography.Text>
-          {dirty ? (
-            <Typography.Text type="warning">{t('qxmods.configSync.unsavedChanges')}</Typography.Text>
-          ) : null}
-          <Button type="primary" loading={saving} disabled={!dirty} onClick={() => void saveFile()}>
-            {t('common.save')}
-          </Button>
-          {canSyncToServer ? (
-            <Button icon={<CloudUploadOutlined />} onClick={() => void openServerPicker()}>
-              {t('qxmods.configSync.toServer')}
-            </Button>
-          ) : null}
-          {canPullFromServer ? (
-            <Button icon={<CloudDownloadOutlined />} loading={syncing} onClick={() => void pullFromServer()}>
-              {t('qxmods.configSync.pullFromServer')}
-            </Button>
-          ) : null}
-        </Space>
-        {canSyncToServer ? (
-          <Typography.Paragraph type="secondary" className="mod-configs-sync-hint">
-            {t('qxmods.configSync.syncHintInstance')}
-          </Typography.Paragraph>
-        ) : canPullFromServer ? (
-          <Typography.Paragraph type="secondary" className="mod-configs-sync-hint">
-            {t('qxmods.configSync.syncHintServer')}
-          </Typography.Paragraph>
-        ) : syncUnavailableReason ? (
-          <Alert type="info" showIcon className="mod-configs-sync-hint" message={syncUnavailableReason} />
-        ) : null}
-        {fileLoading ? (
-          <div className="servers-loading">
-            <Spin />
+      <section className="mod-configs">
+        <div className="mod-configs-editor">
+          <div className="mod-configs-editor-bar">
+            <div className="mod-configs-editor-heading">
+              <Button type="text" icon={<ArrowLeftOutlined />} onClick={requestCloseEditor}>
+                {t('qxmods.configSync.backToList')}
+              </Button>
+              <Typography.Title level={4} className="mod-configs-editor-name">
+                {basename(selectedFile)}
+              </Typography.Title>
+              <span className="mod-configs-editor-path">{selectedFile}</span>
+            </div>
+            <div className="mod-configs-editor-actions">
+              {dirty ? <Tag color="warning">{t('qxmods.configSync.unsavedChanges')}</Tag> : null}
+              <Button type="primary" loading={saving} disabled={!dirty} onClick={() => void saveFile()}>
+                {t('common.save')}
+              </Button>
+              {canSyncToServer ? (
+                <Button icon={<CloudUploadOutlined />} onClick={() => void openServerPicker()}>
+                  {t('qxmods.configSync.toServer')}
+                </Button>
+              ) : null}
+              {canPullFromServer ? (
+                <Button icon={<CloudDownloadOutlined />} loading={syncing} onClick={() => void pullFromServer()}>
+                  {t('qxmods.configSync.pullFromServer')}
+                </Button>
+              ) : null}
+            </div>
           </div>
-        ) : (
-          <Input.TextArea
-            className="game-server-files-textarea mod-configs-textarea"
-            value={fileContent}
-            rows={18}
-            spellCheck={false}
-            onChange={(e) => setFileContent(e.target.value)}
-          />
-        )}
-        <Modal
-          title={t('qxmods.configSync.toServer')}
-          open={serverPickerOpen}
-          onCancel={() => setServerPickerOpen(false)}
-          onOk={() => void syncToServer()}
-          confirmLoading={syncing}
-          okText={t('qxmods.configSync.toServer')}
-          cancelText={t('common.cancel')}
-          {...modalMotionProps}
-        >
-          {serverTargetsLoading ? (
+          {canSyncToServer ? (
+            <Typography.Paragraph type="secondary" className="mod-configs-sync-hint">
+              {t('qxmods.configSync.syncHintInstance')}
+            </Typography.Paragraph>
+          ) : canPullFromServer ? (
+            <Typography.Paragraph type="secondary" className="mod-configs-sync-hint">
+              {t('qxmods.configSync.syncHintServer')}
+            </Typography.Paragraph>
+          ) : syncUnavailableReason ? (
+            <Alert type="info" showIcon message={syncUnavailableReason} />
+          ) : null}
+          {fileLoading ? (
             <div className="servers-loading">
               <Spin />
             </div>
-          ) : serverTargets.length === 0 ? (
-            <Empty description={t('qxmods.sync.noServers')} />
           ) : (
-            <Radio.Group
-              value={selectedServerKey}
-              onChange={(e) => setSelectedServerKey(e.target.value as string)}
-              style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
-            >
-              {serverTargets.map((target) => (
-                <Radio key={gameServerSyncTargetKey(target)} value={gameServerSyncTargetKey(target)}>
-                  {target.vpsName} · {target.gameServer.name}
-                </Radio>
-              ))}
-            </Radio.Group>
+            <Input.TextArea
+              className="mod-configs-textarea"
+              value={fileContent}
+              rows={18}
+              spellCheck={false}
+              aria-label={t('qxmods.configSync.editorAria')}
+              onChange={(e) => setFileContent(e.target.value)}
+            />
           )}
-        </Modal>
-      </div>
+        </div>
+        {serverPicker}
+      </section>
     );
   }
 
   return (
-    <div className="game-server-files mod-configs-panel">
+    <section className="mod-configs">
+      <header className="mod-configs-hero">
+        <div className="mod-configs-hero-main">
+          <Typography.Title level={3} className="mod-configs-title">
+            {title}
+          </Typography.Title>
+          <Typography.Paragraph type="secondary" className="mod-configs-intro">
+            {intro}
+          </Typography.Paragraph>
+        </div>
+        {!loading && totalConfigCount > 0 ? (
+          <div className="mod-configs-chips">
+            <span className="mod-configs-chip">
+              {t('qxmods.configSync.modsChip', { count: tabItems.length })}
+            </span>
+            <span className="mod-configs-chip">
+              {t('qxmods.configSync.filesChip', { count: totalConfigCount })}
+            </span>
+          </div>
+        ) : null}
+      </header>
+
       <div className="mod-configs-toolbar">
-        <Input
+        <Input.Search
           allowClear
-          className="mod-configs-toolbar-search"
+          className="mod-configs-search"
           prefix={<SearchOutlined aria-hidden />}
           placeholder={t('qxmods.configSync.searchPlaceholder')}
           value={searchQuery}
@@ -442,88 +475,98 @@ export function ModConfigsByModPanel({
         <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void loadConfigTree()}>
           {t('qxmods.configSync.refresh')}
         </Button>
-        {!loading && totalConfigCount > 0 ? (
-          <Typography.Text type="secondary">
-            {t('qxmods.configSync.summary', { count: totalConfigCount })}
-          </Typography.Text>
-        ) : null}
       </div>
-      {mode === 'server' && syncUnavailableReason ? (
-        <Alert type="info" showIcon className="mod-configs-binding-hint" message={syncUnavailableReason} />
-      ) : null}
+
       {loading ? (
         <div className="servers-loading">
           <Spin />
         </div>
       ) : totalConfigCount === 0 ? (
-        <Empty description={t('qxmods.configSync.noConfigs')}>
-          <Typography.Paragraph type="secondary">{t('qxmods.configSync.emptyHint')}</Typography.Paragraph>
-        </Empty>
-      ) : (
-        <>
-          <Tabs
-            activeKey={effectiveActiveTab}
-            onChange={(key) => {
-              userPickedTab.current = true;
-              setActiveTab(key);
-            }}
-            tabBarGutter={8}
-            className="mod-configs-tabs"
-            items={tabItems.map((item) => ({
-              key: item.key,
-              label: renderTabLabel(item.label, item.files.length, item.mod?.icon_url),
-            }))}
+        <div className="mod-configs-empty">
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <div>
+                <Typography.Text>{t('qxmods.configSync.noConfigs')}</Typography.Text>
+                <Typography.Paragraph type="secondary">
+                  {t(
+                    mode === 'server'
+                      ? 'qxmods.configSync.emptyHintServer'
+                      : 'qxmods.configSync.emptyHint',
+                  )}
+                </Typography.Paragraph>
+              </div>
+            }
           />
-          {activeFiles.length === 0 ? (
-            <Empty description={t('qxmods.configSync.noConfigs')}>
-              <Typography.Paragraph type="secondary">{t('qxmods.configSync.emptyTabHint')}</Typography.Paragraph>
-            </Empty>
-          ) : filteredFiles.length === 0 ? (
-            <Empty description={t('qxmods.configSync.noSearchResults')} />
-          ) : (
-            <Table
-              className="game-server-files-table mod-configs-table"
-              rowKey="path"
-              size="small"
-              pagination={false}
-              dataSource={filteredFiles}
-              onRow={(row) => ({
-                onClick: () => void openFile(row.path),
-                className: 'game-server-files-row',
+        </div>
+      ) : (
+        <div className="mod-configs-workspace">
+          <aside className="mod-configs-mods">
+            <p className="mod-configs-mods-title">{t('qxmods.configSync.modsListTitle')}</p>
+            <ul className="mod-configs-mods-list">
+              {tabItems.map((item) => {
+                const active = item.key === effectiveActiveTab;
+                return (
+                  <li key={item.key}>
+                    <button
+                      type="button"
+                      className={`mod-configs-mod${active ? ' mod-configs-mod--active' : ''}`}
+                      aria-pressed={active}
+                      onClick={() => selectTab(item.key)}
+                    >
+                      <ModCatalogIcon url={item.mod?.icon_url} name={item.label} size={32} />
+                      <span className="mod-configs-mod-copy">
+                        <span className="mod-configs-mod-name">{item.label}</span>
+                        <span className="mod-configs-mod-meta">
+                          {t('qxmods.configSync.filesChip', { count: item.files.length })}
+                        </span>
+                      </span>
+                      <span className="mod-configs-mod-count">{item.files.length}</span>
+                    </button>
+                  </li>
+                );
               })}
-              columns={[
-                {
-                  title: t('gameServerDetail.fileName'),
-                  key: 'name',
-                  render: (_, row) => (
-                    <Space>
-                      <FileOutlined />
-                      <span>{basename(row.path)}</span>
-                    </Space>
-                  ),
-                },
-                {
-                  title: t('qxmods.configSync.filePath'),
-                  key: 'path',
-                  responsive: ['md'],
-                  render: (_, row) => (
-                    <Typography.Text type="secondary" className="mod-configs-path">
-                      {configRelativePath(row.path)}
-                    </Typography.Text>
-                  ),
-                },
-                {
-                  title: t('gameServerDetail.fileSize'),
-                  key: 'size',
-                  width: 96,
-                  render: (_, row) => formatSize(row.size),
-                },
-              ]}
-            />
-          )}
-        </>
+            </ul>
+          </aside>
+          <div className="mod-configs-files">
+            <p className="mod-configs-files-title">
+              {activeItem
+                ? t('qxmods.configSync.filesFor', { name: activeItem.label })
+                : t('qxmods.configSync.filesChip', { count: 0 })}
+            </p>
+            {activeFiles.length === 0 ? (
+              <div className="mod-configs-empty">
+                <Empty description={t('qxmods.configSync.emptyTabHint')} />
+              </div>
+            ) : (
+              <ul className="mod-configs-file-list">
+                {activeFiles.map((row) => {
+                  const ext = configFileExtension(row.path);
+                  return (
+                    <li key={row.path}>
+                      <button
+                        type="button"
+                        className="mod-configs-file"
+                        onClick={() => void openFile(row.path)}
+                      >
+                        <span className="mod-configs-file-ext">{ext || 'cfg'}</span>
+                        <span className="mod-configs-file-copy">
+                          <span className="mod-configs-file-name">{basename(row.path)}</span>
+                          <span className="mod-configs-file-path">{configRelativePath(row.path)}</span>
+                        </span>
+                        <span className="mod-configs-file-size">{formatSize(row.size)}</span>
+                        <RightOutlined aria-hidden />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
       )}
-    </div>
+      {serverPicker}
+    </section>
   );
 }
 

@@ -8,6 +8,7 @@ import {
 } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { useModal } from '@/hooks/useModal';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
 import {
   isFilenameOnServer,
@@ -61,6 +62,7 @@ export function ModSyncModal({
 }: ModSyncModalProps) {
   const { t } = useI18n();
   const message = useMessage();
+  const modal = useModal();
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<SyncFeedback | null>(null);
@@ -104,7 +106,7 @@ export function ModSyncModal({
   }, [selectedTarget, selection, uploadedResource]);
 
   const promptServerRestart = (target: (typeof targets)[number]) => {
-    Modal.confirm({
+    modal.confirm({
       title: t('qxmods.sync.restartTitle'),
       content: t('qxmods.sync.restartPrompt', { name: target.gameServer.name }),
       okText: t('qxmods.sync.restartConfirm'),

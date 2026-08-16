@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONFIG_EXTENSIONS,
+  configFileExtension,
   configRelativePath,
   filterConfigFileEntries,
+  filterGroupedConfigs,
   groupConfigFilesByMod,
   isConfigFilePath,
   listConfigPaths,
@@ -73,6 +75,49 @@ describe('groupConfigFilesByMod', () => {
     const result = groupConfigFilesByMod([fabricMod], [{ path: 'config/fabric-api/client.json' }]);
     expect(result.groups[0]?.files).toEqual([{ path: 'config/fabric-api/client.json' }]);
     expect(result.other).toEqual([]);
+  });
+});
+
+describe('filterGroupedConfigs', () => {
+  const fabricMod: ModConfigMod = {
+    key: 'fabric-api',
+    label: 'Fabric API',
+    filename: 'fabric-api.jar',
+    project_name: 'Fabric API',
+  };
+
+  it('keeps a whole group when the mod name matches', () => {
+    const grouped = groupConfigFilesByMod(
+      [fabricMod],
+      [
+        { path: 'config/fabric-api.toml' },
+        { path: 'config/unknown.cfg' },
+      ],
+    );
+    const filtered = filterGroupedConfigs(grouped, 'fabric', 'Other');
+    expect(filtered.groups).toHaveLength(1);
+    expect(filtered.groups[0].files).toHaveLength(1);
+    expect(filtered.other).toEqual([]);
+  });
+
+  it('filters other files by path and ignores unmatched mods', () => {
+    const grouped = groupConfigFilesByMod(
+      [fabricMod],
+      [
+        { path: 'config/fabric-api.toml' },
+        { path: 'config/sodium-options.json' },
+      ],
+    );
+    const filtered = filterGroupedConfigs(grouped, 'sodium', 'Other');
+    expect(filtered.groups).toEqual([]);
+    expect(filtered.other).toEqual([{ path: 'config/sodium-options.json' }]);
+  });
+});
+
+describe('configFileExtension', () => {
+  it('returns the lowercase extension', () => {
+    expect(configFileExtension('config/sodium-options.JSON')).toBe('json');
+    expect(configFileExtension('config/readme')).toBe('');
   });
 });
 

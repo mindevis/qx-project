@@ -1,0 +1,326 @@
+.mod-configs {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+.mod-configs-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mod-configs-hero-main {
+  min-width: 0;
+  flex: 1 1 280px;
+}
+
+.mod-configs-title {
+  margin: 0 0 8px !important;
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+.mod-configs-intro {
+  max-width: 640px;
+  margin-bottom: 0 !important;
+}
+
+.mod-configs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mod-configs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 999px;
+  color: var(--ant-color-text-secondary);
+  background: rgba(114, 46, 209, 0.06);
+  border: 1px solid rgba(114, 46, 209, 0.12);
+}
+
+.mod-configs-chip strong {
+  color: var(--ant-color-text);
+  font-weight: 600;
+}
+
+.mod-configs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.mod-configs-search {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+
+.mod-configs-workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 420px;
+}
+
+.mod-configs-mods,
+.mod-configs-files {
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+html[data-theme='dark'] .mod-configs-mods,
+html[data-theme='dark'] .mod-configs-files {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mod-configs-mods {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mod-configs-mods-title,
+.mod-configs-files-title {
+  margin: 0;
+  padding: 14px 16px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ant-color-text-secondary);
+}
+
+.mod-configs-mods-list,
+.mod-configs-file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+  overflow: auto;
+}
+
+.mod-configs-mod {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mod-configs-mod:hover {
+  background: rgba(114, 46, 209, 0.06);
+}
+
+.mod-configs-mod--active {
+  background: rgba(114, 46, 209, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(114, 46, 209, 0.18);
+}
+
+.mod-configs-mod-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.mod-configs-mod-name {
+  display: block;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-configs-mod-meta {
+  display: block;
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+}
+
+.mod-configs-mod-count {
+  min-width: 1.5em;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  color: #722ed1;
+  background: rgba(114, 46, 209, 0.12);
+}
+
+html[data-theme='dark'] .mod-configs-mod-count {
+  color: #b37feb;
+}
+
+.mod-configs-files {
+  display: flex;
+  flex-direction: column;
+}
+
+.mod-configs-file {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+html[data-theme='dark'] .mod-configs-file {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mod-configs-file:hover {
+  border-color: rgba(114, 46, 209, 0.28);
+  box-shadow: 0 4px 16px rgba(114, 46, 209, 0.08);
+}
+
+.mod-configs-file-ext {
+  flex: 0 0 auto;
+  min-width: 44px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #722ed1;
+  background: rgba(114, 46, 209, 0.1);
+}
+
+.mod-configs-file-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.mod-configs-file-name {
+  display: block;
+  font-weight: 600;
+}
+
+.mod-configs-file-path {
+  display: block;
+  overflow: hidden;
+  color: var(--ant-color-text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-configs-file-size {
+  flex: 0 0 auto;
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+}
+
+.mod-configs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.mod-configs-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 480px;
+}
+
+.mod-configs-editor-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mod-configs-editor-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.mod-configs-editor-name {
+  margin: 4px 0 0 !important;
+}
+
+.mod-configs-editor-path {
+  display: block;
+  margin-top: 4px;
+  color: var(--ant-color-text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.mod-configs-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mod-configs-textarea.ant-input {
+  flex: 1;
+  min-height: 360px;
+  padding: 16px;
+  border-radius: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.mod-configs-sync-hint {
+  margin-bottom: 0 !important;
+}
+
+@media (max-width: 860px) {
+  .mod-configs-workspace {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .mod-configs-mods-list {
+    display: flex;
+    gap: 6px;
+    padding-bottom: 10px;
+    overflow: auto hidden;
+  }
+
+  .mod-configs-mod {
+    flex: 0 0 auto;
+    max-width: 220px;
+  }
+
+  .mod-configs-search {
+    max-width: none;
+  }
+}

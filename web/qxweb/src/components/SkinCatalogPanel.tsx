@@ -98,7 +98,7 @@ export function SkinCatalogPanel({ onApplied }: Props) {
           options={categoryOptions}
           className="skins-catalog-category"
         />
-        <Input
+        <Input.Search
           allowClear
           value={filterDraft}
           onChange={(e) => setFilterDraft(e.target.value)}

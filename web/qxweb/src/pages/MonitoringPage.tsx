@@ -16,7 +16,6 @@ import {
 import {
   CopyOutlined,
   CrownOutlined,
-  GlobalOutlined,
   HeartFilled,
   HeartOutlined,
   PlayCircleOutlined,
@@ -678,20 +677,12 @@ export function MonitoringPage() {
   return (
     <div className="monitoring-page">
       <section className="monitoring-hero">
-        <div className="monitoring-hero-ambient" aria-hidden>
-          <span className="monitoring-hero-blob monitoring-hero-blob--1" />
-          <span className="monitoring-hero-blob monitoring-hero-blob--2" />
-          <span className="monitoring-hero-blob monitoring-hero-blob--3" />
-          <span className="monitoring-hero-grid-pattern" />
-        </div>
-
         <div className="monitoring-hero-inner">
           <div className="monitoring-hero-content">
-            <p className="monitoring-hero-badge">{t('monitoring.badge')}</p>
             <Title level={1} className="monitoring-hero-title">
               {highlightMinecraft(t('monitoring.title'))}
             </Title>
-            <Paragraph className="monitoring-hero-subtitle">{t('monitoring.subtitle')}</Paragraph>
+            <Paragraph type="secondary" className="monitoring-hero-subtitle">{t('monitoring.subtitle')}</Paragraph>
             <div className="monitoring-hero-stats">
               <span className="monitoring-stat-pill">
                 {t('monitoring.statTotal', { count: servers.length })}
@@ -706,16 +697,6 @@ export function MonitoringPage() {
               >
                 {t('monitoring.refresh')}
               </Button>
-            </div>
-          </div>
-
-          <div className="monitoring-hero-visual" aria-hidden>
-            <div className="monitoring-orbit">
-              <div className="monitoring-orbit-ring monitoring-orbit-ring--outer" />
-              <div className="monitoring-orbit-ring monitoring-orbit-ring--inner" />
-              <div className="monitoring-orbit-core">
-                <GlobalOutlined />
-              </div>
             </div>
           </div>
         </div>

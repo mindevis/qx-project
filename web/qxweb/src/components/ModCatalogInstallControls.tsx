@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Modal, Select, Tag } from 'antd';
+import { Button, Popconfirm, Select, Tag } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import {
   type ModProjectType,
@@ -274,39 +274,29 @@ export function ModCatalogInstallControls({
     }
   };
 
-  const handleUninstall = () => {
-    Modal.confirm({
-      title: t('qxmods.uninstall.confirmTitle'),
-      content: t('qxmods.uninstall.confirmBody', { name: projectName }),
-      okText: t('qxmods.uninstall.action'),
-      cancelText: t('common.cancel'),
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        setUninstalling(true);
-        try {
-          const resources = await listInstalled();
-          const match = resources.find(
-            (item) =>
-              item.source === source &&
-              item.project_id === projectId &&
-              item.resource_type === projectType,
-          );
-          await uninstall({
-            source,
-            projectId,
-            filename: match?.filename,
-            resourceType: projectType,
-          });
-          message.success(t('qxmods.uninstall.completed'));
-          onUninstalled?.();
-        } catch (e) {
-          message.error(e instanceof Error ? e.message : t('qxmods.uninstall.failed'));
-          throw e;
-        } finally {
-          setUninstalling(false);
-        }
-      },
-    });
+  const handleUninstall = async () => {
+    setUninstalling(true);
+    try {
+      const resources = await listInstalled();
+      const match = resources.find(
+        (item) =>
+          item.source === source &&
+          item.project_id === projectId &&
+          item.resource_type === projectType,
+      );
+      await uninstall({
+        source,
+        projectId,
+        filename: match?.filename,
+        resourceType: projectType,
+      });
+      message.success(t('qxmods.uninstall.completed'));
+      onUninstalled?.();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('qxmods.uninstall.failed'));
+    } finally {
+      setUninstalling(false);
+    }
   };
 
   const ensureVersionAndInstall = () => {
@@ -379,9 +369,18 @@ export function ModCatalogInstallControls({
           {t('qxmods.install.action')}
         </Button>
         {isInstalled ? (
-          <Button size="small" danger loading={uninstalling} disabled={disabled} onClick={handleUninstall}>
-            {t('qxmods.uninstall.action')}
-          </Button>
+          <Popconfirm
+            title={t('qxmods.uninstall.confirmTitle')}
+            description={t('qxmods.uninstall.confirmBody', { name: projectName })}
+            okText={t('qxmods.uninstall.action')}
+            cancelText={t('common.cancel')}
+            okButtonProps={{ danger: true }}
+            onConfirm={() => void handleUninstall()}
+          >
+            <Button size="small" danger loading={uninstalling} disabled={disabled}>
+              {t('qxmods.uninstall.action')}
+            </Button>
+          </Popconfirm>
         ) : null}
       </div>
       {pendingVersion ? (

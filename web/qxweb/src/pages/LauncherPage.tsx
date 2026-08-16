@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import {
   Alert,
   Button,
+  Empty,
   Form,
   Input,
   InputNumber,
@@ -163,12 +164,14 @@ function LauncherHome() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsInstance, setSettingsInstance] = useState<LauncherInstance | null>(null);
   const [settingsTab, setSettingsTab] = useState<'launch' | 'options' | 'files' | 'mods'>('launch');
-  const [settingsName, setSettingsName] = useState('');
-  const [settingsRamMb, setSettingsRamMb] = useState(defaultInstanceMemoryMb);
-  const [settingsMinRamMb, setSettingsMinRamMb] = useState(defaultInstanceMemoryMb);
-  const [settingsExtraJvmArgs, setSettingsExtraJvmArgs] = useState('');
-  const [settingsWindowWidth, setSettingsWindowWidth] = useState<number | null>(null);
-  const [settingsWindowHeight, setSettingsWindowHeight] = useState<number | null>(null);
+  const [settingsForm] = Form.useForm<{
+    name: string;
+    min_memory_mb: number;
+    max_memory_mb: number;
+    extra_jvm_args: string;
+    window_width: number | null;
+    window_height: number | null;
+  }>();
   const [savingSettings, setSavingSettings] = useState(false);
   const userChoseAccountMode = useRef(false);
   const [, setAccessKey] = useState(0);
@@ -723,30 +726,53 @@ function LauncherHome() {
   const openInstanceSettings = (instance: LauncherInstance) => {
     setSettingsInstance(instance);
     setSettingsTab('launch');
-    setSettingsName(instance.name);
-    setSettingsRamMb(instance.max_memory_mb ?? defaultInstanceMemoryMb);
-    setSettingsMinRamMb(instance.min_memory_mb ?? defaultInstanceMemoryMb);
-    setSettingsExtraJvmArgs((instance.extra_jvm_args ?? []).join('\n'));
-    setSettingsWindowWidth(instance.window_width ?? null);
-    setSettingsWindowHeight(instance.window_height ?? null);
+    settingsForm.setFieldsValue({
+      name: instance.name,
+      min_memory_mb: instance.min_memory_mb ?? defaultInstanceMemoryMb,
+      max_memory_mb: instance.max_memory_mb ?? defaultInstanceMemoryMb,
+      extra_jvm_args: (instance.extra_jvm_args ?? []).join('\n'),
+      window_width: instance.window_width ?? null,
+      window_height: instance.window_height ?? null,
+    });
     setSettingsOpen(true);
   };
 
   const handleSaveInstanceSettings = async () => {
     if (!settingsInstance) return;
+    let values: {
+      name: string;
+      min_memory_mb: number;
+      max_memory_mb: number;
+      extra_jvm_args: string;
+      window_width: number | null;
+      window_height: number | null;
+    };
+    try {
+      values = await settingsForm.validateFields();
+    } catch {
+      setSettingsTab('launch');
+      return;
+    }
+    if (values.min_memory_mb > values.max_memory_mb) {
+      setSettingsTab('launch');
+      settingsForm.setFields([
+        { name: 'max_memory_mb', errors: [t('launcher.memoryRangeInvalid')] },
+      ]);
+      return;
+    }
     setSavingSettings(true);
     try {
-      const extraJvmArgs = settingsExtraJvmArgs
+      const extraJvmArgs = (values.extra_jvm_args ?? '')
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean);
       const updated = await api.updateInstance(settingsInstance.id, {
-        name: settingsName.trim(),
-        max_memory_mb: settingsRamMb,
-        min_memory_mb: settingsMinRamMb,
+        name: values.name.trim(),
+        max_memory_mb: values.max_memory_mb,
+        min_memory_mb: values.min_memory_mb,
         extra_jvm_args: extraJvmArgs,
-        window_width: settingsWindowWidth ?? 0,
-        window_height: settingsWindowHeight ?? 0,
+        window_width: values.window_width ?? 0,
+        window_height: values.window_height ?? 0,
       });
       setInstances((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
       message.success(t('launcher.instanceSettingsSaved'));
@@ -805,20 +831,12 @@ function LauncherHome() {
   return (
     <div className="launcher-page">
       <section className="launcher-hero">
-        <div className="launcher-hero-ambient" aria-hidden>
-          <span className="launcher-hero-blob launcher-hero-blob--1" />
-          <span className="launcher-hero-blob launcher-hero-blob--2" />
-          <span className="launcher-hero-blob launcher-hero-blob--3" />
-          <span className="launcher-hero-grid-pattern" />
-        </div>
-
         <div className="launcher-hero-inner">
           <div className="launcher-hero-content">
-            <span className="launcher-badge">{t('home.heroTagLauncher')}</span>
             <Title level={1} className="launcher-title">
-              <span className="launcher-title-highlight">{t('launcher.title')}</span>
+              {t('launcher.title')}
             </Title>
-            <Paragraph className="launcher-intro">{t('launcher.intro')}</Paragraph>
+            <Paragraph type="secondary" className="launcher-intro">{t('launcher.intro')}</Paragraph>
             {canManage ? (
               <Space wrap size="middle" className="launcher-hero-actions">
                 <Button
@@ -835,16 +853,6 @@ function LauncherHome() {
                 </Button>
               </Space>
             ) : null}
-          </div>
-
-          <div className="launcher-hero-visual" aria-hidden>
-            <div className="launcher-orbit">
-              <div className="launcher-orbit-ring launcher-orbit-ring--outer" />
-              <div className="launcher-orbit-ring launcher-orbit-ring--inner" />
-              <div className="launcher-orbit-core">
-                <DesktopOutlined />
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -1098,31 +1106,35 @@ function LauncherHome() {
                     ) : null}
                   </div>
                 ) : (
-                  <div className="launcher-empty launcher-empty--inline">
-                    <LinkOutlined className="launcher-empty-icon" />
-                    <Paragraph type="secondary">{t('launcher.licensedNotLinked')}</Paragraph>
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t('launcher.licensedNotLinked')}
+                  >
                     <Link to="/profile">
                       <Button type="primary" icon={<LinkOutlined />}>
                         {t('launcher.linkMicrosoft')}
                       </Button>
                     </Link>
-                  </div>
+                  </Empty>
                 )
               ) : profilesLoading ? (
                 <div className="launcher-panel-loading">
                   <Spin />
                 </div>
               ) : profiles.length === 0 ? (
-                <div className="launcher-empty launcher-empty--inline">
-                  <UserOutlined className="launcher-empty-icon" />
-                  <Paragraph type="secondary">{t('launcher.noProfiles')}</Paragraph>
-                  <Paragraph type="secondary" className="launcher-empty-hint">
-                    {t('launcher.noProfilesHint')}
-                  </Paragraph>
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={
+                    <div>
+                      <Paragraph>{t('launcher.noProfiles')}</Paragraph>
+                      <Paragraph type="secondary">{t('launcher.noProfilesHint')}</Paragraph>
+                    </div>
+                  }
+                >
                   <Button type="primary" icon={<PlusOutlined />} onClick={openProfileModal}>
                     {t('launcher.addProfile')}
                   </Button>
-                </div>
+                </Empty>
               ) : (
                 <>
                   <Paragraph type="secondary" className="launcher-panel-hint">
@@ -1260,27 +1272,28 @@ function LauncherHome() {
                 <Spin />
               </div>
             ) : !canManage ? (
-              <div className="launcher-empty">
-                <LoginOutlined className="launcher-empty-icon" />
-                <Paragraph type="secondary" className="launcher-panel-empty">
-                  {t('launcher.signInRequired')}
-                </Paragraph>
-              </div>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={t('launcher.signInRequired')}
+              />
             ) : loading ? (
               <div className="launcher-panel-loading">
                 <Spin />
               </div>
             ) : instances.length === 0 ? (
-              <div className="launcher-empty">
-                <RocketOutlined className="launcher-empty-icon" />
-                <Paragraph strong>{t('launcher.noInstances')}</Paragraph>
-                <Paragraph type="secondary" className="launcher-empty-hint">
-                  {t('launcher.noInstancesHint')}
-                </Paragraph>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div>
+                    <Paragraph strong>{t('launcher.noInstances')}</Paragraph>
+                    <Paragraph type="secondary">{t('launcher.noInstancesHint')}</Paragraph>
+                  </div>
+                }
+              >
                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
                   {t('launcher.createFirstInstance')}
                 </Button>
-              </div>
+              </Empty>
             ) : (
               <div className="launcher-instance-list">
                 {sortedInstances.map((item) => {
@@ -1553,69 +1566,69 @@ function LauncherHome() {
               children: (
                 <>
                   <Paragraph type="secondary">{t('launcher.instanceSettingsHint')}</Paragraph>
-                  <Form layout="vertical">
-                    <Form.Item label={t('common.name')}>
-                      <Input
-                        value={settingsName}
-                        maxLength={128}
-                        onChange={(e) => setSettingsName(e.target.value)}
-                        placeholder={t('launcher.placeholderInstanceName')}
-                      />
+                  <Form form={settingsForm} layout="vertical">
+                    <Form.Item
+                      name="name"
+                      label={t('common.name')}
+                      rules={[{ required: true, message: t('common.name') }]}
+                    >
+                      <Input maxLength={128} placeholder={t('launcher.placeholderInstanceName')} />
                     </Form.Item>
-                    <Form.Item label={t('launcher.minMemoryMb')}>
+                    <Form.Item name="min_memory_mb" label={t('launcher.minMemoryMb')}>
                       <InputNumber
                         min={512}
                         max={65536}
                         step={512}
                         addonAfter={t('common.megabytes')}
-                        value={settingsMinRamMb}
-                        onChange={(value) => setSettingsMinRamMb(value ?? defaultInstanceMemoryMb)}
                         style={{ width: '100%' }}
                         placeholder="—"
                       />
                     </Form.Item>
-                    <Form.Item label={t('launcher.maxMemoryMb')}>
+                    <Form.Item
+                      name="max_memory_mb"
+                      label={t('launcher.maxMemoryMb')}
+                      dependencies={['min_memory_mb']}
+                      rules={[
+                        ({ getFieldValue }) => ({
+                          validator(_, value) {
+                            const min = getFieldValue('min_memory_mb') as number | undefined;
+                            if (value != null && min != null && value < min) {
+                              return Promise.reject(new Error(t('launcher.memoryRangeInvalid')));
+                            }
+                            return Promise.resolve();
+                          },
+                        }),
+                      ]}
+                    >
                       <InputNumber
                         min={512}
                         max={65536}
                         step={512}
                         addonAfter={t('common.megabytes')}
-                        value={settingsRamMb}
-                        onChange={(value) => setSettingsRamMb(value ?? defaultInstanceMemoryMb)}
                         style={{ width: '100%' }}
                       />
                     </Form.Item>
                     <Form.Item
+                      name="extra_jvm_args"
                       label={t('launcher.extraJvmArgs')}
                       extra={t('launcher.extraJvmArgsHint')}
                     >
-                      <Input.TextArea
-                        rows={4}
-                        value={settingsExtraJvmArgs}
-                        onChange={(e) => setSettingsExtraJvmArgs(e.target.value)}
-                        placeholder="-XX:+UseG1GC"
-                      />
+                      <Input.TextArea rows={4} placeholder="-XX:+UseG1GC" />
                     </Form.Item>
                     <Space size="middle" style={{ width: '100%' }}>
-                      <Form.Item label={t('launcher.windowWidth')} style={{ flex: 1, marginBottom: 0 }}>
-                        <InputNumber
-                          min={320}
-                          max={7680}
-                          value={settingsWindowWidth}
-                          onChange={(value) => setSettingsWindowWidth(value)}
-                          style={{ width: '100%' }}
-                          placeholder="—"
-                        />
+                      <Form.Item
+                        name="window_width"
+                        label={t('launcher.windowWidth')}
+                        style={{ flex: 1, marginBottom: 0 }}
+                      >
+                        <InputNumber min={320} max={7680} style={{ width: '100%' }} placeholder="—" />
                       </Form.Item>
-                      <Form.Item label={t('launcher.windowHeight')} style={{ flex: 1, marginBottom: 0 }}>
-                        <InputNumber
-                          min={320}
-                          max={7680}
-                          value={settingsWindowHeight}
-                          onChange={(value) => setSettingsWindowHeight(value)}
-                          style={{ width: '100%' }}
-                          placeholder="—"
-                        />
+                      <Form.Item
+                        name="window_height"
+                        label={t('launcher.windowHeight')}
+                        style={{ flex: 1, marginBottom: 0 }}
+                      >
+                        <InputNumber min={320} max={7680} style={{ width: '100%' }} placeholder="—" />
                       </Form.Item>
                     </Space>
                   </Form>

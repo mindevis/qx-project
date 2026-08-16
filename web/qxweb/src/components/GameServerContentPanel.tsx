@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Badge,
   Button,
+  Empty,
   Input,
   Modal,
+  Popconfirm,
+  Segmented,
   Select,
   Spin,
   Switch,
@@ -39,9 +43,9 @@ import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { ModCatalogInstallControls } from '@/components/ModCatalogInstallControls';
 import { ModSideBadge } from '@/components/ModSideBadge';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
-import { SegmentedControl } from '@/components/SegmentedControl';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { useModal } from '@/hooks/useModal';
 import {
   gameServerTypeLabelText,
   pluginLoaderForServerType,
@@ -201,6 +205,7 @@ export function GameServerContentPanel({
 }: GameServerContentPanelProps) {
   const { t } = useI18n();
   const message = useMessage();
+  const modal = useModal();
   const projectType = projectTypeForKind(kind);
   const loader =
     kind === 'plugin'
@@ -481,7 +486,7 @@ export function GameServerContentPanel({
   }, [appliedInstalledSearch, installed, installedResources]);
 
   const promptRestart = () => {
-    Modal.confirm({
+    modal.confirm({
       title: t('gameServerDetail.content.restartTitle'),
       content: t('gameServerDetail.content.restartPrompt'),
       okText: t('gameServerDetail.content.restartConfirm'),
@@ -493,30 +498,20 @@ export function GameServerContentPanel({
     });
   };
 
-  const handleDelete = (row: GameServerFileEntry) => {
-    Modal.confirm({
-      title: t('gameServerDetail.content.deleteTitle'),
-      content: t('gameServerDetail.content.deleteConfirm', { name: row.name }),
-      okText: t('gameServerDetail.content.deleteAction'),
-      cancelText: t('common.cancel'),
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        setDeletingPath(row.path);
-        try {
-          await deleteContent(kind, vpsId, gameServerId, row.name, contentTargetFromPath(row.path));
-          message.success(t('gameServerDetail.content.deleteCompleted'));
-          void loadInstalled();
-          if (needsServerRestartAfterSync(contentTargetFromPath(row.path))) {
-            promptRestart();
-          }
-        } catch (e) {
-          message.error(e instanceof Error ? e.message : t('gameServerDetail.content.deleteFailed'));
-          throw e;
-        } finally {
-          setDeletingPath(undefined);
-        }
-      },
-    });
+  const handleDelete = async (row: GameServerFileEntry) => {
+    setDeletingPath(row.path);
+    try {
+      await deleteContent(kind, vpsId, gameServerId, row.name, contentTargetFromPath(row.path));
+      message.success(t('gameServerDetail.content.deleteCompleted'));
+      void loadInstalled();
+      if (needsServerRestartAfterSync(contentTargetFromPath(row.path))) {
+        promptRestart();
+      }
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('gameServerDetail.content.deleteFailed'));
+    } finally {
+      setDeletingPath(undefined);
+    }
   };
 
   const handleUpload = async (file: File) => {
@@ -586,11 +581,18 @@ export function GameServerContentPanel({
   );
 
   if (!supported) {
-    return <Paragraph type="secondary">{t(`${i18nPrefix}.notSupported`)}</Paragraph>;
+    return (
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t(`${i18nPrefix}.notSupported`)} />
+    );
   }
 
   if (!agentOnline) {
-    return <Paragraph type="secondary">{t('servers.gameServersAgentRequired')}</Paragraph>;
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={t('servers.gameServersAgentRequired')}
+      />
+    );
   }
 
   const showCurseforgeUnavailable =
@@ -648,21 +650,27 @@ export function GameServerContentPanel({
   );
 
   const viewToggle = (
-    <SegmentedControl
-      iconOnly
+    <Segmented
+      size="small"
       value={viewMode}
-      onChange={setViewMode}
-      groupLabel={t('gameServerDetail.content.viewModeAria')}
+      aria-label={t('gameServerDetail.content.viewModeAria')}
+      onChange={(value) => setViewMode(value as 'list' | 'cards')}
       options={[
         {
           value: 'list',
-          label: <UnorderedListOutlined aria-hidden />,
-          ariaLabel: t('gameServerDetail.content.viewList'),
+          label: (
+            <span aria-label={t('gameServerDetail.content.viewList')}>
+              <UnorderedListOutlined aria-hidden />
+            </span>
+          ),
         },
         {
           value: 'cards',
-          label: <AppstoreOutlined aria-hidden />,
-          ariaLabel: t('gameServerDetail.content.viewCards'),
+          label: (
+            <span aria-label={t('gameServerDetail.content.viewCards')}>
+              <AppstoreOutlined aria-hidden />
+            </span>
+          ),
         },
       ]}
     />
@@ -798,27 +806,22 @@ export function GameServerContentPanel({
         </header>
 
         <div className="game-server-mods-tabs-row">
-          <div className="game-server-mods-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              className={`game-server-mods-tab${section === 'installed' ? ' game-server-mods-tab--active' : ''}`}
-              aria-selected={section === 'installed'}
-              onClick={() => setSection('installed')}
-            >
-              {t('gameServerDetail.content.tabInstalled')}
-              <span className="game-server-mods-tab-count">{installed.length}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className={`game-server-mods-tab${section === 'catalog' ? ' game-server-mods-tab--active' : ''}`}
-              aria-selected={section === 'catalog'}
-              onClick={() => setSection('catalog')}
-            >
-              {t('gameServerDetail.content.tabCatalog')}
-            </button>
-          </div>
+          <Segmented
+            value={section}
+            onChange={(value) => setSection(value as 'installed' | 'catalog')}
+            options={[
+              {
+                value: 'installed',
+                label: (
+                  <span>
+                    {t('gameServerDetail.content.tabInstalled')}{' '}
+                    <Badge count={installed.length} showZero size="small" />
+                  </span>
+                ),
+              },
+              { value: 'catalog', label: t('gameServerDetail.content.tabCatalog') },
+            ]}
+          />
           {viewToggle}
         </div>
 
@@ -826,8 +829,9 @@ export function GameServerContentPanel({
           <>
             <div className="game-server-mods-toolbar">
               <div className="game-server-mods-search">
-                <Input
+                <Input.Search
                   allowClear
+                  enterButton={appliedInstalledSearch ? t('qxmods.applySearch') : t('qxmods.search')}
                   prefix={<SearchOutlined aria-hidden />}
                   placeholder={t('qxmods.searchFilterPlaceholder')}
                   value={installedSearchInput}
@@ -838,30 +842,12 @@ export function GameServerContentPanel({
                       setAppliedInstalledSearch('');
                     }
                   }}
-                  onPressEnter={() => setAppliedInstalledSearch(installedSearchInput.trim())}
+                  onSearch={(value) => setAppliedInstalledSearch(value.trim())}
                   onClear={() => {
                     setInstalledSearchInput('');
                     setAppliedInstalledSearch('');
                   }}
                 />
-                <Button
-                  type="primary"
-                  onClick={() => setAppliedInstalledSearch(installedSearchInput.trim())}
-                  disabled={!installedSearchInput.trim() && !appliedInstalledSearch}
-                >
-                  {appliedInstalledSearch ? t('qxmods.applySearch') : t('qxmods.search')}
-                </Button>
-                {appliedInstalledSearch ? (
-                  <Button
-                    type="link"
-                    onClick={() => {
-                      setInstalledSearchInput('');
-                      setAppliedInstalledSearch('');
-                    }}
-                  >
-                    {t('qxmods.clearSearch')}
-                  </Button>
-                ) : null}
               </div>
               {kind === 'mod' ? (
                 <div className="game-server-content-upload-wrapper">
@@ -894,31 +880,39 @@ export function GameServerContentPanel({
                 <Spin />
               </div>
             ) : installed.length === 0 ? (
-              <div className="game-server-mods-empty">
-                <Paragraph>{t(`${i18nPrefix}.empty`)}</Paragraph>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={t(`${i18nPrefix}.empty`)}
+              >
                 <Button type="primary" onClick={() => setSection('catalog')}>
                   {t('gameServerDetail.content.openCatalog')}
                 </Button>
-              </div>
+              </Empty>
             ) : filteredInstalled.length === 0 ? (
-              <div className="game-server-mods-empty">
-                <Paragraph>{t('qxmods.empty')}</Paragraph>
-              </div>
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('qxmods.empty')} />
             ) : (
               <ul className={viewMode === 'list' ? 'qxmods-installed-list' : 'game-server-mods-grid'}>
                 {filteredInstalled.map((row) => {
                   const resource = matchResource(row, installedResources);
                   const title = resource?.project_name || row.name;
                   const removeButton = (
-                    <Button
-                      type="text"
-                      danger
-                      size="small"
-                      icon={<DeleteOutlined />}
-                      loading={deletingPath === row.path}
-                      aria-label={t('gameServerDetail.content.deleteAction')}
-                      onClick={() => handleDelete(row)}
-                    />
+                    <Popconfirm
+                      title={t('gameServerDetail.content.deleteTitle')}
+                      description={t('gameServerDetail.content.deleteConfirm', { name: row.name })}
+                      okText={t('gameServerDetail.content.deleteAction')}
+                      cancelText={t('common.cancel')}
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => void handleDelete(row)}
+                    >
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        loading={deletingPath === row.path}
+                        aria-label={t('gameServerDetail.content.deleteAction')}
+                      />
+                    </Popconfirm>
                   );
                   if (viewMode === 'list') {
                     return (
@@ -936,16 +930,16 @@ export function GameServerContentPanel({
                               {resource?.source && resource.source !== 'upload' ? (
                                 <ModSourceBadge source={resource.source} />
                               ) : (
-                                <Tag bordered={false}>{t('gameServerDetail.content.uploaded')}</Tag>
+                                <Tag variant="filled">{t('gameServerDetail.content.uploaded')}</Tag>
                               )}
                             </div>
                             <div className="game-server-mods-card-meta">
                               {resource?.version_number ? (
-                                <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
+                                <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
                                   {resource.version_number}
                                 </Tag>
                               ) : null}
-                              <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
+                              <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
                                 {formatFileSize(row.size ?? resource?.file_size)}
                               </Tag>
                             </div>
@@ -975,16 +969,16 @@ export function GameServerContentPanel({
                               {resource?.source && resource.source !== 'upload' ? (
                                 <ModSourceBadge source={resource.source} />
                               ) : (
-                                <Tag bordered={false}>{t('gameServerDetail.content.uploaded')}</Tag>
+                                <Tag variant="filled">{t('gameServerDetail.content.uploaded')}</Tag>
                               )}
                             </div>
                             <div className="game-server-mods-card-meta">
                               {resource?.version_number ? (
-                                <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
+                                <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
                                   {resource.version_number}
                                 </Tag>
                               ) : null}
-                              <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
+                              <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
                                 {formatFileSize(row.size ?? resource?.file_size)}
                               </Tag>
                             </div>
@@ -1041,8 +1035,9 @@ export function GameServerContentPanel({
                 </label>
               </div>
               <div className="qxmods-search-filter">
-                <Input
+                <Input.Search
                   allowClear
+                  enterButton={appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
                   prefix={<SearchOutlined aria-hidden />}
                   placeholder={t(`${i18nPrefix}.searchPlaceholder`)}
                   value={searchInput}
@@ -1053,29 +1048,12 @@ export function GameServerContentPanel({
                       setAppliedSearch('');
                     }
                   }}
-                  onPressEnter={() => setAppliedSearch(searchInput.trim())}
+                  onSearch={(value) => setAppliedSearch(value.trim())}
                   onClear={() => {
                     setSearchInput('');
                     setAppliedSearch('');
                   }}
                 />
-                <Button
-                  onClick={() => setAppliedSearch(searchInput.trim())}
-                  disabled={!searchInput.trim() && !appliedSearch}
-                >
-                  {appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
-                </Button>
-                {appliedSearch ? (
-                  <Button
-                    type="link"
-                    onClick={() => {
-                      setSearchInput('');
-                      setAppliedSearch('');
-                    }}
-                  >
-                    {t('qxmods.clearSearch')}
-                  </Button>
-                ) : null}
               </div>
             </div>
             <Paragraph type="secondary" className="qxmods-filter-context">
@@ -1088,9 +1066,7 @@ export function GameServerContentPanel({
                 <Spin />
               </div>
             ) : visibleCatalogCards.length === 0 ? (
-              <div className="game-server-mods-empty">
-                <Paragraph>{catalogEmptyText}</Paragraph>
-              </div>
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={catalogEmptyText} />
             ) : (
               <>
                 {viewMode === 'list' ? (
@@ -1103,7 +1079,14 @@ export function GameServerContentPanel({
                     pagination={false}
                     scroll={{ x: 960 }}
                     tableLayout="fixed"
-                    locale={{ emptyText: catalogEmptyText }}
+                    locale={{
+                      emptyText: (
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          description={catalogEmptyText}
+                        />
+                      ),
+                    }}
                   />
                 ) : (
                   <ul className="game-server-mods-grid">
@@ -1145,7 +1128,7 @@ export function GameServerContentPanel({
                                 <div className="game-server-mods-card-meta">
                                   {contentKindHasSide(kind) ? <ModSideBadge item={row} /> : null}
                                   {row.downloads != null ? (
-                                    <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--downloads">
+                                    <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--downloads">
                                       {t('gameServerDetail.content.downloadsLabel', {
                                         count: formatCompactCount(row.downloads),
                                       })}

@@ -3,6 +3,7 @@ import { Button, Modal, Radio, Spin, Typography } from 'antd';
 import { api, type ModProjectType, type ModSource, type ModVersion } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { useModal } from '@/hooks/useModal';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
@@ -38,6 +39,7 @@ export function ServerOnlyInstallModal({
 }: ServerOnlyInstallModalProps) {
   const { t } = useI18n();
   const message = useMessage();
+  const modal = useModal();
   const [loading, setLoading] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [destination, setDestination] = useState<'server' | 'instance'>(preferInstance ? 'instance' : 'server');
@@ -100,7 +102,7 @@ export function ServerOnlyInstallModal({
         await api.syncModToGameServer(selectedTarget.vpsId, selectedTarget.gameServer.id, syncBody);
       }
       message.success(t('qxmods.serverOnlyInstall.installedOnServer'));
-      Modal.confirm({
+      modal.confirm({
         title: t('qxmods.sync.restartTitle'),
         content: t('qxmods.sync.restartPrompt', { name: selectedTarget.gameServer.name }),
         okText: t('qxmods.sync.restartConfirm'),

@@ -110,7 +110,7 @@ describe('ServersPage', () => {
     const user = userEvent.setup({ delay: null });
     vi.mocked(fetch).mockImplementation(() => Promise.resolve(meResponse()));
     renderServers('/servers');
-    expect(await screen.findByText('Управление серверами доступно после входа.')).toBeInTheDocument();
+    expect(await screen.findByText('Нужен аккаунт')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Войти/i }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
   });

@@ -145,6 +145,8 @@ describe('GameServerDetailPage', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
     );
     expect(screen.getByText(/play\.example\.com:25565/)).toBeInTheDocument();
+    expect(screen.getByText(/••••••••/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Показать' }));
     expect(screen.getByText(/secret/)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /Запустить/i })[0]!);

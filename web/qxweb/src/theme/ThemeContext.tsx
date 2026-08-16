@@ -66,13 +66,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const antTheme = useMemo(
     () => ({
+      cssVar: { key: 'qx' },
       algorithm: mode === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
-      token:
-        mode === 'dark'
-          ? {
-              colorTextSecondary: 'rgba(255, 255, 255, 0.70)',
-            }
-          : undefined,
+      token: {
+        colorPrimary: '#1677ff',
+        borderRadius: 8,
+        fontFamily:
+          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+        ...(mode === 'dark' ? { colorTextSecondary: 'rgba(255, 255, 255, 0.70)' } : {}),
+      },
     }),
     [mode],
   );

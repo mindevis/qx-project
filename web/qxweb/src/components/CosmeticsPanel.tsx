@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Card, Radio, Space, Spin, Upload } from 'antd';
+import { Button, Card, Popconfirm, Segmented, Space, Spin, Typography, Upload } from 'antd';
 import { DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { SkinViewer } from 'skinview3d';
@@ -206,30 +206,33 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
               </Button>
             </Upload>
             {cosmetics?.has_skin ? (
-              <Button
-                danger
-                icon={<DeleteOutlined />}
-                loading={saving}
-                onClick={() => void api.deleteCosmeticsSkin().then(load)}
+              <Popconfirm
+                title={t('cosmetics.resetSkinConfirm')}
+                okText={t('cosmetics.resetSkin')}
+                cancelText={t('common.cancel')}
+                okButtonProps={{ danger: true }}
+                onConfirm={() => void api.deleteCosmeticsSkin().then(load)}
               >
-                {t('cosmetics.resetSkin')}
-              </Button>
+                <Button danger icon={<DeleteOutlined />} loading={saving}>
+                  {t('cosmetics.resetSkin')}
+                </Button>
+              </Popconfirm>
             ) : null}
           </Space>
           <div className="cosmetics-field">
             <span className="cosmetics-label">{t('cosmetics.cape')}</span>
-            <Radio.Group
+            <Segmented<CapeType>
               value={capeType}
-              onChange={(e) => {
-                const value = e.target.value as CapeType;
+              onChange={(value) => {
                 setCapeType(value);
                 void saveEquip({ cape_type: value });
               }}
-            >
-              <Radio.Button value="none">{t('cosmetics.capeNone')}</Radio.Button>
-              <Radio.Button value="qx">{t('cosmetics.capeQX')}</Radio.Button>
-              <Radio.Button value="custom">{t('cosmetics.capeCustom')}</Radio.Button>
-            </Radio.Group>
+              options={[
+                { value: 'none', label: t('cosmetics.capeNone') },
+                { value: 'qx', label: t('cosmetics.capeQX') },
+                { value: 'custom', label: t('cosmetics.capeCustom') },
+              ]}
+            />
           </div>
           {capeType === 'custom' ? (
             <Space wrap>
@@ -239,20 +242,25 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
                 </Button>
               </Upload>
               {cosmetics?.has_cape && cosmetics.cape_type === 'custom' ? (
-                <Button
-                  danger
-                  icon={<DeleteOutlined />}
-                  loading={saving}
-                  onClick={() => void api.deleteCosmeticsCape().then(load)}
+                <Popconfirm
+                  title={t('cosmetics.resetCapeConfirm')}
+                  okText={t('cosmetics.resetCape')}
+                  cancelText={t('common.cancel')}
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => void api.deleteCosmeticsCape().then(load)}
                 >
-                  {t('cosmetics.resetCape')}
-                </Button>
+                  <Button danger icon={<DeleteOutlined />} loading={saving}>
+                    {t('cosmetics.resetCape')}
+                  </Button>
+                </Popconfirm>
               ) : null}
             </Space>
           ) : null}
         </div>
       </div>
-      <p className="cosmetics-note">{t('cosmetics.skinServerNote')}</p>
+      <Typography.Paragraph type="secondary" className="cosmetics-note">
+        {t('cosmetics.skinServerNote')}
+      </Typography.Paragraph>
     </Space>
   );
 

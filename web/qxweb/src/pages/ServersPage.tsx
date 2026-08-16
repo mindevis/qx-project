@@ -9,6 +9,7 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Result,
   Space,
   Spin,
   Tag,
@@ -128,14 +129,6 @@ function isSshUnreachableError(message: string): boolean {
     lower.includes('i/o timeout') ||
     lower.includes('network is unreachable')
   );
-}
-
-function detailHeroClass(server: GameServer): string {
-  const vpsStatus = getVpsHostStatus(server);
-  if (vpsStatus === 'error') return 'servers-detail-hero-icon--error';
-  if (server.agent_online) return 'servers-detail-hero-icon--agent';
-  if (vpsStatus === 'active') return 'servers-detail-hero-icon--online';
-  return 'servers-detail-hero-icon--offline';
 }
 
 function ServerDetailStat({
@@ -415,34 +408,16 @@ function ServersList() {
   return (
     <div className="servers-page">
       <section className="servers-hero">
-        <div className="servers-hero-ambient" aria-hidden>
-          <span className="servers-hero-blob servers-hero-blob--1" />
-          <span className="servers-hero-blob servers-hero-blob--2" />
-          <span className="servers-hero-blob servers-hero-blob--3" />
-          <span className="servers-hero-grid-pattern" />
-        </div>
-
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
-            <span className="servers-badge">{t('servers.badge')}</span>
             <Title level={1} className="servers-title">
-              <span className="servers-title-highlight">{t('servers.title')}</span>
+              {t('servers.title')}
             </Title>
-            <Paragraph className="servers-intro">{t('servers.intro')}</Paragraph>
+            <Paragraph type="secondary" className="servers-intro">{t('servers.intro')}</Paragraph>
             <div className="servers-hero-actions">
               <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openCreate}>
                 {t('servers.addDedicated')}
               </Button>
-            </div>
-          </div>
-
-          <div className="servers-hero-visual" aria-hidden>
-            <div className="servers-orbit">
-              <div className="servers-orbit-ring" />
-              <div className="servers-orbit-ring servers-orbit-ring--inner" />
-              <div className="servers-orbit-core">
-                <CloudServerOutlined />
-              </div>
             </div>
           </div>
         </div>
@@ -486,16 +461,22 @@ function ServersList() {
             ) : null}
 
             {servers.length === 0 ? (
-              <div className="servers-empty">
-                <CloudServerOutlined className="servers-empty-icon" />
-                <Title level={3} className="servers-empty-title">
-                  {t('servers.emptyTitle')}
-                </Title>
-                <Paragraph className="servers-empty-desc">{t('servers.empty')}</Paragraph>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                className="servers-empty"
+                description={
+                  <div>
+                    <Title level={3} className="servers-empty-title">
+                      {t('servers.emptyTitle')}
+                    </Title>
+                    <Paragraph className="servers-empty-desc">{t('servers.empty')}</Paragraph>
+                  </div>
+                }
+              >
                 <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openCreate}>
                   {t('servers.addDedicated')}
                 </Button>
-              </div>
+              </Empty>
             ) : (
               <div className="servers-grid">
                 {servers.map((item) => (
@@ -956,20 +937,13 @@ function ServerDetail() {
   return (
     <div className="servers-page servers-page--detail">
       <section className="servers-hero servers-hero--detail">
-        <div className="servers-hero-ambient" aria-hidden>
-          <span className="servers-hero-blob servers-hero-blob--1" />
-          <span className="servers-hero-blob servers-hero-blob--2" />
-          <span className="servers-hero-grid-pattern" />
-        </div>
-
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
             <Link to="/servers" className="servers-detail-back">
               <ArrowLeftOutlined /> {t('servers.backToList')}
             </Link>
-            <span className="servers-badge">{t('servers.detailBadge')}</span>
             <Title level={1} className="servers-title">
-              <span className="servers-title-highlight">{server.name}</span>
+              {server.name}
             </Title>
             <Paragraph className="servers-intro servers-detail-endpoint">
               <code>{formatSshEndpoint(server)}</code>
@@ -984,12 +958,6 @@ function ServerDetail() {
             <div className="servers-card-tags">
               <Tag color={vpsHostStatusColor(vpsStatus)}>{labels.host(vpsStatus)}</Tag>
               <Tag color={agentTag.color}>{agentTag.text}</Tag>
-            </div>
-          </div>
-
-          <div className="servers-hero-visual" aria-hidden>
-            <div className={`servers-detail-hero-icon ${detailHeroClass(server)}`}>
-              <CloudServerOutlined />
             </div>
           </div>
         </div>
@@ -1166,15 +1134,16 @@ function ServersAuthGate() {
 
   return (
     <div className="servers-page">
-      <section className="servers-auth-section">
-        <LoginOutlined className="servers-auth-icon" />
-        <Title level={3}>{t('servers.authRequiredTitle')}</Title>
-        <Paragraph>{t('servers.authRequired')}</Paragraph>
-        <Paragraph type="secondary">{t('servers.authRequiredDesc')}</Paragraph>
-        <Button type="primary" size="large" icon={<LoginOutlined />} onClick={() => openAuthModal('login')}>
-          {t('auth.signIn')}
-        </Button>
-      </section>
+      <Result
+        status="403"
+        title={t('servers.authRequiredTitle')}
+        subTitle={t('servers.authRequiredDesc')}
+        extra={
+          <Button type="primary" size="large" icon={<LoginOutlined />} onClick={() => openAuthModal('login')}>
+            {t('auth.signIn')}
+          </Button>
+        }
+      />
     </div>
   );
 }

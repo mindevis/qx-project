@@ -378,7 +378,7 @@ describe('GameServerContentPanel', () => {
 
   it('switches the catalog to a table view', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
     vi.spyOn(api, 'browseMods').mockResolvedValue({

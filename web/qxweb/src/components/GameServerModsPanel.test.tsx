@@ -134,6 +134,29 @@ describe('GameServerModsPanel', () => {
     await waitFor(() => expect(screen.getByText('—')).toBeInTheDocument());
   });
 
+  it('shows resource pack, shader, and datapack tabs for vanilla', async () => {
+    const browse = vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [],
+      has_more: false,
+      curseforge_enabled: false,
+    });
+
+    renderWithTheme(
+      <GameServerModsPanel
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supportsMods={false}
+        serverType="vanilla"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Ресурспаки')).toBeInTheDocument());
+    expect(screen.getByText('Шейдеры')).toBeInTheDocument();
+    expect(screen.getByText('Датапаки')).toBeInTheDocument();
+    expect(browse).toHaveBeenCalledWith(expect.objectContaining({ type: 'resourcepack' }));
+  });
+
   it('switches the catalog to resource packs, shaders, and datapacks', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const user = userEvent.setup({ delay: null });

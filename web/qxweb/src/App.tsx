@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { Spin } from 'antd';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthModalProvider } from '@/auth/AuthModalContext';
 import { AppLayout } from '@/layouts/AppLayout';
 import { HomePage } from '@/pages/HomePage';
@@ -22,6 +22,9 @@ const MonitoringPage = lazy(() =>
 );
 const ServersPage = lazy(() =>
   import('@/pages/ServersPage').then((module) => ({ default: module.ServersPage })),
+);
+const NotFoundPage = lazy(() =>
+  import('@/pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })),
 );
 const SkinsPage = lazy(() =>
   import('@/pages/SkinsPage').then((module) => ({ default: module.SkinsPage })),
@@ -102,7 +105,14 @@ export default function App() {
                 </LazyRoute>
               }
             />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route
+              path="*"
+              element={
+                <LazyRoute>
+                  <NotFoundPage />
+                </LazyRoute>
+              }
+            />
           </Route>
         </Routes>
       </AuthModalProvider>

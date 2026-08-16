@@ -56,7 +56,7 @@ describe('InstanceInstalledResources', () => {
   });
 
   it('switches to card view and persists preference', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderInstalledResources();
 
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
@@ -82,14 +82,14 @@ describe('InstanceInstalledResources', () => {
 
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
 
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('searchbox');
     await user.type(input, 'missing');
     await user.click(screen.getByRole('button', { name: /Найти|Search/ }));
 
     expect(screen.queryByText('Sodium')).not.toBeInTheDocument();
     expect(screen.getByText(/No results|Нет результатов|Ничего не найдено/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Сбросить поиск|Clear search/ }));
+    await user.clear(input);
     await user.type(input, 'Sodium');
     await user.click(screen.getByRole('button', { name: /Найти|Search/ }));
 

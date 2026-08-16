@@ -81,8 +81,8 @@ describe('InstanceResourcesPanel', () => {
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: 'Удалить' }));
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Удалить' }));
+    const confirm = await screen.findByRole('tooltip');
+    await user.click(within(confirm).getByRole('button', { name: 'Удалить' }));
 
     await waitFor(() => expect(api.deleteInstanceResource).toHaveBeenCalledWith('inst-1', {
       source: 'modrinth',

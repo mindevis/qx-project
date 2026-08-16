@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { I18nProvider, useI18n } from '@/i18n/I18nContext';
+import { ThemeProvider } from '@/theme/ThemeContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { LOCALE_STORAGE_KEY } from '@/i18n';
 
@@ -25,8 +26,10 @@ describe('LanguageSwitcher', () => {
 
     render(
       <I18nProvider>
-        <LanguageSwitcher />
-        <Probe />
+        <ThemeProvider>
+          <LanguageSwitcher />
+          <Probe />
+        </ThemeProvider>
       </I18nProvider>,
     );
 

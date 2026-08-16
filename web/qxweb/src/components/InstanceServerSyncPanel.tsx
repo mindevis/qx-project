@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Button, Modal, Tooltip } from 'antd';
+import { Button, Tooltip } from 'antd';
 import { CheckCircleOutlined, CloudSyncOutlined } from '@ant-design/icons';
 import { api, type InstanceResource, type ModVersion } from '@/api/client';
 import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
@@ -15,6 +15,7 @@ import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useAuthModal } from '@/auth/AuthModalContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { useModal } from '@/hooks/useModal';
 import {
   loadGameServerSyncTargets,
   type GameServerSyncTarget,
@@ -86,6 +87,7 @@ export function InstanceServerSyncProvider({
 }) {
   const { t } = useI18n();
   const message = useMessage();
+  const modal = useModal();
   const { instance, canSync } = useInstanceMods();
   const [targets, setTargets] = useState<GameServerSyncTarget[]>([]);
   const [versionFilenames, setVersionFilenames] = useState<Record<string, string[]>>({});
@@ -265,7 +267,7 @@ export function InstanceServerSyncProvider({
         isInstanceResourceOnServer(target.serverMods, item, filenames),
       );
       if (affected.length === 0) return;
-      Modal.confirm({
+      modal.confirm({
         title: t('qxmods.side.serverCleanupTitle'),
         content: t('qxmods.side.serverCleanupBody', {
           name: item.project_name,

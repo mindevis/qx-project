@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Typography } from 'antd';
 import { api, loadLinkedDevice, type GameServerFileEntry } from '@/api/client';
 import { ModConfigsByModPanel, serverModToModConfig, type ConfigSyncContext } from '@/components/ModConfigsByModPanel';
 import { useI18n } from '@/i18n/I18nContext';
@@ -93,20 +92,12 @@ export function GameServerModConfigsPanel({
   );
 
   return (
-    <div className="mod-configs-page">
-      <Typography.Title level={5} className="mod-configs-page-title">
-        {t('qxmods.configSync.serverTitle')}
-      </Typography.Title>
-      <Typography.Paragraph type="secondary" className="mod-configs-page-intro">
-        {t('qxmods.configSync.serverIntro')}
-      </Typography.Paragraph>
-      <ModConfigsByModPanel
-        mode="server"
-        available={agentOnline}
-        mods={modConfigs}
-        fileApi={fileApi}
-        configSync={configSync}
-      />
-    </div>
+    <ModConfigsByModPanel
+      mode="server"
+      available={agentOnline}
+      mods={modConfigs}
+      fileApi={fileApi}
+      configSync={configSync}
+    />
   );
 }

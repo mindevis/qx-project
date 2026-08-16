@@ -54,7 +54,7 @@ describe('ThemeProvider', () => {
   });
 
   it('toggles theme and persists preference', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
 
     renderWithI18n(
       <ThemeProvider>

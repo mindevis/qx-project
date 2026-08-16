@@ -129,9 +129,10 @@ export function InstanceFilesPanel({
 
   if (!deviceLinked) {
     return (
-      <Typography.Paragraph type="secondary">
-        {t('launcher.instanceSettingsModsConfigNote')}
-      </Typography.Paragraph>
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={t('launcher.instanceSettingsModsConfigNote')}
+      />
     );
   }
 
@@ -190,7 +191,7 @@ export function InstanceFilesPanel({
           <Spin />
         </div>
       ) : entries.length === 0 ? (
-        <Empty description={t('gameServerDetail.filesEmpty')} />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('gameServerDetail.filesEmpty')} />
       ) : (
         <Table
           className="game-server-files-table"

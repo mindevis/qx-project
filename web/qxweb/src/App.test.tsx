@@ -61,19 +61,17 @@ describe('App', () => {
 
     renderApp('/servers');
     await waitFor(() =>
-      expect(screen.getByText('Управление серверами доступно после входа.')).toBeInTheDocument(),
+      expect(screen.getByText('Нужен аккаунт')).toBeInTheDocument(),
     );
   });
 
-  it('redirects unknown paths to home', async () => {
+  it('shows not-found for unknown paths', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
     );
     renderApp('/unknown-route');
     await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-        'Единая экосистема для Minecraft',
-      ),
+      expect(screen.getByText('Страница не найдена')).toBeInTheDocument(),
     );
   });
 

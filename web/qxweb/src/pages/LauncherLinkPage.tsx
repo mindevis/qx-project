@@ -1,11 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Alert, Button, Spin, Typography } from 'antd';
 import {
   CheckCircleOutlined,
   CopyOutlined,
   DesktopOutlined,
-  ExclamationCircleOutlined,
   LinkOutlined,
   LoginOutlined,
   UserOutlined,
@@ -153,10 +152,8 @@ function DeviceInfoPanel({
 
 function LinkHero({
   variant = 'default',
-  icon,
 }: {
   variant?: 'default' | 'success' | 'error';
-  icon: ReactNode;
 }) {
   const { t } = useI18n();
   const heroClass = [
@@ -169,28 +166,12 @@ function LinkHero({
 
   return (
     <section className={heroClass}>
-      <div className="launcher-hero-ambient" aria-hidden>
-        <span className="launcher-hero-blob launcher-hero-blob--1" />
-        <span className="launcher-hero-blob launcher-hero-blob--2" />
-        <span className="launcher-hero-blob launcher-hero-blob--3" />
-        <span className="launcher-hero-grid-pattern" />
-      </div>
-
       <div className="launcher-hero-inner">
         <div className="launcher-hero-content">
-          <span className="launcher-badge">{t('launcherLink.badge')}</span>
           <Title level={1} className="launcher-title">
-            <span className="launcher-title-highlight">{t('launcherLink.title')}</span>
+            {t('launcherLink.title')}
           </Title>
-          <Paragraph className="launcher-intro">{t('launcherLink.intro')}</Paragraph>
-        </div>
-
-        <div className="launcher-hero-visual" aria-hidden>
-          <div className="launcher-orbit">
-            <div className="launcher-orbit-ring launcher-orbit-ring--outer" />
-            <div className="launcher-orbit-ring launcher-orbit-ring--inner" />
-            <div className="launcher-orbit-core">{icon}</div>
-          </div>
+          <Paragraph type="secondary" className="launcher-intro">{t('launcherLink.intro')}</Paragraph>
         </div>
       </div>
     </section>
@@ -274,7 +255,7 @@ export function LauncherLinkPage() {
   if (!deviceId) {
     return (
       <div className="launcher-page launcher-link-page">
-        <LinkHero variant="error" icon={<ExclamationCircleOutlined />} />
+        <LinkHero variant="error" />
         <section className="launcher-section launcher-section--workspace">
           <Alert
             type="error"
@@ -295,7 +276,7 @@ export function LauncherLinkPage() {
   if (linked) {
     return (
       <div className="launcher-page launcher-link-page">
-        <LinkHero variant="success" icon={<CheckCircleOutlined />} />
+        <LinkHero variant="success" />
         <section className="launcher-section launcher-section--workspace">
           <DeviceInfoPanel deviceId={deviceId} info={deviceInfo} loading={false} />
           <div className="launcher-status-card launcher-status-card--linked">
@@ -325,7 +306,7 @@ export function LauncherLinkPage() {
 
   return (
     <div className="launcher-page launcher-link-page">
-      <LinkHero icon={<LinkOutlined />} />
+      <LinkHero />
 
       <section className="launcher-section launcher-section--workspace">
         <DeviceInfoPanel deviceId={deviceId} info={deviceInfo} loading={deviceLoading} />

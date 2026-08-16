@@ -94,10 +94,12 @@ describe('SkinsPage', () => {
     );
   });
 
-  it('redirects unauthenticated users to home', async () => {
+  it('asks unauthenticated users to sign in', async () => {
     clearTokens();
     renderWithProviders(<SkinsPage />, '/skins');
-    await waitFor(() => expect(screen.queryByRole('heading', { name: /QXSkins/i })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/Войдите, чтобы управлять скинами/i)).toBeInTheDocument(),
+    );
   });
 
   it('shows spinner while auth is loading', () => {

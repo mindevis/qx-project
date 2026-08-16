@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Empty, Input, Modal, Select, Spin, Tag, Typography, Upload } from 'antd';
+import { Button, Empty, Input, Popconfirm, Segmented, Select, Spin, Tag, Typography, Upload } from 'antd';
 import { AppstoreOutlined, DeleteOutlined, SearchOutlined, UnorderedListOutlined, UploadOutlined } from '@ant-design/icons';
 import {
   api,
@@ -17,7 +17,6 @@ import {
   InstanceServerSyncProvider,
   useInstanceServerSync,
 } from '@/components/InstanceServerSyncPanel';
-import { SegmentedControl } from '@/components/SegmentedControl';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -68,16 +67,24 @@ function InstalledResourceItem({
 }: InstalledResourceItemProps) {
   const { offerRemoveFromServerMods } = useInstanceServerSync();
   const removeButton = contentLocked ? null : (
-    <Button
-      type="text"
-      danger
-      size="small"
-      className="launcher-resource-card-remove"
-      icon={<DeleteOutlined />}
-      loading={removingKey === resourceKey(item)}
-      aria-label={t('qxmods.uninstall.action')}
-      onClick={() => onRemove(item)}
-    />
+    <Popconfirm
+      title={t('qxmods.uninstall.confirmTitle')}
+      description={t('qxmods.uninstall.confirmBody', { name: item.project_name })}
+      okText={t('qxmods.uninstall.action')}
+      cancelText={t('common.cancel')}
+      okButtonProps={{ danger: true }}
+      onConfirm={() => onRemove(item)}
+    >
+      <Button
+        type="text"
+        danger
+        size="small"
+        className="launcher-resource-card-remove"
+        icon={<DeleteOutlined />}
+        loading={removingKey === resourceKey(item)}
+        aria-label={t('qxmods.uninstall.action')}
+      />
+    </Popconfirm>
   );
 
   const sideSelect =
@@ -131,7 +138,7 @@ function InstalledResourceItem({
           {sideSelect}
         </div>
         <div className="qxmods-installed-item-actions">
-          <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--type launcher-resource-type-badge">
+          <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--type launcher-resource-type-badge">
             {t(`qxmods.tabs.${item.resource_type}`)}
           </Tag>
           {contentLocked ? null : <InstanceResourceSyncButton item={item} />}
@@ -167,7 +174,7 @@ function InstalledResourceItem({
         {sideSelect}
       </div>
       <div className="launcher-resource-card-actions">
-        <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--type launcher-resource-type-badge">
+        <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--type launcher-resource-type-badge">
           {t(`qxmods.tabs.${item.resource_type}`)}
         </Tag>
         {contentLocked ? null : <InstanceResourceSyncButton item={item} />}
@@ -327,33 +334,23 @@ export function InstanceInstalledResources() {
     }
   };
 
-  const handleRemove = (item: InstanceResource) => {
-    Modal.confirm({
-      title: t('qxmods.uninstall.confirmTitle'),
-      content: t('qxmods.uninstall.confirmBody', { name: item.project_name }),
-      okText: t('qxmods.uninstall.action'),
-      cancelText: t('common.cancel'),
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        const key = resourceKey(item);
-        setRemovingKey(key);
-        try {
-          await api.deleteInstanceResource(instance.id, {
-            source: item.source,
-            project_id: item.project_id,
-            filename: item.filename,
-            resource_type: item.resource_type,
-          });
-          setItems((prev) => prev.filter((entry) => resourceKey(entry) !== key));
-          message.success(t('qxmods.uninstall.completed'));
-        } catch (e) {
-          message.error(e instanceof Error ? e.message : t('qxmods.uninstall.failed'));
-          throw e;
-        } finally {
-          setRemovingKey(undefined);
-        }
-      },
-    });
+  const handleRemove = async (item: InstanceResource) => {
+    const key = resourceKey(item);
+    setRemovingKey(key);
+    try {
+      await api.deleteInstanceResource(instance.id, {
+        source: item.source,
+        project_id: item.project_id,
+        filename: item.filename,
+        resource_type: item.resource_type,
+      });
+      setItems((prev) => prev.filter((entry) => resourceKey(entry) !== key));
+      message.success(t('qxmods.uninstall.completed'));
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('qxmods.uninstall.failed'));
+    } finally {
+      setRemovingKey(undefined);
+    }
   };
 
   const listClassName = viewMode === 'list' ? 'qxmods-installed-list' : 'launcher-resources-grid';
@@ -392,8 +389,9 @@ export function InstanceInstalledResources() {
       {!loading && items.length > 0 ? (
         <>
           <div className="launcher-resources-search">
-            <Input
+            <Input.Search
               allowClear
+              enterButton={appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
               prefix={<SearchOutlined aria-hidden />}
               placeholder={t('qxmods.searchFilterPlaceholder')}
               value={searchInput}
@@ -404,27 +402,12 @@ export function InstanceInstalledResources() {
                   setAppliedSearch('');
                 }
               }}
-              onPressEnter={() => setAppliedSearch(searchInput.trim())}
+              onSearch={(value) => setAppliedSearch(value.trim())}
               onClear={() => {
                 setSearchInput('');
                 setAppliedSearch('');
               }}
             />
-            <Button
-              type="primary"
-              onClick={() => setAppliedSearch(searchInput.trim())}
-              disabled={!searchInput.trim() && !appliedSearch}
-            >
-              {appliedSearch ? t('qxmods.applySearch') : t('qxmods.search')}
-            </Button>
-            {appliedSearch ? (
-              <Button type="link" onClick={() => {
-                setSearchInput('');
-                setAppliedSearch('');
-              }}>
-                {t('qxmods.clearSearch')}
-              </Button>
-            ) : null}
           </div>
           <div className="launcher-resources-toolbar">
             <div className="launcher-resources-stats" aria-label={t('launcherInstanceResources.statsAria')}>
@@ -441,21 +424,27 @@ export function InstanceInstalledResources() {
                 );
               })}
             </div>
-            <SegmentedControl
-              iconOnly
+            <Segmented
+              size="small"
               value={viewMode}
-              onChange={setViewMode}
-              groupLabel={t('launcherInstanceResources.viewModeAria')}
+              aria-label={t('launcherInstanceResources.viewModeAria')}
+              onChange={(value) => setViewMode(value as InstalledResourcesViewMode)}
               options={[
                 {
                   value: 'list',
-                  label: <UnorderedListOutlined aria-hidden />,
-                  ariaLabel: t('launcherInstanceResources.viewList'),
+                  label: (
+                    <span aria-label={t('launcherInstanceResources.viewList')}>
+                      <UnorderedListOutlined aria-hidden />
+                    </span>
+                  ),
                 },
                 {
                   value: 'cards',
-                  label: <AppstoreOutlined aria-hidden />,
-                  ariaLabel: t('launcherInstanceResources.viewCards'),
+                  label: (
+                    <span aria-label={t('launcherInstanceResources.viewCards')}>
+                      <AppstoreOutlined aria-hidden />
+                    </span>
+                  ),
                 },
               ]}
             />
@@ -468,24 +457,29 @@ export function InstanceInstalledResources() {
           <Spin />
         </div>
       ) : items.length === 0 ? (
-        <div className="launcher-resources-empty">
-          <AppstoreOutlined className="launcher-resources-empty-icon" aria-hidden />
-          <Title level={5}>{t('qxmods.installed.empty')}</Title>
-          <Text type="secondary">
-            {t(
-              contentLocked
-                ? 'launcherInstanceResources.emptyHintLocked'
-                : 'launcherInstanceResources.emptyHint',
-            )}
-          </Text>
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            <div>
+              <Title level={5}>{t('qxmods.installed.empty')}</Title>
+              <Text type="secondary">
+                {t(
+                  contentLocked
+                    ? 'launcherInstanceResources.emptyHintLocked'
+                    : 'launcherInstanceResources.emptyHint',
+                )}
+              </Text>
+            </div>
+          }
+        >
           {contentLocked ? null : (
-          <Link to={`${basePath}/catalog`}>
-            <Button type="primary" icon={<AppstoreOutlined />}>
-              {t('launcherInstanceResources.browseCatalog')}
-            </Button>
-          </Link>
+            <Link to={`${basePath}/catalog`}>
+              <Button type="primary" icon={<AppstoreOutlined />}>
+                {t('launcherInstanceResources.browseCatalog')}
+              </Button>
+            </Link>
           )}
-        </div>
+        </Empty>
       ) : filteredItems.length === 0 ? (
         <Empty description={t('qxmods.empty')} />
       ) : (

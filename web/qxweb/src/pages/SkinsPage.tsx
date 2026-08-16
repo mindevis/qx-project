@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Spin, Typography } from 'antd';
-import { SkinOutlined } from '@ant-design/icons';
+import { Button, Result, Spin, Typography } from 'antd';
+import { LoginOutlined } from '@ant-design/icons';
 import { useAuth } from '@/auth/AuthContext';
+import { useAuthModal } from '@/auth/AuthModalContext';
 import { CosmeticsPanel } from '@/components/CosmeticsPanel';
 import { SkinCatalogPanel } from '@/components/SkinCatalogPanel';
 import { useI18n } from '@/i18n/I18nContext';
@@ -13,6 +13,7 @@ const { Title, Paragraph } = Typography;
 
 export function SkinsPage() {
   const { loading, isAuthenticated } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const { t } = useI18n();
   const [panelKey, setPanelKey] = useState(0);
 
@@ -20,36 +21,29 @@ export function SkinsPage() {
     return <Spin size="large" />;
   }
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return (
+      <Result
+        status="403"
+        title={t('skins.authRequiredTitle')}
+        subTitle={t('skins.authRequiredDesc')}
+        extra={
+          <Button type="primary" icon={<LoginOutlined />} onClick={() => openAuthModal('login')}>
+            {t('auth.signIn')}
+          </Button>
+        }
+      />
+    );
   }
 
   return (
     <div className="skins-page">
       <section className="skins-hero">
-        <div className="skins-hero-ambient" aria-hidden>
-          <span className="skins-hero-blob skins-hero-blob--1" />
-          <span className="skins-hero-blob skins-hero-blob--2" />
-          <span className="skins-hero-blob skins-hero-blob--3" />
-          <span className="skins-hero-grid-pattern" />
-        </div>
-
         <div className="skins-hero-inner">
           <div className="skins-hero-content">
-            <p className="skins-hero-badge">{t('skins.badge')}</p>
             <Title level={1} className="skins-hero-title">
               {highlightMinecraft(t('skins.title'))}
             </Title>
-            <Paragraph className="skins-hero-subtitle">{t('skins.subtitle')}</Paragraph>
-          </div>
-
-          <div className="skins-hero-visual" aria-hidden>
-            <div className="skins-orbit">
-              <div className="skins-orbit-ring skins-orbit-ring--outer" />
-              <div className="skins-orbit-ring skins-orbit-ring--inner" />
-              <div className="skins-orbit-core">
-                <SkinOutlined />
-              </div>
-            </div>
+            <Paragraph type="secondary" className="skins-hero-subtitle">{t('skins.subtitle')}</Paragraph>
           </div>
         </div>
       </section>

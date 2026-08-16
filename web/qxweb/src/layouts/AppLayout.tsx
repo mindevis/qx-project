@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Menu, Button, Space, Typography, Spin, Tooltip, theme } from 'antd';
+import { Layout, Menu, Button, Space, Typography, Spin, Tooltip, theme, Drawer } from 'antd';
+import { MenuOutlined } from '@ant-design/icons';
 import { useAuth } from '@/auth/AuthContext';
 import { useAuthModal } from '@/auth/AuthModalContext';
 import { useBackendStatus } from '@/backend/BackendStatusContext';
@@ -17,6 +18,15 @@ const { Header, Content, Footer } = Layout;
 
 const SCROLL_THRESHOLD = 16;
 
+function navSelectedKey(pathname: string): string {
+  if (pathname.startsWith('/launcher')) return '/launcher';
+  if (pathname.startsWith('/servers')) return '/servers';
+  if (pathname.startsWith('/skins')) return '/skins';
+  if (pathname.startsWith('/monitoring')) return '/monitoring';
+  if (pathname === '/' || pathname.startsWith('/auth')) return '/';
+  return '';
+}
+
 export function AppLayout() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const { openAuthModal } = useAuthModal();
@@ -26,8 +36,9 @@ export function AppLayout() {
   const { token } = theme.useToken();
   const navigate = useNavigate();
   const location = useLocation();
-  const isLandingPage =
-    location.pathname === '/' ||
+  const isHome = location.pathname === '/';
+  const isFullBleedPage =
+    isHome ||
     location.pathname === '/launcher' ||
     location.pathname === '/launcher/link' ||
     location.pathname.startsWith('/launcher/instances/') ||
@@ -36,20 +47,21 @@ export function AppLayout() {
     location.pathname === '/servers' ||
     location.pathname.startsWith('/servers/');
   const footerClassName =
-    location.pathname === '/'
+    isHome
       ? 'app-footer app-footer--landing app-footer--landing-home'
       : location.pathname === '/launcher' ||
           location.pathname === '/launcher/link' ||
           location.pathname.startsWith('/launcher/instances/')
-        ? 'app-footer app-footer--landing app-footer--landing-launcher'
+        ? 'app-footer app-footer--landing-launcher'
         : location.pathname === '/monitoring'
-          ? 'app-footer app-footer--landing app-footer--landing-monitoring'
+          ? 'app-footer app-footer--landing-monitoring'
           : location.pathname === '/skins'
-            ? 'app-footer app-footer--landing app-footer--landing-skins'
+            ? 'app-footer app-footer--landing-skins'
             : location.pathname === '/servers' || location.pathname.startsWith('/servers/')
-            ? 'app-footer app-footer--landing app-footer--landing-servers'
+            ? 'app-footer app-footer--landing-servers'
             : 'app-footer';
   const [scrolled, setScrolled] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => {
@@ -64,7 +76,7 @@ export function AppLayout() {
   const headerClassName = [
     'app-header',
     'app-header--sticky',
-    isLandingPage && 'app-header--landing',
+    isHome && 'app-header--landing',
     scrolled && 'app-header--scrolled',
   ]
     .filter(Boolean)
@@ -74,13 +86,10 @@ export function AppLayout() {
     { key: '/', label: <Link to="/">{t('layout.navHome')}</Link> },
     { key: '/launcher', label: <Link to="/launcher">{t('layout.navLauncher')}</Link> },
     { key: '/monitoring', label: <Link to="/monitoring">{t('layout.navMonitoring')}</Link> },
-    ...(isAuthenticated
-      ? [
-          { key: '/skins', label: <Link to="/skins">{t('layout.navSkins')}</Link> },
-          { key: '/servers', label: <Link to="/servers">{t('layout.navServers')}</Link> },
-        ]
-      : []),
+    { key: '/skins', label: <Link to="/skins">{t('layout.navSkins')}</Link> },
+    { key: '/servers', label: <Link to="/servers">{t('layout.navServers')}</Link> },
   ];
+  const selectedKey = navSelectedKey(location.pathname);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -100,13 +109,37 @@ export function AppLayout() {
             QXSystem
           </Typography.Title>
         </Link>
+        <Button
+          type="text"
+          className="app-header-burger"
+          icon={<MenuOutlined />}
+          aria-label={t('layout.navMenu')}
+          onClick={() => setNavOpen(true)}
+        />
         <Menu
+          className="app-header-menu"
           theme={isDark ? 'dark' : 'light'}
           mode="horizontal"
-          selectable={false}
+          selectedKeys={selectedKey ? [selectedKey] : []}
+          overflowedIndicator={t('layout.navMenu')}
           items={menuItems}
           style={{ flex: 1, minWidth: 0, background: 'transparent' }}
         />
+        <Drawer
+          title={t('layout.navMenu')}
+          placement="left"
+          open={navOpen}
+          onClose={() => setNavOpen(false)}
+          styles={{ body: { padding: 0 } }}
+        >
+          <Menu
+            theme={isDark ? 'dark' : 'light'}
+            mode="inline"
+            selectedKeys={selectedKey ? [selectedKey] : []}
+            items={menuItems}
+            onClick={() => setNavOpen(false)}
+          />
+        </Drawer>
         <Space className="app-header-controls" size={8}>
           <ThemeToggle />
           <LanguageSwitcher />
@@ -137,8 +170,10 @@ export function AppLayout() {
         </Space>
       </Header>
       <Content
-        className={isLandingPage ? 'app-content--landing' : 'app-content--main'}
-        style={{ padding: isLandingPage ? '0' : '24px 48px' }}
+        className={isFullBleedPage ? 'app-content--landing' : 'app-content--main'}
+        style={{
+          padding: isFullBleedPage ? 0 : `${token.paddingLG}px 48px`,
+        }}
       >
         <main>
           <Outlet />

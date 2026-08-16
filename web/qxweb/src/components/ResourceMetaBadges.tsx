@@ -12,7 +12,7 @@ export function ResourceMetaBadges({ item, className }: ResourceMetaBadgesProps)
   return (
     <div className={classNames}>
       {item.version_number ? (
-        <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
+        <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
           {item.version_number}
         </Tag>
       ) : null}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Input, Spin, Typography } from 'antd';
+import { Button, Empty, Input, Spin, Typography } from 'antd';
 import { api } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -53,9 +53,10 @@ export function InstanceOptionsPanel({ instanceId, deviceLinked }: InstanceOptio
 
   if (!deviceLinked) {
     return (
-      <Typography.Paragraph type="secondary">
-        {t('launcher.instanceSettingsModsConfigNote')}
-      </Typography.Paragraph>
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={t('launcher.instanceSettingsModsConfigNote')}
+      />
     );
   }
 

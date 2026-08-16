@@ -69,8 +69,28 @@ html[data-theme='dark'] .app-header--sticky:not(.app-header--landing).app-header
   background: transparent;
 }
 
+.app-content--main {
+  background: transparent;
+}
+
+@media (max-width: 768px) {
+  .app-content--main {
+    padding-inline: 16px !important;
+  }
+}
+
 .app-footer {
   text-align: center;
+}
+
+.app-header-burger.ant-btn {
+  display: none;
+  flex-shrink: 0;
+}
+
+.app-header-menu {
+  flex: 1;
+  min-width: 0;
 }
 
 .app-header-controls {
@@ -92,6 +112,18 @@ html[data-theme='dark'] .app-header--sticky:not(.app-header--landing).app-header
 }
 
 @media (max-width: 768px) {
+  .app-header-burger.ant-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .app-header-menu {
+    display: none;
+  }
+
   .app-header-controls {
     --header-control-height: 48px;
   }

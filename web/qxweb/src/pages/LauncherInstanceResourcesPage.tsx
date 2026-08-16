@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   Link,
   Navigate,
-  NavLink,
   Outlet,
   Route,
   Routes,
@@ -10,11 +9,10 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
-import { Spin, Tag, Typography } from 'antd';
+import { Segmented, Spin, Tag, Typography } from 'antd';
 import {
   AppstoreOutlined,
   ArrowLeftOutlined,
-  DatabaseOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
 import { api, type LauncherInstance } from '@/api/client';
@@ -45,30 +43,30 @@ function InstanceModsShell({ instance }: { instance: LauncherInstance }) {
 function ResourcesTabNav({ instanceId }: { instanceId: string }) {
   const { t } = useI18n();
   const location = useLocation();
+  const navigate = useNavigate();
   const base = `/launcher/instances/${instanceId}/resources`;
   const catalogActive = location.pathname.includes('/catalog');
 
   return (
     <nav className="launcher-resources-tabs" aria-label={t('launcherInstanceResources.tabsAria')}>
-      <NavLink
-        to={base}
-        end
-        className={() =>
-          `launcher-resources-tab${!catalogActive ? ' launcher-resources-tab--active' : ''}`
-        }
-      >
-        <UnorderedListOutlined aria-hidden />
-        {t('launcherInstanceResources.tabInstalled')}
-      </NavLink>
-      <NavLink
-        to={`${base}/catalog`}
-        className={() =>
-          `launcher-resources-tab${catalogActive ? ' launcher-resources-tab--active' : ''}`
-        }
-      >
-        <AppstoreOutlined aria-hidden />
-        {t('launcherInstanceResources.tabCatalog')}
-      </NavLink>
+      <Segmented
+        value={catalogActive ? 'catalog' : 'installed'}
+        onChange={(value) => {
+          navigate(value === 'catalog' ? `${base}/catalog` : base);
+        }}
+        options={[
+          {
+            value: 'installed',
+            icon: <UnorderedListOutlined aria-hidden />,
+            label: t('launcherInstanceResources.tabInstalled'),
+          },
+          {
+            value: 'catalog',
+            icon: <AppstoreOutlined aria-hidden />,
+            label: t('launcherInstanceResources.tabCatalog'),
+          },
+        ]}
+      />
     </nav>
   );
 }
@@ -144,17 +142,12 @@ export function LauncherInstanceResourcesPage() {
   return (
     <div className={`launcher-resources-page${catalogActive ? ' launcher-resources-page--catalog' : ''}`}>
       <section className="launcher-resources-hero">
-        <div className="launcher-resources-hero-ambient" aria-hidden />
         <div className="launcher-resources-hero-inner">
           <Link to="/launcher" className="launcher-resources-back">
             <ArrowLeftOutlined /> {t('launcherInstanceResources.backToLauncher')}
           </Link>
           <div className="launcher-resources-hero-head">
             <div className="launcher-resources-hero-main">
-              <span className="launcher-resources-badge">
-                <DatabaseOutlined aria-hidden />
-                {t('launcherInstanceResources.badge')}
-              </span>
               <Title level={1} className="launcher-resources-title">
                 {instance.name}
               </Title>
@@ -173,8 +166,8 @@ export function LauncherInstanceResourcesPage() {
                 <span className="launcher-tag launcher-tag--version">
                   Minecraft {instance.mc_version}
                 </span>
-                <Tag>{loaderName}</Tag>
-                {instance.loader_version ? <Tag>{instance.loader_version}</Tag> : null}
+                <Tag variant="filled">{loaderName}</Tag>
+                {instance.loader_version ? <Tag variant="filled">{instance.loader_version}</Tag> : null}
               </div>
             </div>
           </div>
