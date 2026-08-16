@@ -17,7 +17,7 @@ type PrepareRequest struct {
 	InstanceID      string     `gorm:"type:char(36);not null;index" json:"instance_id"`
 	Status          string     `gorm:"type:varchar(32);not null;default:queued;index" json:"status"`
 	ErrorCode       *string    `gorm:"type:varchar(64);column:error_code" json:"error_code,omitempty"`
-	ProgressMessage string     `gorm:"type:varchar(256)" json:"progress_message,omitempty"`
+	ProgressMessage string     `gorm:"type:varchar(256);not null;default:'';column:progress_message;-:migration" json:"progress_message,omitempty"`
 	ExpiresAt       time.Time  `json:"expires_at"`
 	DispatchedAt    *time.Time `json:"dispatched_at,omitempty"`
 	CompletedAt     *time.Time `json:"completed_at,omitempty"`

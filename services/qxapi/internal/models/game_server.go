@@ -45,7 +45,10 @@ type GameServer struct {
 	LastError                         string `gorm:"type:text" json:"last_error,omitempty"`
 
 	// Catalog installs (mods/plugins/datapacks) — metadata only; files live on the VPS.
-	ContentResources InstanceResourceList `gorm:"type:mediumtext" json:"content_resources,omitempty"`
+	// -:migration: AutoMigrate would ADD this as MEDIUMTEXT NOT NULL, which fails on
+	// a populated MySQL table (TEXT types cannot have a DEFAULT). Added in
+	// database.ensureSchemaAdditions as MEDIUMTEXT NULL.
+	ContentResources InstanceResourceList `gorm:"type:mediumtext;-:migration" json:"content_resources,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

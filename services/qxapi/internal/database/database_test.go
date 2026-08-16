@@ -38,6 +38,32 @@ func TestFixMonitoringTablesCollationSkipsSQLite(t *testing.T) {
 	fixMonitoringTablesCollation(db) // must not error on non-MySQL
 }
 
+func TestEnsureSchemaAdditionsSkipsMissingTables(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(testutil.MemoryDSN(t)), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	ensureSchemaAdditions(db) // empty DB — must not panic
+}
+
+func TestEnsureSchemaAdditionsAddsSQLiteColumns(t *testing.T) {
+	db := testutil.OpenSQLiteDB(t)
+	ensureSchemaAdditions(db)
+	m := db.Migrator()
+	if !m.HasColumn(&models.GameServer{}, "content_resources") && !columnExists(db, "game_servers", "content_resources") {
+		t.Fatal("expected content_resources on game_servers")
+	}
+	if !columnExists(db, "prepare_requests", "progress_message") {
+		t.Fatal("expected progress_message on prepare_requests")
+	}
+	if !columnExists(db, "launch_requests", "progress_message") {
+		t.Fatal("expected progress_message on launch_requests")
+	}
+	if !columnExists(db, "launcher_instances", "managed_by_game_server_id") {
+		t.Fatal("expected managed_by_game_server_id on launcher_instances")
+	}
+}
+
 func TestDropResourceBlobColumnsSkipsSQLite(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(testutil.MemoryDSN(t)), &gorm.Config{})
 	if err != nil {

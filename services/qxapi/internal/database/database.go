@@ -85,9 +85,127 @@ var migrateUsers = func(db *gorm.DB) error {
 	); err != nil {
 		return err
 	}
+	// ADD COLUMN only — never DROP/MODIFY/CONVERT here. AutoMigrate must not
+	// add MEDIUMTEXT/VARCHAR NOT NULL without a default on populated MySQL tables
+	// or qxapi never reaches Listen.
+	ensureSchemaAdditions(db)
 	fixMonitoringTablesCollation(db)
 	widenModListColumns(db)
 	return nil
+}
+
+type schemaAddition struct {
+	table  string
+	column string
+	mysql  string
+	sqlite string
+}
+
+// Columns that must not go through GORM AutoMigrate ADD (NOT NULL TEXT/MEDIUMTEXT
+// or NOT NULL VARCHAR without DEFAULT fails on existing MySQL rows).
+var schemaAdditions = []schemaAddition{
+	{
+		table:  "game_servers",
+		column: "content_resources",
+		mysql:  "`content_resources` MEDIUMTEXT NULL",
+		sqlite: "content_resources TEXT",
+	},
+	{
+		table:  "prepare_requests",
+		column: "progress_message",
+		mysql:  "`progress_message` VARCHAR(256) NOT NULL DEFAULT ''",
+		sqlite: "progress_message TEXT NOT NULL DEFAULT ''",
+	},
+	{
+		table:  "launch_requests",
+		column: "progress_message",
+		mysql:  "`progress_message` VARCHAR(256) NOT NULL DEFAULT ''",
+		sqlite: "progress_message TEXT NOT NULL DEFAULT ''",
+	},
+	{
+		table:  "launcher_instances",
+		column: "managed_by_game_server_id",
+		mysql:  "`managed_by_game_server_id` CHAR(36) NULL",
+		sqlite: "managed_by_game_server_id TEXT",
+	},
+}
+
+func ensureSchemaAdditions(db *gorm.DB) {
+	if db == nil || db.Dialector == nil {
+		return
+	}
+	mysql := db.Dialector.Name() == "mysql"
+	m := db.Migrator()
+	for _, col := range schemaAdditions {
+		if !m.HasTable(col.table) || columnExists(db, col.table, col.column) {
+			continue
+		}
+		spec := col.sqlite
+		quoted := col.table
+		if mysql {
+			spec = col.mysql
+			quoted = "`" + col.table + "`"
+		}
+		if err := db.Exec("ALTER TABLE " + quoted + " ADD COLUMN " + spec).Error; err != nil {
+			log.Printf("warning: add %s.%s: %v", col.table, col.column, err)
+		}
+	}
+	ensureManagedInstanceIndex(db, mysql)
+}
+
+func columnExists(db *gorm.DB, table, column string) bool {
+	if db.Dialector.Name() == "mysql" {
+		var n int64
+		if err := db.Raw(
+			`SELECT COUNT(*) FROM information_schema.COLUMNS
+			 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+			table, column,
+		).Scan(&n).Error; err != nil {
+			return false
+		}
+		return n > 0
+	}
+	type pragmaCol struct {
+		Name string `gorm:"column:name"`
+	}
+	var cols []pragmaCol
+	if err := db.Raw("PRAGMA table_info(" + table + ")").Scan(&cols).Error; err != nil {
+		return false
+	}
+	for _, col := range cols {
+		if col.Name == column {
+			return true
+		}
+	}
+	return false
+}
+
+func ensureManagedInstanceIndex(db *gorm.DB, mysql bool) {
+	m := db.Migrator()
+	if !m.HasTable("launcher_instances") || !columnExists(db, "launcher_instances", "managed_by_game_server_id") {
+		return
+	}
+	if mysql {
+		var n int64
+		if err := db.Raw(
+			`SELECT COUNT(*) FROM information_schema.STATISTICS
+			 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?`,
+			"launcher_instances", "idx_instances_managed_server",
+		).Scan(&n).Error; err != nil || n > 0 {
+			return
+		}
+		if err := db.Exec(
+			"CREATE INDEX `idx_instances_managed_server` ON `launcher_instances` (`managed_by_game_server_id`)",
+		).Error; err != nil {
+			log.Printf("warning: create idx_instances_managed_server: %v", err)
+		}
+		return
+	}
+	if err := db.Exec(
+		"CREATE INDEX IF NOT EXISTS idx_instances_managed_server ON launcher_instances (managed_by_game_server_id)",
+	).Error; err != nil {
+		log.Printf("warning: create idx_instances_managed_server: %v", err)
+	}
 }
 
 // modListColumns are columns that hold JSON lists of per-mod metadata and can

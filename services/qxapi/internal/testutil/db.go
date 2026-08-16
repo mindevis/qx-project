@@ -55,7 +55,7 @@ func OpenSQLiteDB(t testing.TB) *gorm.DB {
 }
 
 var autoMigrateUsers = func(db *gorm.DB) error {
-	return db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&models.User{},
 		&models.LauncherDevice{},
 		&models.LauncherInstance{},
@@ -75,7 +75,21 @@ var autoMigrateUsers = func(db *gorm.DB) error {
 		&models.GameServer{},
 		&models.GameServerMonitoringFeedback{},
 		&models.GameServerInstanceBinding{},
-	)
+	); err != nil {
+		return err
+	}
+	// These fields use gorm:"-:migration" so AutoMigrate will not create them
+	// (MySQL ADD MEDIUMTEXT/VARCHAR NOT NULL on live tables takes the API down).
+	for _, stmt := range []string{
+		"ALTER TABLE game_servers ADD COLUMN content_resources TEXT",
+		"ALTER TABLE prepare_requests ADD COLUMN progress_message TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE launch_requests ADD COLUMN progress_message TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE launcher_instances ADD COLUMN managed_by_game_server_id TEXT",
+		"CREATE INDEX IF NOT EXISTS idx_instances_managed_server ON launcher_instances (managed_by_game_server_id)",
+	} {
+		_ = db.Exec(stmt).Error
+	}
+	return nil
 }
 
 func CloseDB(t testing.TB, db *gorm.DB) {
