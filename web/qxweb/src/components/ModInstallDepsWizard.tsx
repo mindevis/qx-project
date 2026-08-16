@@ -5,7 +5,7 @@ import {
   type ModVersion,
 } from '@/api/client';
 import { ModInstallDepsModal, type DepsModalConfirmResult, type InstallItem } from '@/components/ModInstallDepsModal';
-import { useInstanceMods } from '@/components/InstanceModsContext';
+import { useModCatalog } from '@/components/ModCatalogContext';
 import {
   buildNestedDepsWizardSteps,
   dedupeInstallItemsByProject,
@@ -51,7 +51,7 @@ export function ModInstallDepsWizard({
   onCancel,
   onComplete,
 }: Props) {
-  const { instance } = useInstanceMods();
+  const { loader, mcVersion } = useModCatalog();
   const rootRef = useRef<ModDepsWizardStep | null>(null);
   const [modalQueue, setModalQueue] = useState<ModDepsWizardStep[]>([]);
   const [currentStep, setCurrentStep] = useState<ModDepsWizardStep | null>(null);
@@ -93,8 +93,8 @@ export function ModInstallDepsWizard({
     const nextAccumulated = dedupeInstallItemsByProject([...accumulatedItems, ...dependencies]);
 
     const nestedSteps = await buildNestedDepsWizardSteps(selectedRequired, installedProjectIds, {
-      loader: instance.loader,
-      mcVersion: instance.mc_version,
+      loader,
+      mcVersion,
     });
 
     if (nestedSteps.length > 0) {

@@ -149,6 +149,42 @@ html[data-theme='dark'] .instance-resources-panel {
   gap: 6px;
 }
 
+.qxmods-source-switch.qx-segment {
+  height: 28px;
+  padding: 2px;
+}
+
+.qxmods-source-switch .qx-segment__btn {
+  height: 22px;
+  min-width: unset;
+  padding: 0 8px;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.qxmods-source-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.qxmods-source-links .ant-btn {
+  padding-inline: 0;
+}
+
+@media (max-width: 768px) {
+  .qxmods-source-switch.qx-segment {
+    height: 28px;
+    padding: 2px;
+  }
+
+  .qxmods-source-switch .qx-segment__btn {
+    height: 22px;
+    min-width: unset;
+  }
+}
+
 .qxmods-catalog-author {
   font-size: 12px;
   max-width: 140px;

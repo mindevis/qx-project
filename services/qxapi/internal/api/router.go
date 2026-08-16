@@ -188,6 +188,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.GET("/servers/:id/game-servers/:gameServerId/properties", gameServersH.GetProperties)
 			authed.PATCH("/servers/:id/game-servers/:gameServerId/properties", gameServersH.PatchProperties)
 			authed.GET("/servers/:id/game-servers/:gameServerId/resources", gameServersH.ListContentResources)
+			authed.PATCH("/servers/:id/game-servers/:gameServerId/resources", gameServersH.PatchContentResource)
 			authed.GET("/servers/:id/game-servers/:gameServerId/mods", gameServersH.ListMods)
 			authed.GET("/servers/:id/game-servers/:gameServerId/client-mods", gameServersH.ListClientMods)
 			authed.POST("/servers/:id/game-servers/:gameServerId/mods/sync", gameServersH.SyncMod)

@@ -23,18 +23,23 @@ import {
   type ModVersion,
   type InstanceResource,
 } from '@/api/client';
+import { CatalogSourceSwitch } from '@/components/CatalogSourceSwitch';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import {
   ModCatalogInstallControls,
   clearModVersionCache,
 } from '@/components/ModCatalogInstallControls';
-import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { ModSideBadge } from '@/components/ModSideBadge';
 import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { formatCompactCount } from '@/lib/formatCompactCount';
+import {
+  catalogCardItem,
+  mergeCatalogCardsByName,
+  type CatalogCard,
+} from '@/lib/mergeCatalogCards';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { isCatalogItemInstalledOnInstance, modSupportsServerSync } from '@/lib/modSync';
 import {
@@ -68,6 +73,7 @@ export function ModsCatalogPanel() {
   const [showInstalledOnly, setShowInstalledOnly] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncSelection, setSyncSelection] = useState<ModSyncSelection | null>(null);
+  const [cardSourceByKey, setCardSourceByKey] = useState<Partial<Record<string, ModSource>>>({});
 
   const refreshInstalled = useCallback(async () => {
     try {
@@ -301,6 +307,16 @@ export function ModsCatalogPanel() {
     sourceFilter,
   ]);
 
+  const visibleCards = useMemo(
+    () => mergeCatalogCardsByName(visibleItems, sourceFilter),
+    [sourceFilter, visibleItems],
+  );
+
+  const itemForCard = useCallback(
+    (card: CatalogCard) => catalogCardItem(card, cardSourceByKey[card.key]),
+    [cardSourceByKey],
+  );
+
   const sourceOptions = useMemo(
     () => [
       { value: 'all', label: t('qxmods.filters.sourceAll') },
@@ -320,14 +336,17 @@ export function ModsCatalogPanel() {
     [t],
   );
 
-  const columns: ColumnsType<ModCatalogItem> = [
+  const columns: ColumnsType<CatalogCard> = [
     {
       title: '',
       key: 'icon',
       width: 56,
-      render: (_, item) => (
-        <ModCatalogIcon url={item.icon_url} name={item.name} size={44} className="qxmods-catalog-table-icon" />
-      ),
+      render: (_, card) => {
+        const item = itemForCard(card);
+        return (
+          <ModCatalogIcon url={item.icon_url} name={item.name} size={44} className="qxmods-catalog-table-icon" />
+        );
+      },
     },
     {
       title: t('qxmods.catalog.name'),
@@ -336,69 +355,85 @@ export function ModsCatalogPanel() {
       width: 220,
       ellipsis: true,
       className: 'qxmods-catalog-name-col',
-      render: (_, item) => (
-        <div className="qxmods-catalog-name-cell">
-          <Link to={`${basePath}/catalog/${item.source}/${item.id}`} className="qxmods-catalog-link">
-            {item.name}
-          </Link>
-          <div className="qxmods-catalog-name-meta">
-            <ModSourceBadge source={item.source} />
-            {item.author ? (
-              <Text type="secondary" className="qxmods-catalog-author">
-                {item.author}
-              </Text>
-            ) : null}
+      render: (_, card) => {
+        const item = itemForCard(card);
+        return (
+          <div className="qxmods-catalog-name-cell">
+            <Link
+              to={`${basePath}/catalog/${item.source}/${item.id}`}
+              state={card.items.length > 1 ? { catalogSiblings: card.items } : undefined}
+              className="qxmods-catalog-link"
+            >
+              {card.name}
+            </Link>
+            <div className="qxmods-catalog-name-meta">
+              <CatalogSourceSwitch
+                items={card.items}
+                value={item.source}
+                onChange={(source) => setCardSourceByKey((prev) => ({ ...prev, [card.key]: source }))}
+              />
+              {item.author ? (
+                <Text type="secondary" className="qxmods-catalog-author">
+                  {item.author}
+                </Text>
+              ) : null}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: t('qxmods.catalog.summary'),
-      dataIndex: 'summary',
       key: 'summary',
       ellipsis: true,
       className: 'qxmods-catalog-summary-col',
       responsive: ['md'],
+      render: (_, card) => itemForCard(card).summary,
     },
     {
       title: t('qxmods.catalog.side'),
       key: 'side',
       width: 132,
       className: 'qxmods-catalog-side-col',
-      render: (_, item) => (activeTab === 'mod' ? <ModSideBadge item={item} /> : null),
+      render: (_, card) => (activeTab === 'mod' ? <ModSideBadge item={itemForCard(card)} /> : null),
     },
     {
       title: t('qxmods.catalog.downloads'),
       key: 'downloads',
       width: 96,
       className: 'qxmods-catalog-downloads-col',
-      render: (_, item) =>
-        item.downloads != null ? formatCompactCount(item.downloads) : '—',
+      render: (_, card) => {
+        const item = itemForCard(card);
+        return item.downloads != null ? formatCompactCount(item.downloads) : '—';
+      },
     },
     {
       title: t('qxmods.catalog.install'),
       key: 'install',
       width: 260,
       className: 'qxmods-catalog-install-cell',
-      render: (_, item) => (
-        <ModCatalogInstallControls
-          source={item.source as ModSource}
-          projectId={item.id}
-          projectName={item.name}
-          projectType={item.project_type ?? activeTab}
-          iconUrl={item.icon_url}
-          downloads={item.downloads}
-          clientSide={item.client_side}
-          serverSide={item.server_side}
-          loader={catalogLoader}
-          mcVersion={instance.mc_version}
-          installedProjectIds={installedProjectIds}
-          layout="inline"
-          selectClassName="qxmods-install-version-select--table"
-          onInstalled={(version) => handleInstalled(item, version)}
-          onUninstalled={() => void refreshInstalled()}
-        />
-      ),
+      render: (_, card) => {
+        const item = itemForCard(card);
+        return (
+          <ModCatalogInstallControls
+            source={item.source as ModSource}
+            projectId={item.id}
+            projectName={item.name}
+            projectType={item.project_type ?? activeTab}
+            iconUrl={item.icon_url}
+            downloads={item.downloads}
+            clientSide={item.client_side}
+            serverSide={item.server_side}
+            loader={catalogLoader}
+            mcVersion={instance.mc_version}
+            installedProjectIds={installedProjectIds}
+            layout="inline"
+            selectClassName="qxmods-install-version-select--table"
+            onInstalled={(version) => handleInstalled(item, version)}
+            onUninstalled={() => void refreshInstalled()}
+          />
+        );
+      },
     },
   ];
 
@@ -508,9 +543,9 @@ export function ModsCatalogPanel() {
         <>
           <Table
             className="qxmods-catalog-table qxmods-catalog-table--install"
-            rowKey={(item) => `${item.source}:${item.id}`}
+            rowKey={(card) => card.key}
             columns={columns}
-            dataSource={visibleItems}
+            dataSource={visibleCards}
             loading={loading && !showInstalledOnly}
             pagination={false}
             scroll={{ x: 960 }}

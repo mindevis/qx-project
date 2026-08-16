@@ -24,12 +24,17 @@ func TestRemoveContentResource(t *testing.T) {
 		{Filename: "keep.jar", ResourceType: "mod", SideOverride: "server"},
 		{Filename: "gone.jar", ResourceType: "mod", SideOverride: "server"},
 		{Filename: "client.jar", ResourceType: "mod", SideOverride: "client"},
+		{Filename: "shared.jar", ResourceType: "mod", SideOverride: "both"},
 	}
 	got := removeContentResource(list, "gone.jar", "mod", "server")
-	if len(got) != 2 {
+	if len(got) != 3 {
 		t.Fatalf("len=%d", len(got))
 	}
 	got = removeContentResource(got, "client.jar", "mod", "client")
+	if len(got) != 2 {
+		t.Fatalf("got %+v", got)
+	}
+	got = removeContentResource(got, "shared.jar", "mod", "server")
 	if len(got) != 1 || got[0].Filename != "keep.jar" {
 		t.Fatalf("got %+v", got)
 	}
@@ -52,5 +57,60 @@ func TestResourceEntryFromSync(t *testing.T) {
 	})
 	if client.SideOverride != "client" || client.ProjectName != "map.jar" {
 		t.Fatalf("client=%+v", client)
+	}
+	both := resourceEntryFromSync("mod", mods.SyncModRequest{
+		Filename:     "jei.jar",
+		ModTarget:    "",
+		SideOverride: "both",
+	})
+	if both.SideOverride != "both" {
+		t.Fatalf("both=%+v", both)
+	}
+}
+
+func TestMatchesContentTargetFilterIncludesBothOnServerFolder(t *testing.T) {
+	if !matchesContentTargetFilter("both", "server") {
+		t.Fatal("both-sided mods live in mods/")
+	}
+	if matchesContentTargetFilter("client", "server") {
+		t.Fatal("client mods must not match the server folder filter")
+	}
+	if !matchesContentTargetFilter("client", "client") {
+		t.Fatal("client filter should keep client mods")
+	}
+}
+
+func TestContentSideForFilenameAndPull(t *testing.T) {
+	list := models.InstanceResourceList{
+		{Filename: "map.jar", SideOverride: "server"},
+		{Filename: "jei.jar", SideOverride: "both"},
+		{Filename: "legacy.jar"},
+	}
+	if contentSideForFilename(list, "map.jar") != "server" {
+		t.Fatal("expected server")
+	}
+	if shouldPullServerModToClient(contentSideForFilename(list, "map.jar")) {
+		t.Fatal("server-only mods must stay off the client")
+	}
+	if !shouldPullServerModToClient(contentSideForFilename(list, "jei.jar")) {
+		t.Fatal("both-sided mods must reach the client")
+	}
+	if !shouldPullServerModToClient(contentSideForFilename(list, "legacy.jar")) {
+		t.Fatal("legacy mods without a side stay on the client")
+	}
+	if !shouldPullServerModToClient(contentSideForFilename(list, "unknown.jar")) {
+		t.Fatal("unknown mods/ files keep the previous pull behavior")
+	}
+}
+
+func TestContentModTargetForSide(t *testing.T) {
+	if contentModTargetForSide("mod", "client") != "client-mods" {
+		t.Fatal("client mods belong in client-mods/")
+	}
+	if contentModTargetForSide("mod", "both") != "" {
+		t.Fatal("both-sided mods belong in the default mods/ folder")
+	}
+	if contentModTargetForSide("mod", "server") != "" {
+		t.Fatal("server-only mods belong in the default mods/ folder")
 	}
 }

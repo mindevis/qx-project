@@ -6,7 +6,7 @@ type CacheEntry<T> = {
 export type TtlCache<T> = {
   get: (key: string) => T | undefined;
   set: (key: string, value: T) => void;
-  getOrLoad: (key: string, loader: () => Promise<T>) => Promise<T>;
+  getOrLoad: (key: string, loader: () => Promise<T>, cacheIf?: (value: T) => boolean) => Promise<T>;
   clear: () => void;
   delete: (key: string) => void;
 };
@@ -41,7 +41,7 @@ export function createTtlCache<T>(ttlMs: number, maxEntries = 500): TtlCache<T> 
       store.set(key, { value, expiresAt: Date.now() + ttlMs });
     },
 
-    async getOrLoad(key: string, loader: () => Promise<T>) {
+    async getOrLoad(key: string, loader: () => Promise<T>, cacheIf?: (value: T) => boolean) {
       const cached = this.get(key);
       if (cached !== undefined) return cached;
 
@@ -50,7 +50,9 @@ export function createTtlCache<T>(ttlMs: number, maxEntries = 500): TtlCache<T> 
 
       const promise = loader()
         .then((value) => {
-          this.set(key, value);
+          if (!cacheIf || cacheIf(value)) {
+            this.set(key, value);
+          }
           return value;
         })
         .finally(() => {

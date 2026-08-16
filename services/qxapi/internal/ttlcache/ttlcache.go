@@ -67,6 +67,12 @@ func (c *Cache[V]) Set(key string, value V) {
 }
 
 func (c *Cache[V]) GetOrLoad(key string, load func() (V, error)) (V, error) {
+	return c.GetOrLoadIf(key, load, nil)
+}
+
+// GetOrLoadIf is GetOrLoad, but a successful value is cached only when keep returns true.
+// A nil keep caches every successful value.
+func (c *Cache[V]) GetOrLoadIf(key string, load func() (V, error), keep func(V) bool) (V, error) {
 	if value, ok := c.Get(key); ok {
 		return value, nil
 	}
@@ -86,7 +92,7 @@ func (c *Cache[V]) GetOrLoad(key string, load func() (V, error)) (V, error) {
 	c.mu.Unlock()
 
 	call.val, call.err = load()
-	if call.err == nil {
+	if call.err == nil && (keep == nil || keep(call.val)) {
 		c.Set(key, call.val)
 	}
 

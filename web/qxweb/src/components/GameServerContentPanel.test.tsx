@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
+import { clearModCatalogCaches } from '@/lib/modCatalogCache';
 import { GameServerContentPanel } from './GameServerContentPanel';
 
 function mockCatalogApis() {
@@ -21,6 +22,8 @@ function mockCatalogApis() {
 
 describe('GameServerContentPanel', () => {
   beforeEach(() => {
+    window.localStorage.clear();
+    clearModCatalogCaches();
     mockCatalogApis();
   });
 
@@ -189,10 +192,10 @@ describe('GameServerContentPanel', () => {
     await waitFor(() => expect(screen.getByText('Just Enough Items')).toBeInTheDocument());
     expect(screen.getByText('jei.jar')).toBeInTheDocument();
     expect(screen.getByText('19.8.0')).toBeInTheDocument();
-    expect(screen.getByText('Сервер')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Тип мода (сторона)' })).toBeInTheDocument();
   });
 
-  it('filters installed mods by server and client folder', async () => {
+  it('lists server and client mods together and can change the side', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const user = userEvent.setup({ delay: null });
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
@@ -205,6 +208,7 @@ describe('GameServerContentPanel', () => {
         { name: 'journeymap.jar', path: 'client-mods/journeymap.jar', dir: false, size: 8 },
       ],
     });
+    const patch = vi.spyOn(api, 'patchGameServerResource').mockResolvedValue({ status: 'ok' });
 
     renderWithTheme(
       <GameServerContentPanel
@@ -219,11 +223,19 @@ describe('GameServerContentPanel', () => {
     );
 
     await waitFor(() => expect(screen.getByText('bettercombat.jar')).toBeInTheDocument());
-    expect(screen.queryByText('journeymap.jar')).not.toBeInTheDocument();
+    expect(screen.getByText('journeymap.jar')).toBeInTheDocument();
 
-    await user.click(screen.getByText('Клиентские моды'));
-    await waitFor(() => expect(screen.getByText('journeymap.jar')).toBeInTheDocument());
-    expect(screen.queryByText('bettercombat.jar')).not.toBeInTheDocument();
+    const sideSelects = screen.getAllByRole('combobox', { name: 'Тип мода (сторона)' });
+    await user.click(sideSelects[0]);
+    await user.click(await screen.findByTitle('Сервер'));
+
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        'srv-1',
+        'gs-1',
+        expect.objectContaining({ filename: 'bettercombat.jar', side_override: 'server' }),
+      ),
+    );
   });
 
   it('installs a catalog mod onto the game server', async () => {
@@ -290,6 +302,236 @@ describe('GameServerContentPanel', () => {
       source: 'modrinth',
       project_id: 'jei',
       filename: 'jei.jar',
+      mod_target: 'mods',
+      side_override: 'both',
     });
+  });
+
+  it('installs a client-only catalog mod into client-mods', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'sodium',
+          slug: 'sodium',
+          name: 'Sodium',
+          summary: 'Perf',
+          project_type: 'mod',
+          client_side: 'required',
+          server_side: 'unsupported',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+    vi.spyOn(api, 'listModVersions').mockResolvedValue({
+      items: [
+        {
+          id: 'ver-1',
+          version_number: '1.0.0',
+          game_versions: ['1.21'],
+          loaders: ['forge'],
+          files: [{ filename: 'sodium.jar', url: 'https://cdn.modrinth.com/sodium.jar', size: 10 }],
+        },
+      ],
+    });
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({
+      id: 'ver-1',
+      version_number: '1.0.0',
+      game_versions: ['1.21'],
+      loaders: ['forge'],
+      files: [{ filename: 'sodium.jar', url: 'https://cdn.modrinth.com/sodium.jar', size: 10 }],
+      dependencies: [],
+    });
+    const sync = vi.spyOn(api, 'syncModToGameServer').mockResolvedValue({
+      status: 'installed',
+      filename: 'sodium.jar',
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Установить' }));
+    await waitFor(() => expect(sync).toHaveBeenCalled());
+    expect(sync.mock.calls[0][2]).toMatchObject({
+      filename: 'sodium.jar',
+      mod_target: 'client-mods',
+      side_override: 'client',
+    });
+  });
+
+  it('switches the catalog to a table view', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'jei',
+          slug: 'jei',
+          name: 'JEI',
+          summary: 'Items',
+          project_type: 'mod',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByRole('radio', { name: 'Таблица' }));
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByText('JEI')).toBeInTheDocument());
+    expect(document.querySelector('.qxmods-catalog-table')).toBeTruthy();
+  });
+
+  it('merges same-name catalog mods from both sources into one card', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'jei',
+          slug: 'jei',
+          name: 'JEI',
+          summary: 'Items',
+          project_type: 'mod',
+          downloads: 200,
+          external_url: 'https://modrinth.com/mod/jei',
+        },
+        {
+          source: 'curseforge',
+          id: '238222',
+          slug: 'jei',
+          name: 'JEI',
+          summary: 'Just Enough Items',
+          project_type: 'mod',
+          downloads: 80,
+          external_url: 'https://www.curseforge.com/minecraft/mc-mods/jei',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'JEI' })).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: 'JEI' })).toHaveLength(1);
+    expect(screen.getByRole('radio', { name: 'Modrinth' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'CurseForge' })).toBeInTheDocument();
+  });
+
+  it('opens the dependency wizard on a game server without InstanceModsProvider', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'better-combat',
+          slug: 'better-combat',
+          name: 'Better Combat',
+          summary: 'Combat',
+          project_type: 'mod',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+    vi.spyOn(api, 'listModVersions').mockResolvedValue({
+      items: [
+        {
+          id: 'ver-bc',
+          version_number: '2.0.0',
+          game_versions: ['1.21'],
+          loaders: ['forge'],
+          files: [{ filename: 'bettercombat.jar', url: 'https://cdn.modrinth.com/bc.jar', size: 10 }],
+        },
+      ],
+    });
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({
+      id: 'ver-bc',
+      version_number: '2.0.0',
+      game_versions: ['1.21'],
+      loaders: ['forge'],
+      files: [{ filename: 'bettercombat.jar', url: 'https://cdn.modrinth.com/bc.jar', size: 10 }],
+      dependencies: [
+        {
+          source: 'modrinth',
+          project_id: 'cloth-config',
+          project_name: 'Cloth Config API',
+          dependency_type: 'required',
+          version_id: 'ver-cloth',
+          filename: 'cloth.jar',
+          download_url: 'https://cdn.modrinth.com/cloth.jar',
+        },
+      ],
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByText('Better Combat')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Установить' }));
+    await waitFor(() => expect(screen.getByText('Обязательные зависимости')).toBeInTheDocument());
+    expect(screen.getByText('Cloth Config API')).toBeInTheDocument();
   });
 });

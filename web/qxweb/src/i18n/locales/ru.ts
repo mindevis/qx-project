@@ -801,10 +801,14 @@ export const ru = {
       folder: 'Папка',
       modsFolder: 'Серверные моды',
       clientModsFolder: 'Клиентские моды',
+      viewModeAria: 'Отображение списка модов',
+      viewList: 'Таблица',
+      viewCards: 'Карточки',
+      uploadSideAria: 'Сторона для загружаемого файла',
       tabInstalled: 'Установленные',
       tabCatalog: 'Каталог',
       introMod:
-        'Каталог Modrinth и CurseForge ставит файлы сразу на этот сервер. Серверные моды работают на VPS, клиентские приедут игрокам при подключении.',
+        'Каталог Modrinth и CurseForge ставит файлы сразу на этот сервер. Для каждого мода задайте сторону: клиент, сервер или клиент+сервер. Клиентские банки не попадают в mods на VPS и доставляются игрокам при подключении.',
       introPlugin: 'Ищите плагины в каталоге и ставьте их в папку plugins на этом сервере.',
       introDatapack: 'Датапаки из каталога копируются в world/datapacks на этом сервере.',
       installedCount: '{{count}} на сервере',
@@ -998,6 +1002,7 @@ export const ru = {
     filters: {
       source: 'Источник',
       sourceAll: 'Все источники',
+      sourcePick: 'Скачать с',
       sort: 'Сортировка',
       sortDownloads: 'По загрузкам',
       sortNewest: 'Новые',
@@ -1015,6 +1020,7 @@ export const ru = {
     detailTitle: 'Детали',
     detailAttribution: 'Источник и лицензия указаны на странице проекта у поставщика каталога.',
     viewOnSource: 'Открыть у источника',
+    viewOnNamed: 'Открыть на {{source}}',
     selectVersion: 'Версия',
     noVersions: 'Нет подходящих версий',
     source: {

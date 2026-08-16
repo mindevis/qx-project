@@ -4,6 +4,7 @@ import {
   applyModTargetToBodies,
   instanceResourceModTarget,
   instanceResourceContentTarget,
+  gameServerInstallSide,
   instanceResourceSupportsServerSync,
   isServerOnlyMod,
   needsServerRestartAfterSync,
@@ -182,6 +183,16 @@ describe('instanceResourceModTarget', () => {
   it('routes client-only override to client-mods folder', () => {
     expect(instanceResourceModTarget({ side_override: 'client' })).toBe('client-mods');
     expect(instanceResourceModTarget({ side_override: 'server' })).toBe('mods');
+    expect(instanceResourceModTarget({ side_override: 'both' })).toBe('mods');
+  });
+});
+
+describe('gameServerInstallSide', () => {
+  it('keeps explicit sides and defaults unknown catalog data to both', () => {
+    expect(gameServerInstallSide('client')).toBe('client');
+    expect(gameServerInstallSide('server')).toBe('server');
+    expect(gameServerInstallSide('unknown')).toBe('both');
+    expect(gameServerInstallSide()).toBe('both');
   });
 });
 

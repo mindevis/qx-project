@@ -318,9 +318,6 @@ func (c *curseForgeClient) listVersionsOnce(ctx context.Context, projectID, load
 		if downloadURL == "" {
 			downloadURL, _ = c.fileDownloadURL(ctx, projectID, strconv.Itoa(f.ID))
 		}
-		if downloadURL == "" {
-			continue
-		}
 		out = append(out, Version{
 			ID:            strconv.Itoa(f.ID),
 			VersionNumber: f.DisplayName,
@@ -477,6 +474,38 @@ func (c *curseForgeClient) fileDownloadURL(ctx context.Context, projectID, fileI
 }
 
 func (c *curseForgeClient) getJSON(ctx context.Context, path string, dest any) error {
+	var last error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			delay := time.Duration(attempt) * 400 * time.Millisecond
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+		}
+		last = c.getJSONOnce(ctx, path, dest)
+		if last == nil {
+			return nil
+		}
+		if !isCurseForgeRetryable(last) {
+			return last
+		}
+	}
+	return last
+}
+
+func isCurseForgeRetryable(err error) bool {
+	var cfErr *CurseForgeHTTPError
+	if !errors.As(err, &cfErr) {
+		return false
+	}
+	return cfErr.StatusCode == http.StatusTooManyRequests || cfErr.StatusCode == http.StatusServiceUnavailable
+}
+
+func (c *curseForgeClient) getJSONOnce(ctx context.Context, path string, dest any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL()+path, nil)
 	if err != nil {
 		return err

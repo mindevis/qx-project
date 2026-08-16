@@ -39,4 +39,19 @@ describe('modCatalogCache', () => {
     await cachedListModVersions('modrinth', 'sodium', { loader: 'fabric', mc_version: '1.21' });
     expect(api.listModVersions).toHaveBeenCalledTimes(1);
   });
+
+  it('retries empty version lists instead of caching them', async () => {
+    vi.mocked(api.listModVersions)
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValueOnce({
+        items: [{ id: 'v1', version_number: '1.0', files: [{ filename: 'a.jar', url: 'https://x' }] }],
+      });
+    await expect(
+      cachedListModVersions('curseforge', 'jei', { loader: 'neoforge', mc_version: '1.21.1' }),
+    ).resolves.toEqual([]);
+    await expect(
+      cachedListModVersions('curseforge', 'jei', { loader: 'neoforge', mc_version: '1.21.1' }),
+    ).resolves.toHaveLength(1);
+    expect(api.listModVersions).toHaveBeenCalledTimes(2);
+  });
 });

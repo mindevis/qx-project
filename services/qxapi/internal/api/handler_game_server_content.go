@@ -22,6 +22,12 @@ type deleteContentBody struct {
 	ModTarget string `json:"mod_target"`
 }
 
+type patchContentResourceBody struct {
+	Filename     string `json:"filename" binding:"required"`
+	ResourceType string `json:"resource_type"`
+	SideOverride string `json:"side_override" binding:"required"`
+}
+
 func (h *GameServersHandler) ListContentResources(c *gin.Context) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {
@@ -41,6 +47,33 @@ func (h *GameServersHandler) ListContentResources(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+func (h *GameServersHandler) PatchContentResource(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var body patchContentResourceBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	err := h.Service.UpdateGameServerResourceSide(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		body.Filename,
+		body.ResourceType,
+		body.SideOverride,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (h *GameServersHandler) ListClientMods(c *gin.Context) {
@@ -209,7 +242,7 @@ func (h *GameServersHandler) syncGameServerContent(
 	}
 
 	modTarget := strings.TrimSpace(body.ModTarget)
-	entries, err := listContentEntries(
+	installed, err := contentAlreadyInstalled(
 		c.Request.Context(),
 		h,
 		userID.(string),
@@ -217,22 +250,18 @@ func (h *GameServersHandler) syncGameServerContent(
 		c.Param("gameServerId"),
 		contentKind,
 		modTarget,
+		body.Filename,
 	)
 	if err != nil {
 		gameServerError(c, err)
 		return
 	}
-	for _, entry := range entries {
-		if entry.Dir {
-			continue
-		}
-		if strings.EqualFold(entry.Name, body.Filename) {
-			c.JSON(http.StatusOK, gin.H{
-				"status":  "already_installed",
-				"message": contentKind + " file already exists on server",
-			})
-			return
-		}
+	if installed {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "already_installed",
+			"message": contentKind + " file already exists on server",
+		})
+		return
 	}
 
 	result, err := h.Service.InstallGameServerContent(
@@ -311,6 +340,33 @@ func (h *GameServersHandler) deleteGameServerContent(
 	}
 	_ = h.Service.RemoveGameServerResource(c.Request.Context(), gs.ID, body.Filename, contentKind, modTarget)
 	c.JSON(http.StatusOK, gin.H{"status": "deleted", "filename": body.Filename})
+}
+
+func contentAlreadyInstalled(
+	ctx context.Context,
+	h *GameServersHandler,
+	userID, vpsID, gameServerID, contentKind, modTarget, filename string,
+) (bool, error) {
+	targets := []string{modTarget}
+	if contentKind == "mod" {
+		if strings.EqualFold(modTarget, "client-mods") {
+			targets = append(targets, "")
+		} else {
+			targets = append(targets, "client-mods")
+		}
+	}
+	for _, target := range targets {
+		entries, err := listContentEntries(ctx, h, userID, vpsID, gameServerID, contentKind, target)
+		if err != nil {
+			return false, err
+		}
+		for _, entry := range entries {
+			if !entry.Dir && strings.EqualFold(entry.Name, filename) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func listContentEntries(
@@ -410,7 +466,15 @@ func (h *GameServersHandler) uploadGameServerContent(
 		gameServerError(c, err)
 		return
 	}
-	_ = h.Service.RecordGameServerUpload(c.Request.Context(), gs.ID, contentKind, result.Filename, modTarget, int64(len(data)))
+	_ = h.Service.RecordGameServerUpload(
+		c.Request.Context(),
+		gs.ID,
+		contentKind,
+		result.Filename,
+		modTarget,
+		c.PostForm("side_override"),
+		int64(len(data)),
+	)
 	c.JSON(http.StatusCreated, gin.H{
 		"status":   result.Status,
 		"filename": result.Filename,

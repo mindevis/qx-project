@@ -1,8 +1,9 @@
 import { type ReactNode } from 'react';
-import { api, type GameServerContentKind, type ModProjectType, type ModTarget } from '@/api/client';
+import { api, type GameServerContentKind, type ModProjectType } from '@/api/client';
 import { ModCatalogProvider } from '@/components/ModCatalogContext';
 import { useGameServerModInstall } from '@/hooks/useGameServerModInstall';
 import { pluginLoaderForServerType, type VpsGameServerType } from '@/lib/gameServerTypes';
+import { instanceResourceModTarget } from '@/lib/modSync';
 
 function projectTypeForKind(kind: GameServerContentKind): ModProjectType {
   switch (kind) {
@@ -21,7 +22,6 @@ export function GameServerCatalogProvider({
   gameServerId,
   serverType,
   mcVersion,
-  modTarget,
   children,
 }: {
   kind: GameServerContentKind;
@@ -29,15 +29,9 @@ export function GameServerCatalogProvider({
   gameServerId: string;
   serverType: VpsGameServerType;
   mcVersion: string;
-  modTarget?: ModTarget;
   children: ReactNode;
 }) {
-  const { installingVersionId, installBatch } = useGameServerModInstall(
-    kind,
-    vpsId,
-    gameServerId,
-    modTarget,
-  );
+  const { installingVersionId, installBatch } = useGameServerModInstall(kind, vpsId, gameServerId);
   const resourceType = projectTypeForKind(kind);
   const loader =
     kind === 'plugin' ? pluginLoaderForServerType(serverType) : kind === 'mod' ? serverType : '';
@@ -54,7 +48,6 @@ export function GameServerCatalogProvider({
         listInstalled: async () => {
           const res = await api.listGameServerResources(vpsId, gameServerId, {
             kind: resourceType,
-            mod_target: kind === 'mod' ? modTarget : undefined,
           });
           return res.items ?? [];
         },
@@ -70,11 +63,16 @@ export function GameServerCatalogProvider({
             case 'datapack':
               await api.deleteVpsGameServerDatapack(vpsId, gameServerId, { filename });
               break;
-            default:
+            default: {
+              const res = await api.listGameServerResources(vpsId, gameServerId, { kind: 'mod' });
+              const match = (res.items ?? []).find(
+                (item) => item.filename.toLowerCase() === filename.toLowerCase(),
+              );
               await api.deleteVpsGameServerMod(vpsId, gameServerId, {
                 filename,
-                mod_target: modTarget,
+                mod_target: match ? instanceResourceModTarget(match) : undefined,
               });
+            }
           }
         },
       }}

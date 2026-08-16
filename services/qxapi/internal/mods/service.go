@@ -55,33 +55,39 @@ func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVers
 		limit = 20
 	}
 	source = strings.ToLower(strings.TrimSpace(source))
+	var cacheable bool
 	load := func() ([]SearchItem, error) {
-		return s.searchUncached(ctx, query, projectType, loader, mcVersion, source, limit)
+		items, ok, err := s.searchUncached(ctx, query, projectType, loader, mcVersion, source, limit)
+		cacheable = ok
+		return items, err
 	}
 	if s.searchCache == nil {
 		return load()
 	}
-	return s.searchCache.GetOrLoad(
+	return s.searchCache.GetOrLoadIf(
 		cacheKey("search", query, projectType, loader, mcVersion, source, strconv.Itoa(limit)),
 		load,
+		func([]SearchItem) bool { return cacheable },
 	)
 }
 
-func (s *Service) searchUncached(ctx context.Context, query, projectType, loader, mcVersion, source string, limit int) ([]SearchItem, error) {
+func (s *Service) searchUncached(ctx context.Context, query, projectType, loader, mcVersion, source string, limit int) ([]SearchItem, bool, error) {
 	switch source {
 	case SourceCurseForge:
 		if !s.curseforge.enabled() {
-			return nil, fmt.Errorf("curseforge api key not configured")
+			return nil, false, fmt.Errorf("curseforge api key not configured")
 		}
-		return s.curseforge.search(ctx, query, projectType, loader, mcVersion, limit)
+		items, err := s.curseforge.search(ctx, query, projectType, loader, mcVersion, limit)
+		return items, err == nil && len(items) > 0, err
 	case SourceModrinth:
-		return s.modrinth.search(ctx, query, projectType, loader, mcVersion, limit)
+		items, err := s.modrinth.search(ctx, query, projectType, loader, mcVersion, limit)
+		return items, err == nil && len(items) > 0, err
 	default:
 		return s.searchUpstream(ctx, query, projectType, loader, mcVersion, limit)
 	}
 }
 
-func (s *Service) searchUpstream(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {
+func (s *Service) searchUpstream(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, bool, error) {
 	mrCh := runCatalogHalf(func() ([]SearchItem, error) {
 		return s.modrinth.search(ctx, query, projectType, loader, mcVersion, limit)
 	})
@@ -89,7 +95,8 @@ func (s *Service) searchUpstream(ctx context.Context, query, projectType, loader
 		return s.curseforge.search(ctx, query, projectType, loader, mcVersion, limit)
 	})
 	mr, cf, cfOK := waitPrimaryThenPartner(ctx, mrCh, cfCh, catalogPartnerGrace)
-	return mergeCatalogHalves(mr, cf, cfOK, limit)
+	items, err := mergeCatalogHalves(mr, cf, cfOK, limit)
+	return items, catalogResultCacheable(s.curseforge.enabled(), cfOK, cf.err, items, err), err
 }
 
 func (s *Service) Browse(ctx context.Context, projectType, loader, mcVersion, source, sort string, limit, offset int) ([]SearchItem, bool, error) {
@@ -101,8 +108,11 @@ func (s *Service) Browse(ctx context.Context, projectType, loader, mcVersion, so
 		offset = 0
 	}
 	source = strings.ToLower(strings.TrimSpace(source))
+	var cacheable bool
 	load := func() ([]SearchItem, error) {
-		return s.browseUncached(ctx, projectType, loader, mcVersion, source, sort, limit, offset)
+		items, ok, err := s.browseUncached(ctx, projectType, loader, mcVersion, source, sort, limit, offset)
+		cacheable = ok
+		return items, err
 	}
 	var (
 		items []SearchItem
@@ -111,9 +121,10 @@ func (s *Service) Browse(ctx context.Context, projectType, loader, mcVersion, so
 	if s.browseCache == nil {
 		items, err = load()
 	} else {
-		items, err = s.browseCache.GetOrLoad(
+		items, err = s.browseCache.GetOrLoadIf(
 			cacheKey("browse", projectType, loader, mcVersion, source, sort, strconv.Itoa(limit), strconv.Itoa(offset)),
 			load,
+			func([]SearchItem) bool { return cacheable },
 		)
 	}
 	if err != nil {
@@ -122,21 +133,23 @@ func (s *Service) Browse(ctx context.Context, projectType, loader, mcVersion, so
 	return items, len(items) >= limit, nil
 }
 
-func (s *Service) browseUncached(ctx context.Context, projectType, loader, mcVersion, source, sort string, limit, offset int) ([]SearchItem, error) {
+func (s *Service) browseUncached(ctx context.Context, projectType, loader, mcVersion, source, sort string, limit, offset int) ([]SearchItem, bool, error) {
 	switch source {
 	case SourceCurseForge:
 		if !s.curseforge.enabled() {
-			return nil, fmt.Errorf("curseforge api key not configured")
+			return nil, false, fmt.Errorf("curseforge api key not configured")
 		}
-		return s.curseforge.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+		items, err := s.curseforge.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+		return items, err == nil && len(items) > 0, err
 	case SourceModrinth:
-		return s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+		items, err := s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+		return items, err == nil && len(items) > 0, err
 	default:
 		return s.browseBoth(ctx, projectType, loader, mcVersion, sort, limit, offset)
 	}
 }
 
-func (s *Service) browseBoth(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
+func (s *Service) browseBoth(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, bool, error) {
 	pageSize := limit
 	if pageSize < 1 {
 		pageSize = 20
@@ -153,7 +166,18 @@ func (s *Service) browseBoth(ctx context.Context, projectType, loader, mcVersion
 		return s.curseforge.browseStrict(ctx, projectType, loader, mcVersion, sort, half, offset/2)
 	})
 	mr, cf, cfOK := waitPrimaryThenPartner(ctx, mrCh, cfCh, catalogPartnerGrace)
-	return mergeCatalogHalves(mr, cf, cfOK, pageSize)
+	items, err := mergeCatalogHalves(mr, cf, cfOK, pageSize)
+	return items, catalogResultCacheable(s.curseforge.enabled(), cfOK, cf.err, items, err), err
+}
+
+func catalogResultCacheable(curseForgeEnabled, partnerOK bool, partnerErr error, items []SearchItem, err error) bool {
+	if err != nil || len(items) == 0 {
+		return false
+	}
+	if !curseForgeEnabled {
+		return true
+	}
+	return partnerOK || partnerErr != nil
 }
 
 func mergeCatalogHalves(primary, partner catalogHalf, partnerOK bool, limit int) ([]SearchItem, error) {
@@ -201,7 +225,7 @@ func (s *Service) ListVersions(ctx context.Context, source, projectID, loader, m
 		return nil, fmt.Errorf("project id required")
 	}
 	key := cacheKey("versions", source, projectID, loader, mcVersion)
-	return versionListCache.GetOrLoad(key, func() ([]Version, error) {
+	return versionListCache.GetOrLoadIf(key, func() ([]Version, error) {
 		switch source {
 		case SourceModrinth:
 			return s.modrinth.listVersions(ctx, projectID, loader, mcVersion)
@@ -210,7 +234,7 @@ func (s *Service) ListVersions(ctx context.Context, source, projectID, loader, m
 		default:
 			return nil, fmt.Errorf("unknown source %q", source)
 		}
-	})
+	}, func(items []Version) bool { return len(items) > 0 })
 }
 
 func (s *Service) GetVersion(ctx context.Context, source, projectID, versionID, loader, mcVersion string) (*Version, error) {

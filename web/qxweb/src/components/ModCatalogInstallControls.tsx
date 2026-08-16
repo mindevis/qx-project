@@ -12,7 +12,7 @@ import { ServerOnlyInstallModal } from '@/components/ServerOnlyInstallModal';
 import { useModCatalog } from '@/components/ModCatalogContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { formatModCatalogError } from '@/lib/modCatalogError';
-import { isServerOnlyMod } from '@/lib/modSync';
+import { isServerOnlyMod, modSyncSide } from '@/lib/modSync';
 import { fetchModProjectIcons } from '@/lib/instanceResourceIcons';
 import {
   cachedGetModVersion,
@@ -56,7 +56,7 @@ export function ModCatalogInstallControls({
   installedProjectIds,
   layout = 'inline',
   selectClassName,
-  eagerVersions = true,
+  eagerVersions = false,
   onInstalled,
   onUninstalled,
 }: ModCatalogInstallControlsProps) {
@@ -172,6 +172,7 @@ export function ModCatalogInstallControls({
         iconUrl,
         downloads,
         fileSize: resolved.files[0]?.size,
+        side: modSyncSide({ client_side: clientSide, server_side: serverSide }),
       },
     ]);
     if (ok) onInstalled?.(resolved);
@@ -257,11 +258,13 @@ export function ModCatalogInstallControls({
     if (iconUrl) {
       iconMap.set(projectKey, iconUrl);
     }
+    const primarySide = modSyncSide({ client_side: clientSide, server_side: serverSide });
     const enriched = resolvedItems.map((item) => ({
       ...item,
       iconUrl: iconMap.get(`${item.source}:${item.projectId}`),
       downloads: item.projectId === projectId ? downloads : undefined,
       fileSize: item.version.files[0]?.size,
+      side: item.projectId === projectId ? primarySide : undefined,
     }));
     const ok = await installBatch(enriched);
     if (ok) {
@@ -310,7 +313,7 @@ export function ModCatalogInstallControls({
     void (async () => {
       let version: ModVersion | undefined = selectedVersion;
       if (!version) {
-        const items = versionsLoaded ? versions : await loadVersions();
+        const items = versionsLoaded && versions.length > 0 ? versions : await loadVersions();
         version = selectLatestCompatibleVersion(items, loader, mcVersion);
       }
       if (version) {
@@ -336,24 +339,6 @@ export function ModCatalogInstallControls({
     );
   }
 
-  if (versionsLoaded && versions.length === 0) {
-    return (
-      <div className="qxmods-install-controls qxmods-install-controls--inline">
-        {isInstalled ? (
-          <Tag icon={<CheckCircleOutlined />} color="success" className="qxmods-installed-badge">
-            {t('qxmods.installed.badge')}
-          </Tag>
-        ) : null}
-        <span className="qxmods-install-no-versions">{t('qxmods.noVersions')}</span>
-        {isInstalled ? (
-          <Button size="small" danger loading={uninstalling} disabled={disabled} onClick={handleUninstall}>
-            {t('qxmods.uninstall.action')}
-          </Button>
-        ) : null}
-      </div>
-    );
-  }
-
   return (
     <>
       <div className={`qxmods-install-controls qxmods-install-controls--${layout}`}>
@@ -371,20 +356,24 @@ export function ModCatalogInstallControls({
           disabled={disabled}
           value={selectedVersion?.id}
           options={versionOptions}
+          aria-label={t('qxmods.selectVersion')}
           onChange={setSelectedVersionId}
           onOpenChange={(open) => {
-            if (open && !versionsLoaded && !loadingVersions) {
+            if (open && !loadingVersions && (!versionsLoaded || versions.length === 0)) {
               void loadVersions();
             }
           }}
         />
+        {versionsLoaded && versions.length === 0 && !loadingVersions ? (
+          <span className="qxmods-install-no-versions">{t('qxmods.noVersions')}</span>
+        ) : null}
         <Button
           type="primary"
           size="small"
           className="qxmods-install-action"
           aria-label={t('qxmods.install.action')}
-          loading={installing || (!versionsLoaded && loadingVersions)}
-          disabled={disabled || (versionsLoaded && !selectedVersion)}
+          loading={installing || loadingVersions}
+          disabled={disabled}
           onClick={ensureVersionAndInstall}
         >
           {t('qxmods.install.action')}

@@ -802,10 +802,14 @@ export const en: Messages = {
       folder: 'Folder',
       modsFolder: 'Server mods',
       clientModsFolder: 'Client mods',
+      viewModeAria: 'Mods view',
+      viewList: 'Table view',
+      viewCards: 'Card view',
+      uploadSideAria: 'Side for uploaded file',
       tabInstalled: 'Installed',
       tabCatalog: 'Catalog',
       introMod:
-        'Install from Modrinth and CurseForge straight onto this server. Server mods run on the VPS; client mods reach players when they connect.',
+        'Install from Modrinth and CurseForge straight onto this server. Mark each mod as client, server, or both: client jars stay out of the VPS mods folder and are delivered when players connect.',
       introPlugin: 'Browse the catalog and install plugins into this server’s plugins folder.',
       introDatapack: 'Catalog datapacks are copied into world/datapacks on this server.',
       installedCount: '{{count}} on the server',
@@ -999,6 +1003,7 @@ export const en: Messages = {
     filters: {
       source: 'Source',
       sourceAll: 'All sources',
+      sourcePick: 'Download from',
       sort: 'Sort by',
       sortDownloads: 'Downloads',
       sortNewest: 'Newest',
@@ -1016,6 +1021,7 @@ export const en: Messages = {
     detailTitle: 'Details',
     detailAttribution: 'Source and license are shown on the provider project page.',
     viewOnSource: 'View on source',
+    viewOnNamed: 'Open on {{source}}',
     selectVersion: 'Version',
     noVersions: 'No matching versions',
     source: {

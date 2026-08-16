@@ -69,3 +69,26 @@ func TestCacheGetOrLoadPropagatesError(t *testing.T) {
 		t.Fatalf("expected boom, got %v", err)
 	}
 }
+
+func TestCacheGetOrLoadIfSkipsUnwantedValues(t *testing.T) {
+	cache := New[[]string](time.Second, 10)
+	calls := 0
+	load := func() ([]string, error) {
+		calls++
+		if calls == 1 {
+			return nil, nil
+		}
+		return []string{"ok"}, nil
+	}
+	first, err := cache.GetOrLoadIf("key", load, func(items []string) bool { return len(items) > 0 })
+	if err != nil || len(first) != 0 {
+		t.Fatalf("first=%v err=%v", first, err)
+	}
+	second, err := cache.GetOrLoadIf("key", load, func(items []string) bool { return len(items) > 0 })
+	if err != nil || len(second) != 1 || second[0] != "ok" {
+		t.Fatalf("second=%v err=%v", second, err)
+	}
+	if calls != 2 {
+		t.Fatalf("expected empty result to be retried, calls=%d", calls)
+	}
+}

@@ -75,6 +75,7 @@ describe('ModsCatalogPanel', () => {
   });
 
   it('loads browse catalog into table', async () => {
+    const user = userEvent.setup({ delay: null });
     const { container } = renderCatalog();
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
     expect(screen.getByText('Клиент + сервер')).toBeInTheDocument();
@@ -87,11 +88,42 @@ describe('ModsCatalogPanel', () => {
     expect(icon).toHaveAttribute('src', catalogItem.icon_url);
     expect(screen.getByText('jellysquid3')).toBeInTheDocument();
     expect(screen.getByText('1.2M')).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Версия' }));
     await waitFor(() => expect(api.listModVersions).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByText('0.5.0')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('0.5.0').length).toBeGreaterThan(0));
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Установить' })).toBeInTheDocument(),
     );
+  });
+
+  it('merges same-name mods from both sources into one row', async () => {
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          ...catalogItem,
+          id: 'sodium',
+          source: 'modrinth',
+          name: 'Sodium',
+          downloads: 1_200_000,
+        },
+        {
+          ...catalogItem,
+          id: '394468',
+          source: 'curseforge',
+          name: 'Sodium',
+          downloads: 400_000,
+          external_url: 'https://www.curseforge.com/minecraft/mc-mods/sodium',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+
+    renderCatalog();
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Sodium' })).toBeInTheDocument());
+    expect(screen.getAllByRole('link', { name: 'Sodium' })).toHaveLength(1);
+    expect(screen.getByRole('radio', { name: 'Modrinth' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'CurseForge' })).toBeInTheDocument();
   });
 
   it('runs search when query submitted', async () => {

@@ -306,6 +306,7 @@ export type GameServerContentSyncBody = {
   project_name?: string;
   version_number?: string;
   mod_target?: ModTarget;
+  side_override?: ModSyncSide;
   icon_url?: string;
   downloads?: number;
   file_size?: number;
@@ -903,11 +904,15 @@ export const api = {
     gameServerId: string,
     file: File,
     modTarget?: ModTarget,
+    sideOverride?: ModSyncSide,
   ) => {
     const form = new FormData();
     form.append('file', file);
     if (modTarget) {
       form.append('mod_target', modTarget);
+    }
+    if (sideOverride) {
+      form.append('side_override', sideOverride);
     }
     const headers = new Headers();
     const tokens = loadTokens();
@@ -1111,6 +1116,20 @@ export const api = {
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/resources${qs ? `?${qs}` : ''}`,
     );
   },
+
+  patchGameServerResource: (
+    vpsId: string,
+    gameServerId: string,
+    body: {
+      filename: string;
+      resource_type?: ModProjectType;
+      side_override: ModSyncSide;
+    },
+  ) =>
+    request<{ status: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/resources`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+    ),
 
   listVpsGameServerMods: (vpsId: string, gameServerId: string) =>
     request<{ items: GameServerFileEntry[] }>(

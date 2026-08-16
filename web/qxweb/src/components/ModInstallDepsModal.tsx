@@ -7,7 +7,7 @@ import {
   type ModVersion,
 } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
-import { useInstanceMods } from '@/components/InstanceModsContext';
+import { useModCatalog } from '@/components/ModCatalogContext';
 import { useMessage } from '@/hooks/useMessage';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { modalMotionProps } from '@/lib/modal';
@@ -80,7 +80,7 @@ export function ModInstallDepsModal({
 }: Props) {
   const { t } = useI18n();
   const message = useMessage();
-  const { instance } = useInstanceMods();
+  const { loader, mcVersion } = useModCatalog();
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [installVersion, setInstallVersion] = useState<ModVersion>(version);
@@ -102,7 +102,7 @@ export function ModInstallDepsModal({
           source,
           projectId,
           version,
-          { loader: instance.loader, mcVersion: instance.mc_version },
+          { loader, mcVersion },
         );
         if (cancelled) return;
         if (!detail.files[0]?.url) {
@@ -130,7 +130,7 @@ export function ModInstallDepsModal({
     return () => {
       cancelled = true;
     };
-  }, [installedProjectIds, instance.loader, instance.mc_version, message, open, projectId, source, t, version]);
+  }, [installedProjectIds, loader, mcVersion, message, open, projectId, source, t, version]);
 
   const required = useMemo(
     () => dependencies.filter((d) => d.dependency_type === 'required'),

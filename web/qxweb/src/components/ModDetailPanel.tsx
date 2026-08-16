@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Button, Empty, Select, Spin, Tag, Typography } from 'antd';
-import { ArrowLeftOutlined, CheckCircleOutlined, CloudSyncOutlined, LinkOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckCircleOutlined, CloudSyncOutlined } from '@ant-design/icons';
 import {
   api,
   type ModCatalogItem,
@@ -9,6 +9,7 @@ import {
   type ModSource,
   type ModVersion,
 } from '@/api/client';
+import { CatalogSourceLinks } from '@/components/CatalogSourceSwitch';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { ModCatalogInstallControls } from '@/components/ModCatalogInstallControls';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
@@ -28,6 +29,8 @@ export function ModDetailPanel() {
   const { t } = useI18n();
   const message = useMessage();
   const { instance, canSync, basePath } = useInstanceMods();
+  const location = useLocation();
+  const catalogSiblings = (location.state as { catalogSiblings?: ModCatalogItem[] } | null)?.catalogSiblings;
   const { source, projectId } = useParams<{ source: ModSource; projectId: string }>();
   const [detail, setDetail] = useState<ModCatalogItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -157,9 +160,7 @@ export function ModDetailPanel() {
         <Link to={`${basePath}/catalog`} className="launcher-instance-detail-back">
           <ArrowLeftOutlined /> {t('qxmods.detail.backToCatalog')}
         </Link>
-        <a href={detail.external_url} target="_blank" rel="noreferrer" className="qxmods-detail-external">
-          <LinkOutlined /> {t('qxmods.viewOnSource')}
-        </a>
+        <CatalogSourceLinks items={catalogSiblings && catalogSiblings.length > 1 ? catalogSiblings : detail ? [detail] : []} />
       </div>
       <div className="qxmods-detail-header">
         <ModCatalogIcon url={detail.icon_url} name={detail.name} size={72} className="qxmods-detail-icon" />
@@ -219,6 +220,7 @@ export function ModDetailPanel() {
           mcVersion={mcVersion}
           installedProjectIds={installedProjectIds}
           layout="inline"
+          eagerVersions
           selectClassName="qxmods-install-version-select--detail"
           onInstalled={handleInstalled}
           onUninstalled={() => {

@@ -9,7 +9,7 @@ import (
 
 const (
 	catalogHTTPTimeout  = 8 * time.Second
-	catalogPartnerGrace = 1500 * time.Millisecond
+	catalogPartnerGrace = 5 * time.Second
 	catalogRelaxBudget  = 2 * time.Second
 )
 

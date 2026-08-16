@@ -3,28 +3,49 @@ import { useCallback, useState } from 'react';
 export type InstalledResourcesViewMode = 'list' | 'cards';
 
 export const INSTALLED_RESOURCES_VIEW_STORAGE_KEY = 'qxweb-installed-resources-view';
+export const GAME_SERVER_CONTENT_VIEW_STORAGE_KEY = 'qxweb-game-server-content-view';
 
-export function readInstalledResourcesViewMode(): InstalledResourcesViewMode {
+function readViewMode(
+  storageKey: string,
+  fallback: InstalledResourcesViewMode,
+): InstalledResourcesViewMode {
   /* v8 ignore next 3 -- @preserve */
   if (typeof window === 'undefined') {
-    return 'list';
+    return fallback;
   }
 
-  const stored = window.localStorage.getItem(INSTALLED_RESOURCES_VIEW_STORAGE_KEY);
+  const stored = window.localStorage.getItem(storageKey);
   if (stored === 'list' || stored === 'cards') {
     return stored;
   }
 
-  return 'list';
+  return fallback;
+}
+
+function useStoredViewMode(storageKey: string, fallback: InstalledResourcesViewMode) {
+  const [viewMode, setViewModeState] = useState<InstalledResourcesViewMode>(() =>
+    readViewMode(storageKey, fallback),
+  );
+
+  const setViewMode = useCallback(
+    (nextMode: InstalledResourcesViewMode) => {
+      setViewModeState(nextMode);
+      window.localStorage.setItem(storageKey, nextMode);
+    },
+    [storageKey],
+  );
+
+  return { viewMode, setViewMode };
+}
+
+export function readInstalledResourcesViewMode(): InstalledResourcesViewMode {
+  return readViewMode(INSTALLED_RESOURCES_VIEW_STORAGE_KEY, 'list');
 }
 
 export function useInstalledResourcesViewMode() {
-  const [viewMode, setViewModeState] = useState<InstalledResourcesViewMode>(readInstalledResourcesViewMode);
+  return useStoredViewMode(INSTALLED_RESOURCES_VIEW_STORAGE_KEY, 'list');
+}
 
-  const setViewMode = useCallback((nextMode: InstalledResourcesViewMode) => {
-    setViewModeState(nextMode);
-    window.localStorage.setItem(INSTALLED_RESOURCES_VIEW_STORAGE_KEY, nextMode);
-  }, []);
-
-  return { viewMode, setViewMode };
+export function useGameServerContentViewMode() {
+  return useStoredViewMode(GAME_SERVER_CONTENT_VIEW_STORAGE_KEY, 'cards');
 }

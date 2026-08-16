@@ -63,7 +63,7 @@ func TestBrowseBothReturnsModrinthWhenCurseForgeHangs(t *testing.T) {
 	if len(items) != 1 || items[0].ID != "sodium" {
 		t.Fatalf("expected modrinth item, got %+v", items)
 	}
-	if elapsed > 3*time.Second {
+	if elapsed > 6*time.Second {
 		t.Fatalf("browse waited too long for hanging curseforge: %s", elapsed)
 	}
 }
@@ -80,5 +80,19 @@ func TestWaitPrimaryThenPartnerUsesGrace(t *testing.T) {
 	mr, cf, ok := waitPrimaryThenPartner(context.Background(), primary, partner, 200*time.Millisecond)
 	if !ok || mr.items[0].ID != "mr" || cf.items[0].ID != "cf" {
 		t.Fatalf("expected both halves, ok=%v mr=%+v cf=%+v", ok, mr, cf)
+	}
+}
+
+func TestCatalogResultCacheable(t *testing.T) {
+	t.Parallel()
+	items := []SearchItem{{ID: "x"}}
+	if catalogResultCacheable(true, false, nil, items, nil) {
+		t.Fatal("timed-out curseforge partner must not be cached as a complete page")
+	}
+	if !catalogResultCacheable(true, true, nil, items, nil) {
+		t.Fatal("complete mixed page should be cached")
+	}
+	if catalogResultCacheable(true, true, nil, nil, nil) {
+		t.Fatal("empty page should not be cached")
 	}
 }

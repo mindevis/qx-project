@@ -42,10 +42,14 @@ export function cachedListModVersions(
   params?: { loader?: string; mc_version?: string },
 ) {
   const key = versionListKey(source, projectId, params?.loader, params?.mc_version ?? '');
-  return versionListCache.getOrLoad(key, async () => {
-    const res = await api.listModVersions(source, projectId, params);
-    return res.items ?? [];
-  });
+  return versionListCache.getOrLoad(
+    key,
+    async () => {
+      const res = await api.listModVersions(source, projectId, params);
+      return res.items ?? [];
+    },
+    (items) => items.length > 0,
+  );
 }
 
 export function cachedGetModVersion(

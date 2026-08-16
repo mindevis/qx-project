@@ -136,6 +136,9 @@ func (s *Service) PrepareConnectMods(
 		if !isPullableResourceFilename(name) {
 			continue
 		}
+		if !shouldPullServerModToClient(contentSideForFilename(gs.ContentResources, name)) {
+			continue
+		}
 		pull("mod", "", "mod", name, &result.ServerModsInstalled)
 	}
 

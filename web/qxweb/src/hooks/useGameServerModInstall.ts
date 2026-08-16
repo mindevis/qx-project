@@ -3,11 +3,11 @@ import {
   api,
   type GameServerContentKind,
   type GameServerContentSyncBody,
-  type ModTarget,
 } from '@/api/client';
 import type { ModInstallParams } from '@/hooks/useModInstall';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { gameServerInstallSide, instanceResourceModTarget } from '@/lib/modSync';
 
 function syncContent(
   kind: GameServerContentKind,
@@ -29,7 +29,6 @@ export function useGameServerModInstall(
   kind: GameServerContentKind,
   vpsId: string,
   gameServerId: string,
-  modTarget?: ModTarget,
 ) {
   const { t } = useI18n();
   const message = useMessage();
@@ -42,6 +41,7 @@ export function useGameServerModInstall(
         message.error(t('qxmods.install.noFile'));
         return false;
       }
+      const side = kind === 'mod' ? gameServerInstallSide(params.side) : undefined;
       try {
         const res = await syncContent(kind, vpsId, gameServerId, {
           source: params.source,
@@ -54,7 +54,11 @@ export function useGameServerModInstall(
           icon_url: params.iconUrl,
           downloads: params.downloads,
           file_size: params.fileSize ?? file.size,
-          mod_target: kind === 'mod' ? modTarget : undefined,
+          mod_target:
+            kind === 'mod'
+              ? instanceResourceModTarget({ side_override: side, resource_type: 'mod' })
+              : undefined,
+          side_override: side,
         });
         if (res.status === 'already_installed') {
           return true;
@@ -65,7 +69,7 @@ export function useGameServerModInstall(
         return false;
       }
     },
-    [gameServerId, kind, message, modTarget, t, vpsId],
+    [gameServerId, kind, message, t, vpsId],
   );
 
   const installBatch = useCallback(

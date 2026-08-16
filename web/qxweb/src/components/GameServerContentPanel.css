@@ -51,6 +51,14 @@
   font-weight: 600;
 }
 
+.game-server-mods-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .game-server-mods-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -264,6 +272,12 @@ html[data-theme='dark'] .game-server-mods-card {
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
+}
+
+.game-server-mods-card .launcher-resource-side-select,
+.qxmods-installed-item .launcher-resource-side-select {
+  max-width: 180px;
+  margin-top: 8px;
 }
 
 @media (max-width: 640px) {

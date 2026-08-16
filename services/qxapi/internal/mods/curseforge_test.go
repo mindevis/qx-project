@@ -340,3 +340,63 @@ func TestCurseForgeHTTPError(t *testing.T) {
 		t.Fatalf("error string: %q", err.Error())
 	}
 }
+
+func TestCurseForgeRetriesTooManyRequests(t *testing.T) {
+	t.Parallel()
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			http.Error(w, "rate limited", http.StatusTooManyRequests)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":1,"displayName":"1.0","fileName":"mod.jar","fileDate":"2024-01-01","gameVersions":["1.21"],"modLoader":1,"downloadUrl":"https://example/mod.jar","fileLength":10,"hashes":[]}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	items, err := c.listVersionsOnce(context.Background(), "42", "forge", "1.21")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls < 2 {
+		t.Fatalf("expected retry after 429, calls=%d", calls)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items=%d", len(items))
+	}
+}
+
+func TestCurseForgeListVersionsKeepsFilesWithoutDownloadURL(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/mods/42/files":
+			_, _ = w.Write([]byte(`{"data":[{"id":9,"displayName":"1.0","fileName":"mod.jar","fileDate":"2024-01-01","gameVersions":["1.21"],"modLoader":1,"downloadUrl":"","fileLength":10,"hashes":[]}]}`))
+		case "/v1/mods/42/files/9/download-url":
+			_, _ = w.Write([]byte(`{"data":""}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	items, err := c.listVersionsOnce(context.Background(), "42", "forge", "1.21")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Files[0].Filename != "mod.jar" {
+		t.Fatalf("expected version without url to stay in the list, got %+v", items)
+	}
+}

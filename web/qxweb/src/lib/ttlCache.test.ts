@@ -46,4 +46,13 @@ describe('createTtlCache', () => {
     await expect(Promise.all([first, second])).resolves.toEqual(['done', 'done']);
     expect(loader).toHaveBeenCalledTimes(1);
   });
+
+  it('does not cache values rejected by cacheIf', async () => {
+    const cache = createTtlCache<string[]>(1000);
+    const loader = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce(['ok']);
+
+    await expect(cache.getOrLoad('key', loader, (items) => items.length > 0)).resolves.toEqual([]);
+    await expect(cache.getOrLoad('key', loader, (items) => items.length > 0)).resolves.toEqual(['ok']);
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
 });

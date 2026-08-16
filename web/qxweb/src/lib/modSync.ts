@@ -293,6 +293,13 @@ export function instanceResourceModTarget(
   return 'mods';
 }
 
+export function gameServerInstallSide(side?: ModSyncSide): ModSyncSide {
+  if (side === 'client' || side === 'server' || side === 'both') {
+    return side;
+  }
+  return 'both';
+}
+
 export function isServerOnlyMod(item: Pick<ModCatalogItem, 'client_side' | 'server_side'>): boolean {
   return modSyncSide(item) === 'server';
 }

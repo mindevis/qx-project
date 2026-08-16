@@ -5,14 +5,21 @@ import {
   Input,
   Modal,
   Select,
-  Segmented,
   Spin,
   Switch,
+  Table,
   Tag,
   Typography,
   Upload,
 } from 'antd';
-import { LinkOutlined, SearchOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  AppstoreOutlined,
+  DeleteOutlined,
+  SearchOutlined,
+  UnorderedListOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import {
   api,
   type GameServerContentKind,
@@ -23,12 +30,15 @@ import {
   type ModCatalogSourceFilter,
   type ModProjectType,
   type ModSource,
+  type ModSyncSide,
 } from '@/api/client';
+import { CatalogSourceLinks, CatalogSourceSwitch } from '@/components/CatalogSourceSwitch';
 import { GameServerCatalogProvider } from '@/components/GameServerCatalogProvider';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { ModCatalogInstallControls } from '@/components/ModCatalogInstallControls';
 import { ModSideBadge } from '@/components/ModSideBadge';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import {
@@ -39,7 +49,20 @@ import {
 import { cachedGetModProject } from '@/lib/modCatalogCache';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { formatCompactCount } from '@/lib/formatCompactCount';
-import { isCatalogItemOnServer, needsServerRestartAfterSync } from '@/lib/modSync';
+import {
+  catalogCardItem,
+  mergeCatalogCardsByName,
+  preferredCatalogItem,
+  type CatalogCard,
+} from '@/lib/mergeCatalogCards';
+import {
+  gameServerInstallSide,
+  instanceResourceModTarget,
+  isCatalogItemOnServer,
+  modSyncSide,
+  needsServerRestartAfterSync,
+} from '@/lib/modSync';
+import { useGameServerContentViewMode } from '@/lib/installedResourcesView';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 import './InstanceResourcesPanel.css';
@@ -112,6 +135,18 @@ function modTargetFromPath(path: string): 'mods' | 'client-mods' | undefined {
   return undefined;
 }
 
+function installedModSide(file: GameServerFileEntry, resource?: InstanceResource): ModSyncSide {
+  const override = resource?.side_override?.trim();
+  if (override === 'client' || override === 'server' || override === 'both') {
+    return override;
+  }
+  return modTargetFromPath(file.path) === 'client-mods' ? 'client' : 'both';
+}
+
+function sideFolderKind(side: ModSyncSide): 'client' | 'server' {
+  return side === 'client' ? 'client' : 'server';
+}
+
 function deleteContent(
   kind: GameServerContentKind,
   vpsId: string,
@@ -170,10 +205,14 @@ export function GameServerContentPanel({
   const [section, setSection] = useState<'installed' | 'catalog'>('installed');
   const [showInstalledOnly, setShowInstalledOnly] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailItem, setDetailItem] = useState<ModCatalogItem | null>(null);
+  const [detailCard, setDetailCard] = useState<CatalogCard | null>(null);
+  const [detailSource, setDetailSource] = useState<ModSource>('modrinth');
+  const [cardSourceByKey, setCardSourceByKey] = useState<Partial<Record<string, ModSource>>>({});
   const [uploading, setUploading] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string>();
-  const [modTarget, setModTarget] = useState<'mods' | 'client-mods'>('mods');
+  const [sideSavingPath, setSideSavingPath] = useState<string>();
+  const [uploadSide, setUploadSide] = useState<ModSyncSide>('both');
+  const { viewMode, setViewMode } = useGameServerContentViewMode();
 
   const i18nPrefix = `gameServerDetail.content.${kind}`;
 
@@ -302,28 +341,32 @@ export function GameServerContentPanel({
 
   const isSearchMode = appliedSearch.trim().length > 0;
 
-  const installedForTarget = useMemo(() => {
-    if (kind !== 'mod') return installed;
-    return installed.filter((item) => (modTargetFromPath(item.path) ?? 'mods') === modTarget);
-  }, [installed, kind, modTarget]);
-
-  const resourcesForTarget = useMemo(() => {
-    if (kind !== 'mod') return installedResources;
-    const side = modTarget === 'client-mods' ? 'client' : 'server';
-    return installedResources.filter((item) => (item.side_override || 'server') === side);
-  }, [installedResources, kind, modTarget]);
-
   const isItemOnServer = useCallback(
     (item: ModCatalogItem) =>
-      resourcesForTarget.some(
+      installedResources.some(
         (resource) => resource.source === item.source && resource.project_id === item.id,
-      ) || isCatalogItemOnServer(item, installedForTarget),
-    [installedForTarget, resourcesForTarget],
+      ) || isCatalogItemOnServer(item, installed),
+    [installed, installedResources],
+  );
+
+  const catalogCards = useMemo(
+    () => mergeCatalogCardsByName(catalogItems, sourceFilter),
+    [catalogItems, sourceFilter],
+  );
+
+  const itemForCard = useCallback(
+    (card: CatalogCard) => catalogCardItem(card, cardSourceByKey[card.key]),
+    [cardSourceByKey],
+  );
+
+  const isCardOnServer = useCallback(
+    (card: CatalogCard) => card.items.some((item) => isItemOnServer(item)),
+    [isItemOnServer],
   );
 
   const installedProjectIds = useMemo(() => {
     const keys = new Set<string>();
-    for (const resource of resourcesForTarget) {
+    for (const resource of installedResources) {
       if (resource.project_id) {
         keys.add(`${resource.source}:${resource.project_id}`);
       }
@@ -334,37 +377,58 @@ export function GameServerContentPanel({
       }
     }
     return keys;
-  }, [catalogItems, isItemOnServer, resourcesForTarget]);
+  }, [catalogItems, installedResources, isItemOnServer]);
 
-  const visibleCatalogItems = useMemo(() => {
+  const visibleCatalogCards = useMemo(() => {
     if (showInstalledOnly) {
-      return catalogItems.filter((item) => isItemOnServer(item));
+      return catalogCards.filter((card) => isCardOnServer(card));
     }
-    return catalogItems.filter((item) => !isItemOnServer(item));
-  }, [catalogItems, isItemOnServer, showInstalledOnly]);
+    return catalogCards.filter((card) => !isCardOnServer(card));
+  }, [catalogCards, isCardOnServer, showInstalledOnly]);
 
-  const openDetail = useCallback((item: ModCatalogItem) => {
-    setDetailItem(item);
+  const setCardSource = (card: CatalogCard, source: ModSource) => {
+    setCardSourceByKey((prev) => ({ ...prev, [card.key]: source }));
+    if (detailCard?.key === card.key) {
+      setDetailSource(source);
+    }
+  };
+
+  const openDetail = useCallback((card: CatalogCard) => {
+    const source = cardSourceByKey[card.key] ?? preferredCatalogItem(card.items).source;
+    setDetailCard(card);
+    setDetailSource(source);
     setDetailOpen(true);
-    if (item.source === 'upload') return;
-    void cachedGetModProject(item.source, item.id)
-      .then((full) => {
-        setDetailItem((prev) => (prev && prev.id === full.id ? { ...prev, ...full } : prev));
-      })
-      .catch(() => {
-        /* keep the catalog row */
-      });
-  }, []);
+    for (const item of card.items) {
+      if (item.source === 'upload') continue;
+      void cachedGetModProject(item.source, item.id)
+        .then((full) => {
+          setDetailCard((prev) => {
+            if (!prev || prev.key !== card.key) return prev;
+            return {
+              ...prev,
+              items: prev.items.map((row) =>
+                row.source === item.source && row.id === item.id ? { ...row, ...full } : row,
+              ),
+            };
+          });
+        })
+        .catch(() => {
+          /* keep the catalog row */
+        });
+    }
+  }, [cardSourceByKey]);
 
   const filteredInstalled = useMemo(() => {
     const query = appliedInstalledSearch.trim().toLowerCase();
-    if (!query) return installedForTarget;
-    return installedForTarget.filter((item) => {
+    if (!query) return installed;
+    return installed.filter((item) => {
+      const resource = matchResource(item, installedResources);
       const name = item.name.toLowerCase();
       const path = item.path.toLowerCase();
-      return name.includes(query) || path.includes(query);
+      const title = (resource?.project_name ?? '').toLowerCase();
+      return name.includes(query) || path.includes(query) || title.includes(query);
     });
-  }, [appliedInstalledSearch, installedForTarget]);
+  }, [appliedInstalledSearch, installed, installedResources]);
 
   const promptRestart = () => {
     Modal.confirm({
@@ -409,15 +473,47 @@ export function GameServerContentPanel({
     if (kind !== 'mod') return false;
     setUploading(true);
     try {
-      await api.uploadGameServerMod(vpsId, gameServerId, file, modTarget);
+      const side = gameServerInstallSide(uploadSide);
+      await api.uploadGameServerMod(
+        vpsId,
+        gameServerId,
+        file,
+        instanceResourceModTarget({ side_override: side, resource_type: 'mod' }),
+        side,
+      );
       message.success(t('gameServerDetail.content.uploadCompleted'));
       void loadInstalled();
+      if (needsServerRestartAfterSync(instanceResourceModTarget({ side_override: side, resource_type: 'mod' }))) {
+        promptRestart();
+      }
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('gameServerDetail.content.uploadFailed'));
     } finally {
       setUploading(false);
     }
     return false;
+  };
+
+  const handleSideChange = async (row: GameServerFileEntry, side: ModSyncSide) => {
+    const resource = matchResource(row, installedResources);
+    const previous = installedModSide(row, resource);
+    setSideSavingPath(row.path);
+    try {
+      await api.patchGameServerResource(vpsId, gameServerId, {
+        filename: row.name,
+        resource_type: kind === 'datapack' ? 'datapack' : kind === 'plugin' ? 'plugin' : 'mod',
+        side_override: side,
+      });
+      message.success(t('qxmods.side.saved'));
+      void loadInstalled();
+      if (sideFolderKind(previous) !== sideFolderKind(side)) {
+        promptRestart();
+      }
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('qxmods.side.saveFailed'));
+    } finally {
+      setSideSavingPath(undefined);
+    }
   };
 
   const sourceOptions = useMemo(
@@ -480,13 +576,142 @@ export function GameServerContentPanel({
       onInstalled={() => {
         if (layout === 'stacked') setDetailOpen(false);
         void loadInstalled();
-        if (needsServerRestartAfterSync(modTarget)) {
+        if (
+          kind === 'mod' &&
+          needsServerRestartAfterSync(
+            instanceResourceModTarget({
+              side_override: gameServerInstallSide(modSyncSide(row)),
+              resource_type: 'mod',
+            }),
+          )
+        ) {
+          promptRestart();
+        } else if (kind !== 'mod') {
           promptRestart();
         }
       }}
       onUninstalled={() => void loadInstalled()}
     />
   );
+
+  const viewToggle = (
+    <SegmentedControl
+      iconOnly
+      value={viewMode}
+      onChange={setViewMode}
+      groupLabel={t('gameServerDetail.content.viewModeAria')}
+      options={[
+        {
+          value: 'list',
+          label: <UnorderedListOutlined aria-hidden />,
+          ariaLabel: t('gameServerDetail.content.viewList'),
+        },
+        {
+          value: 'cards',
+          label: <AppstoreOutlined aria-hidden />,
+          ariaLabel: t('gameServerDetail.content.viewCards'),
+        },
+      ]}
+    />
+  );
+
+  const sideSelectOptions = [
+    { value: 'client', label: t('qxmods.side.client') },
+    { value: 'server', label: t('qxmods.side.server') },
+    { value: 'both', label: t('qxmods.side.both') },
+  ];
+
+  const renderInstalledSideSelect = (row: GameServerFileEntry, resource?: InstanceResource) => {
+    if (kind !== 'mod') return null;
+    return (
+      <Select
+        size="small"
+        className="launcher-resource-side-select"
+        loading={sideSavingPath === row.path}
+        value={installedModSide(row, resource)}
+        options={sideSelectOptions}
+        aria-label={t('qxmods.side.editAria')}
+        onChange={(value) => void handleSideChange(row, value as ModSyncSide)}
+      />
+    );
+  };
+
+  const catalogColumns: ColumnsType<CatalogCard> = [
+    {
+      title: '',
+      key: 'icon',
+      width: 56,
+      render: (_, card) => {
+        const item = itemForCard(card);
+        return (
+          <ModCatalogIcon url={item.icon_url} name={item.name} size={44} className="qxmods-catalog-table-icon" />
+        );
+      },
+    },
+    {
+      title: t('qxmods.catalog.name'),
+      dataIndex: 'name',
+      key: 'name',
+      width: 220,
+      ellipsis: true,
+      render: (_, card) => {
+        const item = itemForCard(card);
+        return (
+          <div className="qxmods-catalog-name-cell">
+            <button type="button" className="game-server-mods-card-name" onClick={() => void openDetail(card)}>
+              {card.name}
+            </button>
+            <div className="qxmods-catalog-name-meta">
+              <CatalogSourceSwitch
+                items={card.items}
+                value={item.source}
+                onChange={(source) => setCardSource(card, source)}
+              />
+              {item.author ? (
+                <Typography.Text type="secondary" className="qxmods-catalog-author">
+                  {item.author}
+                </Typography.Text>
+              ) : null}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: t('qxmods.catalog.summary'),
+      key: 'summary',
+      ellipsis: true,
+      responsive: ['md'],
+      render: (_, card) => itemForCard(card).summary,
+    },
+    {
+      title: t('qxmods.catalog.side'),
+      key: 'side',
+      width: 132,
+      render: (_, card) => (kind === 'mod' ? <ModSideBadge item={itemForCard(card)} /> : null),
+    },
+    {
+      title: t('qxmods.catalog.downloads'),
+      key: 'downloads',
+      width: 96,
+      render: (_, card) => {
+        const item = itemForCard(card);
+        return item.downloads != null ? formatCompactCount(item.downloads) : '—';
+      },
+    },
+    {
+      title: t('qxmods.catalog.install'),
+      key: 'install',
+      width: 260,
+      className: 'qxmods-catalog-install-cell',
+      render: (_, card) => {
+        const item = itemForCard(card);
+        return renderInstallControls(item, 'inline');
+      },
+    },
+  ];
+
+  const detailItem = detailCard ? catalogCardItem(detailCard, detailSource) : null;
 
   return (
     <GameServerCatalogProvider
@@ -495,7 +720,6 @@ export function GameServerContentPanel({
       gameServerId={gameServerId}
       serverType={serverType}
       mcVersion={mcVersion}
-      modTarget={kind === 'mod' ? modTarget : undefined}
     >
       <section className="game-server-mods">
         <header className="game-server-mods-hero">
@@ -515,31 +739,34 @@ export function GameServerContentPanel({
               <strong>{loaderLabel}</strong>
             </span>
             <span className="game-server-mods-chip">
-              {t('gameServerDetail.content.installedCount', { count: installedForTarget.length })}
+              {t('gameServerDetail.content.installedCount', { count: installed.length })}
             </span>
           </div>
         </header>
 
-        <div className="game-server-mods-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            className={`game-server-mods-tab${section === 'installed' ? ' game-server-mods-tab--active' : ''}`}
-            aria-selected={section === 'installed'}
-            onClick={() => setSection('installed')}
-          >
-            {t('gameServerDetail.content.tabInstalled')}
-            <span className="game-server-mods-tab-count">{installedForTarget.length}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`game-server-mods-tab${section === 'catalog' ? ' game-server-mods-tab--active' : ''}`}
-            aria-selected={section === 'catalog'}
-            onClick={() => setSection('catalog')}
-          >
-            {t('gameServerDetail.content.tabCatalog')}
-          </button>
+        <div className="game-server-mods-tabs-row">
+          <div className="game-server-mods-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              className={`game-server-mods-tab${section === 'installed' ? ' game-server-mods-tab--active' : ''}`}
+              aria-selected={section === 'installed'}
+              onClick={() => setSection('installed')}
+            >
+              {t('gameServerDetail.content.tabInstalled')}
+              <span className="game-server-mods-tab-count">{installed.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={`game-server-mods-tab${section === 'catalog' ? ' game-server-mods-tab--active' : ''}`}
+              aria-selected={section === 'catalog'}
+              onClick={() => setSection('catalog')}
+            >
+              {t('gameServerDetail.content.tabCatalog')}
+            </button>
+          </div>
+          {viewToggle}
         </div>
 
         {section === 'installed' ? (
@@ -585,14 +812,13 @@ export function GameServerContentPanel({
               </div>
               {kind === 'mod' ? (
                 <div className="game-server-content-upload-wrapper">
-                  <Segmented
-                    value={modTarget}
-                    aria-label={t('gameServerDetail.content.folder')}
-                    onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
-                    options={[
-                      { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
-                      { value: 'client-mods', label: t('gameServerDetail.content.clientModsFolder') },
-                    ]}
+                  <Select
+                    size="small"
+                    value={uploadSide}
+                    options={sideSelectOptions}
+                    aria-label={t('gameServerDetail.content.uploadSideAria')}
+                    onChange={(value) => setUploadSide(value as ModSyncSide)}
+                    className="launcher-resource-side-select"
                   />
                   <Upload
                     accept=".jar,.zip,.mrpack"
@@ -614,7 +840,7 @@ export function GameServerContentPanel({
               <div className="servers-loading">
                 <Spin />
               </div>
-            ) : installedForTarget.length === 0 ? (
+            ) : installed.length === 0 ? (
               <div className="game-server-mods-empty">
                 <Paragraph>{t(`${i18nPrefix}.empty`)}</Paragraph>
                 <Button type="primary" onClick={() => setSection('catalog')}>
@@ -626,16 +852,60 @@ export function GameServerContentPanel({
                 <Paragraph>{t('qxmods.empty')}</Paragraph>
               </div>
             ) : (
-              <ul className="game-server-mods-grid">
+              <ul className={viewMode === 'list' ? 'qxmods-installed-list' : 'game-server-mods-grid'}>
                 {filteredInstalled.map((row) => {
-                  const resource = matchResource(row, resourcesForTarget);
+                  const resource = matchResource(row, installedResources);
                   const title = resource?.project_name || row.name;
-                  const side =
-                    kind === 'mod'
-                      ? (modTargetFromPath(row.path) ?? 'mods') === 'client-mods'
-                        ? t('qxmods.side.client')
-                        : t('qxmods.side.server')
-                      : undefined;
+                  const removeButton = (
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      loading={deletingPath === row.path}
+                      aria-label={t('gameServerDetail.content.deleteAction')}
+                      onClick={() => handleDelete(row)}
+                    />
+                  );
+                  if (viewMode === 'list') {
+                    return (
+                      <li key={row.path}>
+                        <article className="qxmods-installed-item launcher-resources-list-item">
+                          <ModCatalogIcon
+                            url={resource?.icon_url}
+                            name={title}
+                            size={40}
+                            className="qxmods-installed-icon"
+                          />
+                          <div className="qxmods-installed-item-content">
+                            <div className="qxmods-installed-item-title">
+                              <Text strong>{title}</Text>
+                              {resource?.source && resource.source !== 'upload' ? (
+                                <ModSourceBadge source={resource.source} />
+                              ) : (
+                                <Tag bordered={false}>{t('gameServerDetail.content.uploaded')}</Tag>
+                              )}
+                            </div>
+                            <div className="game-server-mods-card-meta">
+                              {resource?.version_number ? (
+                                <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
+                                  {resource.version_number}
+                                </Tag>
+                              ) : null}
+                              <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
+                                {formatFileSize(row.size ?? resource?.file_size)}
+                              </Tag>
+                            </div>
+                            {title !== row.name ? (
+                              <Text className="game-server-mods-card-file">{row.name}</Text>
+                            ) : null}
+                            {renderInstalledSideSelect(row, resource)}
+                          </div>
+                          <div className="qxmods-installed-item-actions">{removeButton}</div>
+                        </article>
+                      </li>
+                    );
+                  }
                   return (
                     <li key={row.path}>
                       <article className="game-server-mods-card">
@@ -661,7 +931,6 @@ export function GameServerContentPanel({
                                   {resource.version_number}
                                 </Tag>
                               ) : null}
-                              {side ? <Tag bordered={false}>{side}</Tag> : null}
                               <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
                                 {formatFileSize(row.size ?? resource?.file_size)}
                               </Tag>
@@ -669,16 +938,9 @@ export function GameServerContentPanel({
                             {title !== row.name ? (
                               <Text className="game-server-mods-card-file">{row.name}</Text>
                             ) : null}
+                            {renderInstalledSideSelect(row, resource)}
                           </div>
-                          <Button
-                            type="text"
-                            danger
-                            size="small"
-                            icon={<DeleteOutlined />}
-                            loading={deletingPath === row.path}
-                            aria-label={t('gameServerDetail.content.deleteAction')}
-                            onClick={() => handleDelete(row)}
-                          />
+                          {removeButton}
                         </div>
                       </article>
                     </li>
@@ -714,22 +976,6 @@ export function GameServerContentPanel({
                     className="qxmods-filter-select"
                   />
                 </label>
-                {kind === 'mod' ? (
-                  <label className="qxmods-filter-field">
-                    <Text type="secondary" className="qxmods-filter-label">
-                      {t('gameServerDetail.content.folder')}
-                    </Text>
-                    <Segmented
-                      value={modTarget}
-                      aria-label={t('gameServerDetail.content.folder')}
-                      onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
-                      options={[
-                        { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
-                        { value: 'client-mods', label: t('gameServerDetail.content.clientModsFolder') },
-                      ]}
-                    />
-                  </label>
-                ) : null}
                 <label className="qxmods-filter-field qxmods-filter-field--switch">
                   <Text type="secondary" className="qxmods-filter-label">
                     {t('qxmods.filters.installedOnly')}
@@ -788,61 +1034,82 @@ export function GameServerContentPanel({
               <div className="servers-loading">
                 <Spin />
               </div>
-            ) : visibleCatalogItems.length === 0 ? (
+            ) : visibleCatalogCards.length === 0 ? (
               <div className="game-server-mods-empty">
                 <Paragraph>{catalogEmptyText}</Paragraph>
               </div>
             ) : (
               <>
-                <ul className="game-server-mods-grid">
-                  {visibleCatalogItems.map((row) => (
-                    <li key={`${row.source}:${row.id}`}>
-                      <article className="game-server-mods-card">
-                        <div className="game-server-mods-card-top">
-                          <ModCatalogIcon
-                            url={row.icon_url}
-                            name={row.name}
-                            size={48}
-                            className="launcher-resource-card-icon"
-                          />
-                          <div className="game-server-mods-card-body">
-                            <div className="game-server-mods-card-title">
-                              <button
-                                type="button"
-                                className="game-server-mods-card-name"
-                                onClick={() => void openDetail(row)}
-                              >
-                                {row.name}
-                              </button>
-                              <ModSourceBadge source={row.source} />
+                {viewMode === 'list' ? (
+                  <Table
+                    className="qxmods-catalog-table qxmods-catalog-table--install"
+                    rowKey={(card) => card.key}
+                    columns={catalogColumns}
+                    dataSource={visibleCatalogCards}
+                    loading={catalogLoading && !showInstalledOnly}
+                    pagination={false}
+                    scroll={{ x: 960 }}
+                    tableLayout="fixed"
+                    locale={{ emptyText: catalogEmptyText }}
+                  />
+                ) : (
+                  <ul className="game-server-mods-grid">
+                    {visibleCatalogCards.map((card) => {
+                      const row = itemForCard(card);
+                      return (
+                        <li key={card.key}>
+                          <article className="game-server-mods-card">
+                            <div className="game-server-mods-card-top">
+                              <ModCatalogIcon
+                                url={row.icon_url}
+                                name={row.name}
+                                size={48}
+                                className="launcher-resource-card-icon"
+                              />
+                              <div className="game-server-mods-card-body">
+                                <div className="game-server-mods-card-title">
+                                  <button
+                                    type="button"
+                                    className="game-server-mods-card-name"
+                                    onClick={() => void openDetail(card)}
+                                  >
+                                    {card.name}
+                                  </button>
+                                  <CatalogSourceSwitch
+                                    items={card.items}
+                                    value={row.source}
+                                    onChange={(source) => setCardSource(card, source)}
+                                  />
+                                </div>
+                                {row.author ? (
+                                  <Text type="secondary">
+                                    {t('gameServerDetail.content.byAuthor', { author: row.author })}
+                                  </Text>
+                                ) : null}
+                                {row.summary ? (
+                                  <p className="game-server-mods-card-summary">{row.summary}</p>
+                                ) : null}
+                                <div className="game-server-mods-card-meta">
+                                  {kind === 'mod' ? <ModSideBadge item={row} /> : null}
+                                  {row.downloads != null ? (
+                                    <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--downloads">
+                                      {t('gameServerDetail.content.downloadsLabel', {
+                                        count: formatCompactCount(row.downloads),
+                                      })}
+                                    </Tag>
+                                  ) : null}
+                                </div>
+                              </div>
                             </div>
-                            {row.author ? (
-                              <Text type="secondary">
-                                {t('gameServerDetail.content.byAuthor', { author: row.author })}
-                              </Text>
-                            ) : null}
-                            {row.summary ? (
-                              <p className="game-server-mods-card-summary">{row.summary}</p>
-                            ) : null}
-                            <div className="game-server-mods-card-meta">
-                              {kind === 'mod' ? <ModSideBadge item={row} /> : null}
-                              {row.downloads != null ? (
-                                <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--downloads">
-                                  {t('gameServerDetail.content.downloadsLabel', {
-                                    count: formatCompactCount(row.downloads),
-                                  })}
-                                </Tag>
-                              ) : null}
+                            <div className="game-server-mods-card-actions" key={`${row.source}:${row.id}`}>
+                              {renderInstallControls(row, 'inline')}
                             </div>
-                          </div>
-                        </div>
-                        <div className="game-server-mods-card-actions">
-                          {renderInstallControls(row, 'inline')}
-                        </div>
-                      </article>
-                    </li>
-                  ))}
-                </ul>
+                          </article>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
                 {!showInstalledOnly && !isSearchMode && hasMore ? (
                   <div className="qxmods-load-more">
                     <Button loading={loadingMore} onClick={() => void loadMore()}>
@@ -863,7 +1130,7 @@ export function GameServerContentPanel({
           footer={null}
           width={680}
         >
-          {detailItem ? (
+          {detailCard && detailItem ? (
             <div className="game-server-mods-detail">
               <div className="game-server-mods-detail-head">
                 <ModCatalogIcon
@@ -874,7 +1141,11 @@ export function GameServerContentPanel({
                 />
                 <div className="game-server-mods-detail-copy">
                   <div className="game-server-mods-detail-meta">
-                    <ModSourceBadge source={detailItem.source} />
+                    <CatalogSourceSwitch
+                      items={detailCard.items}
+                      value={detailItem.source}
+                      onChange={(source) => setCardSource(detailCard, source)}
+                    />
                     {kind === 'mod' ? <ModSideBadge item={detailItem} /> : null}
                     {detailItem.author ? (
                       <Text type="secondary">
@@ -890,20 +1161,12 @@ export function GameServerContentPanel({
                     ) : null}
                   </div>
                   {detailItem.summary ? <Paragraph>{detailItem.summary}</Paragraph> : null}
-                  {detailItem.external_url ? (
-                    <Button
-                      type="link"
-                      href={detailItem.external_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      icon={<LinkOutlined />}
-                    >
-                      {t('gameServerDetail.content.viewSource', { source: detailItem.source })}
-                    </Button>
-                  ) : null}
+                  <CatalogSourceLinks items={detailCard.items} />
                 </div>
               </div>
-              {renderInstallControls(detailItem, 'stacked')}
+              <div key={`${detailItem.source}:${detailItem.id}`}>
+                {renderInstallControls(detailItem, 'stacked')}
+              </div>
             </div>
           ) : null}
         </Modal>

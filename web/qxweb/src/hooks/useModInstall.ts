@@ -3,6 +3,7 @@ import {
   api,
   type ModProjectType,
   type ModSource,
+  type ModSyncSide,
   type ModVersion,
 } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
@@ -21,6 +22,7 @@ export type ModInstallParams = {
   iconUrl?: string;
   downloads?: number;
   fileSize?: number;
+  side?: ModSyncSide;
 };
 
 export function useModInstall(instanceId: string) {
