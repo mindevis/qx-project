@@ -145,6 +145,8 @@ describe('ModsCatalogPanel', () => {
     const user = userEvent.setup({ delay: null });
     renderCatalog();
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    await waitFor(() => expect(api.searchMods).toHaveBeenCalled());
+    vi.mocked(api.searchMods).mockClear();
 
     await user.type(screen.getByPlaceholderText('Необязательно: сузить по названию…'), 'jei');
     expect(api.searchMods).not.toHaveBeenCalled();

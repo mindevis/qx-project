@@ -46,6 +46,7 @@ import {
   pluginLoaderForServerType,
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
+import { attachCatalogPartners } from '@/lib/catalogPartners';
 import { cachedGetModProject } from '@/lib/modCatalogCache';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { formatCompactCount } from '@/lib/formatCompactCount';
@@ -275,10 +276,19 @@ export function GameServerContentPanel({
             limit: PAGE_SIZE,
           });
           if (cancelled) return;
-          setCatalogItems(res.items ?? []);
+          const searched = res.items ?? [];
+          setCatalogItems(searched);
           setHasMore(false);
           setOffset(0);
           setCurseforgeEnabled(res.curseforge_enabled ?? false);
+          if (sourceFilter === 'all' && searched.length > 0) {
+            const enriched = await attachCatalogPartners(searched, {
+              loader,
+              mcVersion,
+              type: projectType,
+            });
+            if (!cancelled) setCatalogItems(enriched);
+          }
           return;
         }
         const res = await api.browseMods({
@@ -294,8 +304,16 @@ export function GameServerContentPanel({
         const nextItems = res.items ?? [];
         setCatalogItems(nextItems);
         setHasMore(res.has_more ?? false);
-        setOffset(nextItems.length);
+        setOffset(PAGE_SIZE);
         setCurseforgeEnabled(res.curseforge_enabled ?? false);
+        if (sourceFilter === 'all' && nextItems.length > 0) {
+          const enriched = await attachCatalogPartners(nextItems, {
+            loader,
+            mcVersion,
+            type: projectType,
+          });
+          if (!cancelled) setCatalogItems(enriched);
+        }
       } catch (e) {
         if (cancelled) return;
         message.error(formatModCatalogError(e, t, `${i18nPrefix}.browseFailed`));
@@ -328,9 +346,19 @@ export function GameServerContentPanel({
         offset,
       });
       const nextItems = res.items ?? [];
-      setCatalogItems((prev) => [...prev, ...nextItems]);
+      setCatalogItems((prev) => {
+        const combined = [...prev, ...nextItems];
+        if (sourceFilter === 'all' && nextItems.length > 0) {
+          void attachCatalogPartners(combined, {
+            loader,
+            mcVersion,
+            type: projectType,
+          }).then(setCatalogItems);
+        }
+        return combined;
+      });
       setHasMore(res.has_more ?? false);
-      setOffset((prev) => prev + nextItems.length);
+      setOffset((prev) => prev + PAGE_SIZE);
       setCurseforgeEnabled(res.curseforge_enabled ?? false);
     } catch (e) {
       message.error(formatModCatalogError(e, t, `${i18nPrefix}.browseFailed`));

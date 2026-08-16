@@ -154,16 +154,12 @@ func (s *Service) browseBoth(ctx context.Context, projectType, loader, mcVersion
 	if pageSize < 1 {
 		pageSize = 20
 	}
-	half := pageSize / 2
-	if half < 1 {
-		half = 1
-	}
 
 	mrCh := runCatalogHalf(func() ([]SearchItem, error) {
 		return s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
 	})
 	cfCh := runCatalogHalf(func() ([]SearchItem, error) {
-		return s.curseforge.browseStrict(ctx, projectType, loader, mcVersion, sort, half, offset/2)
+		return s.curseforge.browseStrict(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
 	})
 	mr, cf, cfOK := waitPrimaryThenPartner(ctx, mrCh, cfCh, catalogPartnerGrace)
 	items, err := mergeCatalogHalves(mr, cf, cfOK, pageSize)
@@ -196,7 +192,7 @@ func mergeCatalogHalves(primary, partner catalogHalf, partnerOK bool, limit int)
 	if partner.err != nil || len(partner.items) == 0 {
 		return primary.items[:min(len(primary.items), limit)], nil
 	}
-	return interleaveSearch(partner.items, primary.items, limit), nil
+	return pairAndInterleaveSearch(partner.items, primary.items, limit), nil
 }
 
 func (s *Service) GetProject(ctx context.Context, source, projectID string) (*ProjectDetail, error) {

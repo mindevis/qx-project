@@ -16,6 +16,30 @@ export function catalogItemNameKey(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+export function catalogItemMatchKeys(item: Pick<ModCatalogItem, 'name' | 'slug'>): string[] {
+  const keys = new Set<string>();
+  const name = catalogItemNameKey(item.name);
+  if (name) keys.add(`n:${name}`);
+  const stripped = catalogItemNameKey(item.name.replace(/\s*[\(\[][^)\]]*[)\]]/g, ' '));
+  if (stripped) keys.add(`n:${stripped}`);
+  const slug = item.slug?.trim().toLowerCase();
+  if (slug) keys.add(`s:${slug}`);
+  return [...keys];
+}
+
+export function catalogPartnerSource(source: ModSource): ModSource | null {
+  if (source === 'modrinth') return 'curseforge';
+  if (source === 'curseforge') return 'modrinth';
+  return null;
+}
+
+export function catalogItemsMatch(left: ModCatalogItem, right: ModCatalogItem): boolean {
+  if (left.source === right.source) return false;
+  if (catalogPartnerSource(left.source) !== right.source) return false;
+  const rightKeys = new Set(catalogItemMatchKeys(right));
+  return catalogItemMatchKeys(left).some((key) => rightKeys.has(key));
+}
+
 export function catalogCardKey(items: ModCatalogItem[]): string {
   return [...items]
     .map((item) => `${item.source}:${item.id}`)
@@ -56,9 +80,7 @@ function toMergedCard(first: ModCatalogItem, second: ModCatalogItem): CatalogCar
 }
 
 function partnerSource(source: ModSource): ModSource | null {
-  if (source === 'modrinth') return 'curseforge';
-  if (source === 'curseforge') return 'modrinth';
-  return null;
+  return catalogPartnerSource(source);
 }
 
 export function mergeCatalogCardsByName(
@@ -82,13 +104,8 @@ export function mergeCatalogCardsByName(
       continue;
     }
 
-    const nameKey = catalogItemNameKey(item.name);
     const partnerIndex = items.findIndex(
-      (candidate, index) =>
-        index > i &&
-        !used.has(index) &&
-        candidate.source === other &&
-        catalogItemNameKey(candidate.name) === nameKey,
+      (candidate, index) => index > i && !used.has(index) && catalogItemsMatch(item, candidate),
     );
 
     used.add(i);

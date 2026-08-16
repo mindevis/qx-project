@@ -34,6 +34,7 @@ import { ModSyncModal, type ModSyncSelection } from '@/components/ModSyncModal';
 import { useInstanceMods } from '@/components/InstanceModsContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { attachCatalogPartners } from '@/lib/catalogPartners';
 import { formatCompactCount } from '@/lib/formatCompactCount';
 import {
   catalogCardItem,
@@ -152,10 +153,19 @@ export function ModsCatalogPanel() {
             limit: PAGE_SIZE,
           });
           if (cancelled) return;
-          setItems(res.items ?? []);
+          const searched = res.items ?? [];
+          setItems(searched);
           setHasMore(false);
           setOffset(0);
           setCurseforgeEnabled(res.curseforge_enabled ?? false);
+          if (sourceFilter === 'all' && searched.length > 0) {
+            const enriched = await attachCatalogPartners(searched, {
+              loader: catalogLoader,
+              mcVersion: instance.mc_version,
+              type: activeTab,
+            });
+            if (!cancelled) setItems(enriched);
+          }
           return;
         }
 
@@ -172,8 +182,16 @@ export function ModsCatalogPanel() {
         const nextItems = res.items ?? [];
         setItems(nextItems);
         setHasMore(res.has_more ?? false);
-        setOffset(nextItems.length);
+        setOffset(PAGE_SIZE);
         setCurseforgeEnabled(res.curseforge_enabled ?? false);
+        if (sourceFilter === 'all' && nextItems.length > 0) {
+          const enriched = await attachCatalogPartners(nextItems, {
+            loader: catalogLoader,
+            mcVersion: instance.mc_version,
+            type: activeTab,
+          });
+          if (!cancelled) setItems(enriched);
+        }
       } catch (e) {
         if (cancelled) return;
         message.error(
@@ -212,9 +230,19 @@ export function ModsCatalogPanel() {
         offset,
       });
       const nextItems = res.items ?? [];
-      setItems((prev) => [...prev, ...nextItems]);
+      setItems((prev) => {
+        const combined = [...prev, ...nextItems];
+        if (sourceFilter === 'all' && nextItems.length > 0) {
+          void attachCatalogPartners(combined, {
+            loader: catalogLoader,
+            mcVersion: instance.mc_version,
+            type: activeTab,
+          }).then(setItems);
+        }
+        return combined;
+      });
       setHasMore(res.has_more ?? false);
-      setOffset((prev) => prev + nextItems.length);
+      setOffset((prev) => prev + PAGE_SIZE);
       setCurseforgeEnabled(res.curseforge_enabled ?? false);
     } catch (e) {
       message.error(formatModCatalogError(e, t, 'qxmods.browseFailed'));

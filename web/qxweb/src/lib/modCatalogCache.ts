@@ -3,6 +3,7 @@ import {
   type ModSource,
   type ModVersion,
 } from '@/api/client';
+import { clearCatalogPartnerCache } from '@/lib/catalogPartners';
 import { createTtlCache } from '@/lib/ttlCache';
 
 const TEN_MINUTES = 10 * 60 * 1000;
@@ -70,4 +71,5 @@ export function clearModVersionListCache() {
 export function clearModCatalogCaches() {
   projectCache.clear();
   clearModVersionListCache();
+  clearCatalogPartnerCache();
 }
