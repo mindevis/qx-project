@@ -3,8 +3,9 @@ package minecraft
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 // InstallResource downloads a catalog file into the instance resource folder.
@@ -12,10 +13,17 @@ func (d *Downloader) InstallResource(ctx context.Context, instanceID, folder, fi
 	if instanceID == "" || folder == "" || filename == "" || url == "" {
 		return fmt.Errorf("install resource: missing required fields")
 	}
-	destDir := filepath.Join(d.InstanceGameDir(instanceID), folder)
-	if err := os.MkdirAll(destDir, 0o755); err != nil {
+	gameDir, err := d.InstanceGameDir(instanceID)
+	if err != nil {
+		return err
+	}
+	rel := filepath.ToSlash(filepath.Join(folder, filepath.Base(filename)))
+	dest, err := safepath.JoinRel(gameDir, rel)
+	if err != nil {
+		return err
+	}
+	if err := safepath.EnsureParent(dest); err != nil {
 		return fmt.Errorf("create resource dir: %w", err)
 	}
-	dest := filepath.Join(destDir, filepath.Base(filename))
 	return d.downloadIfNeeded(ctx, url, dest, "")
 }

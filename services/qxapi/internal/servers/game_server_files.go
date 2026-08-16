@@ -17,7 +17,7 @@ import (
 )
 
 const agentRPCTimeout = 30 * time.Second
-const agentContentRPCTimeout = 3 * time.Minute
+const agentContentRPCTimeout = 5 * time.Minute
 
 type rpcResult struct {
 	payload []byte
@@ -352,7 +352,7 @@ func (s *Service) InstallGameServerContent(
 	if err != nil {
 		return nil, err
 	}
-	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerContentInstall, protocol.TypeResServerContentInstall, payload)
+	raw, err := s.agentRPCWait(ctx, vpsID, protocol.TypeCmdServerContentInstall, protocol.TypeResServerContentInstall, payload, agentContentRPCTimeout)
 	if err != nil {
 		return nil, err
 	}

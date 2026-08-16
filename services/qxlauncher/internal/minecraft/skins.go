@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 const (
@@ -55,13 +55,18 @@ func EnsurePlayerSkin(gameDir string, cfg PlayerSkinConfig) error {
 		}
 	}
 
-	skinDir := filepath.Join(gameDir, "skins")
-	if err := os.MkdirAll(skinDir, 0o755); err != nil {
+	skinFile := strings.ReplaceAll(cfg.UUID, "-", "") + ".png"
+	if strings.ContainsAny(skinFile, `/\`) || strings.Contains(skinFile, "..") {
+		return fmt.Errorf("invalid skin uuid")
+	}
+	skinPath, err := safepath.Join(gameDir, "skins", skinFile)
+	if err != nil {
 		return err
 	}
-	skinFile := strings.ReplaceAll(cfg.UUID, "-", "") + ".png"
-	skinPath := filepath.Join(skinDir, skinFile)
-	return os.WriteFile(skinPath, skinBytes, 0o644)
+	if err := safepath.EnsureParent(skinPath); err != nil {
+		return err
+	}
+	return safepath.WriteFileBytes(skinPath, skinBytes, 0o644)
 }
 
 // EnsureOfflineSkin writes the default Steve/Alex skin for an offline profile UUID.

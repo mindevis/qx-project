@@ -3,7 +3,9 @@ package fs
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -81,11 +83,90 @@ func ContentRelPath(workDir, serverType, contentKind, filename, modTarget string
 	}
 }
 
+// extraContentDownloadHosts is for tests (httptest). Production stays on the catalog CDN list.
+var extraContentDownloadHosts []string
+
+var allowedContentDownloadHosts = []string{
+	"cdn.modrinth.com",
+	"cdn-raw.modrinth.com",
+	"edge.forgecdn.net",
+	"mediafilez.forgecdn.net",
+	"media.forgecdn.net",
+	"github.com",
+}
+
+var allowedContentDownloadHostSuffixes = []string{
+	"modrinth.com",
+	"forgecdn.net",
+	"curseforge.com",
+	"githubusercontent.com",
+}
+
+func isAllowedContentDownloadHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" || net.ParseIP(host) != nil {
+		return false
+	}
+	for _, allowed := range allowedContentDownloadHosts {
+		if host == allowed {
+			return true
+		}
+	}
+	for _, suffix := range allowedContentDownloadHostSuffixes {
+		if host == suffix || strings.HasSuffix(host, "."+suffix) {
+			return true
+		}
+	}
+	for _, extra := range extraContentDownloadHosts {
+		if host == extra {
+			return true
+		}
+	}
+	return false
+}
+
+// sanitizeContentDownloadURL rejects SSRF targets and returns a reconstructed https URL.
+func sanitizeContentDownloadURL(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	parsed, err := url.ParseRequestURI(raw)
+	if err != nil || parsed.Host == "" {
+		return "", fmt.Errorf("invalid download url")
+	}
+	if parsed.User != nil {
+		return "", fmt.Errorf("invalid download url")
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	host := strings.ToLower(parsed.Hostname())
+	if len(extraContentDownloadHosts) == 0 && scheme != "https" {
+		return "", fmt.Errorf("download url must be https")
+	}
+	if scheme != "https" && scheme != "http" {
+		return "", fmt.Errorf("invalid download url")
+	}
+	if !isAllowedContentDownloadHost(host) {
+		return "", fmt.Errorf("download host not allowed")
+	}
+	safe := &url.URL{
+		Scheme:   scheme,
+		Host:     parsed.Host,
+		Path:     parsed.EscapedPath(),
+		RawQuery: parsed.RawQuery,
+	}
+	if safe.Path == "" {
+		safe.Path = "/"
+	}
+	return safe.String(), nil
+}
+
 func InstallContentFile(ctx context.Context, workDir, relPath, downloadURL string) error {
 	relPath = strings.TrimSpace(relPath)
 	downloadURL = strings.TrimSpace(downloadURL)
 	if relPath == "" || downloadURL == "" {
 		return fmt.Errorf("rel_path and download_url required")
+	}
+	downloadURL, err := sanitizeContentDownloadURL(downloadURL)
+	if err != nil {
+		return err
 	}
 	abs, err := safepath.JoinRel(workDir, relPath)
 	if err != nil {

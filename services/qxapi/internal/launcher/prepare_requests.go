@@ -3,6 +3,7 @@ package launcher
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,26 +14,29 @@ import (
 const prepareRequestTTL = 30 * time.Minute
 
 type PrepareRequestView struct {
-	ID         string              `json:"id"`
-	Status     string              `json:"status"`
-	InstanceID string              `json:"instance_id"`
-	Instance   *LaunchInstanceView `json:"instance,omitempty"`
-	ErrorCode  *string             `json:"error_code,omitempty"`
-	ExpiresAt  time.Time           `json:"expires_at"`
+	ID              string              `json:"id"`
+	Status          string              `json:"status"`
+	InstanceID      string              `json:"instance_id"`
+	Instance        *LaunchInstanceView `json:"instance,omitempty"`
+	ErrorCode       *string             `json:"error_code,omitempty"`
+	ProgressMessage string              `json:"progress_message,omitempty"`
+	ExpiresAt       time.Time           `json:"expires_at"`
 }
 
 type UpdatePrepareRequestInput struct {
-	Status    string
-	ErrorCode *string
+	Status          string
+	ErrorCode       *string
+	ProgressMessage string
 }
 
 func prepareViewFromModel(req models.PrepareRequest, inst *LaunchInstanceView, includeInstance bool) *PrepareRequestView {
 	view := &PrepareRequestView{
-		ID:         req.ID,
-		Status:     req.Status,
-		InstanceID: req.InstanceID,
-		ErrorCode:  req.ErrorCode,
-		ExpiresAt:  req.ExpiresAt,
+		ID:              req.ID,
+		Status:          req.Status,
+		InstanceID:      req.InstanceID,
+		ErrorCode:       req.ErrorCode,
+		ProgressMessage: req.ProgressMessage,
+		ExpiresAt:       req.ExpiresAt,
 	}
 	if includeInstance && inst != nil {
 		view.Instance = inst
@@ -136,6 +140,12 @@ func (s *Service) UpdatePrepareRequest(ctx context.Context, deviceID, requestID 
 	if in.ErrorCode != nil {
 		updates["error_code"] = in.ErrorCode
 	}
+	if msg := strings.TrimSpace(in.ProgressMessage); msg != "" {
+		if len(msg) > 256 {
+			msg = msg[:256]
+		}
+		updates["progress_message"] = msg
+	}
 	if in.Status == models.PrepareStatusCompleted || in.Status == models.PrepareStatusFailed {
 		now := time.Now().UTC()
 		updates["completed_at"] = now
@@ -172,6 +182,33 @@ func (s *Service) expireStalePrepareRequests(ctx context.Context, deviceIDs []st
 	_ = s.db.WithContext(ctx).Model(&models.PrepareRequest{}).
 		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.PrepareStatusQueued, now).
 		Update("status", models.PrepareStatusExpired).Error
+}
+
+func (s *Service) EnsureInstancePrepared(ctx context.Context, owner Owner, instanceID string) (*string, error) {
+	instanceID = strings.TrimSpace(instanceID)
+	if instanceID == "" {
+		return nil, ErrValidation
+	}
+	if _, err := s.GetInstance(ctx, owner, instanceID); err != nil {
+		return nil, err
+	}
+	var latest models.PrepareRequest
+	err := s.db.WithContext(ctx).
+		Where("instance_id = ?", instanceID).
+		Order("created_at desc").
+		First(&latest).Error
+	if err == nil {
+		switch latest.Status {
+		case models.PrepareStatusCompleted:
+			return nil, nil
+		case models.PrepareStatusQueued, models.PrepareStatusPreparing, models.PrepareStatusDownloading:
+			id := latest.ID
+			return &id, nil
+		}
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	return s.enqueuePrepareForInstance(ctx, owner, instanceID)
 }
 
 func (s *Service) enqueuePrepareForInstance(ctx context.Context, owner Owner, instanceID string) (*string, error) {

@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 // Store holds connect-copy jars outside MySQL.
@@ -32,11 +33,11 @@ type Dir struct {
 }
 
 func NewDir(root string) (*Dir, error) {
-	root = strings.TrimSpace(root)
-	if root == "" {
-		return nil, fmt.Errorf("blob dir is empty")
+	root, err := safepath.ResolveRoot(root)
+	if err != nil {
+		return nil, err
 	}
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := safepath.EnsureDir(root); err != nil {
 		return nil, err
 	}
 	return &Dir{root: root}, nil
@@ -47,7 +48,7 @@ func (d *Dir) path(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(d.root, filepath.FromSlash(clean)), nil
+	return safepath.JoinRel(d.root, clean)
 }
 
 func (d *Dir) Put(_ context.Context, key string, data []byte) error {
@@ -55,14 +56,10 @@ func (d *Dir) Put(_ context.Context, key string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+	if err := safepath.EnsureParent(abs); err != nil {
 		return err
 	}
-	tmp := abs + ".part"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmp, abs)
+	return safepath.WriteStreamAtomic(abs, bytes.NewReader(data))
 }
 
 func (d *Dir) Open(_ context.Context, key string) (io.ReadCloser, int64, error) {
@@ -70,7 +67,7 @@ func (d *Dir) Open(_ context.Context, key string) (io.ReadCloser, int64, error) 
 	if err != nil {
 		return nil, 0, err
 	}
-	f, err := os.Open(abs)
+	f, err := safepath.OpenRead(abs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -87,7 +84,7 @@ func (d *Dir) Delete(_ context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(abs); err != nil && !os.IsNotExist(err) {
+	if err := safepath.Remove(abs); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil

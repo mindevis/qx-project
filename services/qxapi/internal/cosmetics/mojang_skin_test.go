@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -48,11 +49,14 @@ func TestFetchMojangSkin(t *testing.T) {
 	client := srv.Client()
 	origProfile := mojangProfileURL
 	origSession := mojangSessionURL
+	origExtra := extraSkinDownloadHosts
 	mojangProfileURL = srv.URL + "/users/profiles/minecraft/"
 	mojangSessionURL = srv.URL + "/session/minecraft/profile/"
+	extraSkinDownloadHosts = []string{httptestHost(srv.URL)}
 	t.Cleanup(func() {
 		mojangProfileURL = origProfile
 		mojangSessionURL = origSession
+		extraSkinDownloadHosts = origExtra
 	})
 
 	got, err := FetchMojangSkin(context.Background(), client, "Steve")
@@ -68,6 +72,42 @@ func TestFetchMojangSkin(t *testing.T) {
 
 	if _, err := FetchMojangSkin(context.Background(), client, "Missing"); err != ErrPlayerNotFound {
 		t.Fatalf("missing player: %v", err)
+	}
+}
+
+func httptestHost(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
+}
+
+func TestSanitizeMojangLookupURL(t *testing.T) {
+	t.Parallel()
+	if _, err := sanitizeMojangLookupURL(mojangProfileURL, "../evil", minecraftUsernameRe); err == nil {
+		t.Fatal("expected invalid username")
+	}
+	got, err := sanitizeMojangLookupURL(mojangProfileURL, "Steve", minecraftUsernameRe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://api.mojang.com/users/profiles/minecraft/Steve" {
+		t.Fatalf("url: %s", got)
+	}
+}
+
+func TestSanitizeSkinDownloadURL(t *testing.T) {
+	t.Parallel()
+	if _, err := sanitizeSkinDownloadURL("http://127.0.0.1/skin.png"); err == nil {
+		t.Fatal("expected localhost rejected")
+	}
+	got, err := sanitizeSkinDownloadURL("http://textures.minecraft.net/texture/abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://textures.minecraft.net/texture/abc" {
+		t.Fatalf("url: %s", got)
 	}
 }
 

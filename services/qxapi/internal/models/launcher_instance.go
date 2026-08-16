@@ -23,6 +23,10 @@ type LauncherInstance struct {
 	ExtraJVMArgs   StringList `gorm:"type:text" json:"extra_jvm_args,omitempty"`
 	WindowWidth    *int       `gorm:"type:int" json:"window_width,omitempty"`
 	WindowHeight   *int       `gorm:"type:int" json:"window_height,omitempty"`
+	// Set when the instance is created for a specific game server on connect.
+	// Content (mods/resource packs/shaders/datapacks) may only change via that
+	// server's catalog and the connect-time sync — not from the launcher UI.
+	ManagedByGameServerID *string `gorm:"type:char(36);index" json:"managed_by_game_server_id,omitempty"`
 	// mediumtext (16 MB), not text (64 KB): a large modpack's worth of mod
 	// metadata (names, filenames, icon URLs, …) easily exceeds MySQL's 64 KB
 	// TEXT limit, which fails the write and blocks any further install.

@@ -212,10 +212,13 @@ func (c *Client) FetchPendingPrepare(ctx context.Context) (*PrepareRequestItem, 
 	return resp.Item, nil
 }
 
-func (c *Client) UpdatePrepareRequest(ctx context.Context, id, status, errorCode string) error {
+func (c *Client) UpdatePrepareRequest(ctx context.Context, id, status, errorCode, progressMessage string) error {
 	payload := map[string]any{"status": status}
 	if errorCode != "" {
 		payload["error_code"] = errorCode
+	}
+	if progressMessage != "" {
+		payload["progress_message"] = progressMessage
 	}
 	b, _ := json.Marshal(payload)
 	_, err := c.request(ctx, http.MethodPatch, "/launcher/prepare-requests/"+id, b, true)

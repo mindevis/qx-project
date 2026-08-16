@@ -3,12 +3,11 @@ package minecraft
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
 )
 
@@ -96,6 +95,10 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 
 	quickPlayMultiplayer := JoinServerQuickPlayValue(in.JoinServerAddress, in.JoinServerPort)
 
+	librariesDir, err := d.InstanceLibrariesDir(in.Manifest.InstanceID)
+	if err != nil {
+		return nil, err
+	}
 	plan := BuildLaunchPlan(
 		in.Manifest,
 		jar,
@@ -103,7 +106,7 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		nativesDir,
 		assetsDir,
 		gameDir,
-		d.InstanceLibrariesDir(in.Manifest.InstanceID),
+		librariesDir,
 		username,
 		offlineUUID,
 		javaBin,
@@ -118,7 +121,10 @@ func (d *Downloader) PrepareClientLaunch(ctx context.Context, in ClientLaunchInp
 		})
 	}
 
-	logPath := filepath.Join(gameDir, "launch.log")
+	logPath, err := safepath.Join(gameDir, "launch.log")
+	if err != nil {
+		return nil, err
+	}
 	if err := writeLaunchDebug(gameDir, plan); err != nil {
 		return nil, err
 	}
@@ -163,7 +169,10 @@ func (d *Downloader) PrepareInstanceGameFiles(ctx context.Context, manifest *mcm
 		return "", nil, "", "", "", "", fmt.Errorf("assets: %w", err)
 	}
 
-	gameDir = d.InstanceGameDir(manifest.InstanceID)
+	gameDir, err = d.InstanceGameDir(manifest.InstanceID)
+	if err != nil {
+		return "", nil, "", "", "", "", err
+	}
 	if err := EnsureGameLanguage(gameDir, DefaultGameLanguage); err != nil {
 		return "", nil, "", "", "", "", fmt.Errorf("game language: %w", err)
 	}
@@ -182,17 +191,21 @@ func writeLaunchDebug(gameDir string, plan LaunchPlan) error {
 		}
 	}
 	b.WriteByte('\n')
-	return os.WriteFile(filepath.Join(gameDir, "launch.cmd.txt"), []byte(b.String()), 0o644)
+	path, err := safepath.Join(gameDir, "launch.cmd.txt")
+	if err != nil {
+		return err
+	}
+	return safepath.WriteFileBytes(path, []byte(b.String()), 0o644)
 }
 
 func StartClientProcess(ctx context.Context, plan LaunchPlan, logPath string) (*exec.Cmd, error) {
 	cmd := proc.CommandContext(ctx, plan.JavaBin, plan.Args...)
 	cmd.Dir = plan.WorkingDir
 	if logPath != "" {
-		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		if err := safepath.EnsureParent(logPath); err != nil {
 			return nil, err
 		}
-		logFile, err := os.Create(logPath)
+		logFile, err := safepath.Create(logPath)
 		if err != nil {
 			return nil, err
 		}

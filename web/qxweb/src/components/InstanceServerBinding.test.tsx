@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { api, saveTokens } from '@/api/client';
 import { renderWithProviders } from '@/test/test-utils';
 import { InstanceServerBinding } from './InstanceServerBinding';
@@ -12,6 +11,12 @@ const instance = {
   loader: 'forge',
   created_at: 'now',
   updated_at: 'now',
+};
+
+const managedInstance = {
+  ...instance,
+  managed_by_game_server_id: 'mon-1',
+  content_locked: true,
 };
 
 const server = {
@@ -72,24 +77,34 @@ describe('InstanceServerBinding', () => {
     vi.unstubAllGlobals();
   });
 
-  function renderBinding(variant: 'panel' | 'card' = 'panel') {
-    return renderWithProviders(<InstanceServerBinding instance={instance} variant={variant} />);
+  function renderBinding(
+    variant: 'panel' | 'card' = 'panel',
+    current = instance,
+  ) {
+    return renderWithProviders(<InstanceServerBinding instance={current} variant={variant} />);
   }
 
-  it('loads bindable servers and saves binding', async () => {
-    const user = userEvent.setup({ delay: null });
+  it('does not let a personal instance bind to a game server', async () => {
     renderBinding();
+    expect(await screen.findByText(/Личный инстанс нельзя привязать/i)).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(api.listBindableServers).not.toHaveBeenCalled();
+    expect(api.setMonitoringBinding).not.toHaveBeenCalled();
+  });
+
+  it('shows a locked server name for a managed instance', async () => {
+    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
+      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client', locked: true }],
+    });
+    renderBinding('panel', managedInstance);
     await waitFor(() => expect(api.listBindableServers).toHaveBeenCalled());
-    await user.click(screen.getByRole('combobox'));
-    await user.click(await screen.findByText(/Survival World/));
-    await waitFor(() =>
-      expect(api.setMonitoringBinding).toHaveBeenCalledWith('mon-1', 'inst-1'),
-    );
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(await screen.findByText(/Survival World \(play.example.com:25565\)/)).toBeInTheDocument();
   });
 
   it('renders compact card variant', async () => {
     const { container } = renderBinding('card');
-    await waitFor(() => expect(api.listBindableServers).toHaveBeenCalled());
+    expect(await screen.findByText(/Личный инстанс нельзя привязать/i)).toBeInTheDocument();
     expect(container.querySelector('.qxmods-binding-panel--card')).toBeTruthy();
     expect(screen.queryByText(/Выберите свой игровой сервер/i)).not.toBeInTheDocument();
   });
@@ -99,17 +114,5 @@ describe('InstanceServerBinding', () => {
     clearTokens();
     renderBinding();
     expect(await screen.findByText(/\u0412\u043e\u0439\u0434\u0438\u0442\u0435/i)).toBeInTheDocument();
-  });
-
-  it('clears binding when selection is cleared', async () => {
-    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
-      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client' }],
-    });
-    const user = userEvent.setup({ delay: null });
-    renderBinding();
-    await waitFor(() => expect(api.listBindableServers).toHaveBeenCalled());
-    await user.click(screen.getByRole('combobox'));
-    await user.click(await screen.findByRole('img', { name: 'close-circle' }));
-    await waitFor(() => expect(api.clearMonitoringBinding).toHaveBeenCalledWith('mon-1'));
   });
 });

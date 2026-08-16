@@ -36,6 +36,14 @@ func resourceUploadObjectKey(id string) string {
 }
 
 func (s *Service) CreateInstanceResourceUpload(ctx context.Context, owner Owner, instanceID, filename, resourceType string, data []byte) (*InstanceResourceUploadView, error) {
+	return s.createInstanceResourceUpload(ctx, owner, instanceID, filename, resourceType, data, false)
+}
+
+func (s *Service) CreateInstanceResourceUploadForSync(ctx context.Context, owner Owner, instanceID, filename, resourceType string, data []byte) (*InstanceResourceUploadView, error) {
+	return s.createInstanceResourceUpload(ctx, owner, instanceID, filename, resourceType, data, true)
+}
+
+func (s *Service) createInstanceResourceUpload(ctx context.Context, owner Owner, instanceID, filename, resourceType string, data []byte, allowManaged bool) (*InstanceResourceUploadView, error) {
 	if err := ValidateResourceFilename(filename); err != nil {
 		return nil, err
 	}
@@ -51,6 +59,11 @@ func (s *Service) CreateInstanceResourceUpload(ctx context.Context, owner Owner,
 	}
 	if _, err := s.GetInstance(ctx, owner, instanceID); err != nil {
 		return nil, err
+	}
+	if !allowManaged {
+		if err := s.AssertInstanceContentMutable(ctx, instanceID); err != nil {
+			return nil, err
+		}
 	}
 
 	now := time.Now().UTC()

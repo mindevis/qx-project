@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
-	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
+	"github.com/qxproject/qx/services/qxapi/internal/mojang"
 	"gorm.io/gorm"
 )
 
@@ -45,28 +45,30 @@ type LaunchInstanceView struct {
 }
 
 type LaunchRequestView struct {
-	ID               string                 `json:"id"`
-	Status           string                 `json:"status"`
-	InstanceID       string                 `json:"instance_id"`
-	OfflineProfileID *string                `json:"offline_profile_id,omitempty"`
-	UseMojangAccount bool                   `json:"use_mojang_account,omitempty"`
-	JoinServerAddress *string               `json:"join_server_address,omitempty"`
-	JoinServerPort    *int                  `json:"join_server_port,omitempty"`
-	ExpiresAt        time.Time              `json:"expires_at"`
-	Instance         *LaunchInstanceView    `json:"instance,omitempty"`
-	Profile          *models.OfflineProfile `json:"profile,omitempty"`
-	MojangSession    *MojangSessionView     `json:"mojang_session,omitempty"`
-	Cosmetics        *cosmetics.LaunchView  `json:"cosmetics,omitempty"`
-	PID              *int                   `json:"pid,omitempty"`
-	ExitCode         *int                   `json:"exit_code,omitempty"`
-	ErrorCode        *string                `json:"error_code,omitempty"`
+	ID                string                 `json:"id"`
+	Status            string                 `json:"status"`
+	InstanceID        string                 `json:"instance_id"`
+	OfflineProfileID  *string                `json:"offline_profile_id,omitempty"`
+	UseMojangAccount  bool                   `json:"use_mojang_account,omitempty"`
+	JoinServerAddress *string                `json:"join_server_address,omitempty"`
+	JoinServerPort    *int                   `json:"join_server_port,omitempty"`
+	ExpiresAt         time.Time              `json:"expires_at"`
+	Instance          *LaunchInstanceView    `json:"instance,omitempty"`
+	Profile           *models.OfflineProfile `json:"profile,omitempty"`
+	MojangSession     *MojangSessionView     `json:"mojang_session,omitempty"`
+	Cosmetics         *cosmetics.LaunchView  `json:"cosmetics,omitempty"`
+	PID               *int                   `json:"pid,omitempty"`
+	ExitCode          *int                   `json:"exit_code,omitempty"`
+	ErrorCode         *string                `json:"error_code,omitempty"`
+	ProgressMessage   string                 `json:"progress_message,omitempty"`
 }
 
 type UpdateLaunchRequestInput struct {
-	Status    string
-	PID       *int
-	ExitCode  *int
-	ErrorCode *string
+	Status          string
+	PID             *int
+	ExitCode        *int
+	ErrorCode       *string
+	ProgressMessage string
 }
 
 func (s *Service) CreateLaunchRequest(ctx context.Context, owner Owner, in CreateLaunchRequestInput) (*LaunchRequestView, error) {
@@ -205,6 +207,12 @@ func (s *Service) UpdateLaunchRequest(ctx context.Context, deviceID, requestID s
 	}
 	if in.ErrorCode != nil {
 		updates["error_code"] = *in.ErrorCode
+	}
+	if msg := strings.TrimSpace(in.ProgressMessage); msg != "" {
+		if len(msg) > 256 {
+			msg = msg[:256]
+		}
+		updates["progress_message"] = msg
 	}
 	if in.Status == models.LaunchStatusCompleted || in.Status == models.LaunchStatusFailed {
 		now := time.Now().UTC()
@@ -346,12 +354,13 @@ func launchViewFromModel(req models.LaunchRequest, instance *LaunchInstanceView,
 		JoinServerAddress: req.JoinServerAddress,
 		JoinServerPort:    req.JoinServerPort,
 		ExpiresAt:         req.ExpiresAt,
-		Instance:         instance,
-		Profile:          profile,
-		MojangSession:    mojangSession,
-		Cosmetics:        cosmeticsView,
-		PID:              req.PID,
-		ExitCode:         req.ExitCode,
-		ErrorCode:        req.ErrorCode,
+		Instance:          instance,
+		Profile:           profile,
+		MojangSession:     mojangSession,
+		Cosmetics:         cosmeticsView,
+		PID:               req.PID,
+		ExitCode:          req.ExitCode,
+		ErrorCode:         req.ErrorCode,
+		ProgressMessage:   req.ProgressMessage,
 	}
 }

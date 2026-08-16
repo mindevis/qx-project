@@ -13,6 +13,7 @@ type ConnectClientModsModalProps = {
   serverName: string;
   onClose: () => void;
   onConfirm: () => void;
+  embedded?: boolean;
 };
 
 type ClientContentSection = {
@@ -50,6 +51,7 @@ export function ConnectClientModsModal({
   serverName,
   onClose,
   onConfirm,
+  embedded = false,
 }: ConnectClientModsModalProps) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -158,6 +160,91 @@ export function ConnectClientModsModal({
     }
   };
 
+  const body = loading ? (
+    <Spin />
+  ) : !status ? (
+    <Alert type="warning" showIcon message={t('monitoring.connectMods.loadFailed')} />
+  ) : (
+    <>
+      <Paragraph type="secondary">{t('monitoring.connectMods.hint')}</Paragraph>
+      {status.server_mod_count > 0 ? (
+        <Text type="secondary" className="monitoring-connect-mods-server-info">
+          {t('monitoring.connectMods.serverModsInfo', { count: status.server_mod_count })}
+        </Text>
+      ) : null}
+      {status.server_resourcepack_count > 0 ? (
+        <Text type="secondary" className="monitoring-connect-mods-server-info">
+          {t('monitoring.connectMods.serverResourcepacksInfo', {
+            count: status.server_resourcepack_count,
+          })}
+        </Text>
+      ) : null}
+      {status.server_shader_count > 0 ? (
+        <Text type="secondary" className="monitoring-connect-mods-server-info">
+          {t('monitoring.connectMods.serverShadersInfo', { count: status.server_shader_count })}
+        </Text>
+      ) : null}
+      {sections.map((section) => (
+        <section key={section.key} className="monitoring-connect-mods-section">
+          <Title level={5}>{t(section.titleKey)}</Title>
+          {(section.items?.length ?? 0) === 0 ? (
+            <Alert type="info" showIcon message={t(section.emptyKey)} />
+          ) : (
+            <ul className="monitoring-connect-mods-list">
+              {section.items.map((item) => {
+                const key = `${section.key}:${item.filename.toLowerCase()}`;
+                return (
+                  <li key={key}>
+                    <Checkbox
+                      checked={selected.has(key)}
+                      onChange={(e) => {
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(key);
+                          else next.delete(key);
+                          return next;
+                        });
+                      }}
+                    >
+                      <span>{item.filename}</span>
+                      {!item.installed_locally ? (
+                        <Text type="warning" className="monitoring-connect-mods-missing">
+                          {' '}
+                          · {t('monitoring.connectMods.notInstalled')}
+                        </Text>
+                      ) : null}
+                    </Checkbox>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {section.allInstalled && (section.items?.length ?? 0) > 0 ? (
+            <Alert type="success" showIcon message={t(section.allInstalledKey)} />
+          ) : null}
+        </section>
+      ))}
+    </>
+  );
+
+  const actions = (
+    <div className={embedded ? 'monitoring-connect-mods-actions' : undefined}>
+      <Button onClick={onClose}>{t('common.cancel')}</Button>
+      <Button type="primary" loading={saving} onClick={() => void handleConfirm()}>
+        {t('monitoring.connectMods.confirm')}
+      </Button>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div className="monitoring-connect-mods-embedded">
+        {body}
+        {actions}
+      </div>
+    );
+  }
+
   return (
     <Modal
       {...modalMotionProps}
@@ -173,72 +260,7 @@ export function ConnectClientModsModal({
         </Button>,
       ]}
     >
-      {loading ? (
-        <Spin />
-      ) : !status ? (
-        <Alert type="warning" showIcon message={t('monitoring.connectMods.loadFailed')} />
-      ) : (
-        <>
-          <Paragraph type="secondary">{t('monitoring.connectMods.hint')}</Paragraph>
-          {status.server_mod_count > 0 ? (
-            <Text type="secondary" className="monitoring-connect-mods-server-info">
-              {t('monitoring.connectMods.serverModsInfo', { count: status.server_mod_count })}
-            </Text>
-          ) : null}
-          {status.server_resourcepack_count > 0 ? (
-            <Text type="secondary" className="monitoring-connect-mods-server-info">
-              {t('monitoring.connectMods.serverResourcepacksInfo', {
-                count: status.server_resourcepack_count,
-              })}
-            </Text>
-          ) : null}
-          {status.server_shader_count > 0 ? (
-            <Text type="secondary" className="monitoring-connect-mods-server-info">
-              {t('monitoring.connectMods.serverShadersInfo', { count: status.server_shader_count })}
-            </Text>
-          ) : null}
-          {sections.map((section) => (
-            <section key={section.key} className="monitoring-connect-mods-section">
-              <Title level={5}>{t(section.titleKey)}</Title>
-              {(section.items?.length ?? 0) === 0 ? (
-                <Alert type="info" showIcon message={t(section.emptyKey)} />
-              ) : (
-                <ul className="monitoring-connect-mods-list">
-                  {section.items.map((item) => {
-                    const key = `${section.key}:${item.filename.toLowerCase()}`;
-                    return (
-                      <li key={key}>
-                        <Checkbox
-                          checked={selected.has(key)}
-                          onChange={(e) => {
-                            setSelected((prev) => {
-                              const next = new Set(prev);
-                              if (e.target.checked) next.add(key);
-                              else next.delete(key);
-                              return next;
-                            });
-                          }}
-                        >
-                          <span>{item.filename}</span>
-                          {!item.installed_locally ? (
-                            <Text type="warning" className="monitoring-connect-mods-missing">
-                              {' '}
-                              · {t('monitoring.connectMods.notInstalled')}
-                            </Text>
-                          ) : null}
-                        </Checkbox>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              {section.allInstalled && (section.items?.length ?? 0) > 0 ? (
-                <Alert type="success" showIcon message={t(section.allInstalledKey)} />
-              ) : null}
-            </section>
-          ))}
-        </>
-      )}
+      {body}
     </Modal>
   );
 }

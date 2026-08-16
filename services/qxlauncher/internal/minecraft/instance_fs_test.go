@@ -10,7 +10,10 @@ func TestInstanceFSListReadWrite(t *testing.T) {
 	root := t.TempDir()
 	dl := NewDownloader(root)
 	instanceID := "test-inst"
-	gameDir := dl.InstanceGameDir(instanceID)
+	gameDir, err := dl.InstanceGameDir(instanceID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(filepath.Join(gameDir, "config"), 0o755); err != nil {
 		t.Fatal(err)
 	}

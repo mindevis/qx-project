@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	qxlog "github.com/qxproject/qx/pkg/log"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 const (
@@ -46,7 +47,16 @@ func FilePath(dataDir string) string {
 // Windows GUI builds have no console: stdout errors are ignored so the file
 // still receives every line. Returns the log file path, or "" on failure.
 func Setup(dataDir string, opts qxlog.Options) string {
-	logPath := FilePath(dataDir)
+	root, err := safepath.ResolveRoot(dataDir)
+	if err != nil {
+		qxlog.Setup(opts)
+		return ""
+	}
+	logPath, err := safepath.Join(root, "logs", logFileName)
+	if err != nil {
+		qxlog.Setup(opts)
+		return ""
+	}
 	sink := &rotatingFile{path: logPath, max: rotateBytes, keep: rotateKeep}
 	if err := sink.open(); err != nil {
 		qxlog.Setup(opts)
@@ -94,10 +104,10 @@ func (r *rotatingFile) open() error {
 }
 
 func (r *rotatingFile) openLocked() error {
-	if err := os.MkdirAll(filepath.Dir(r.path), 0o755); err != nil {
+	if err := safepath.EnsureParent(r.path); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(r.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	f, err := safepath.OpenFile(r.path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
@@ -151,13 +161,13 @@ func (r *rotatingFile) rotateLocked() error {
 		r.keep = 1
 	}
 	oldest := r.path + "." + strconv.Itoa(r.keep)
-	_ = os.Remove(oldest)
+	_ = safepath.Remove(oldest)
 	for i := r.keep - 1; i >= 1; i-- {
 		from := r.path + "." + strconv.Itoa(i)
 		to := r.path + "." + strconv.Itoa(i+1)
-		_ = os.Rename(from, to)
+		_ = safepath.Rename(from, to)
 	}
-	if err := os.Rename(r.path, r.path+".1"); err != nil {
+	if err := safepath.Rename(r.path, r.path+".1"); err != nil {
 		return r.openLocked()
 	}
 	return r.openLocked()

@@ -22,6 +22,27 @@ type deleteContentBody struct {
 	ModTarget string `json:"mod_target"`
 }
 
+func (h *GameServersHandler) ListContentResources(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	items, err := h.Service.ListGameServerResources(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		c.Query("kind"),
+		c.Query("mod_target"),
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
 func (h *GameServersHandler) ListClientMods(c *gin.Context) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {
@@ -228,6 +249,8 @@ func (h *GameServersHandler) syncGameServerContent(
 		gameServerError(c, err)
 		return
 	}
+	_ = h.Service.RecordGameServerSync(c.Request.Context(), gs.ID, contentKind, body.SyncModRequest)
+
 	c.JSON(http.StatusOK, gin.H{
 		"status":   "installed",
 		"message":  contentKind + " installed on server",
@@ -286,6 +309,7 @@ func (h *GameServersHandler) deleteGameServerContent(
 		gameServerError(c, err)
 		return
 	}
+	_ = h.Service.RemoveGameServerResource(c.Request.Context(), gs.ID, body.Filename, contentKind, modTarget)
 	c.JSON(http.StatusOK, gin.H{"status": "deleted", "filename": body.Filename})
 }
 
@@ -386,6 +410,7 @@ func (h *GameServersHandler) uploadGameServerContent(
 		gameServerError(c, err)
 		return
 	}
+	_ = h.Service.RecordGameServerUpload(c.Request.Context(), gs.ID, contentKind, result.Filename, modTarget, int64(len(data)))
 	c.JSON(http.StatusCreated, gin.H{
 		"status":   result.Status,
 		"filename": result.Filename,

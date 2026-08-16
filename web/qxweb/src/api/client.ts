@@ -81,6 +81,8 @@ export type LauncherInstance = {
   window_width?: number;
   window_height?: number;
   prepare_request_id?: string;
+  managed_by_game_server_id?: string;
+  content_locked?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -130,6 +132,7 @@ export type LaunchRequest = {
   pid?: number;
   exit_code?: number;
   error_code?: string;
+  progress_message?: string;
 };
 
 export type GameServer = {
@@ -207,6 +210,9 @@ export type MonitoringInstanceBinding = {
   instance_name?: string;
   instance_mc_version?: string;
   instance_loader?: string;
+  locked?: boolean;
+  managed_by_game_server_id?: string;
+  prepare_request_id?: string;
 };
 
 export type GameServerProperty = {
@@ -300,6 +306,9 @@ export type GameServerContentSyncBody = {
   project_name?: string;
   version_number?: string;
   mod_target?: ModTarget;
+  icon_url?: string;
+  downloads?: number;
+  file_size?: number;
 };
 
 export type ModTarget =
@@ -372,6 +381,7 @@ export type PrepareRequest = {
   status: string;
   instance_id: string;
   error_code?: string;
+  progress_message?: string;
   expires_at: string;
 };
 
@@ -1088,6 +1098,20 @@ export const api = {
       { method: 'PATCH', body: JSON.stringify({ updates }) },
     ),
 
+  listGameServerResources: (
+    vpsId: string,
+    gameServerId: string,
+    params?: { kind?: ModProjectType; mod_target?: ModTarget },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.kind) search.set('kind', params.kind);
+    if (params?.mod_target) search.set('mod_target', params.mod_target);
+    const qs = search.toString();
+    return request<{ items: InstanceResource[] }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/resources${qs ? `?${qs}` : ''}`,
+    );
+  },
+
   listVpsGameServerMods: (vpsId: string, gameServerId: string) =>
     request<{ items: GameServerFileEntry[] }>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods`,
@@ -1201,6 +1225,12 @@ export const api = {
 
   listMonitoringBindings: () =>
     request<{ items: MonitoringInstanceBinding[] }>('/monitoring/bindings'),
+
+  ensureMonitoringConnectInstance: (gameServerId: string) =>
+    request<MonitoringInstanceBinding>(
+      `/monitoring/servers/${encodeURIComponent(gameServerId)}/connect-instance`,
+      { method: 'POST' },
+    ),
 
   setMonitoringBinding: (gameServerId: string, instanceId: string) =>
     request<MonitoringInstanceBinding>(

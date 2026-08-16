@@ -15,21 +15,23 @@ type PrepareRequestsHandler struct {
 }
 
 type prepareRequestResponse struct {
-	ID         string                      `json:"id"`
-	Status     string                      `json:"status"`
-	InstanceID string                      `json:"instance_id"`
-	Instance   *launcher.LaunchInstanceView `json:"instance,omitempty"`
-	ErrorCode  *string                     `json:"error_code,omitempty"`
-	ExpiresAt  string                      `json:"expires_at"`
+	ID              string                       `json:"id"`
+	Status          string                       `json:"status"`
+	InstanceID      string                       `json:"instance_id"`
+	Instance        *launcher.LaunchInstanceView `json:"instance,omitempty"`
+	ErrorCode       *string                      `json:"error_code,omitempty"`
+	ProgressMessage string                       `json:"progress_message,omitempty"`
+	ExpiresAt       string                       `json:"expires_at"`
 }
 
 func prepareResponseFromView(v *launcher.PrepareRequestView, includeInstance bool) prepareRequestResponse {
 	resp := prepareRequestResponse{
-		ID:         v.ID,
-		Status:     v.Status,
-		InstanceID: v.InstanceID,
-		ErrorCode:  v.ErrorCode,
-		ExpiresAt:  v.ExpiresAt.UTC().Format(time.RFC3339),
+		ID:              v.ID,
+		Status:          v.Status,
+		InstanceID:      v.InstanceID,
+		ErrorCode:       v.ErrorCode,
+		ProgressMessage: v.ProgressMessage,
+		ExpiresAt:       v.ExpiresAt.UTC().Format(time.RFC3339),
 	}
 	if includeInstance {
 		resp.Instance = v.Instance
@@ -80,8 +82,9 @@ func (h *PrepareRequestsHandler) Pending(c *gin.Context) {
 }
 
 type patchPrepareRequestBody struct {
-	Status    string  `json:"status" binding:"required"`
-	ErrorCode *string `json:"error_code"`
+	Status          string  `json:"status" binding:"required"`
+	ErrorCode       *string `json:"error_code"`
+	ProgressMessage string  `json:"progress_message"`
 }
 
 func (h *PrepareRequestsHandler) Update(c *gin.Context) {
@@ -96,8 +99,9 @@ func (h *PrepareRequestsHandler) Update(c *gin.Context) {
 		return
 	}
 	view, err := h.Service.UpdatePrepareRequest(c.Request.Context(), deviceID, c.Param("id"), launcher.UpdatePrepareRequestInput{
-		Status:    req.Status,
-		ErrorCode: req.ErrorCode,
+		Status:          req.Status,
+		ErrorCode:       req.ErrorCode,
+		ProgressMessage: req.ProgressMessage,
 	})
 	if err != nil {
 		if errors.Is(err, launcher.ErrNotFound) {

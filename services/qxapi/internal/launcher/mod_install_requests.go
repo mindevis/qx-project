@@ -91,6 +91,9 @@ func (s *Service) CreateModInstallRequest(ctx context.Context, owner Owner, in C
 	if _, err := s.GetInstance(ctx, owner, in.InstanceID); err != nil {
 		return nil, err
 	}
+	if err := s.AssertInstanceContentMutable(ctx, in.InstanceID); err != nil {
+		return nil, err
+	}
 
 	now := time.Now().UTC()
 	req := models.ModInstallRequest{

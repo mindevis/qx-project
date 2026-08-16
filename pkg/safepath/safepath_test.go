@@ -46,8 +46,19 @@ func TestPartPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if part != path+".part" {
+	if part.String() != path+".part" {
 		t.Fatalf("part=%q", part)
+	}
+}
+
+func TestVettedAbsRejectsRelativeAndDotDot(t *testing.T) {
+	if _, err := VettedAbs("relative/file.jar"); err == nil {
+		t.Fatal("expected relative path error")
+	}
+	dir := t.TempDir()
+	escaped := dir + string(os.PathSeparator) + ".." + string(os.PathSeparator) + "outside.jar"
+	if _, err := VettedAbs(escaped); err == nil {
+		t.Fatal("expected unclean path error")
 	}
 }
 

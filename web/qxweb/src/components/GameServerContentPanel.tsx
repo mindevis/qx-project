@@ -19,14 +19,16 @@ import {
   api,
   type GameServerContentKind,
   type GameServerFileEntry,
+  type InstanceResource,
   type ModCatalogItem,
   type ModCatalogSort,
   type ModCatalogSourceFilter,
   type ModProjectType,
   type ModSource,
-  type ModVersion,
 } from '@/api/client';
+import { GameServerCatalogProvider } from '@/components/GameServerCatalogProvider';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
+import { ModCatalogInstallControls } from '@/components/ModCatalogInstallControls';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
@@ -35,9 +37,8 @@ import {
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
 import { formatModCatalogError } from '@/lib/modCatalogError';
-import { cachedListModVersions } from '@/lib/modCatalogCache';
 import { formatCompactCount } from '@/lib/formatCompactCount';
-import { isCatalogItemOnServer, isModOnServer, needsServerRestartAfterSync } from '@/lib/modSync';
+import { isCatalogItemOnServer, needsServerRestartAfterSync } from '@/lib/modSync';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 import './InstanceResourcesPanel.css';
@@ -121,22 +122,6 @@ function deleteContent(
   }
 }
 
-function syncContent(
-  kind: GameServerContentKind,
-  vpsId: string,
-  gameServerId: string,
-  body: Parameters<typeof api.syncModToGameServer>[2],
-) {
-  switch (kind) {
-    case 'plugin':
-      return api.syncPluginToGameServer(vpsId, gameServerId, body);
-    case 'datapack':
-      return api.syncDatapackToGameServer(vpsId, gameServerId, body);
-    default:
-      return api.syncModToGameServer(vpsId, gameServerId, body);
-  }
-}
-
 export function GameServerContentPanel({
   kind,
   vpsId,
@@ -157,6 +142,7 @@ export function GameServerContentPanel({
         : undefined;
 
   const [installed, setInstalled] = useState<GameServerFileEntry[]>([]);
+  const [installedResources, setInstalledResources] = useState<InstanceResource[]>([]);
   const [installedLoading, setInstalledLoading] = useState(true);
   const [installedSearchInput, setInstalledSearchInput] = useState('');
   const [appliedInstalledSearch, setAppliedInstalledSearch] = useState('');
@@ -175,9 +161,6 @@ export function GameServerContentPanel({
   const [showInstalledOnly, setShowInstalledOnly] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<ModCatalogItem | null>(null);
-  const [versions, setVersions] = useState<ModVersion[]>([]);
-  const [versionsLoading, setVersionsLoading] = useState(false);
-  const [installingVersionId, setInstallingVersionId] = useState<string>();
   const [uploading, setUploading] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string>();
   const [modTarget, setModTarget] = useState<'mods' | 'client-mods'>('mods');
@@ -187,19 +170,24 @@ export function GameServerContentPanel({
   const loadInstalled = useCallback(async () => {
     if (!agentOnline || !supported) {
       setInstalled([]);
+      setInstalledResources([]);
       setInstalledLoading(false);
       return;
     }
     setInstalledLoading(true);
     try {
-      const res = await listInstalled(kind, vpsId, gameServerId);
+      const [res, resourcesRes] = await Promise.all([
+        listInstalled(kind, vpsId, gameServerId),
+        api.listGameServerResources(vpsId, gameServerId, { kind: projectType }).catch(() => ({ items: [] })),
+      ]);
       setInstalled((res.items ?? []).filter((item) => !item.dir));
+      setInstalledResources(resourcesRes.items ?? []);
     } catch (e) {
       message.error(e instanceof Error ? e.message : t(`${i18nPrefix}.loadFailed`));
     } finally {
       setInstalledLoading(false);
     }
-  }, [agentOnline, gameServerId, i18nPrefix, kind, message, supported, t, vpsId]);
+  }, [agentOnline, gameServerId, i18nPrefix, kind, message, projectType, supported, t, vpsId]);
 
   useEffect(() => {
     void loadInstalled();
@@ -309,30 +297,46 @@ export function GameServerContentPanel({
     return installed.filter((item) => (modTargetFromPath(item.path) ?? 'mods') === modTarget);
   }, [installed, kind, modTarget]);
 
+  const resourcesForTarget = useMemo(() => {
+    if (kind !== 'mod') return installedResources;
+    const side = modTarget === 'client-mods' ? 'client' : 'server';
+    return installedResources.filter((item) => (item.side_override || 'server') === side);
+  }, [installedResources, kind, modTarget]);
+
+  const isItemOnServer = useCallback(
+    (item: ModCatalogItem) =>
+      resourcesForTarget.some(
+        (resource) => resource.source === item.source && resource.project_id === item.id,
+      ) || isCatalogItemOnServer(item, installedForTarget),
+    [installedForTarget, resourcesForTarget],
+  );
+
+  const installedProjectIds = useMemo(() => {
+    const keys = new Set<string>();
+    for (const resource of resourcesForTarget) {
+      if (resource.project_id) {
+        keys.add(`${resource.source}:${resource.project_id}`);
+      }
+    }
+    for (const item of catalogItems) {
+      if (isItemOnServer(item)) {
+        keys.add(`${item.source}:${item.id}`);
+      }
+    }
+    return keys;
+  }, [catalogItems, isItemOnServer, resourcesForTarget]);
+
   const visibleCatalogItems = useMemo(() => {
     if (showInstalledOnly) {
-      return catalogItems.filter((item) => isCatalogItemOnServer(item, installedForTarget));
+      return catalogItems.filter((item) => isItemOnServer(item));
     }
-    return catalogItems.filter((item) => !isCatalogItemOnServer(item, installedForTarget));
-  }, [catalogItems, installedForTarget, showInstalledOnly]);
+    return catalogItems.filter((item) => !isItemOnServer(item));
+  }, [catalogItems, isItemOnServer, showInstalledOnly]);
 
-  const openDetail = useCallback(async (item: ModCatalogItem) => {
+  const openDetail = useCallback((item: ModCatalogItem) => {
     setDetailItem(item);
     setDetailOpen(true);
-    setVersions([]);
-    setVersionsLoading(true);
-    try {
-      const items = await cachedListModVersions(item.source as ModSource, item.id, {
-        loader,
-        mc_version: mcVersion,
-      });
-      setVersions(items);
-    } catch (e) {
-      message.error(formatModCatalogError(e, t, `${i18nPrefix}.versionsFailed`));
-    } finally {
-      setVersionsLoading(false);
-    }
-  }, [i18nPrefix, loader, mcVersion, message, t]);
+  }, []);
 
   const filteredInstalled = useMemo(() => {
     const query = appliedInstalledSearch.trim().toLowerCase();
@@ -355,41 +359,6 @@ export function GameServerContentPanel({
         message.success(t('servers.gameServerRestartStarted'));
       },
     });
-  };
-
-  const installVersion = async (item: ModCatalogItem, version: ModVersion) => {
-    const file = version.files[0];
-    if (!file) {
-      message.error(t('gameServerDetail.content.noFile'));
-      return;
-    }
-    setInstallingVersionId(version.id);
-    try {
-      const res = await syncContent(kind, vpsId, gameServerId, {
-        source: item.source,
-        project_id: item.id,
-        version_id: version.id,
-        filename: file.filename,
-        download_url: file.url,
-        project_name: item.name,
-        version_number: version.version_number,
-        mod_target: modTarget,
-      });
-      if (res.status === 'already_installed') {
-        message.info(t('gameServerDetail.content.alreadyInstalled'));
-      } else {
-        message.success(t('gameServerDetail.content.installed'));
-        if (needsServerRestartAfterSync(modTarget)) {
-          promptRestart();
-        }
-        void loadInstalled();
-      }
-      setDetailOpen(false);
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : t('gameServerDetail.content.installFailed'));
-    } finally {
-      setInstallingVersionId(undefined);
-    }
   };
 
   const catalogColumns: ColumnsType<ModCatalogItem> = useMemo(
@@ -439,17 +408,36 @@ export function GameServerContentPanel({
       {
         title: t('gameServerDetail.content.install'),
         key: 'install',
-        width: 140,
+        width: 260,
+        className: 'qxmods-catalog-install-cell',
         render: (_, row) => (
-          <Button type="primary" size="small" onClick={() => void openDetail(row)}>
-            {isCatalogItemOnServer(row, installedForTarget)
-              ? t('gameServerDetail.content.alreadyInstalled')
-              : t('gameServerDetail.content.install')}
-          </Button>
+          <ModCatalogInstallControls
+            source={row.source as ModSource}
+            projectId={row.id}
+            projectName={row.name}
+            projectType={row.project_type ?? projectType}
+            iconUrl={row.icon_url}
+            downloads={row.downloads}
+            clientSide={row.client_side}
+            serverSide={row.server_side}
+            loader={loader}
+            mcVersion={mcVersion}
+            installedProjectIds={installedProjectIds}
+            layout="inline"
+            eagerVersions={false}
+            selectClassName="qxmods-install-version-select--table"
+            onInstalled={() => {
+              void loadInstalled();
+              if (needsServerRestartAfterSync(modTarget)) {
+                promptRestart();
+              }
+            }}
+            onUninstalled={() => void loadInstalled()}
+          />
         ),
       },
     ],
-    [installedForTarget, openDetail, t],
+    [installedProjectIds, loadInstalled, loader, mcVersion, modTarget, openDetail, projectType, t],
   );
 
   const handleDelete = (row: GameServerFileEntry) => {
@@ -524,6 +512,14 @@ export function GameServerContentPanel({
     sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled;
 
   return (
+    <GameServerCatalogProvider
+      kind={kind}
+      vpsId={vpsId}
+      gameServerId={gameServerId}
+      serverType={serverType}
+      mcVersion={mcVersion}
+      modTarget={kind === 'mod' ? modTarget : undefined}
+    >
     <div className="game-server-content-panel">
       <Segmented
         className="game-server-content-sections"
@@ -787,48 +783,33 @@ export function GameServerContentPanel({
         {detailItem ? (
           <>
             <Paragraph type="secondary">{detailItem.summary}</Paragraph>
-            {versionsLoading ? (
-              <Spin />
-            ) : versions.length === 0 ? (
-              <Empty description={t(`${i18nPrefix}.versionsEmpty`)} />
-            ) : (
-              <Table
-                size="small"
-                rowKey="id"
-                pagination={false}
-                dataSource={versions}
-                columns={[
-                  {
-                    title: t('gameServerDetail.content.version'),
-                    dataIndex: 'version_number',
-                    key: 'version_number',
-                  },
-                  {
-                    title: '',
-                    key: 'action',
-                    render: (_, version) => {
-                      const onServer = isModOnServer(installedForTarget, version);
-                      return (
-                        <Button
-                          type="primary"
-                          size="small"
-                          disabled={onServer}
-                          loading={installingVersionId === version.id}
-                          onClick={() => void installVersion(detailItem, version)}
-                        >
-                          {onServer
-                            ? t('gameServerDetail.content.alreadyInstalled')
-                            : t('gameServerDetail.content.install')}
-                        </Button>
-                      );
-                    },
-                  },
-                ]}
-              />
-            )}
+            <ModCatalogInstallControls
+              source={detailItem.source as ModSource}
+              projectId={detailItem.id}
+              projectName={detailItem.name}
+              projectType={detailItem.project_type ?? projectType}
+              iconUrl={detailItem.icon_url}
+              downloads={detailItem.downloads}
+              clientSide={detailItem.client_side}
+              serverSide={detailItem.server_side}
+              loader={loader}
+              mcVersion={mcVersion}
+              installedProjectIds={installedProjectIds}
+              layout="stacked"
+              eagerVersions
+              onInstalled={() => {
+                setDetailOpen(false);
+                void loadInstalled();
+                if (needsServerRestartAfterSync(modTarget)) {
+                  promptRestart();
+                }
+              }}
+              onUninstalled={() => void loadInstalled()}
+            />
           </>
         ) : null}
       </Modal>
     </div>
+    </GameServerCatalogProvider>
   );
 }

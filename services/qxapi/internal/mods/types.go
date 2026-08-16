@@ -90,4 +90,7 @@ type SyncModRequest struct {
 	ProjectName   string `json:"project_name,omitempty"`
 	VersionNumber string `json:"version_number,omitempty"`
 	ModTarget     string `json:"mod_target,omitempty"`
+	IconURL       string `json:"icon_url,omitempty"`
+	Downloads     int64  `json:"downloads,omitempty"`
+	FileSize      int64  `json:"file_size,omitempty"`
 }

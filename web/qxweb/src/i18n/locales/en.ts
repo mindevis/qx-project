@@ -21,6 +21,7 @@ export const en: Messages = {
     agent: 'Agent',
     accountMenu: 'Account menu',
     cancel: 'Cancel',
+    close: 'Close',
     megabytes: 'MB',
   },
   language: {
@@ -414,9 +415,11 @@ export const en: Messages = {
       PREPARE_FAILED: 'Failed to prepare the game for launch',
       DOWNLOAD_FAILED: 'Failed to download the client',
       LIBRARIES_FAILED: 'Failed to download libraries',
+      NATIVES_FAILED: 'Failed to prepare native libraries (LWJGL)',
       ASSETS_FAILED: 'Failed to download game assets',
       JAVA_FAILED: 'Java runtime is missing or failed to prepare',
       JAVA_START_FAILED: 'Java failed to start',
+      INSTANCE_MISSING: 'Instance is missing — create it again',
       LOADER_INSTALL_FAILED: 'Mod loader install failed — check QXLauncher logs',
       LAUNCH_TIMEOUT: 'Timed out waiting for launch',
       PREPARE_TIMEOUT: 'Timed out waiting for installation',
@@ -515,6 +518,10 @@ export const en: Messages = {
     refresh: 'Refresh',
     refreshed: 'Resource list updated',
     emptyHint: 'Open the catalog and install mods, datapacks, or other resources via QXLauncher.',
+    emptyHintLocked:
+      'This instance is managed by a game server. Mods and resources can only be changed from the game server page.',
+    managedLocked:
+      'This client is locked to a game server. Add or remove mods from the game server section — not from the launcher.',
     browseCatalog: 'Browse catalog',
     viewModeAria: 'Installed resources view',
     viewList: 'List view',
@@ -733,10 +740,14 @@ export const en: Messages = {
     tabPlugins: 'Plugins',
     tabFiles: 'Files',
     consoleUnavailable: 'Console is available after the server starts.',
-    bindingTitle: 'Launcher instance binding',
+    bindingTitle: 'Launcher instance',
     bindingHint:
       'Pick an instance with the same Minecraft version and loader — Connect in Monitoring will launch into this server.',
-    bindingNeedsAddress: 'Set the server IP address and port in settings before binding an instance.',
+    bindingLockedHint:
+      'Connecting from Monitoring creates a dedicated client for this server. Players cannot change its mods from the launcher or switch it to another instance.',
+    bindingLockedValue: 'Bound client: {{name}}',
+    bindingLockedEmpty: 'A dedicated client will be created when a player connects.',
+    bindingNeedsAddress: 'Set the server IP address and port in settings before players can connect.',
     bindingNoInstances:
       'No instances for MC {{mc}} / {{loader}}. Create a matching instance in the launcher.',
     propertiesLoadFailed: 'Failed to load server.properties',
@@ -881,6 +892,8 @@ export const en: Messages = {
     monitoringSection: 'Monitoring',
     bindInstance: 'Launcher instance',
     bindInstancePlaceholder: 'Select instance for this server',
+    boundInstance: 'Server client',
+    boundInstanceLocked: 'Managed by this server — mods cannot be changed from the launcher.',
     bindingSaved: 'Instance binding saved',
     bindingCleared: 'Instance binding removed',
     launchSent: 'Launch request sent to QXLauncher',
@@ -915,6 +928,33 @@ export const en: Messages = {
       syncPartialDetail: 'Failed: {{names}}',
       syncFailed: 'Failed to sync mods from the server',
       agentOffline: 'Server agent is offline — launching without mod sync',
+    },
+    connectProgress: {
+      title: 'Connecting to {{server}}',
+      failedTitle: 'Could not prepare the launch',
+      nowDoing: 'Now: {{what}}',
+      steps: {
+        creating: 'Instance',
+        preparing: 'Game files',
+        clientMods: 'Mods',
+        syncing: 'Sync',
+        launching: 'Launch',
+      },
+      detail: {
+        creating: 'Creating the server client and checking the QXLauncher link…',
+        preparing: 'QXLauncher is preparing Minecraft: Java, client, libraries, and assets.',
+        clientMods: 'Choose client mods, resource packs, and shaders before launch.',
+        syncing: 'Syncing server mods and resources to your client…',
+        launching: 'Sending the launch to QXLauncher and waiting for Minecraft…',
+      },
+      files: {
+        java: 'Checking and installing Java',
+        client: 'Downloading the Minecraft client',
+        libraries: 'Downloading libraries',
+        natives: 'Preparing native libraries',
+        assets: 'Downloading game assets',
+        loader: 'Installing the mod loader',
+      },
     },
     sortLabel: 'Sort by',
     sortOnline: 'Online first',
@@ -1055,6 +1095,9 @@ export const en: Messages = {
       downloads: 'downloads',
       badge: 'Installed',
     },
+    managedLocked: {
+      badge: 'Managed by server',
+    },
     uninstall: {
       action: 'Uninstall',
       confirmTitle: 'Uninstall resource?',
@@ -1071,6 +1114,12 @@ export const en: Messages = {
     binding: {
       title: 'Server binding',
       hint: 'Pick your game server or one from Monitoring — for quick connect from the launcher and Monitoring page.',
+      lockedHint:
+        'This client was created for a game server. Its mods can only be changed from that server’s page.',
+      lockedValue: 'Locked to {{name}}',
+      lockedUnmanaged: 'This client is locked to a game server.',
+      personalOnly:
+        'Personal instances cannot be bound to a game server. Connect from Monitoring to create a dedicated client.',
       placeholder: 'Select a server…',
       signIn: 'Sign in to bind an instance to a server.',
       loadFailed: 'Failed to load servers',

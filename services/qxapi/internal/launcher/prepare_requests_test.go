@@ -65,3 +65,60 @@ func TestPrepareRequestLifecycle(t *testing.T) {
 		t.Fatalf("get for owner: err=%v view=%+v", err, ownerView)
 	}
 }
+
+func TestEnsureInstancePrepared_RequeuesFailedAndSkipsCompleted(t *testing.T) {
+	db := testutil.OpenSQLiteDB(t)
+	tokens := auth.NewTokenService("secret", time.Minute, time.Hour)
+	svc := NewService(db, tokens, "http://localhost:5173")
+	ctx := context.Background()
+	owner := Owner{UserID: "user-prep-retry"}
+
+	if _, err := svc.RegisterDevice(ctx, RegisterDeviceInput{DeviceID: "prep-retry-dev"}); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if _, err := svc.LinkDevice(ctx, LinkDeviceInput{DeviceID: "prep-retry-dev", UserID: owner.UserID}); err != nil {
+		t.Fatalf("link: %v", err)
+	}
+
+	createRes, err := svc.CreateInstance(ctx, owner, CreateInstanceInput{
+		Name: "Retry", MCVersion: "1.21", Loader: models.LoaderVanilla,
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if createRes.PrepareRequestID == nil {
+		t.Fatal("expected initial prepare request")
+	}
+
+	if _, err := svc.UpdatePrepareRequest(ctx, "prep-retry-dev", *createRes.PrepareRequestID, UpdatePrepareRequestInput{
+		Status:          models.PrepareStatusFailed,
+		ErrorCode:       strPtr("LIBRARIES_FAILED"),
+		ProgressMessage: "libraries",
+	}); err != nil {
+		t.Fatalf("mark failed: %v", err)
+	}
+
+	retried, err := svc.EnsureInstancePrepared(ctx, owner, createRes.Instance.ID)
+	if err != nil {
+		t.Fatalf("ensure after fail: %v", err)
+	}
+	if retried == nil || *retried == *createRes.PrepareRequestID {
+		t.Fatalf("expected a new prepare request, got %+v", retried)
+	}
+
+	if _, err := svc.UpdatePrepareRequest(ctx, "prep-retry-dev", *retried, UpdatePrepareRequestInput{
+		Status: models.PrepareStatusCompleted,
+	}); err != nil {
+		t.Fatalf("mark completed: %v", err)
+	}
+
+	again, err := svc.EnsureInstancePrepared(ctx, owner, createRes.Instance.ID)
+	if err != nil {
+		t.Fatalf("ensure after complete: %v", err)
+	}
+	if again != nil {
+		t.Fatalf("expected nil after completed prepare, got %s", *again)
+	}
+}
+
+func strPtr(v string) *string { return &v }

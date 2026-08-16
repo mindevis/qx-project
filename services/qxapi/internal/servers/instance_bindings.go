@@ -12,11 +12,14 @@ import (
 )
 
 type InstanceBindingView struct {
-	GameServerID       string `json:"game_server_id"`
-	InstanceID         string `json:"instance_id"`
-	InstanceName       string `json:"instance_name,omitempty"`
-	InstanceMCVersion  string `json:"instance_mc_version,omitempty"`
-	InstanceLoader     string `json:"instance_loader,omitempty"`
+	GameServerID          string  `json:"game_server_id"`
+	InstanceID            string  `json:"instance_id"`
+	InstanceName          string  `json:"instance_name,omitempty"`
+	InstanceMCVersion     string  `json:"instance_mc_version,omitempty"`
+	InstanceLoader        string  `json:"instance_loader,omitempty"`
+	Locked                bool    `json:"locked"`
+	ManagedByGameServerID string  `json:"managed_by_game_server_id,omitempty"`
+	PrepareRequestID      *string `json:"prepare_request_id,omitempty"`
 }
 
 type bindingRow struct {
@@ -80,21 +83,36 @@ func (s *Service) SetInstanceBinding(ctx context.Context, userID, gameServerID, 
 		return nil, err
 	}
 
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		existing = models.GameServerInstanceBinding{
-			ID:                 uuid.NewString(),
-			UserID:             userID,
-			GameServerID:       gameServerID,
-			LauncherInstanceID: inst.ID,
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		if existing.LauncherInstanceID != inst.ID {
+			return nil, ErrBindingLocked
 		}
-		if err := s.db.WithContext(ctx).Create(&existing).Error; err != nil {
-			return nil, err
-		}
-	} else {
-		existing.LauncherInstanceID = inst.ID
-		if err := s.db.WithContext(ctx).Save(&existing).Error; err != nil {
-			return nil, err
-		}
+		view := bindingViewFromInstance(&existing, &inst)
+		return &view, nil
+	}
+
+	if inst.ManagedByGameServerID == nil || strings.TrimSpace(*inst.ManagedByGameServerID) != gameServerID {
+		return nil, ErrBindingLocked
+	}
+	var other models.GameServerInstanceBinding
+	otherErr := s.db.WithContext(ctx).
+		Where("launcher_instance_id = ?", inst.ID).
+		First(&other).Error
+	if otherErr == nil {
+		return nil, ErrBindingLocked
+	}
+	if otherErr != nil && !errors.Is(otherErr, gorm.ErrRecordNotFound) {
+		return nil, otherErr
+	}
+
+	existing = models.GameServerInstanceBinding{
+		ID:                 uuid.NewString(),
+		UserID:             userID,
+		GameServerID:       gameServerID,
+		LauncherInstanceID: inst.ID,
+	}
+	if err := s.db.WithContext(ctx).Create(&existing).Error; err != nil {
+		return nil, err
 	}
 
 	view := bindingViewFromRow(&bindingRow{
@@ -112,16 +130,17 @@ func (s *Service) ClearInstanceBinding(ctx context.Context, userID, gameServerID
 	if userID == "" || gameServerID == "" {
 		return ErrValidation
 	}
-	res := s.db.WithContext(ctx).
+	var existing models.GameServerInstanceBinding
+	err := s.db.WithContext(ctx).
 		Where("user_id = ? AND game_server_id = ?", userID, gameServerID).
-		Delete(&models.GameServerInstanceBinding{})
-	if res.Error != nil {
-		return res.Error
+		First(&existing).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		}
+		return err
 	}
-	if res.RowsAffected == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return ErrBindingLocked
 }
 
 // ListBindableServers returns game servers the user may bind a launcher instance to:
@@ -203,10 +222,24 @@ func (s *Service) getOwnedGameServerWithAddress(ctx context.Context, ownerID, ga
 
 func bindingViewFromRow(row *bindingRow) InstanceBindingView {
 	return InstanceBindingView{
-		GameServerID:      row.GameServerID,
-		InstanceID:        row.LauncherInstanceID,
-		InstanceName:      row.InstanceName,
-		InstanceMCVersion: row.InstanceMCVersion,
-		InstanceLoader:    row.InstanceLoader,
+		GameServerID:          row.GameServerID,
+		InstanceID:            row.LauncherInstanceID,
+		InstanceName:          row.InstanceName,
+		InstanceMCVersion:     row.InstanceMCVersion,
+		InstanceLoader:        row.InstanceLoader,
+		Locked:                true,
+		ManagedByGameServerID: row.GameServerID,
+	}
+}
+
+func bindingViewFromInstance(binding *models.GameServerInstanceBinding, inst *models.LauncherInstance) InstanceBindingView {
+	return InstanceBindingView{
+		GameServerID:          binding.GameServerID,
+		InstanceID:            binding.LauncherInstanceID,
+		InstanceName:          inst.Name,
+		InstanceMCVersion:     inst.MCVersion,
+		InstanceLoader:        inst.Loader,
+		Locked:                true,
+		ManagedByGameServerID: binding.GameServerID,
 	}
 }

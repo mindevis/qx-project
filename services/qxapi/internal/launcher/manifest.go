@@ -50,7 +50,8 @@ func (s *Service) GetInstance(ctx context.Context, owner Owner, instanceID strin
 		}
 		return nil, err
 	}
-	return &inst, nil
+	annotated := s.AnnotateInstancesManaged(ctx, []models.LauncherInstance{inst})
+	return &annotated[0], nil
 }
 
 func (s *Service) InstanceManifest(ctx context.Context, owner Owner, instanceID string) (*mcmanifest.InstanceLaunchManifest, error) {

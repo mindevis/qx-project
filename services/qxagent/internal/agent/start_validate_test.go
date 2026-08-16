@@ -31,6 +31,18 @@ func TestValidateStartPayloadRejectsShellMetacharCommand(t *testing.T) {
 	}
 }
 
+func TestValidateStartPayloadRejectsShellMetacharArgs(t *testing.T) {
+	dir := t.TempDir()
+	payload := protocol.ServerStartPayload{
+		WorkDir:   dir,
+		Command:   "java",
+		ExtraArgs: []string{";rm -rf /"},
+	}
+	if _, err := ValidateStartPayload(payload); err == nil {
+		t.Fatal("expected disallowed extra arg")
+	}
+}
+
 func TestValidateStartPayloadAllowsJava(t *testing.T) {
 	dir := t.TempDir()
 	payload := protocol.ServerStartPayload{

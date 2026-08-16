@@ -1,0 +1,33 @@
+.connect-progress-steps {
+  margin-bottom: 20px;
+}
+
+.connect-progress-alert,
+.connect-progress-body {
+  margin-top: 8px;
+}
+
+.connect-progress-status {
+  margin: 16px 0 4px;
+}
+
+.connect-progress-sub,
+.connect-progress-file {
+  display: block;
+  margin-top: 4px;
+}
+
+.connect-progress-file {
+  font-weight: 600;
+}
+
+.monitoring-connect-mods-embedded {
+  margin-top: 16px;
+}
+
+.monitoring-connect-mods-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}

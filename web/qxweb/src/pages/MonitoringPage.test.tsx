@@ -53,7 +53,11 @@ function mockAuthedFetch() {
   };
 }
 
-function mockConnectModFlow() {
+function mockConnectModFlow(binding?: {
+  instance_id?: string;
+  instance_name?: string;
+  prepare_request_id?: string;
+}) {
   vi.spyOn(api, 'getConnectModStatus').mockResolvedValue({
     client_mods: [],
     all_client_mods_installed: true,
@@ -74,6 +78,13 @@ function mockConnectModFlow() {
     client_shaders_installed: [],
     server_shaders_installed: [],
     agent_online: true,
+  });
+  vi.spyOn(api, 'ensureMonitoringConnectInstance').mockResolvedValue({
+    game_server_id: 'mon-1',
+    instance_id: binding?.instance_id ?? 'inst-1',
+    instance_name: binding?.instance_name ?? 'Forge Client',
+    locked: true,
+    prepare_request_id: binding?.prepare_request_id,
   });
 }
 
@@ -165,7 +176,7 @@ describe('MonitoringPage', () => {
     );
   });
 
-  it('saves instance binding when authenticated', async () => {
+  it('shows a locked bound client instead of an instance picker', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -173,38 +184,14 @@ describe('MonitoringPage', () => {
       expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(mockAuthedFetch());
-    vi.spyOn(api, 'listInstances').mockResolvedValue({
-      items: [
-        {
-          id: 'inst-1',
-          name: 'Forge Client',
-          mc_version: '1.21',
-          loader: 'forge',
-          created_at: 'now',
-          updated_at: 'now',
-        },
-      ],
-    });
-    vi.spyOn(api, 'setMonitoringBinding').mockResolvedValue({
-      game_server_id: 'mon-1',
-      instance_id: 'inst-1',
-      instance_name: 'Forge Client',
+    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
+      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client', locked: true }],
     });
 
-    const user = userEvent.setup({ delay: null });
     renderWithProviders(<MonitoringPage />, '/monitoring');
     await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
-    await waitFor(() =>
-      expect(screen.getByRole('combobox', { name: 'Инстанс лаунчера' })).toBeInTheDocument(),
-    );
-
-    await user.click(screen.getByRole('combobox', { name: 'Инстанс лаунчера' }));
-    await user.click(await screen.findByText('Forge Client (1.21)'));
-
-    await waitFor(() =>
-      expect(api.setMonitoringBinding).toHaveBeenCalledWith('mon-1', 'inst-1'),
-    );
-    expect(testMessage.success).toHaveBeenCalledWith('Привязка инстанса сохранена');
+    await waitFor(() => expect(screen.getByText('Forge Client')).toBeInTheDocument());
+    expect(screen.queryByRole('combobox', { name: 'Инстанс лаунчера' })).not.toBeInTheDocument();
   });
 
   it('opens auth modal when guest tries to connect', async () => {
@@ -233,26 +220,11 @@ describe('MonitoringPage', () => {
     vi.spyOn(api, 'listProfiles').mockResolvedValue({
       items: [{ id: 'prof-1', username: 'Steve', offline_uuid: 'uuid', model: 'steve', created_at: 'now' }],
     });
-    vi.spyOn(api, 'createInstance').mockResolvedValue({
-      id: 'inst-new',
-      name: 'Survival World',
-      mc_version: '1.21',
-      loader: 'forge',
-      loader_version: '47.0.0',
-      prepare_request_id: 'prep-1',
-      created_at: 'now',
-      updated_at: 'now',
-    });
     vi.spyOn(api, 'getPrepareRequest').mockResolvedValue({
       id: 'prep-1',
       status: 'completed',
       instance_id: 'inst-new',
       expires_at: new Date().toISOString(),
-    });
-    vi.spyOn(api, 'setMonitoringBinding').mockResolvedValue({
-      game_server_id: 'mon-1',
-      instance_id: 'inst-new',
-      instance_name: 'Survival World',
     });
     vi.spyOn(api, 'createLaunchRequest').mockResolvedValue({
       id: 'lr-1',
@@ -266,7 +238,11 @@ describe('MonitoringPage', () => {
       instance_id: 'inst-new',
       expires_at: new Date().toISOString(),
     });
-    mockConnectModFlow();
+    mockConnectModFlow({
+      instance_id: 'inst-new',
+      instance_name: 'Survival World',
+      prepare_request_id: 'prep-1',
+    });
 
     const user = userEvent.setup({ delay: null });
     renderWithProviders(<MonitoringPage />, '/monitoring');
@@ -275,15 +251,9 @@ describe('MonitoringPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Подключиться/ }));
     await waitFor(() =>
-      expect(api.createInstance).toHaveBeenCalledWith({
-        name: 'Survival World',
-        mc_version: '1.21',
-        loader: 'forge',
-        loader_version: '47.0.0',
-      }),
+      expect(api.ensureMonitoringConnectInstance).toHaveBeenCalledWith('mon-1'),
     );
     await waitFor(() => expect(api.getPrepareRequest).toHaveBeenCalledWith('prep-1'));
-    await waitFor(() => expect(api.setMonitoringBinding).toHaveBeenCalledWith('mon-1', 'inst-new'));
     await waitFor(() => expect(api.getConnectModStatus).toHaveBeenCalled());
 
     const confirmButtons = screen.getAllByRole('button', { name: /Подключиться/ });
@@ -300,7 +270,7 @@ describe('MonitoringPage', () => {
     );
   }, 20000);
 
-  it('clears instance binding when authenticated', async () => {
+  it('shows live prepare progress while connecting', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -308,35 +278,101 @@ describe('MonitoringPage', () => {
       expires_in: 3600,
     });
     vi.mocked(fetch).mockImplementation(mockAuthedFetch());
-    vi.spyOn(api, 'listInstances').mockResolvedValue({
-      items: [
-        {
-          id: 'inst-1',
-          name: 'Forge Client',
-          mc_version: '1.21',
-          loader: 'forge',
-          created_at: 'now',
-          updated_at: 'now',
-        },
-      ],
+    vi.spyOn(api, 'myLauncherDevice').mockResolvedValue({
+      device_id: 'dev-1',
+      owner_type: 'user',
     });
-    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
-      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client' }],
+    vi.spyOn(api, 'listProfiles').mockResolvedValue({
+      items: [{ id: 'prof-1', username: 'Steve', offline_uuid: 'uuid', model: 'steve', created_at: 'now' }],
+    });
+    vi.spyOn(api, 'getPrepareRequest')
+      .mockResolvedValueOnce({
+        id: 'prep-1',
+        status: 'downloading',
+        instance_id: 'inst-new',
+        progress_message: 'libraries',
+        expires_at: new Date().toISOString(),
+      })
+      .mockResolvedValue({
+        id: 'prep-1',
+        status: 'completed',
+        instance_id: 'inst-new',
+        expires_at: new Date().toISOString(),
+      });
+    mockConnectModFlow({
+      instance_id: 'inst-new',
+      instance_name: 'Survival World',
+      prepare_request_id: 'prep-1',
     });
 
     const user = userEvent.setup({ delay: null });
     renderWithProviders(<MonitoringPage />, '/monitoring');
     await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await waitFor(() => expect(api.myLauncherDevice).toHaveBeenCalled());
+
+    await user.click(screen.getByRole('button', { name: /Подключиться/ }));
     await waitFor(() =>
-      expect(screen.getByRole('combobox', { name: 'Инстанс лаунчера' })).toBeInTheDocument(),
+      expect(screen.getByText(/Сейчас: Скачивание библиотек/)).toBeInTheDocument(),
     );
+    await waitFor(() => expect(api.getConnectModStatus).toHaveBeenCalled(), { timeout: 5000 });
+  }, 20000);
 
-    const card = screen.getByText('Survival World').closest('article');
-    expect(card).not.toBeNull();
-    await user.click(within(card!).getByRole('img', { name: 'close-circle' }));
+  it('shows prepare error in the connect progress dialog', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(mockAuthedFetch());
+    vi.spyOn(api, 'myLauncherDevice').mockResolvedValue({
+      device_id: 'dev-1',
+      owner_type: 'user',
+    });
+    vi.spyOn(api, 'getPrepareRequest').mockResolvedValue({
+      id: 'prep-1',
+      status: 'failed',
+      instance_id: 'inst-new',
+      error_code: 'LIBRARIES_FAILED',
+      expires_at: new Date().toISOString(),
+    });
+    mockConnectModFlow({
+      instance_id: 'inst-new',
+      instance_name: 'Survival World',
+      prepare_request_id: 'prep-1',
+    });
+    const launchSpy = vi.spyOn(api, 'createLaunchRequest');
 
-    await waitFor(() => expect(api.clearMonitoringBinding).toHaveBeenCalledWith('mon-1'));
-    expect(testMessage.success).toHaveBeenCalledWith('Привязка инстанса удалена');
+    const user = userEvent.setup({ delay: null });
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await waitFor(() => expect(api.myLauncherDevice).toHaveBeenCalled());
+
+    await user.click(screen.getByRole('button', { name: /Подключиться/ }));
+    await waitFor(() =>
+      expect(screen.getByText('Не удалось скачать библиотеки')).toBeInTheDocument(),
+    );
+    expect(launchSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not offer clearing a locked instance binding', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(mockAuthedFetch());
+    vi.spyOn(api, 'listMonitoringBindings').mockResolvedValue({
+      items: [{ game_server_id: 'mon-1', instance_id: 'inst-1', instance_name: 'Forge Client', locked: true }],
+    });
+    const clearSpy = vi.spyOn(api, 'clearMonitoringBinding');
+
+    renderWithProviders(<MonitoringPage />, '/monitoring');
+    await waitFor(() => expect(screen.getByText('Survival World')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Forge Client')).toBeInTheDocument());
+    expect(screen.queryByRole('img', { name: 'close-circle' })).not.toBeInTheDocument();
+    expect(clearSpy).not.toHaveBeenCalled();
   });
 
   it('launches bound instance when launcher is linked', async () => {

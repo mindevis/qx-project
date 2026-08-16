@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 const (
@@ -90,25 +90,14 @@ func (d *Downloader) downloadOnce(ctx context.Context, url, dest string) error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("download %s: status %d", url, res.StatusCode)
 	}
-	tmp := dest + ".part"
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		return err
-	}
-	f, err := os.Create(tmp)
+	dest, err = safepath.ResolveRoot(dest)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(f, res.Body)
-	closeErr := f.Close()
-	if err != nil {
-		_ = os.Remove(tmp)
+	if err := safepath.EnsureParent(dest); err != nil {
 		return err
 	}
-	if closeErr != nil {
-		_ = os.Remove(tmp)
-		return closeErr
-	}
-	return os.Rename(tmp, dest)
+	return safepath.WriteStreamAtomic(dest, res.Body)
 }
 
 func (d *Downloader) downloadWithRetry(ctx context.Context, url, dest string) error {

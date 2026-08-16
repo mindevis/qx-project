@@ -457,8 +457,6 @@ export function GameServerDetailPage() {
 
           <GameServerInstanceBinding
             gameServerId={game.id}
-            mcVersion={game.mc_version ?? '1.21'}
-            loader={game.server_type ?? 'vanilla'}
             hasAddress={Boolean(game.address?.trim())}
           />
 

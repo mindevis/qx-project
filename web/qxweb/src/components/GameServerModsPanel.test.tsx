@@ -7,6 +7,8 @@ import { GameServerModsPanel } from './GameServerModsPanel';
 
 describe('GameServerModsPanel', () => {
   beforeEach(() => {
+    vi.spyOn(api, 'listGameServerResources').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listModVersions').mockResolvedValue({ items: [] });
   });
 
   afterEach(() => {

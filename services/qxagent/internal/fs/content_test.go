@@ -120,6 +120,25 @@ func TestListDatapacksEmpty(t *testing.T) {
 	}
 }
 
+func TestSanitizeContentDownloadURL(t *testing.T) {
+	if _, err := sanitizeContentDownloadURL("http://127.0.0.1/evil.jar"); err == nil {
+		t.Fatal("expected localhost rejected")
+	}
+	if _, err := sanitizeContentDownloadURL("https://evil.example/mod.jar"); err == nil {
+		t.Fatal("expected unknown host rejected")
+	}
+	if _, err := sanitizeContentDownloadURL("file:///etc/passwd"); err == nil {
+		t.Fatal("expected file url rejected")
+	}
+	got, err := sanitizeContentDownloadURL("https://cdn.modrinth.com/data/AANobbMI/versions/foo/sodium.jar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://cdn.modrinth.com/data/AANobbMI/versions/foo/sodium.jar" {
+		t.Fatalf("url: %s", got)
+	}
+}
+
 func TestReadContentFile(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "client-mods"), 0o755); err != nil {

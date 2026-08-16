@@ -289,9 +289,13 @@ func executePrepare(ctx context.Context, api *apiclient.Client, dl *minecraft.Do
 	}
 	notify.Show("QXLauncher", "Установка "+label+"…")
 
+	reportPrepare := func(status, code, progress string) {
+		_ = api.UpdatePrepareRequest(ctx, item.ID, status, code, progress)
+	}
+
 	if item.Instance == nil {
 		slog.Error("prepare missing instance metadata")
-		_ = api.UpdatePrepareRequest(ctx, item.ID, "failed", "INSTANCE_MISSING")
+		reportPrepare("failed", "INSTANCE_MISSING", "")
 		return
 	}
 
@@ -314,7 +318,7 @@ func executePrepare(ctx context.Context, api *apiclient.Client, dl *minecraft.Do
 	})
 	if err != nil {
 		slog.Error("prepare manifest build failed", "err", err)
-		_ = api.UpdatePrepareRequest(ctx, item.ID, "failed", "MANIFEST_UNAVAILABLE")
+		reportPrepare("failed", "MANIFEST_UNAVAILABLE", "")
 		return
 	}
 
@@ -327,13 +331,19 @@ func executePrepare(ctx context.Context, api *apiclient.Client, dl *minecraft.Do
 		case "loader-install", "prepare":
 			switch message {
 			case "java runtime":
-				_ = api.UpdatePrepareRequest(ctx, item.ID, "preparing", "")
+				reportPrepare("preparing", "", message)
 			case "client jar", "libraries", "natives", "assets":
-				_ = api.UpdatePrepareRequest(ctx, item.ID, "downloading", "")
+				reportPrepare("downloading", "", message)
 			default:
 				if strings.Contains(message, "installer") {
-					_ = api.UpdatePrepareRequest(ctx, item.ID, "preparing", "")
+					reportPrepare("preparing", "", message)
+				} else if message != "" {
+					reportPrepare("preparing", "", message)
 				}
+			}
+		default:
+			if message != "" {
+				reportPrepare("preparing", "", message)
 			}
 		}
 	}
@@ -356,11 +366,11 @@ func executePrepare(ctx context.Context, api *apiclient.Client, dl *minecraft.Do
 		}
 		slog.Error("prepare failed", "err", err, "error_code", code)
 		dl.OnProgress = nil
-		_ = api.UpdatePrepareRequest(ctx, item.ID, "failed", code)
+		reportPrepare("failed", code, "")
 		return
 	}
 	dl.OnProgress = nil
-	_ = api.UpdatePrepareRequest(ctx, item.ID, "completed", "")
+	reportPrepare("completed", "", "")
 }
 
 func executeModInstall(ctx context.Context, api *apiclient.Client, dl *minecraft.Downloader, item *apiclient.ModInstallRequestItem) {
@@ -576,13 +586,17 @@ func executeLaunch(ctx context.Context, api *apiclient.Client, dl *minecraft.Dow
 		case "loader-install", "prepare":
 			switch message {
 			case "java runtime":
-				reportLaunchStatus("preparing", nil)
+				reportLaunchStatus("preparing", map[string]any{"progress_message": message})
 			case "client jar", "libraries", "natives", "assets":
-				reportLaunchStatus("downloading", nil)
+				reportLaunchStatus("downloading", map[string]any{"progress_message": message})
 			default:
-				if strings.Contains(message, "installer") {
-					reportLaunchStatus("preparing", nil)
+				if message != "" {
+					reportLaunchStatus("preparing", map[string]any{"progress_message": message})
 				}
+			}
+		default:
+			if message != "" {
+				reportLaunchStatus("preparing", map[string]any{"progress_message": message})
 			}
 		}
 	}

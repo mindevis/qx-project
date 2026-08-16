@@ -44,6 +44,9 @@ type GameServer struct {
 	RatingCount                       int    `gorm:"not null;default:0" json:"rating_count"`
 	LastError                         string `gorm:"type:text" json:"last_error,omitempty"`
 
+	// Catalog installs (mods/plugins/datapacks) — metadata only; files live on the VPS.
+	ContentResources InstanceResourceList `gorm:"type:mediumtext" json:"content_resources,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

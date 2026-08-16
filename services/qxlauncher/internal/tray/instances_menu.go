@@ -3,12 +3,11 @@ package tray
 import (
 	"context"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"fyne.io/systray"
 
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxlauncher/internal/apiclient"
 	"github.com/qxproject/qx/services/qxlauncher/internal/auth"
 	"github.com/qxproject/qx/services/qxlauncher/internal/browser"
@@ -140,7 +139,11 @@ func (m *InstancesMenu) handleOpenFolder(instanceID string) {
 	dataDir := m.cfg.DataDir
 	m.mu.Unlock()
 	dir := instanceDir(dataDir, instanceID)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if dir == "" {
+		notify.Show("QXLauncher", "Не удалось открыть папку")
+		return
+	}
+	if err := safepath.EnsureDir(dir); err != nil {
 		slog.Warn("create instance dir failed", "dir", dir, "err", err)
 		notify.Show("QXLauncher", "Не удалось открыть папку")
 		return
@@ -209,5 +212,13 @@ func instanceMenuTitle(item apiclient.InstanceItem) string {
 }
 
 func instanceDir(dataDir, instanceID string) string {
-	return filepath.Join(cache.InstanceDataRoot(dataDir), instanceID)
+	root := cache.InstanceDataRoot(dataDir)
+	if root == "" {
+		return ""
+	}
+	path, err := safepath.Join(root, instanceID)
+	if err != nil {
+		return ""
+	}
+	return path
 }

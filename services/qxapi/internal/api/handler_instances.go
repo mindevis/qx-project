@@ -21,35 +21,39 @@ type InstancesHandler struct {
 }
 
 type instanceResponse struct {
-	ID               string   `json:"id"`
-	Name             string   `json:"name"`
-	MCVersion        string   `json:"mc_version"`
-	Loader           string   `json:"loader"`
-	LoaderVersion    *string  `json:"loader_version,omitempty"`
-	MaxMemoryMB      *int     `json:"max_memory_mb,omitempty"`
-	MinMemoryMB      *int     `json:"min_memory_mb,omitempty"`
-	ExtraJVMArgs     []string `json:"extra_jvm_args,omitempty"`
-	WindowWidth      *int     `json:"window_width,omitempty"`
-	WindowHeight     *int     `json:"window_height,omitempty"`
-	PrepareRequestID *string  `json:"prepare_request_id,omitempty"`
-	CreatedAt        string   `json:"created_at"`
-	UpdatedAt        string   `json:"updated_at"`
+	ID                    string   `json:"id"`
+	Name                  string   `json:"name"`
+	MCVersion             string   `json:"mc_version"`
+	Loader                string   `json:"loader"`
+	LoaderVersion         *string  `json:"loader_version,omitempty"`
+	MaxMemoryMB           *int     `json:"max_memory_mb,omitempty"`
+	MinMemoryMB           *int     `json:"min_memory_mb,omitempty"`
+	ExtraJVMArgs          []string `json:"extra_jvm_args,omitempty"`
+	WindowWidth           *int     `json:"window_width,omitempty"`
+	WindowHeight          *int     `json:"window_height,omitempty"`
+	PrepareRequestID      *string  `json:"prepare_request_id,omitempty"`
+	ManagedByGameServerID *string  `json:"managed_by_game_server_id,omitempty"`
+	ContentLocked         bool     `json:"content_locked"`
+	CreatedAt             string   `json:"created_at"`
+	UpdatedAt             string   `json:"updated_at"`
 }
 
 func instanceFromModel(inst models.LauncherInstance) instanceResponse {
 	return instanceResponse{
-		ID:            inst.ID,
-		Name:          inst.Name,
-		MCVersion:     inst.MCVersion,
-		Loader:        inst.Loader,
-		LoaderVersion: inst.LoaderVersion,
-		MaxMemoryMB:   inst.MaxMemoryMB,
-		MinMemoryMB:   inst.MinMemoryMB,
-		ExtraJVMArgs:  []string(inst.ExtraJVMArgs),
-		WindowWidth:   inst.WindowWidth,
-		WindowHeight:  inst.WindowHeight,
-		CreatedAt:     inst.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:     inst.UpdatedAt.UTC().Format(time.RFC3339),
+		ID:                    inst.ID,
+		Name:                  inst.Name,
+		MCVersion:             inst.MCVersion,
+		Loader:                inst.Loader,
+		LoaderVersion:         inst.LoaderVersion,
+		MaxMemoryMB:           inst.MaxMemoryMB,
+		MinMemoryMB:           inst.MinMemoryMB,
+		ExtraJVMArgs:          []string(inst.ExtraJVMArgs),
+		WindowWidth:           inst.WindowWidth,
+		WindowHeight:          inst.WindowHeight,
+		ManagedByGameServerID: inst.ManagedByGameServerID,
+		ContentLocked:         inst.ManagedByGameServerID != nil && strings.TrimSpace(*inst.ManagedByGameServerID) != "",
+		CreatedAt:             inst.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:             inst.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }
 
@@ -237,6 +241,10 @@ func (h *InstancesHandler) DeleteResource(c *gin.Context) {
 			JSONValidation(c, "invalid resource data")
 			return
 		}
+		if errors.Is(err, launcher.ErrInstanceManaged) {
+			JSONError(c, http.StatusForbidden, "INSTANCE_MANAGED", "this instance is managed by a game server")
+			return
+		}
 		if errors.Is(err, launcher.ErrDeviceNotLinked) {
 			JSONError(c, http.StatusForbidden, "FORBIDDEN", "device not linked to account")
 			return
@@ -298,6 +306,10 @@ func (h *InstancesHandler) PatchResource(c *gin.Context) {
 			JSONValidation(c, "invalid resource data")
 			return
 		}
+		if errors.Is(err, launcher.ErrInstanceManaged) {
+			JSONError(c, http.StatusForbidden, "INSTANCE_MANAGED", "this instance is managed by a game server")
+			return
+		}
 		JSONInternal(c)
 		return
 	}
@@ -336,6 +348,14 @@ func (h *InstancesHandler) SyncUploadedResource(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, launcher.ErrNotFound) {
 			JSONError(c, http.StatusNotFound, "NOT_FOUND", "instance not found")
+			return
+		}
+		JSONInternal(c)
+		return
+	}
+	if err := h.Service.AssertInstanceContentMutable(c.Request.Context(), instanceID); err != nil {
+		if errors.Is(err, launcher.ErrInstanceManaged) {
+			JSONError(c, http.StatusForbidden, "INSTANCE_MANAGED", "this instance is managed by a game server")
 			return
 		}
 		JSONInternal(c)

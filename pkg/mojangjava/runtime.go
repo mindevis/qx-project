@@ -8,11 +8,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 // RuntimeCatalogURL is Mojang's official Java runtime index.
@@ -69,6 +68,10 @@ func (m *Manager) resolveRuntimeEntry(ctx context.Context, platform, component s
 }
 
 func (m *Manager) installPackage(ctx context.Context, manifestURL, destDir string) error {
+	destDir, err := safepath.ResolveRoot(destDir)
+	if err != nil {
+		return err
+	}
 	body, err := m.fetchBytes(ctx, manifestURL)
 	if err != nil {
 		return fmt.Errorf("java package manifest: %w", err)
@@ -85,12 +88,15 @@ func (m *Manager) installPackage(ctx context.Context, manifestURL, destDir strin
 		if dl.URL == "" {
 			continue
 		}
-		dest := filepath.Join(destDir, filepath.FromSlash(rel))
+		dest, err := safepath.JoinRel(destDir, rel)
+		if err != nil {
+			return fmt.Errorf("java file %s: %w", rel, err)
+		}
 		if err := m.downloadIfNeeded(ctx, dl.URL, dest, dl.Sha1); err != nil {
 			return fmt.Errorf("java file %s: %w", rel, err)
 		}
 		if file.Executable {
-			_ = os.Chmod(dest, 0o755)
+			_ = safepath.Chmod(dest, 0o755)
 		}
 	}
 	return nil
@@ -131,7 +137,7 @@ func (m *Manager) fetchBytes(ctx context.Context, url string) ([]byte, error) {
 
 func (m *Manager) downloadIfNeeded(ctx context.Context, url, dest, sha1hex string) error {
 	if sha1hex != "" {
-		if b, err := os.ReadFile(dest); err == nil {
+		if b, err := safepath.ReadFileBytes(dest); err == nil {
 			if hex.EncodeToString(sha1Sum(b)) == strings.ToLower(sha1hex) {
 				return nil
 			}
@@ -153,25 +159,14 @@ func (m *Manager) downloadIfNeeded(ctx context.Context, url, dest, sha1hex strin
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("download %s: status %d", url, res.StatusCode)
 	}
-	tmp := dest + ".part"
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		return err
-	}
-	f, err := os.Create(tmp)
+	dest, err = safepath.ResolveRoot(dest)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(f, res.Body)
-	closeErr := f.Close()
-	if err != nil {
-		_ = os.Remove(tmp)
+	if err := safepath.EnsureParent(dest); err != nil {
 		return err
 	}
-	if closeErr != nil {
-		_ = os.Remove(tmp)
-		return closeErr
-	}
-	return os.Rename(tmp, dest)
+	return safepath.WriteStreamAtomic(dest, res.Body)
 }
 
 func sha1Sum(b []byte) []byte {

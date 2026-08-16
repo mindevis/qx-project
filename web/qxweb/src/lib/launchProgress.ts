@@ -18,6 +18,7 @@ export type LaunchProgressState = {
   accountMode: LaunchAccountMode;
   errorCode?: string;
   needsMojangRelink?: boolean;
+  progressMessage?: string;
 };
 
 export function isLaunchTerminal(status: string): boolean {

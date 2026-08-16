@@ -8,13 +8,13 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
 
@@ -122,14 +122,22 @@ func (c *Client) LinkWithUserToken(ctx context.Context, userToken string) error 
 }
 
 func (c *Client) SaveDeviceToken(path, token string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(token), 0o600)
+	if err := safepath.EnsureParent(abs); err != nil {
+		return err
+	}
+	return safepath.WriteFileBytes(abs, []byte(token), 0o600)
 }
 
 func (c *Client) ClearDeviceToken(path string) error {
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
+		return err
+	}
+	if err := safepath.Remove(abs); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil

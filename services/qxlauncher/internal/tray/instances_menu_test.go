@@ -1,9 +1,9 @@
 package tray
 
 import (
-	"path/filepath"
 	"testing"
 
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxlauncher/internal/apiclient"
 )
 
@@ -23,9 +23,16 @@ func TestInstanceMenuTitle(t *testing.T) {
 }
 
 func TestInstanceDir(t *testing.T) {
-	got := instanceDir("/data", "inst-1")
-	want := filepath.Join("/data", "instances", "inst-1")
+	root := t.TempDir()
+	got := instanceDir(root, "inst-1")
+	want, err := safepath.Join(root, "instances", "inst-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got != want {
 		t.Fatalf("dir = %q, want %q", got, want)
+	}
+	if instanceDir(root, "..") != "" {
+		t.Fatal("expected empty path for traversal id")
 	}
 }

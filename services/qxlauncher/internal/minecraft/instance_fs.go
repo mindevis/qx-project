@@ -17,7 +17,10 @@ const instanceFileMaxBytes = 2 * 1024 * 1024
 const maxResourceUploadBytes = protocol.MaxContentFileBytes
 
 func (d *Downloader) ListInstanceDir(instanceID, relPath string) ([]protocol.FileEntry, error) {
-	gameDir := d.InstanceGameDir(instanceID)
+	gameDir, err := d.InstanceGameDir(instanceID)
+	if err != nil {
+		return nil, err
+	}
 	abs, err := safepath.JoinRel(gameDir, relPath)
 	if err != nil {
 		return nil, err
@@ -57,7 +60,10 @@ func (d *Downloader) ListInstanceDir(instanceID, relPath string) ([]protocol.Fil
 }
 
 func (d *Downloader) ReadInstanceFile(instanceID, relPath string) (string, int64, error) {
-	gameDir := d.InstanceGameDir(instanceID)
+	gameDir, err := d.InstanceGameDir(instanceID)
+	if err != nil {
+		return "", 0, err
+	}
 	abs, err := safepath.JoinRel(gameDir, relPath)
 	if err != nil {
 		return "", 0, err
@@ -80,7 +86,10 @@ func (d *Downloader) ReadInstanceFile(instanceID, relPath string) (string, int64
 }
 
 func (d *Downloader) WriteInstanceFile(instanceID, relPath, content string) error {
-	gameDir := d.InstanceGameDir(instanceID)
+	gameDir, err := d.InstanceGameDir(instanceID)
+	if err != nil {
+		return err
+	}
 	abs, err := safepath.JoinRel(gameDir, relPath)
 	if err != nil {
 		return err
@@ -102,7 +111,10 @@ func (d *Downloader) ReadInstanceResourceFile(instanceID, folder, filename strin
 		return nil, fmt.Errorf("invalid read parameters")
 	}
 	relPath := filepath.ToSlash(filepath.Join(folder, filename))
-	gameDir := d.InstanceGameDir(instanceID)
+	gameDir, err := d.InstanceGameDir(instanceID)
+	if err != nil {
+		return nil, err
+	}
 	abs, err := safepath.JoinRel(gameDir, relPath)
 	if err != nil {
 		return nil, err
@@ -132,7 +144,10 @@ func (d *Downloader) WriteInstanceResourceStream(instanceID, folder, filename st
 		return fmt.Errorf("invalid upload parameters")
 	}
 	relPath := filepath.ToSlash(filepath.Join(folder, filename))
-	gameDir := d.InstanceGameDir(instanceID)
+	gameDir, err := d.InstanceGameDir(instanceID)
+	if err != nil {
+		return err
+	}
 	abs, err := safepath.JoinRel(gameDir, relPath)
 	if err != nil {
 		return err
@@ -140,22 +155,7 @@ func (d *Downloader) WriteInstanceResourceStream(instanceID, folder, filename st
 	if err := safepath.EnsureParent(abs); err != nil {
 		return err
 	}
-	tmp := abs + ".part"
-	f, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(f, r)
-	closeErr := f.Close()
-	if err != nil {
-		_ = os.Remove(tmp)
-		return err
-	}
-	if closeErr != nil {
-		_ = os.Remove(tmp)
-		return closeErr
-	}
-	return os.Rename(tmp, abs)
+	return safepath.WriteStreamAtomic(abs, r)
 }
 
 func (d *Downloader) RemoveInstanceResourceFile(instanceID, folder, filename string) error {
@@ -163,7 +163,10 @@ func (d *Downloader) RemoveInstanceResourceFile(instanceID, folder, filename str
 		return fmt.Errorf("invalid uninstall parameters")
 	}
 	relPath := filepath.ToSlash(filepath.Join(folder, filename))
-	gameDir := d.InstanceGameDir(instanceID)
+	gameDir, err := d.InstanceGameDir(instanceID)
+	if err != nil {
+		return err
+	}
 	abs, err := safepath.JoinRel(gameDir, relPath)
 	if err != nil {
 		return err

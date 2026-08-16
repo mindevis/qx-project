@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -11,7 +12,7 @@ import (
 )
 
 type MonitoringHandler struct {
-	Service        *servers.Service
+	Service         *servers.Service
 	LauncherService *launcher.Service
 }
 
@@ -35,6 +36,25 @@ func (h *MonitoringHandler) ListBindings(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+func (h *MonitoringHandler) EnsureConnectInstance(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	view, err := h.Service.EnsureConnectBinding(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		h.LauncherService,
+	)
+	if err != nil {
+		monitoringError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
 }
 
 func (h *MonitoringHandler) SetBinding(c *gin.Context) {
@@ -70,9 +90,9 @@ func (h *MonitoringHandler) ClearBinding(c *gin.Context) {
 }
 
 type setClientModPrefsRequest struct {
-	EnabledFilenames           []string `json:"enabled_filenames"`
+	EnabledFilenames             []string `json:"enabled_filenames"`
 	EnabledResourcepackFilenames []string `json:"enabled_resourcepack_filenames"`
-	EnabledShaderFilenames     []string `json:"enabled_shader_filenames"`
+	EnabledShaderFilenames       []string `json:"enabled_shader_filenames"`
 }
 
 func (h *MonitoringHandler) GetConnectModStatus(c *gin.Context) {
@@ -213,11 +233,15 @@ func (h *MonitoringHandler) Rate(c *gin.Context) {
 }
 
 func monitoringError(c *gin.Context, err error) {
-	switch err {
-	case servers.ErrValidation:
+	switch {
+	case errors.Is(err, servers.ErrValidation), errors.Is(err, launcher.ErrValidation):
 		JSONValidation(c, "invalid request")
-	case servers.ErrNotFound:
+	case errors.Is(err, servers.ErrNotFound), errors.Is(err, launcher.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	case errors.Is(err, servers.ErrBindingLocked):
+		JSONError(c, http.StatusForbidden, "BINDING_LOCKED", "this game server is locked to its launcher instance")
+	case errors.Is(err, servers.ErrForbidden):
+		JSONError(c, http.StatusForbidden, "FORBIDDEN", "forbidden")
 	default:
 		slog.Error("monitoring request failed", "error", err)
 		JSONInternal(c)

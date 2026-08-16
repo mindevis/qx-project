@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,6 +22,14 @@ var (
 	mojangProfileURL = "https://api.mojang.com/users/profiles/minecraft/"
 	mojangSessionURL = "https://sessionserver.mojang.com/session/minecraft/profile/"
 )
+
+var (
+	minecraftUsernameRe = regexp.MustCompile(`^[A-Za-z0-9_]{3,16}$`)
+	minecraftUUIDRe     = regexp.MustCompile(`^[a-fA-F0-9-]{32,36}$`)
+)
+
+// extraSkinDownloadHosts is for tests (httptest). Production only allows textures.minecraft.net.
+var extraSkinDownloadHosts []string
 
 type MojangSkinResult struct {
 	PNG       []byte
@@ -76,8 +86,41 @@ func FetchMojangSkin(ctx context.Context, client *http.Client, username string) 
 	return &MojangSkinResult{PNG: png, SkinModel: model}, nil
 }
 
+func sanitizeMojangLookupURL(base, id string, idRe *regexp.Regexp) (string, error) {
+	if !idRe.MatchString(id) {
+		return "", ErrValidation
+	}
+	parsed, err := url.Parse(base)
+	if err != nil || parsed.Host == "" {
+		return "", ErrValidation
+	}
+	return parsed.JoinPath(id).String(), nil
+}
+
+func sanitizeSkinDownloadURL(raw string) (string, error) {
+	parsed, err := url.ParseRequestURI(strings.TrimSpace(raw))
+	if err != nil || parsed.User != nil || parsed.Host == "" {
+		return "", ErrValidation
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "textures.minecraft.net" {
+		safe := &url.URL{Scheme: "https", Host: "textures.minecraft.net", Path: parsed.EscapedPath()}
+		return safe.String(), nil
+	}
+	for _, extra := range extraSkinDownloadHosts {
+		if host == extra {
+			return parsed.String(), nil
+		}
+	}
+	return "", ErrValidation
+}
+
 func mojangUUID(ctx context.Context, client *http.Client, username string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, mojangProfileURL+username, nil)
+	lookupURL, err := sanitizeMojangLookupURL(mojangProfileURL, username, minecraftUsernameRe)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, lookupURL, nil)
 	if err != nil {
 		return "", err
 	}
@@ -103,7 +146,11 @@ func mojangUUID(ctx context.Context, client *http.Client, username string) (stri
 }
 
 func mojangSkinURL(ctx context.Context, client *http.Client, uuid string) (string, string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, mojangSessionURL+uuid, nil)
+	lookupURL, err := sanitizeMojangLookupURL(mojangSessionURL, uuid, minecraftUUIDRe)
+	if err != nil {
+		return "", "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, lookupURL, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -148,8 +195,9 @@ func mojangSkinURL(ctx context.Context, client *http.Client, uuid string) (strin
 }
 
 func downloadSkinPNG(ctx context.Context, client *http.Client, skinURL string) ([]byte, error) {
-	if !strings.HasPrefix(skinURL, "http://") && !strings.HasPrefix(skinURL, "https://") {
-		return nil, ErrValidation
+	skinURL, err := sanitizeSkinDownloadURL(skinURL)
+	if err != nil {
+		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, skinURL, nil)
 	if err != nil {

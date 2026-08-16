@@ -22,6 +22,7 @@ type PrepareConnectModsResult struct {
 	ServerResourcepacksInstalled []string `json:"server_resourcepacks_installed"`
 	ClientShadersInstalled       []string `json:"client_shaders_installed"`
 	ServerShadersInstalled       []string `json:"server_shaders_installed"`
+	Removed                      []string `json:"removed,omitempty"`
 	Skipped                      []string `json:"skipped,omitempty"`
 	Errors                       []string `json:"errors,omitempty"`
 	AgentOnline                  bool     `json:"agent_online"`
@@ -83,9 +84,22 @@ func (s *Service) PrepareConnectMods(
 
 	localByType := instanceResourceFilenamesByType(workCtx, launcherSvc, userID, instanceID)
 	owner := launcher.Owner{UserID: userID}
+	intended := map[string]map[string]struct{}{
+		"mod":          {},
+		"resourcepack": {},
+		"shader":       {},
+		"datapack":     {},
+	}
+	markIntended := func(resourceType, filename string) {
+		if intended[resourceType] == nil {
+			intended[resourceType] = map[string]struct{}{}
+		}
+		intended[resourceType][strings.ToLower(filename)] = struct{}{}
+	}
 
 	pull := func(contentKind, modTarget, resourceType, filename string, installed *[]string) {
 		key := strings.ToLower(filename)
+		markIntended(resourceType, filename)
 		local := localByType[resourceType]
 		if local == nil {
 			local = map[string]struct{}{}
@@ -100,7 +114,7 @@ func (s *Service) PrepareConnectMods(
 			result.Errors = append(result.Errors, filename+": "+readErr.Error())
 			return
 		}
-		if _, uploadErr := launcherSvc.CreateInstanceResourceUpload(workCtx, owner, instanceID, filename, resourceType, data); uploadErr != nil {
+		if _, uploadErr := launcherSvc.CreateInstanceResourceUploadForSync(workCtx, owner, instanceID, filename, resourceType, data); uploadErr != nil {
 			result.Errors = append(result.Errors, filename+": "+uploadErr.Error())
 			return
 		}
@@ -147,7 +161,50 @@ func (s *Service) PrepareConnectMods(
 		pull("shader", "", "shader", name, &result.ServerShadersInstalled)
 	}
 
+	result.Removed = pruneUnmanagedInstanceResources(workCtx, launcherSvc, owner, instanceID, intended, &result.Errors)
 	return result, nil
+}
+
+func pruneUnmanagedInstanceResources(
+	ctx context.Context,
+	launcherSvc *launcher.Service,
+	owner launcher.Owner,
+	instanceID string,
+	intended map[string]map[string]struct{},
+	errs *[]string,
+) []string {
+	resources, err := launcherSvc.ListInstanceResources(ctx, owner, instanceID)
+	if err != nil {
+		*errs = append(*errs, "prune: "+err.Error())
+		return nil
+	}
+	removed := make([]string, 0)
+	for _, res := range resources {
+		if res.Filename == "" {
+			continue
+		}
+		resourceType := res.ResourceType
+		if resourceType == "" {
+			resourceType = "mod"
+		}
+		if allowed := intended[resourceType]; allowed != nil {
+			if _, ok := allowed[strings.ToLower(res.Filename)]; ok {
+				continue
+			}
+		}
+		delErr := launcherSvc.DeleteInstanceResourceForSync(ctx, owner, instanceID, launcher.DeleteInstanceResourceInput{
+			Source:       res.Source,
+			ProjectID:    res.ProjectID,
+			Filename:     res.Filename,
+			ResourceType: resourceType,
+		})
+		if delErr != nil {
+			*errs = append(*errs, res.Filename+": "+delErr.Error())
+			continue
+		}
+		removed = append(removed, res.Filename)
+	}
+	return removed
 }
 
 func (s *Service) gameServerOwnerAgent(ctx context.Context, gs models.GameServer) (ownerID, vpsID string, err error) {

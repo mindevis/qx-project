@@ -685,6 +685,7 @@ describe('api client', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ content: 'line' }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }));
 
@@ -697,6 +698,7 @@ describe('api client', () => {
     await api.getVpsGameServer('srv-1', 'gs-1');
     await api.getVpsGameServerProperties('srv-1', 'gs-1');
     await api.patchVpsGameServerProperties('srv-1', 'gs-1', { 'max-players': '20' });
+    await api.listGameServerResources('srv-1', 'gs-1', { kind: 'mod' });
     await api.listVpsGameServerMods('srv-1', 'gs-1');
     await api.listVpsGameServerFiles('srv-1', 'gs-1', 'config');
     await api.readVpsGameServerFile('srv-1', 'gs-1', 'server.properties');

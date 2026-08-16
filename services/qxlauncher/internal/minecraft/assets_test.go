@@ -50,7 +50,10 @@ func TestEnsureAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ensure assets: %v", err)
 	}
-	wantAssets := dl.InstanceAssetsDir("inst-1")
+	wantAssets, err := dl.InstanceAssetsDir("inst-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if assetsDir != wantAssets {
 		t.Fatalf("assets dir: got %s want %s", assetsDir, wantAssets)
 	}

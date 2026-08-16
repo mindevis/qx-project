@@ -124,6 +124,8 @@ func mapInstanceBridgeError(c *gin.Context, err error) {
 		JSONError(c, http.StatusNotFound, "NOT_FOUND", "resource not found")
 	case errors.Is(err, launcher.ErrValidation):
 		JSONValidation(c, "invalid request")
+	case errors.Is(err, launcher.ErrInstanceManaged):
+		JSONError(c, http.StatusForbidden, "INSTANCE_MANAGED", "this instance is managed by a game server")
 	case errors.Is(err, launcher.ErrDeviceNotLinked):
 		JSONError(c, http.StatusForbidden, "FORBIDDEN", "device not linked to account")
 	case errors.Is(err, launcher.ErrBridgeTimeout):

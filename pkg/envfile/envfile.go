@@ -3,16 +3,20 @@ package envfile
 import (
 	"bufio"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/reporoot"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 // Load reads KEY=VALUE lines into the process environment.
 // Existing environment variables are not overwritten.
 func Load(path string) error {
-	f, err := os.Open(path)
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
+		return err
+	}
+	f, err := safepath.OpenRead(abs)
 	if err != nil {
 		return err
 	}
@@ -57,8 +61,11 @@ func LoadRepoDotEnv(startDir string) error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(root, ".env")
-	if _, err := os.Stat(path); err != nil {
+	path, err := safepath.Join(root, ".env")
+	if err != nil {
+		return err
+	}
+	if _, err := safepath.Stat(path); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}

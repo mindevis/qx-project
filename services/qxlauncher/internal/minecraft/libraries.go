@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -39,7 +38,10 @@ func (d *Downloader) EnsureLibraries(ctx context.Context, manifest *mcmanifest.I
 	if manifest.InstanceID == "" {
 		return nil, fmt.Errorf("missing instance id")
 	}
-	libRoot := d.InstanceLibrariesDir(manifest.InstanceID)
+	libRoot, err := d.InstanceLibrariesDir(manifest.InstanceID)
+	if err != nil {
+		return nil, err
+	}
 	paths := make([]string, 0, len(manifest.Libraries))
 	total := 0
 	for _, lib := range manifest.Libraries {
@@ -65,7 +67,10 @@ func (d *Downloader) EnsureLibraries(ctx context.Context, manifest *mcmanifest.I
 			continue
 		}
 		suffix := strings.TrimPrefix(filepath.ToSlash(rel), "libraries/")
-		dest := filepath.Join(libRoot, filepath.FromSlash(suffix))
+		dest, err := safepath.JoinRel(libRoot, suffix)
+		if err != nil {
+			return nil, fmt.Errorf("library %s: %w", lib.Name, err)
+		}
 		if err := d.downloadIfNeeded(ctx, lib.Downloads.Artifact.URL, dest, lib.Downloads.Artifact.Sha1); err != nil {
 			return nil, fmt.Errorf("library %s: %w", lib.Name, err)
 		}
@@ -82,8 +87,15 @@ func (d *Downloader) EnsureNatives(ctx context.Context, manifest *mcmanifest.Ins
 	if manifest == nil {
 		return "", fmt.Errorf("missing manifest")
 	}
-	nativesDir := filepath.Join(d.InstanceGameDir(manifest.InstanceID), "natives")
-	if err := os.MkdirAll(nativesDir, 0o755); err != nil {
+	gameDir, err := d.InstanceGameDir(manifest.InstanceID)
+	if err != nil {
+		return "", err
+	}
+	nativesDir, err := safepath.Join(gameDir, "natives")
+	if err != nil {
+		return "", err
+	}
+	if err := safepath.EnsureDir(nativesDir); err != nil {
 		return "", err
 	}
 	classifier := nativeClassifier()
@@ -124,7 +136,14 @@ func (d *Downloader) ensureLibraryNatives(ctx context.Context, instanceID string
 	extracted := 0
 	if lib.Downloads != nil && lib.Downloads.Classifiers != nil {
 		if artifact, ok := lib.Downloads.Classifiers[classifier]; ok && artifact.URL != "" {
-			jarPath := filepath.Join(d.InstanceCacheDir(instanceID), "natives", nativeCacheName(lib.Name, classifier)+".jar")
+			cacheDir, err := d.InstanceCacheDir(instanceID)
+			if err != nil {
+				return 0, err
+			}
+			jarPath, err := safepath.Join(cacheDir, "natives", nativeCacheName(lib.Name, classifier)+".jar")
+			if err != nil {
+				return 0, err
+			}
 			if err := d.downloadIfNeeded(ctx, artifact.URL, jarPath, artifact.Sha1); err != nil {
 				return 0, err
 			}
@@ -139,7 +158,14 @@ func (d *Downloader) ensureLibraryNatives(ctx context.Context, instanceID string
 		if lib.Downloads == nil || lib.Downloads.Artifact == nil || lib.Downloads.Artifact.URL == "" {
 			return 0, fmt.Errorf("missing native artifact download")
 		}
-		jarPath := filepath.Join(d.InstanceCacheDir(instanceID), "natives", nativeCacheName(lib.Name, "")+".jar")
+		cacheDir, err := d.InstanceCacheDir(instanceID)
+		if err != nil {
+			return 0, err
+		}
+		jarPath, err := safepath.Join(cacheDir, "natives", nativeCacheName(lib.Name, "")+".jar")
+		if err != nil {
+			return 0, err
+		}
 		if err := d.downloadIfNeeded(ctx, lib.Downloads.Artifact.URL, jarPath, lib.Downloads.Artifact.Sha1); err != nil {
 			return 0, err
 		}
@@ -200,7 +226,7 @@ func isNamedNativeLibraryForClassifier(name, classifier string) bool {
 }
 
 func verifyNativeBinariesPresent(dir string) error {
-	entries, err := os.ReadDir(dir)
+	entries, err := safepath.ReadDir(dir)
 	if err != nil {
 		return err
 	}
@@ -233,7 +259,10 @@ func extractNativeBinaries(jarPath, destDir string) (int, error) {
 		if !isNativeBinary(base) {
 			continue
 		}
-		outPath := filepath.Join(destDir, base)
+		outPath, err := safepath.Join(destDir, base)
+		if err != nil {
+			continue
+		}
 		if err := extractZipFile(f, outPath); err != nil {
 			return extracted, err
 		}
@@ -262,19 +291,10 @@ func extractZipFile(f *zip.File, dest string) error {
 		return err
 	}
 	defer rc.Close()
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+	if err := safepath.EnsureParent(dest); err != nil {
 		return err
 	}
-	out, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(out, rc)
-	closeErr := out.Close()
-	if err != nil {
-		return err
-	}
-	return closeErr
+	return safepath.WriteStreamAtomic(dest, rc)
 }
 
 func BuildClasspath(entries []string) string {

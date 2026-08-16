@@ -32,6 +32,7 @@ var (
 	ErrMojangUnavailable = errors.New("mojang auth unavailable")
 	ErrDeviceOffline     = errors.New("device offline")
 	ErrBridgeTimeout     = errors.New("launcher bridge timeout")
+	ErrInstanceManaged   = errors.New("instance is managed by a game server")
 )
 
 type mojangLauncher interface {
@@ -280,10 +281,11 @@ func (s *Service) LinkDevice(ctx context.Context, in LinkDeviceInput) (*LinkDevi
 }
 
 type CreateInstanceInput struct {
-	Name          string
-	MCVersion     string
-	Loader        string
-	LoaderVersion string
+	Name                  string
+	MCVersion             string
+	Loader                string
+	LoaderVersion         string
+	ManagedByGameServerID string
 }
 
 func (s *Service) ListInstances(ctx context.Context, owner Owner) ([]models.LauncherInstance, error) {
@@ -293,7 +295,7 @@ func (s *Service) ListInstances(ctx context.Context, owner Owner) ([]models.Laun
 	if err := q.Order("created_at desc").Find(&items).Error; err != nil {
 		return nil, err
 	}
-	return items, nil
+	return s.AnnotateInstancesManaged(ctx, items), nil
 }
 
 type CreateInstanceResult struct {
@@ -334,6 +336,9 @@ func (s *Service) CreateInstance(ctx context.Context, owner Owner, in CreateInst
 	}
 	if loaderVersion != "" {
 		inst.LoaderVersion = &loaderVersion
+	}
+	if managedID := strings.TrimSpace(in.ManagedByGameServerID); managedID != "" {
+		inst.ManagedByGameServerID = &managedID
 	}
 	minRAM := defaultInstanceMemoryMB
 	maxRAM := defaultInstanceMemoryMB
@@ -517,6 +522,9 @@ func (s *Service) DeleteInstance(ctx context.Context, owner Owner, instanceID st
 	if res.RowsAffected == 0 {
 		return ErrNotFound
 	}
+	_ = s.db.WithContext(ctx).
+		Where("launcher_instance_id = ?", instanceID).
+		Delete(&models.GameServerInstanceBinding{}).Error
 	return nil
 }
 

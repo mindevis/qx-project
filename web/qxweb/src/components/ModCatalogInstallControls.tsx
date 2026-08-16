@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Modal, Select, Tag } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import {
-  api,
   type ModProjectType,
   type ModSource,
   type ModVersion,
@@ -10,9 +9,8 @@ import {
 import { ModInstallDepsWizard } from '@/components/ModInstallDepsWizard';
 import type { InstallItem } from '@/components/ModInstallDepsModal';
 import { ServerOnlyInstallModal } from '@/components/ServerOnlyInstallModal';
-import { useInstanceMods } from '@/components/InstanceModsContext';
+import { useModCatalog } from '@/components/ModCatalogContext';
 import { useI18n } from '@/i18n/I18nContext';
-import { useModInstall } from '@/hooks/useModInstall';
 import { formatModCatalogError } from '@/lib/modCatalogError';
 import { isServerOnlyMod } from '@/lib/modSync';
 import { fetchModProjectIcons } from '@/lib/instanceResourceIcons';
@@ -64,8 +62,15 @@ export function ModCatalogInstallControls({
 }: ModCatalogInstallControlsProps) {
   const { t } = useI18n();
   const message = useMessage();
-  const { instance } = useInstanceMods();
-  const { installingVersionId, installBatch } = useModInstall(instance.id);
+  const {
+    instance,
+    installingVersionId,
+    installBatch,
+    listInstalled,
+    uninstall,
+    showServerOnlyModal,
+    contentLocked,
+  } = useModCatalog();
 
   const [versions, setVersions] = useState<ModVersion[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState<string>();
@@ -183,6 +188,7 @@ export function ModCatalogInstallControls({
       if (!resolved) return;
 
       if (
+        showServerOnlyModal &&
         projectType === 'mod' &&
         isServerOnlyMod({ client_side: clientSide, server_side: serverSide })
       ) {
@@ -275,18 +281,18 @@ export function ModCatalogInstallControls({
       onOk: async () => {
         setUninstalling(true);
         try {
-          const resources = await api.listInstanceResources(instance.id);
-          const match = (resources.items ?? []).find(
+          const resources = await listInstalled();
+          const match = resources.find(
             (item) =>
               item.source === source &&
               item.project_id === projectId &&
               item.resource_type === projectType,
           );
-          await api.deleteInstanceResource(instance.id, {
+          await uninstall({
             source,
-            project_id: projectId,
+            projectId,
             filename: match?.filename,
-            resource_type: projectType,
+            resourceType: projectType,
           });
           message.success(t('qxmods.uninstall.completed'));
           onUninstalled?.();
@@ -315,6 +321,20 @@ export function ModCatalogInstallControls({
 
   const installing = selectedVersion != null && installingVersionId === selectedVersion.id;
   const disabled = (installingVersionId != null && !installing) || uninstalling;
+
+  if (contentLocked) {
+    return (
+      <div className={`qxmods-install-controls qxmods-install-controls--${layout}`}>
+        {isInstalled ? (
+          <Tag icon={<CheckCircleOutlined />} color="success" className="qxmods-installed-badge">
+            {t('qxmods.installed.badge')}
+          </Tag>
+        ) : (
+          <Tag className="qxmods-installed-badge">{t('qxmods.managedLocked.badge')}</Tag>
+        )}
+      </div>
+    );
+  }
 
   if (versionsLoaded && versions.length === 0) {
     return (
@@ -389,22 +409,24 @@ export function ModCatalogInstallControls({
             onCancel={() => setDepsOpen(false)}
             onComplete={(items) => void handleInstallConfirm(items)}
           />
-          <ServerOnlyInstallModal
-            open={serverOnlyOpen}
-            source={source}
-            projectId={projectId}
-            projectName={projectName}
-            version={pendingVersion}
-            projectType={projectType}
-            instanceLoader={instance.loader}
-            instanceMcVersion={instance.mc_version}
-            preferInstance
-            onClose={() => setServerOnlyOpen(false)}
-            onInstallToInstance={() => {
-              setServerOnlyOpen(false);
-              setDepsOpen(true);
-            }}
-          />
+          {showServerOnlyModal && instance ? (
+            <ServerOnlyInstallModal
+              open={serverOnlyOpen}
+              source={source}
+              projectId={projectId}
+              projectName={projectName}
+              version={pendingVersion}
+              projectType={projectType}
+              instanceLoader={instance.loader}
+              instanceMcVersion={instance.mc_version}
+              preferInstance
+              onClose={() => setServerOnlyOpen(false)}
+              onInstallToInstance={() => {
+                setServerOnlyOpen(false);
+                setDepsOpen(true);
+              }}
+            />
+          ) : null}
         </>
       ) : null}
     </>

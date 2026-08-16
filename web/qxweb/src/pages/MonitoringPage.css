@@ -508,6 +508,14 @@ html[data-theme='dark'] .monitoring-card--offline .monitoring-card-online-dot {
   font-size: 12px;
 }
 
+.monitoring-card-binding-value {
+  font-weight: 600;
+}
+
+.monitoring-card-binding-hint {
+  font-size: 12px;
+}
+
 .monitoring-card-binding-select {
   width: 100%;
 }

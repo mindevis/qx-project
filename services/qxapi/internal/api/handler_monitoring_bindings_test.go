@@ -44,8 +44,10 @@ func TestMonitoringBindings_HTTP(t *testing.T) {
 		ID: ownerID, Email: "binding-http@example.com", PasswordHash: "x", Tier: "free", CreatedAt: now, UpdatedAt: now,
 	}).Error)
 	instID := "inst-binding-http"
+	gsID := gameServerID
 	require.NoError(t, db.Create(&models.LauncherInstance{
 		ID: instID, UserID: &ownerID, Name: "Survival Client", MCVersion: "1.21", Loader: models.LoaderVanilla,
+		ManagedByGameServerID: &gsID,
 		CreatedAt: now, UpdatedAt: now,
 	}).Error)
 
@@ -92,5 +94,5 @@ func TestMonitoringBindings_HTTP(t *testing.T) {
 	req = httptest.NewRequest(http.MethodDelete, "/api/v1/monitoring/servers/"+gameServerID+"/binding", nil)
 	w = httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	require.Equal(t, http.StatusNoContent, w.Code)
+	require.Equal(t, http.StatusForbidden, w.Code, w.Body.String())
 }

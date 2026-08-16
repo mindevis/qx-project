@@ -1,6 +1,6 @@
 package minecraft
 
-import "path/filepath"
+import "github.com/qxproject/qx/pkg/safepath"
 
 // Launcher data layout:
 //
@@ -22,31 +22,51 @@ import "path/filepath"
 // those paths are no longer written — re-launch to populate instance folders.
 
 // InstanceRoot is the base directory for all per-instance game data.
-func (d *Downloader) InstanceRoot(instanceID string) string {
-	return filepath.Join(d.RootDir, "instances", instanceID)
+func (d *Downloader) InstanceRoot(instanceID string) (string, error) {
+	return safepath.Join(d.RootDir, "instances", instanceID)
 }
 
 // InstanceGameDir is the Minecraft --gameDir (saves, options, mods, etc.).
-func (d *Downloader) InstanceGameDir(instanceID string) string {
+func (d *Downloader) InstanceGameDir(instanceID string) (string, error) {
 	return d.InstanceRoot(instanceID)
 }
 
-func (d *Downloader) InstanceAssetsDir(instanceID string) string {
-	return filepath.Join(d.InstanceRoot(instanceID), "assets")
+func (d *Downloader) InstanceAssetsDir(instanceID string) (string, error) {
+	root, err := d.InstanceRoot(instanceID)
+	if err != nil {
+		return "", err
+	}
+	return safepath.Join(root, "assets")
 }
 
-func (d *Downloader) InstanceLibrariesDir(instanceID string) string {
-	return filepath.Join(d.InstanceRoot(instanceID), "libraries")
+func (d *Downloader) InstanceLibrariesDir(instanceID string) (string, error) {
+	root, err := d.InstanceRoot(instanceID)
+	if err != nil {
+		return "", err
+	}
+	return safepath.Join(root, "libraries")
 }
 
-func (d *Downloader) InstanceCacheDir(instanceID string) string {
-	return filepath.Join(d.InstanceRoot(instanceID), "cache")
+func (d *Downloader) InstanceCacheDir(instanceID string) (string, error) {
+	root, err := d.InstanceRoot(instanceID)
+	if err != nil {
+		return "", err
+	}
+	return safepath.Join(root, "cache")
 }
 
-func (d *Downloader) InstanceVersionsDir(instanceID, versionKey string) string {
-	return filepath.Join(d.InstanceRoot(instanceID), "versions", versionKey)
+func (d *Downloader) InstanceVersionsDir(instanceID, versionKey string) (string, error) {
+	root, err := d.InstanceRoot(instanceID)
+	if err != nil {
+		return "", err
+	}
+	return safepath.Join(root, "versions", versionKey)
 }
 
-func (d *Downloader) loaderClientJarPath(instanceID, relativePath string) string {
-	return filepath.Join(d.InstanceRoot(instanceID), filepath.FromSlash(relativePath))
+func (d *Downloader) loaderClientJarPath(instanceID, relativePath string) (string, error) {
+	root, err := d.InstanceRoot(instanceID)
+	if err != nil {
+		return "", err
+	}
+	return safepath.JoinRel(root, relativePath)
 }

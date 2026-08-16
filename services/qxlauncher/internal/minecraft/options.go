@@ -2,8 +2,9 @@ package minecraft
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 const DefaultGameLanguage = "ru_ru"
@@ -13,12 +14,15 @@ func EnsureGameLanguage(gameDir, lang string) error {
 	if lang == "" {
 		lang = DefaultGameLanguage
 	}
-	if err := os.MkdirAll(gameDir, 0o755); err != nil {
+	if err := safepath.EnsureDir(gameDir); err != nil {
 		return err
 	}
 
-	path := filepath.Join(gameDir, "options.txt")
-	data, err := os.ReadFile(path)
+	path, err := safepath.Join(gameDir, "options.txt")
+	if err != nil {
+		return err
+	}
+	data, err := safepath.ReadFileBytes(path)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -45,7 +49,7 @@ func EnsureGameLanguage(gameDir, lang string) error {
 	if out != "" {
 		out += "\n"
 	}
-	return os.WriteFile(path, []byte(out), 0o644)
+	return safepath.WriteFileBytes(path, []byte(out), 0o644)
 }
 
 func languageAssetKey(lang string) string {

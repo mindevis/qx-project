@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxlauncher/internal/apiclient"
 )
 
@@ -38,7 +37,11 @@ func (s *Session) needsRefresh() bool {
 }
 
 func LoadSession(path string) (*Session, error) {
-	b, err := os.ReadFile(path)
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
+		return nil, err
+	}
+	b, err := safepath.ReadFileBytes(abs)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +56,11 @@ func LoadSession(path string) (*Session, error) {
 }
 
 func SaveSession(path string, s *Session) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
+		return err
+	}
+	if err := safepath.EnsureParent(abs); err != nil {
 		return err
 	}
 	if s.SavedAt == 0 {
@@ -63,7 +70,7 @@ func SaveSession(path string, s *Session) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, b, 0o600)
+	return safepath.WriteFileBytes(abs, b, 0o600)
 }
 
 func Login(ctx context.Context, baseURL, email, password string) (*Session, error) {

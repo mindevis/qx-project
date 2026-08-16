@@ -141,6 +141,7 @@ CREATE TABLE launcher_instances (
     mods             JSON NOT NULL DEFAULT (JSON_ARRAY()),
     resource_packs   JSON NOT NULL DEFAULT (JSON_ARRAY()),
     shaders          JSON NOT NULL DEFAULT (JSON_ARRAY()),
+    managed_by_game_server_id CHAR(36) NULL,
     created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_instances_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
@@ -155,6 +156,7 @@ CREATE TABLE launcher_instances (
 CREATE INDEX idx_instances_user ON launcher_instances (user_id);
 CREATE INDEX idx_instances_guest ON launcher_instances (guest_session_id);
 CREATE INDEX idx_instances_modpack ON launcher_instances (modpack_id);
+CREATE INDEX idx_instances_managed_server ON launcher_instances (managed_by_game_server_id);
 
 -- ---------------------------------------------------------------------------
 -- Dedicated Servers
@@ -292,6 +294,7 @@ CREATE TABLE launch_requests (
     pid                INT NULL,
     exit_code          INT NULL,
     error_code         VARCHAR(64) NULL,
+    progress_message   VARCHAR(256) NOT NULL DEFAULT '',
     expires_at         TIMESTAMP NOT NULL,
     dispatched_at      TIMESTAMP NULL,
     completed_at       TIMESTAMP NULL,
@@ -313,6 +316,7 @@ CREATE TABLE prepare_requests (
     instance_id   CHAR(36) NOT NULL,
     status        ENUM('queued', 'preparing', 'downloading', 'completed', 'failed', 'expired') NOT NULL DEFAULT 'queued',
     error_code    VARCHAR(64) NULL,
+    progress_message VARCHAR(256) NOT NULL DEFAULT '',
     expires_at    TIMESTAMP NOT NULL,
     dispatched_at TIMESTAMP NULL,
     completed_at  TIMESTAMP NULL,
@@ -348,6 +352,7 @@ CREATE TABLE game_servers (
     monitoring_tags_json    TEXT NULL,
     monitoring_mods_json    TEXT NULL,
     monitoring_plugins_json TEXT NULL,
+    content_resources       MEDIUMTEXT NULL,
     likes_count             INT NOT NULL DEFAULT 0,
     rating_sum              INT NOT NULL DEFAULT 0,
     rating_count            INT NOT NULL DEFAULT 0,

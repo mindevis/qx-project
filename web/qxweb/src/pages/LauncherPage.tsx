@@ -86,6 +86,7 @@ import {
 import { InstanceFilesPanel } from '@/components/InstanceFilesPanel';
 import { InstanceOptionsPanel } from '@/components/InstanceOptionsPanel';
 import { InstanceModConfigsPanel } from '@/components/InstanceModConfigsPanel';
+import { connectFileProgressKey } from '@/lib/connectProgress';
 import {
   getLaunchErrorKey,
   isLaunchTerminal,
@@ -152,6 +153,7 @@ function LauncherHome() {
     status: string;
     launcher_version?: string;
   } | null>(null);
+  const [deviceChecked, setDeviceChecked] = useState(false);
   const [launcherRelease, setLauncherRelease] = useState<LauncherRelease | null>(null);
   const [updateRequesting, setUpdateRequesting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -184,6 +186,7 @@ function LauncherHome() {
     launcherRelease != null &&
     isUpdateAvailable(linkedDevice.launcher_version, launcherRelease.version);
   const downloadUrl = resolveLauncherDownloadUrl(launcherRelease);
+  const showInstallBand = !authLoading && !linkedDevice && (!isAuthenticated || deviceChecked);
   const activePlayerLabel =
     accountMode === 'licensed'
       ? mojangStatus?.linked
@@ -373,6 +376,11 @@ function LauncherHome() {
     return msg === key ? status : msg;
   };
 
+  const fileProgressLabel = (message?: string) => {
+    const key = connectFileProgressKey(message);
+    return key ? t(key) : message;
+  };
+
   const loadInstances = useCallback(async () => {
     if (!canManage) {
       setInstances([]);
@@ -481,10 +489,15 @@ function LauncherHome() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setLinkedDevice(null);
+    if (authLoading) {
       return;
     }
+    if (!isAuthenticated) {
+      setLinkedDevice(null);
+      setDeviceChecked(true);
+      return;
+    }
+    setDeviceChecked(false);
     (async () => {
       try {
         const res = await api.myLauncherDevice();
@@ -500,9 +513,12 @@ function LauncherHome() {
         }
       } catch (e) {
         logger.warn('failed to load linked device', { error: String(e) });
+        setLinkedDevice(null);
+      } finally {
+        setDeviceChecked(true);
       }
     })();
-  }, [isAuthenticated]);
+  }, [authLoading, isAuthenticated]);
 
   const handleCreate = async (values: {
     name: string;
@@ -596,6 +612,7 @@ function LauncherHome() {
           requestId,
           status: req.status,
           errorCode: req.error_code,
+          progressMessage: req.progress_message,
         },
       }));
       if (isPrepareTerminal(req.status)) {
@@ -631,6 +648,7 @@ function LauncherHome() {
           status: req.status,
           accountMode: launchAccountMode,
           errorCode: req.error_code,
+          progressMessage: req.progress_message,
           needsMojangRelink:
             launchAccountMode === 'licensed' && req.error_code === 'MOJANG_SESSION',
         });
@@ -641,6 +659,7 @@ function LauncherHome() {
                   ...prev,
                   status: req.status,
                   errorCode: req.error_code,
+                  progressMessage: req.progress_message,
                   needsMojangRelink:
                     launchAccountMode === 'licensed' && req.error_code === 'MOJANG_SESSION',
                 }
@@ -945,23 +964,25 @@ function LauncherHome() {
           </nav>
         ) : null}
 
-        <section className="launcher-download-public" aria-label={t('launcher.downloadSectionAria')}>
-          <div className="launcher-download-band launcher-download-band--public">
-            <div className="launcher-download-band-icon">
-              <DownloadOutlined />
+        {showInstallBand ? (
+          <section className="launcher-download-public" aria-label={t('launcher.downloadSectionAria')}>
+            <div className="launcher-download-band launcher-download-band--public">
+              <div className="launcher-download-band-icon">
+                <DownloadOutlined />
+              </div>
+              <div className="launcher-download-band-text">
+                <Title level={5} className="launcher-download-band-title">
+                  {t('launcher.desktopTitle')}
+                </Title>
+                <Paragraph className="launcher-download-band-desc">
+                  {isAuthenticated ? t('launcher.desktopDesc') : t('launcher.downloadPublicDesc')}
+                </Paragraph>
+                <LauncherCodeSigningNotice />
+              </div>
+              <LauncherDownloadButton type="primary" release={launcherRelease} />
             </div>
-            <div className="launcher-download-band-text">
-              <Title level={5} className="launcher-download-band-title">
-                {t('launcher.desktopTitle')}
-              </Title>
-              <Paragraph className="launcher-download-band-desc">
-                {isAuthenticated ? t('launcher.desktopDesc') : t('launcher.downloadPublicDesc')}
-              </Paragraph>
-              <LauncherCodeSigningNotice />
-            </div>
-            <LauncherDownloadButton type="primary" release={launcherRelease} />
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         {linkedDevice && isAuthenticated && updateAvailable && launcherRelease ? (
           <Alert
@@ -1207,7 +1228,11 @@ function LauncherHome() {
                 showIcon
                 className="launcher-launch-progress-alert"
                 title={t('launcher.launchProgressTitle')}
-                description={launchStatusMessage(launchProgress.status)}
+                description={
+                  fileProgressLabel(launchProgress.progressMessage)
+                    ? `${launchStatusMessage(launchProgress.status)} — ${fileProgressLabel(launchProgress.progressMessage)}`
+                    : launchStatusMessage(launchProgress.status)
+                }
               />
             ) : null}
 
@@ -1298,7 +1323,8 @@ function LauncherHome() {
                                 <>
                                   <span>{t('launcher.launching')}</span>
                                   <span className="launcher-instance-status-step">
-                                    {launchStatusMessage(progress.status)}
+                                    {fileProgressLabel(progress.progressMessage) ||
+                                      launchStatusMessage(progress.status)}
                                   </span>
                                 </>
                               ) : launchFailed ? (
@@ -1311,7 +1337,8 @@ function LauncherHome() {
                             <span className="launcher-instance-status launcher-instance-status--active">
                               <span>{t('launcher.installing')}</span>
                               <span className="launcher-instance-status-step">
-                                {launchStatusMessage(prepare.status)}
+                                {fileProgressLabel(prepare.progressMessage) ||
+                                  launchStatusMessage(prepare.status)}
                               </span>
                             </span>
                           ) : prepareFailed ? (

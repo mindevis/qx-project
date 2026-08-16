@@ -110,9 +110,16 @@ func sanitizeStartPayload(payload *protocol.ServerStartPayload) error {
 		payload.JavaBin = resolved
 	}
 
-	payload.JVMArgs = sanitizeArgs(payload.JVMArgs)
-	payload.Args = sanitizeArgs(payload.Args)
-	payload.ExtraArgs = sanitizeArgs(payload.ExtraArgs)
+	var err error
+	if payload.JVMArgs, err = sanitizeArgs(payload.JVMArgs); err != nil {
+		return fmt.Errorf("jvm args: %w", err)
+	}
+	if payload.Args, err = sanitizeArgs(payload.Args); err != nil {
+		return fmt.Errorf("args: %w", err)
+	}
+	if payload.ExtraArgs, err = sanitizeArgs(payload.ExtraArgs); err != nil {
+		return fmt.Errorf("extra args: %w", err)
+	}
 	return nil
 }
 
@@ -193,11 +200,26 @@ func resolveJavaBin(bin, root string) (string, error) {
 	return safepath.ResolveUnder(root, bin)
 }
 
-func sanitizeArgs(args []string) []string {
+func sanitizeArgs(args []string) ([]string, error) {
 	if len(args) == 0 {
-		return args
+		return args, nil
 	}
-	out := make([]string, len(args))
-	copy(out, args)
-	return out
+	out := make([]string, 0, len(args))
+	for _, arg := range args {
+		if !isSafeExecArg(arg) {
+			return nil, fmt.Errorf("invalid exec arg")
+		}
+		out = append(out, arg)
+	}
+	return out, nil
+}
+
+func isSafeExecArg(arg string) bool {
+	if arg == "" || len(arg) > 4096 {
+		return false
+	}
+	if strings.ContainsAny(arg, "\x00\n\r;&|$`<>") {
+		return false
+	}
+	return true
 }

@@ -6,13 +6,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 type Downloader struct {
@@ -42,18 +42,24 @@ func (d *Downloader) EnsureClientJar(ctx context.Context, manifest *mcmanifest.I
 		versionKey = manifest.VersionID
 		jarName = manifest.VersionID + ".jar"
 	}
-	dir := d.InstanceVersionsDir(manifest.InstanceID, versionKey)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	dir, err := d.InstanceVersionsDir(manifest.InstanceID, versionKey)
+	if err != nil {
 		return "", err
 	}
-	dest := filepath.Join(dir, jarName)
+	if err := safepath.EnsureDir(dir); err != nil {
+		return "", err
+	}
+	dest, err := safepath.Join(dir, jarName)
+	if err != nil {
+		return "", err
+	}
 	d.progressf("client", "downloading %s …", jarName)
 	return dest, d.downloadIfNeeded(ctx, manifest.ClientJar.URL, dest, manifest.ClientJar.Sha1)
 }
 
 func (d *Downloader) downloadIfNeeded(ctx context.Context, url, dest, sha1hex string) error {
 	if sha1hex != "" {
-		if b, err := os.ReadFile(dest); err == nil {
+		if b, err := safepath.ReadFileBytes(dest); err == nil {
 			if hex.EncodeToString(sha1Sum(b)) == strings.ToLower(sha1hex) {
 				return nil
 			}

@@ -7,6 +7,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 
 	"github.com/qxproject/qx/pkg/reporoot"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 const (
@@ -105,8 +106,11 @@ func userLauncherConfigPath() string {
 	if err != nil {
 		return ""
 	}
-	path := filepath.Join(UserDataDir(home), defaultLauncherTOML)
-	if _, err := os.Stat(path); err != nil {
+	path, err := safepath.Join(UserDataDir(home), defaultLauncherTOML)
+	if err != nil {
+		return ""
+	}
+	if _, err := safepath.Stat(path); err != nil {
 		return ""
 	}
 	return path
@@ -116,7 +120,11 @@ func loadTOML(path string) file {
 	if path == "" {
 		return file{}
 	}
-	data, err := os.ReadFile(path)
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
+		return file{}
+	}
+	data, err := safepath.ReadFileBytes(abs)
 	if err != nil {
 		return file{}
 	}

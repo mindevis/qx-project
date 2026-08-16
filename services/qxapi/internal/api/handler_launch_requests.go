@@ -27,14 +27,15 @@ type createLaunchRequestBody struct {
 }
 
 type launchRequestResponse struct {
-	ID               string `json:"id"`
-	Status           string `json:"status"`
-	InstanceID       string `json:"instance_id"`
+	ID               string  `json:"id"`
+	Status           string  `json:"status"`
+	InstanceID       string  `json:"instance_id"`
 	OfflineProfileID *string `json:"offline_profile_id,omitempty"`
-	ExpiresAt        string `json:"expires_at"`
-	PID              *int   `json:"pid,omitempty"`
-	ExitCode         *int   `json:"exit_code,omitempty"`
+	ExpiresAt        string  `json:"expires_at"`
+	PID              *int    `json:"pid,omitempty"`
+	ExitCode         *int    `json:"exit_code,omitempty"`
 	ErrorCode        *string `json:"error_code,omitempty"`
+	ProgressMessage  string  `json:"progress_message,omitempty"`
 }
 
 func launchResponseFromView(v *launcher.LaunchRequestView) launchRequestResponse {
@@ -47,6 +48,7 @@ func launchResponseFromView(v *launcher.LaunchRequestView) launchRequestResponse
 		PID:              v.PID,
 		ExitCode:         v.ExitCode,
 		ErrorCode:        v.ErrorCode,
+		ProgressMessage:  v.ProgressMessage,
 	}
 }
 
@@ -141,10 +143,11 @@ func (h *LaunchRequestsHandler) Pending(c *gin.Context) {
 }
 
 type patchLaunchRequestBody struct {
-	Status    string  `json:"status" binding:"required"`
-	PID       *int    `json:"pid"`
-	ExitCode  *int    `json:"exit_code"`
-	ErrorCode *string `json:"error_code"`
+	Status          string  `json:"status" binding:"required"`
+	PID             *int    `json:"pid"`
+	ExitCode        *int    `json:"exit_code"`
+	ErrorCode       *string `json:"error_code"`
+	ProgressMessage string  `json:"progress_message"`
 }
 
 func (h *LaunchRequestsHandler) Update(c *gin.Context) {
@@ -159,10 +162,11 @@ func (h *LaunchRequestsHandler) Update(c *gin.Context) {
 		return
 	}
 	view, err := h.Service.UpdateLaunchRequest(c.Request.Context(), deviceID, c.Param("id"), launcher.UpdateLaunchRequestInput{
-		Status:    req.Status,
-		PID:       req.PID,
-		ExitCode:  req.ExitCode,
-		ErrorCode: req.ErrorCode,
+		Status:          req.Status,
+		PID:             req.PID,
+		ExitCode:        req.ExitCode,
+		ErrorCode:       req.ErrorCode,
+		ProgressMessage: req.ProgressMessage,
 	})
 	if err != nil {
 		if errors.Is(err, launcher.ErrNotFound) {

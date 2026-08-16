@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/qxproject/qx/pkg/safepath"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
@@ -46,11 +47,14 @@ func knownHostsPath() string {
 }
 
 func ensureKnownHostsFile(path string) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0o600)
+	if err := safepath.EnsureParent(abs); err != nil {
+		return err
+	}
+	f, err := safepath.OpenFile(abs, os.O_RDONLY|os.O_CREATE, 0o600)
 	if err != nil {
 		return err
 	}
@@ -58,7 +62,11 @@ func ensureKnownHostsFile(path string) error {
 }
 
 func appendKnownHost(path, hostname string, key ssh.PublicKey) error {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o600)
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
+		return err
+	}
+	f, err := safepath.OpenFile(abs, os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}

@@ -27,6 +27,7 @@ import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { launcherSupportsResourcesPage } from '@/lib/launcherInstanceCapabilities';
 import { isLauncherLoader, type LauncherLoader } from '@/lib/launcherLoaders';
+import { isServerManagedInstance } from '@/lib/serverManagedInstance';
 import { logger } from '@/lib/logger';
 import './LauncherInstanceResourcesPage.css';
 
@@ -163,6 +164,11 @@ export function LauncherInstanceResourcesPage() {
                   loader: loaderName,
                 })}
               </Paragraph>
+              {isServerManagedInstance(instance) ? (
+                <Paragraph type="warning" className="launcher-resources-subtitle">
+                  {t('launcherInstanceResources.managedLocked')}
+                </Paragraph>
+              ) : null}
               <div className="launcher-resources-tags">
                 <span className="launcher-tag launcher-tag--version">
                   Minecraft {instance.mc_version}

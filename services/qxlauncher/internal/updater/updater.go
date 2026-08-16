@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
 	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
@@ -32,6 +33,9 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 	if filename == "" {
 		filename = "qx-launcher.exe"
 	}
+	if strings.ContainsAny(filename, `/\`) || strings.Contains(filename, "..") {
+		return fmt.Errorf("invalid update filename")
+	}
 	current, err := os.Executable()
 	if err != nil {
 		return err
@@ -41,11 +45,17 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return err
 	}
 
-	stagingDir := stagingDir()
-	if err := os.MkdirAll(stagingDir, 0o700); err != nil {
+	dir, err := safepath.ResolveRoot(stagingDir())
+	if err != nil {
 		return err
 	}
-	staging := filepath.Join(stagingDir, filename+".staging")
+	if err := safepath.EnsureDir(dir); err != nil {
+		return err
+	}
+	staging, err := safepath.Join(dir, filename+".staging")
+	if err != nil {
+		return err
+	}
 
 	client := httpClient
 	if client == nil {
@@ -67,31 +77,31 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return fmt.Errorf("download failed: %d %s", res.StatusCode, string(b))
 	}
 
-	out, err := os.OpenFile(staging, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	out, err := safepath.OpenFile(staging, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
 	n, err := io.Copy(out, res.Body)
 	if err != nil {
 		out.Close()
-		_ = os.Remove(staging)
+		_ = safepath.Remove(staging)
 		return err
 	}
 	if err := out.Close(); err != nil {
-		_ = os.Remove(staging)
+		_ = safepath.Remove(staging)
 		return err
 	}
 	slog.Info("launcher update downloaded", "bytes", n, "status", res.StatusCode)
 	if err := validateWindowsExecutable(staging); err != nil {
-		_ = os.Remove(staging)
+		_ = safepath.Remove(staging)
 		return err
 	}
 
 	if err := replaceExecutable(current, staging); err != nil {
-		_ = os.Remove(staging)
+		_ = safepath.Remove(staging)
 		return err
 	}
-	_ = os.Remove(staging)
+	_ = safepath.Remove(staging)
 	slog.Info("launcher update installed", "exe", current)
 	return nil
 }
@@ -145,32 +155,32 @@ func backupPath(exe string) string {
 
 func replaceExecutable(current, staging string) error {
 	backup := backupPath(current)
-	_ = os.Remove(backup)
+	_ = safepath.Remove(backup)
 
-	if err := os.Rename(current, backup); err != nil {
+	if err := safepath.Rename(current, backup); err != nil {
 		return fmt.Errorf("rename running executable: %w", err)
 	}
 	if err := copyFile(staging, current); err != nil {
-		_ = os.Rename(backup, current)
+		_ = safepath.Rename(backup, current)
 		return fmt.Errorf("install update: %w", err)
 	}
 	return nil
 }
 
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+	in, err := safepath.OpenRead(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	out, err := safepath.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
 	if err != nil {
 		return err
 	}
 	if _, err := io.Copy(out, in); err != nil {
 		out.Close()
-		_ = os.Remove(dst)
+		_ = safepath.Remove(dst)
 		return err
 	}
 	return out.Close()

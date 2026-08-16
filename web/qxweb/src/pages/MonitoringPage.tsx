@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Col,
@@ -26,7 +26,6 @@ import {
 } from '@ant-design/icons';
 import {
   api,
-  type LauncherInstance,
   type MojangLinkStatus,
   type MonitoringInstanceBinding,
   type MonitoringServer,
@@ -39,14 +38,11 @@ import { useMessage } from '@/hooks/useMessage';
 import { ALL_GAME_SERVER_TYPES, gameServerTypeLabelText } from '@/lib/gameServerTypes';
 import { isLaunchStarted } from '@/lib/launchProgress';
 import { cachedListMcVersions } from '@/lib/mcVersionsCache';
-import {
-  findCompatibleInstance,
-  launcherSpecForMonitoringServer,
-  offlineUsernameFromIdentity,
-} from '@/lib/monitoringConnect';
+import { offlineUsernameFromIdentity } from '@/lib/monitoringConnect';
 import { isPrepareTerminal } from '@/lib/prepareProgress';
-import { launcherLoaderNeedsVersion } from '@/lib/launcherLoaders';
+import type { ConnectProgressStep } from '@/lib/connectProgress';
 import { ConnectClientModsModal } from '@/components/ConnectClientModsModal';
+import { ConnectProgressModal } from '@/components/ConnectProgressModal';
 import { highlightMinecraft } from '@/pages/HomePage';
 import './MonitoringPage.css';
 
@@ -74,6 +70,21 @@ const EMPTY_FILTERS: Filters = {
 
 type SortBy = 'online' | 'rating' | 'likes' | 'name';
 
+type ConnectFlowState = {
+  server: MonitoringServer;
+  step: ConnectProgressStep;
+  status?: string;
+  detail?: string;
+  errorCode?: string;
+  failed?: boolean;
+};
+
+type PreparePollResult = {
+  status: string;
+  error_code?: string;
+  progress_message?: string;
+};
+
 const SEARCH_DEBOUNCE_MS = 400;
 
 function serverEndpoint(server: MonitoringServer): string {
@@ -88,9 +99,7 @@ function MonitoringServerCard({
   canInteract,
   onRequireAuth,
   loaderLabel,
-  instances,
-  boundInstanceId,
-  onBindingChange,
+  boundInstanceName,
   onConnect,
   connecting,
   isGuest,
@@ -102,9 +111,7 @@ function MonitoringServerCard({
   canInteract: boolean;
   onRequireAuth: () => void;
   loaderLabel: string;
-  instances: LauncherInstance[];
-  boundInstanceId?: string;
-  onBindingChange: (server: MonitoringServer, instanceId: string | null) => void;
+  boundInstanceName?: string;
   onConnect: (server: MonitoringServer) => void;
   connecting: boolean;
   isGuest: boolean;
@@ -136,14 +143,6 @@ function MonitoringServerCard({
       return;
     }
     onRate(server, value);
-  };
-
-  const handleBindingSelect = (value: string | null) => {
-    if (!canInteract) {
-      onRequireAuth();
-      return;
-    }
-    onBindingChange(server, value);
   };
 
   return (
@@ -238,25 +237,15 @@ function MonitoringServerCard({
           </div>
         </div>
 
-        {canInteract && instances.length > 0 ? (
+        {boundInstanceName ? (
           <div className="monitoring-card-binding">
             <Text type="secondary" className="monitoring-card-binding-label">
-              {t('monitoring.bindInstance')}
+              {t('monitoring.boundInstance')}
             </Text>
-            <Select
-              allowClear
-              showSearch
-              aria-label={t('monitoring.bindInstance')}
-              placeholder={t('monitoring.bindInstancePlaceholder')}
-              className="monitoring-card-binding-select"
-              value={boundInstanceId}
-              onChange={handleBindingSelect}
-              optionFilterProp="label"
-              options={instances.map((instance) => ({
-                value: instance.id,
-                label: `${instance.name} (${instance.mc_version})`,
-              }))}
-            />
+            <Text className="monitoring-card-binding-value">{boundInstanceName}</Text>
+            <Text type="secondary" className="monitoring-card-binding-hint">
+              {t('monitoring.boundInstanceLocked')}
+            </Text>
           </div>
         ) : null}
 
@@ -302,13 +291,13 @@ export function MonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [mcVersions, setMcVersions] = useState<string[]>([]);
-  const [instances, setInstances] = useState<LauncherInstance[]>([]);
   const [bindings, setBindings] = useState<Map<string, MonitoringInstanceBinding>>(new Map());
   const [linkedDevice, setLinkedDevice] = useState<{ device_id: string } | null>(null);
   const [profiles, setProfiles] = useState<OfflineProfile[]>([]);
   const [mojangStatus, setMojangStatus] = useState<MojangLinkStatus | null>(null);
   const [connectingServerId, setConnectingServerId] = useState<string | null>(null);
-  const [connectModsServer, setConnectModsServer] = useState<MonitoringServer | null>(null);
+  const [connectFlow, setConnectFlow] = useState<ConnectFlowState | null>(null);
+  const connectGenRef = useRef(0);
   const [refreshing, setRefreshing] = useState(false);
 
   const onlineCount = useMemo(() => servers.filter((server) => server.is_online).length, [servers]);
@@ -331,7 +320,6 @@ export function MonitoringPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setInstances([]);
       setBindings(new Map());
       setLinkedDevice(null);
       setProfiles([]);
@@ -340,14 +328,12 @@ export function MonitoringPage() {
     }
     void (async () => {
       try {
-        const [instanceData, bindingData, device, profileData, mojang] = await Promise.all([
-          api.listInstances(),
+        const [bindingData, device, profileData, mojang] = await Promise.all([
           api.listMonitoringBindings(),
           api.myLauncherDevice().catch(() => null),
           api.listProfiles().catch(() => ({ items: [] as OfflineProfile[] })),
           api.mojangStatus().catch(() => null),
         ]);
-        setInstances(instanceData.items ?? []);
         setBindings(
           new Map((bindingData.items ?? []).map((item) => [item.game_server_id, item])),
         );
@@ -465,50 +451,56 @@ export function MonitoringPage() {
     }
   };
 
-  const handleBindingChange = async (server: MonitoringServer, instanceId: string | null) => {
-    try {
-      if (!instanceId) {
-        await api.clearMonitoringBinding(server.id);
-        setBindings((prev) => {
-          const next = new Map(prev);
-          next.delete(server.id);
-          return next;
-        });
-        message.success(t('monitoring.bindingCleared'));
-        return;
-      }
-      const binding = await api.setMonitoringBinding(server.id, instanceId);
-      setBindings((prev) => new Map(prev).set(server.id, binding));
-      message.success(t('monitoring.bindingSaved'));
-    } catch (e) {
-      message.error(e instanceof Error ? e.message : t('common.error'));
-    }
-  };
-
   const openMinecraftLink = (server: MonitoringServer) => {
     window.location.href = `minecraft://${server.address}:${server.port}`;
   };
 
-  const pollLaunchRequest = async (requestId: string) => {
-    for (let attempt = 0; attempt < LAUNCH_POLL_MAX; attempt += 1) {
-      const req = await api.getLaunchRequest(requestId);
-      if (isLaunchStarted(req.status)) {
-        return req.status;
-      }
-      await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
-    }
-    return 'timeout';
+  const updateConnectFlow = (patch: Partial<ConnectFlowState>) => {
+    setConnectFlow((prev) => (prev ? { ...prev, ...patch } : prev));
   };
 
-  const pollPrepareRequest = async (requestId: string) => {
-    for (let attempt = 0; attempt < PREPARE_POLL_MAX; attempt += 1) {
-      const req = await api.getPrepareRequest(requestId);
-      if (isPrepareTerminal(req.status)) {
-        return req.status;
+  const closeConnectFlow = () => {
+    connectGenRef.current += 1;
+    setConnectFlow(null);
+    setConnectingServerId(null);
+  };
+
+  const pollLaunchRequest = async (requestId: string, gen: number) => {
+    for (let attempt = 0; attempt < LAUNCH_POLL_MAX; attempt += 1) {
+      if (connectGenRef.current !== gen) {
+        return { status: 'cancelled' };
+      }
+      const req = await api.getLaunchRequest(requestId);
+      updateConnectFlow({
+        status: req.status,
+        detail: req.progress_message,
+        errorCode: req.error_code,
+      });
+      if (isLaunchStarted(req.status)) {
+        return req;
       }
       await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
     }
-    return 'timeout';
+    return { status: 'timeout' };
+  };
+
+  const pollPrepareRequest = async (requestId: string, gen: number): Promise<PreparePollResult> => {
+    for (let attempt = 0; attempt < PREPARE_POLL_MAX; attempt += 1) {
+      if (connectGenRef.current !== gen) {
+        return { status: 'cancelled' };
+      }
+      const req = await api.getPrepareRequest(requestId);
+      updateConnectFlow({
+        status: req.status,
+        detail: req.progress_message,
+        errorCode: req.error_code,
+      });
+      if (isPrepareTerminal(req.status)) {
+        return req;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, LAUNCH_POLL_MS));
+    }
+    return { status: 'timeout' };
   };
 
   const ensureOfflineProfile = async (): Promise<string | undefined> => {
@@ -523,47 +515,41 @@ export function MonitoringPage() {
 
   const ensureBindingForServer = async (
     server: MonitoringServer,
-  ): Promise<MonitoringInstanceBinding> => {
-    const existing = bindings.get(server.id);
-    if (existing) return existing;
-
-    const spec = launcherSpecForMonitoringServer(server);
-    if (!spec) {
-      throw new Error(t('monitoring.connectInstanceFailed'));
-    }
-
-    const compatible = findCompatibleInstance(instances, spec);
-    const instance =
-      compatible ??
-      (await api.createInstance({
-        name: spec.name,
-        mc_version: spec.mc_version,
-        loader: spec.loader,
-        loader_version: launcherLoaderNeedsVersion(spec.loader)
-          ? spec.loader_version
-          : undefined,
-      }));
-
-    if (!compatible) {
-      setInstances((prev) => [instance, ...prev]);
-      if (instance.prepare_request_id) {
-        const prepareStatus = await pollPrepareRequest(instance.prepare_request_id);
-        if (prepareStatus !== 'completed') {
-          throw new Error(t('monitoring.connectPrepareFailed'));
-        }
+    gen: number,
+  ): Promise<MonitoringInstanceBinding | null> => {
+    updateConnectFlow({ step: 'creating' });
+    const binding = await api.ensureMonitoringConnectInstance(server.id);
+    if (connectGenRef.current !== gen) return null;
+    setBindings((prev) => new Map(prev).set(server.id, binding));
+    if (binding.prepare_request_id) {
+      updateConnectFlow({ step: 'preparing', status: 'queued' });
+      const prepare = await pollPrepareRequest(binding.prepare_request_id, gen);
+      if (connectGenRef.current !== gen) return null;
+      if (prepare.status !== 'completed') {
+        updateConnectFlow({
+          failed: true,
+          status: prepare.status === 'timeout' ? 'expired' : prepare.status,
+          detail: prepare.progress_message,
+          errorCode:
+            prepare.error_code ||
+            (prepare.status === 'timeout' ? 'PREPARE_TIMEOUT' : 'PREPARE_FAILED'),
+        });
+        throw new Error('prepare-failed');
       }
     }
-
-    const binding = await api.setMonitoringBinding(server.id, instance.id);
-    setBindings((prev) => new Map(prev).set(server.id, binding));
     return binding;
   };
 
-  const launchToServer = async (server: MonitoringServer, binding: MonitoringInstanceBinding) => {
-    setConnectingServerId(server.id);
+  const launchToServer = async (
+    server: MonitoringServer,
+    binding: MonitoringInstanceBinding,
+    gen: number,
+  ) => {
+    updateConnectFlow({ step: 'launching', status: 'queued', detail: undefined });
     try {
       const useLicensed = mojangStatus?.linked === true;
       const offlineProfileId = useLicensed ? undefined : await ensureOfflineProfile();
+      if (connectGenRef.current !== gen) return;
       const req = await api.createLaunchRequest({
         instance_id: binding.instance_id,
         offline_profile_id: offlineProfileId,
@@ -571,17 +557,30 @@ export function MonitoringPage() {
         join_server_address: server.address,
         join_server_port: server.port,
       });
-      const status = await pollLaunchRequest(req.id);
-      if (status === 'running' || status === 'completed') {
+      const result = await pollLaunchRequest(req.id, gen);
+      if (connectGenRef.current !== gen) return;
+      if (result.status === 'running' || result.status === 'completed') {
         message.success(t('monitoring.launchCompleted'));
-      } else if (status === 'failed' || status === 'expired') {
-        message.error(t('monitoring.launchFailed'));
-        openMinecraftLink(server);
+        closeConnectFlow();
+        return;
+      }
+      if (result.status === 'failed' || result.status === 'expired' || result.status === 'timeout') {
+        updateConnectFlow({
+          failed: true,
+          status: result.status === 'timeout' ? 'expired' : result.status,
+          errorCode:
+            'error_code' in result && result.error_code
+              ? result.error_code
+              : result.status === 'timeout'
+                ? 'LAUNCH_TIMEOUT'
+                : 'PREPARE_FAILED',
+        });
+        return;
       }
     } catch {
       openMinecraftLink(server);
-    } finally {
-      setConnectingServerId(null);
+      if (connectGenRef.current !== gen) return;
+      updateConnectFlow({ failed: true, errorCode: 'PREPARE_FAILED' });
     }
   };
 
@@ -595,27 +594,41 @@ export function MonitoringPage() {
       return;
     }
 
+    const gen = connectGenRef.current + 1;
+    connectGenRef.current = gen;
     setConnectingServerId(server.id);
+    setConnectFlow({ server, step: 'creating' });
     try {
-      await ensureBindingForServer(server);
+      await ensureBindingForServer(server, gen);
+      if (connectGenRef.current !== gen) return;
       await ensureOfflineProfile();
-      setConnectModsServer(server);
+      if (connectGenRef.current !== gen) return;
+      updateConnectFlow({
+        step: 'clientMods',
+        status: undefined,
+        detail: undefined,
+        errorCode: undefined,
+      });
     } catch (e) {
+      if (connectGenRef.current !== gen) return;
+      if (e instanceof Error && e.message === 'prepare-failed') {
+        return;
+      }
+      updateConnectFlow({ failed: true });
       message.error(e instanceof Error ? e.message : t('monitoring.connectInstanceFailed'));
-    } finally {
-      setConnectingServerId(null);
     }
   };
 
   const handleConnectModsConfirmed = async () => {
-    if (!connectModsServer) return;
-    const binding = bindings.get(connectModsServer.id);
+    if (!connectFlow) return;
+    const binding = bindings.get(connectFlow.server.id);
     if (!binding) return;
-    const server = connectModsServer;
-    setConnectModsServer(null);
-    setConnectingServerId(server.id);
+    const server = connectFlow.server;
+    const gen = connectGenRef.current;
+    updateConnectFlow({ step: 'syncing', status: undefined, detail: undefined });
     try {
       const prepared = await api.prepareConnectMods(server.id, binding.instance_id);
+      if (connectGenRef.current !== gen) return;
       const installedCount =
         (prepared.client_mods_installed?.length ?? 0) +
         (prepared.server_mods_installed?.length ?? 0) +
@@ -640,12 +653,12 @@ export function MonitoringPage() {
       } else if (!prepared.agent_online && (prepared.client_mods_installed?.length ?? 0) === 0) {
         message.info(t('monitoring.connectMods.agentOffline'));
       }
-      await launchToServer(server, binding);
+      await launchToServer(server, binding, gen);
     } catch {
+      if (connectGenRef.current !== gen) return;
+      updateConnectFlow({ failed: true });
       message.error(t('monitoring.connectMods.syncFailed'));
       openMinecraftLink(server);
-    } finally {
-      setConnectingServerId(null);
     }
   };
 
@@ -819,9 +832,7 @@ export function MonitoringPage() {
                 isGuest={!isAuthenticated}
                 onRequireAuth={() => openAuthModal('login')}
                 loaderLabel={loaderLabel(server.server_type)}
-                instances={instances}
-                boundInstanceId={bindings.get(server.id)?.instance_id}
-                onBindingChange={(item, instanceId) => void handleBindingChange(item, instanceId)}
+                boundInstanceName={bindings.get(server.id)?.instance_name}
                 onConnect={(item) => void handleConnect(item)}
                 connecting={connectingServerId === server.id}
               />
@@ -830,15 +841,29 @@ export function MonitoringPage() {
         )}
       </section>
       </div>
-      {connectModsServer && bindings.get(connectModsServer.id) ? (
-        <ConnectClientModsModal
+      {connectFlow ? (
+        <ConnectProgressModal
           open
-          gameServerId={connectModsServer.id}
-          instanceId={bindings.get(connectModsServer.id)!.instance_id}
-          serverName={connectModsServer.name}
-          onClose={() => setConnectModsServer(null)}
-          onConfirm={handleConnectModsConfirmed}
-        />
+          serverName={connectFlow.server.name}
+          step={connectFlow.step}
+          status={connectFlow.status}
+          detail={connectFlow.detail}
+          errorCode={connectFlow.errorCode}
+          failed={connectFlow.failed}
+          onClose={closeConnectFlow}
+        >
+          {connectFlow.step === 'clientMods' && bindings.get(connectFlow.server.id) ? (
+            <ConnectClientModsModal
+              embedded
+              open
+              gameServerId={connectFlow.server.id}
+              instanceId={bindings.get(connectFlow.server.id)!.instance_id}
+              serverName={connectFlow.server.name}
+              onClose={closeConnectFlow}
+              onConfirm={() => void handleConnectModsConfirmed()}
+            />
+          ) : null}
+        </ConnectProgressModal>
       ) : null}
     </div>
   );

@@ -205,6 +205,9 @@ func mapModInstallServiceError(c *gin.Context, err error) bool {
 	case errors.Is(err, launcher.ErrValidation):
 		JSONValidation(c, "invalid mod install request")
 		return true
+	case errors.Is(err, launcher.ErrInstanceManaged):
+		JSONError(c, http.StatusForbidden, "INSTANCE_MANAGED", "this instance is managed by a game server")
+		return true
 	case errors.Is(err, launcher.ErrDeviceNotLinked), errors.Is(err, launcher.ErrDeviceMismatch):
 		JSONError(c, http.StatusForbidden, "FORBIDDEN", "device not linked to account")
 		return true

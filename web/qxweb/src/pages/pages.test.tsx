@@ -949,7 +949,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     expect(screen.getByText('Запуск…')).toBeInTheDocument();
   });
 
-  it('shows linked device with public download section', async () => {
+  it('hides install instructions when launcher is already linked', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -983,8 +983,10 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await waitFor(() =>
       expect(screen.getByText(/QXLauncher связан \(dev-99\)/)).toBeInTheDocument(),
     );
-    expect(screen.getByRole('button', { name: /Скачать QXLauncher/ })).toBeInTheDocument();
-    expect(screen.getByText(/SignPath Foundation/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Скачать QXLauncher/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/SignPath Foundation/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Установите QXLauncher/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Политика конфиденциальности/)).not.toBeInTheDocument();
   });
 
   it('shows player section, sorted instances, and link prompt when device is not linked', async () => {

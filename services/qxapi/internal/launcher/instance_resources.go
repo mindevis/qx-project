@@ -188,6 +188,9 @@ func (s *Service) UpdateInstanceResourceSide(ctx context.Context, owner Owner, i
 	if err != nil {
 		return err
 	}
+	if err := s.AssertInstanceContentMutable(ctx, instanceID); err != nil {
+		return err
+	}
 	updated := false
 	switch normalizeResourceType(in.ResourceType) {
 	case "resourcepack":

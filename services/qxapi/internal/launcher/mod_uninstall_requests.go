@@ -30,8 +30,21 @@ type UpdateModUninstallRequestInput struct {
 }
 
 func (s *Service) DeleteInstanceResourceWithBridge(ctx context.Context, owner Owner, instanceID string, in DeleteInstanceResourceInput) error {
+	return s.deleteInstanceResourceWithBridge(ctx, owner, instanceID, in, false)
+}
+
+func (s *Service) DeleteInstanceResourceForSync(ctx context.Context, owner Owner, instanceID string, in DeleteInstanceResourceInput) error {
+	return s.deleteInstanceResourceWithBridge(ctx, owner, instanceID, in, true)
+}
+
+func (s *Service) deleteInstanceResourceWithBridge(ctx context.Context, owner Owner, instanceID string, in DeleteInstanceResourceInput, allowManaged bool) error {
 	if in.Source == "" || (in.ProjectID == "" && in.Filename == "") {
 		return ErrValidation
+	}
+	if !allowManaged {
+		if err := s.AssertInstanceContentMutable(ctx, instanceID); err != nil {
+			return err
+		}
 	}
 	inst, err := s.GetInstance(ctx, owner, instanceID)
 	if err != nil {

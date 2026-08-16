@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
 )
 
@@ -30,7 +29,10 @@ func (d *Downloader) EnsureLoaderInstalled(ctx context.Context, manifest *mcmani
 	if manifest.InstanceID == "" {
 		return fmt.Errorf("missing instance id")
 	}
-	dest := d.loaderClientJarPath(manifest.InstanceID, manifest.LoaderClientJar.RelativePath)
+	dest, err := d.loaderClientJarPath(manifest.InstanceID, manifest.LoaderClientJar.RelativePath)
+	if err != nil {
+		return err
+	}
 	if jarMatches(dest, manifest.LoaderClientJar.Sha1) {
 		return nil
 	}
@@ -42,7 +44,7 @@ func (d *Downloader) EnsureLoaderInstalled(ctx context.Context, manifest *mcmani
 }
 
 func jarMatches(path, sha1hex string) bool {
-	b, err := os.ReadFile(path)
+	b, err := safepath.ReadFileBytes(path)
 	if err != nil || len(b) == 0 {
 		return false
 	}
@@ -53,17 +55,29 @@ func jarMatches(path, sha1hex string) bool {
 }
 
 func (d *Downloader) runLoaderInstaller(ctx context.Context, manifest *mcmanifest.InstanceLaunchManifest, javaBin string) error {
-	instanceRoot := d.InstanceRoot(manifest.InstanceID)
-	cacheDir := d.InstanceCacheDir(manifest.InstanceID)
-	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+	instanceRoot, err := d.InstanceRoot(manifest.InstanceID)
+	if err != nil {
 		return err
 	}
-	installerPath := filepath.Join(cacheDir, "installer-"+manifest.VersionID+".jar")
+	cacheDir, err := d.InstanceCacheDir(manifest.InstanceID)
+	if err != nil {
+		return err
+	}
+	if err := safepath.EnsureDir(cacheDir); err != nil {
+		return err
+	}
+	installerPath, err := safepath.Join(cacheDir, "installer-"+manifest.VersionID+".jar")
+	if err != nil {
+		return err
+	}
 	if err := d.downloadIfNeeded(ctx, manifest.VersionURL, installerPath, ""); err != nil {
 		return fmt.Errorf("download installer: %w", err)
 	}
-	profilesPath := filepath.Join(instanceRoot, "launcher_profiles.json")
-	if err := os.WriteFile(profilesPath, []byte("{}"), 0o644); err != nil {
+	profilesPath, err := safepath.Join(instanceRoot, "launcher_profiles.json")
+	if err != nil {
+		return err
+	}
+	if err := safepath.WriteFileBytes(profilesPath, []byte("{}"), 0o644); err != nil {
 		return fmt.Errorf("write launcher_profiles.json: %w", err)
 	}
 	cmd := proc.CommandContext(ctx, javaBin, "-jar", installerPath, "--installClient", instanceRoot)
@@ -76,7 +90,10 @@ func (d *Downloader) runLoaderInstaller(ctx context.Context, manifest *mcmanifes
 		}
 		return fmt.Errorf("installer failed: %w\n%s", err, tail)
 	}
-	dest := d.loaderClientJarPath(manifest.InstanceID, manifest.LoaderClientJar.RelativePath)
+	dest, err := d.loaderClientJarPath(manifest.InstanceID, manifest.LoaderClientJar.RelativePath)
+	if err != nil {
+		return err
+	}
 	if !jarMatches(dest, manifest.LoaderClientJar.Sha1) {
 		return fmt.Errorf("installer finished but %s is missing or corrupt", dest)
 	}

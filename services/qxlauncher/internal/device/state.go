@@ -1,19 +1,27 @@
 package device
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
+
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 func DeviceIDPath(dataDir string) string {
-	return filepath.Join(dataDir, "device_id")
+	path, err := safepath.Join(dataDir, "device_id")
+	if err != nil {
+		return ""
+	}
+	return path
 }
 
 func LoadDeviceID(dataDir string) string {
-	b, err := os.ReadFile(DeviceIDPath(dataDir))
+	path := DeviceIDPath(dataDir)
+	if path == "" {
+		return ""
+	}
+	b, err := safepath.ReadFileBytes(path)
 	if err != nil {
 		return ""
 	}
@@ -25,10 +33,18 @@ func SaveDeviceID(dataDir, deviceID string) error {
 	if deviceID == "" {
 		return nil
 	}
-	if err := os.MkdirAll(dataDir, 0o700); err != nil {
+	root, err := safepath.ResolveRoot(dataDir)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(DeviceIDPath(dataDir), []byte(deviceID), 0o600)
+	if err := safepath.EnsureDir(root); err != nil {
+		return err
+	}
+	path, err := safepath.Join(root, "device_id")
+	if err != nil {
+		return err
+	}
+	return safepath.WriteFileBytes(path, []byte(deviceID), 0o600)
 }
 
 func ResolveDeviceID(dataDir string) string {
@@ -45,7 +61,11 @@ func ResolveDeviceID(dataDir string) string {
 }
 
 func ReadToken(path string) string {
-	b, err := os.ReadFile(path)
+	abs, err := safepath.ResolveRoot(path)
+	if err != nil {
+		return ""
+	}
+	b, err := safepath.ReadFileBytes(abs)
 	if err != nil {
 		return ""
 	}

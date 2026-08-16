@@ -7,6 +7,7 @@ export type PrepareProgressState = {
   requestId: string;
   status: string;
   errorCode?: string;
+  progressMessage?: string;
 };
 
 export function isPrepareTerminal(status: string): boolean {

@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
+	"github.com/qxproject/qx/pkg/safepath"
 )
 
 const defaultAssetsCDN = "https://resources.download.minecraft.net"
@@ -37,9 +36,15 @@ func (d *Downloader) EnsureAssets(ctx context.Context, manifest *mcmanifest.Inst
 	if manifest.InstanceID == "" {
 		return "", fmt.Errorf("missing instance id")
 	}
-	assetsDir := d.InstanceAssetsDir(manifest.InstanceID)
-	indexPath := filepath.Join(assetsDir, "indexes", manifest.AssetIndex.ID+".json")
-	if err := os.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
+	assetsDir, err := d.InstanceAssetsDir(manifest.InstanceID)
+	if err != nil {
+		return "", err
+	}
+	indexPath, err := safepath.Join(assetsDir, "indexes", manifest.AssetIndex.ID+".json")
+	if err != nil {
+		return "", err
+	}
+	if err := safepath.EnsureParent(indexPath); err != nil {
 		return "", err
 	}
 	d.progressf("assets", "asset index %s …", manifest.AssetIndex.ID)
@@ -47,11 +52,11 @@ func (d *Downloader) EnsureAssets(ctx context.Context, manifest *mcmanifest.Inst
 		if err := d.downloadIfNeeded(ctx, manifest.AssetIndex.URL, indexPath, manifest.AssetIndex.Sha1); err != nil {
 			return "", fmt.Errorf("asset index: %w", err)
 		}
-	} else if _, err := os.Stat(indexPath); err != nil {
+	} else if _, err := safepath.Stat(indexPath); err != nil {
 		return "", fmt.Errorf("asset index file missing")
 	}
 
-	data, err := os.ReadFile(indexPath)
+	data, err := safepath.ReadFileBytes(indexPath)
 	if err != nil {
 		return "", err
 	}
@@ -75,8 +80,11 @@ func (d *Downloader) EnsureAssets(ctx context.Context, manifest *mcmanifest.Inst
 		if len(hash) < 2 {
 			continue
 		}
-		dest := filepath.Join(assetsDir, "objects", hash[:2], hash)
-		if _, err := os.Stat(dest); err == nil {
+		dest, err := assetObjectPath(assetsDir, hash)
+		if err != nil {
+			continue
+		}
+		if _, err := safepath.Stat(dest); err == nil {
 			cached++
 			continue
 		}
@@ -155,8 +163,11 @@ func (d *Downloader) ensureIndexedAsset(
 	if len(hash) < 2 {
 		return nil
 	}
-	dest := filepath.Join(assetsDir, "objects", hash[:2], hash)
-	if _, err := os.Stat(dest); err == nil {
+	dest, err := assetObjectPath(assetsDir, hash)
+	if err != nil {
+		return nil
+	}
+	if _, err := safepath.Stat(dest); err == nil {
 		return nil
 	}
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(cdn, "/"), hash[:2], hash)
@@ -164,4 +175,11 @@ func (d *Downloader) ensureIndexedAsset(
 		return fmt.Errorf("asset %s: %w", virtualPath, err)
 	}
 	return nil
+}
+
+func assetObjectPath(assetsDir, hash string) (string, error) {
+	if len(hash) < 2 || strings.ContainsAny(hash, `/\`) || strings.Contains(hash, "..") {
+		return "", fmt.Errorf("invalid asset hash")
+	}
+	return safepath.Join(assetsDir, "objects", hash[:2], hash)
 }

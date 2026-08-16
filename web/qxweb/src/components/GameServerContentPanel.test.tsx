@@ -15,6 +15,8 @@ function mockCatalogApis() {
     items: [],
     curseforge_enabled: false,
   });
+  vi.spyOn(api, 'listGameServerResources').mockResolvedValue({ items: [] });
+  vi.spyOn(api, 'listModVersions').mockResolvedValue({ items: [] });
 }
 
 describe('GameServerContentPanel', () => {
@@ -182,5 +184,72 @@ describe('GameServerContentPanel', () => {
     await user.click(screen.getByText('Клиентские моды'));
     await waitFor(() => expect(screen.getByText('journeymap.jar')).toBeInTheDocument());
     expect(screen.queryByText('bettercombat.jar')).not.toBeInTheDocument();
+  });
+
+  it('installs a catalog mod onto the game server', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'jei',
+          slug: 'jei',
+          name: 'JEI',
+          summary: 'Items',
+          project_type: 'mod',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+    vi.spyOn(api, 'listModVersions').mockResolvedValue({
+      items: [
+        {
+          id: 'ver-1',
+          version_number: '1.0.0',
+          game_versions: ['1.21'],
+          loaders: ['forge'],
+          files: [{ filename: 'jei.jar', url: 'https://cdn.modrinth.com/jei.jar', size: 10 }],
+        },
+      ],
+    });
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({
+      id: 'ver-1',
+      version_number: '1.0.0',
+      game_versions: ['1.21'],
+      loaders: ['forge'],
+      files: [{ filename: 'jei.jar', url: 'https://cdn.modrinth.com/jei.jar', size: 10 }],
+      dependencies: [],
+    });
+    const sync = vi.spyOn(api, 'syncModToGameServer').mockResolvedValue({
+      status: 'installed',
+      filename: 'jei.jar',
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByText('JEI')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Установить' }));
+    await waitFor(() => expect(sync).toHaveBeenCalled());
+    expect(sync.mock.calls[0][2]).toMatchObject({
+      source: 'modrinth',
+      project_id: 'jei',
+      filename: 'jei.jar',
+    });
   });
 });

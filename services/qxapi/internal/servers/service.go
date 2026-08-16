@@ -29,6 +29,7 @@ var (
 	ErrGameServerNotInstalled  = errors.New("game server is not installed")
 	ErrGameServerNotRunning    = errors.New("game server is not running")
 	ErrGameServerAlreadyRunning = errors.New("game server already running")
+	ErrBindingLocked            = errors.New("game server instance binding is locked")
 )
 
 const agentTokenTTL = 365 * 24 * time.Hour

@@ -42,6 +42,7 @@ type InstalledResourceItemProps = {
   onSideChange: (item: InstanceResource, side: ModSyncSide | '') => Promise<boolean>;
   sideSavingKey?: string;
   basePath: string;
+  contentLocked?: boolean;
   t: ReturnType<typeof useI18n>['t'];
 };
 
@@ -62,10 +63,11 @@ function InstalledResourceItem({
   onSideChange,
   sideSavingKey,
   basePath,
+  contentLocked,
   t,
 }: InstalledResourceItemProps) {
   const { offerRemoveFromServerMods } = useInstanceServerSync();
-  const removeButton = (
+  const removeButton = contentLocked ? null : (
     <Button
       type="text"
       danger
@@ -79,9 +81,10 @@ function InstalledResourceItem({
   );
 
   const sideSelect =
-    item.resource_type === 'mod' ||
+    !contentLocked &&
+    (item.resource_type === 'mod' ||
     item.resource_type === 'resourcepack' ||
-    item.resource_type === 'shader' ? (
+    item.resource_type === 'shader') ? (
       <Select
         size="small"
         className="launcher-resource-side-select"
@@ -131,7 +134,7 @@ function InstalledResourceItem({
           <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--type launcher-resource-type-badge">
             {t(`qxmods.tabs.${item.resource_type}`)}
           </Tag>
-          <InstanceResourceSyncButton item={item} />
+          {contentLocked ? null : <InstanceResourceSyncButton item={item} />}
           {removeButton}
         </div>
       </article>
@@ -167,7 +170,7 @@ function InstalledResourceItem({
         <Tag bordered={false} className="launcher-resource-meta-tag launcher-resource-meta-tag--type launcher-resource-type-badge">
           {t(`qxmods.tabs.${item.resource_type}`)}
         </Tag>
-        <InstanceResourceSyncButton item={item} />
+        {contentLocked ? null : <InstanceResourceSyncButton item={item} />}
         {removeButton}
       </div>
     </article>
@@ -177,7 +180,7 @@ function InstalledResourceItem({
 export function InstanceInstalledResources() {
   const { t } = useI18n();
   const message = useMessage();
-  const { instance, basePath, canSync } = useInstanceMods();
+  const { instance, basePath, canSync, contentLocked } = useInstanceMods();
   const { viewMode, setViewMode } = useInstalledResourcesViewMode();
   const [items, setItems] = useState<InstanceResource[]>([]);
   const [resolvedIconUrls, setResolvedIconUrls] = useState<Record<string, string>>({});
@@ -468,12 +471,20 @@ export function InstanceInstalledResources() {
         <div className="launcher-resources-empty">
           <AppstoreOutlined className="launcher-resources-empty-icon" aria-hidden />
           <Title level={5}>{t('qxmods.installed.empty')}</Title>
-          <Text type="secondary">{t('launcherInstanceResources.emptyHint')}</Text>
+          <Text type="secondary">
+            {t(
+              contentLocked
+                ? 'launcherInstanceResources.emptyHintLocked'
+                : 'launcherInstanceResources.emptyHint',
+            )}
+          </Text>
+          {contentLocked ? null : (
           <Link to={`${basePath}/catalog`}>
             <Button type="primary" icon={<AppstoreOutlined />}>
               {t('launcherInstanceResources.browseCatalog')}
             </Button>
           </Link>
+          )}
         </div>
       ) : filteredItems.length === 0 ? (
         <Empty description={t('qxmods.empty')} />
@@ -500,6 +511,7 @@ export function InstanceInstalledResources() {
                     onSideChange={handleSideChange}
                     sideSavingKey={sideSavingKey}
                     basePath={basePath}
+                    contentLocked={contentLocked}
                     t={t}
                   />
                 </li>
