@@ -8,6 +8,18 @@ import (
 	"testing"
 )
 
+func TestResolveURL(t *testing.T) {
+	got := ResolveURL("https://mc.qx-dev.ru/api/v1", "/downloads/qx-launcher.exe")
+	want := "https://mc.qx-dev.ru/downloads/qx-launcher.exe"
+	if got != want {
+		t.Fatalf("ResolveURL: got %q want %q", got, want)
+	}
+	abs := "https://cdn.example/qx-launcher.exe"
+	if got := ResolveURL("https://mc.qx-dev.ru/api/v1", abs); got != abs {
+		t.Fatalf("ResolveURL absolute: got %q", got)
+	}
+}
+
 func TestApplyUnsupportedOS(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("non-windows test")

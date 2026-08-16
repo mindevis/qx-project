@@ -17,10 +17,7 @@ func (s *Service) releaseInfo() ReleaseInfo {
 	if version == "" {
 		version = "0.1.0-dev"
 	}
-	downloadURL := strings.TrimSpace(s.launcherDownloadURL)
-	if downloadURL == "" {
-		downloadURL = s.webBaseURL + "/downloads/qx-launcher.exe"
-	}
+	downloadURL := absoluteReleaseURL(s.webBaseURL, s.launcherDownloadURL)
 	filename := path.Base(downloadURL)
 	if filename == "" || filename == "." || filename == "/" {
 		filename = "qx-launcher.exe"
@@ -30,6 +27,24 @@ func (s *Service) releaseInfo() ReleaseInfo {
 		DownloadURL: downloadURL,
 		Filename:    filename,
 	}
+}
+
+func absoluteReleaseURL(base, raw string) string {
+	raw = strings.TrimSpace(raw)
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if raw == "" {
+		raw = "/downloads/qx-launcher.exe"
+	}
+	if strings.HasPrefix(raw, "https://") || strings.HasPrefix(raw, "http://") {
+		return raw
+	}
+	if !strings.HasPrefix(raw, "/") {
+		raw = "/" + raw
+	}
+	if base == "" {
+		return raw
+	}
+	return base + raw
 }
 
 func (s *Service) GetRelease() ReleaseInfo {

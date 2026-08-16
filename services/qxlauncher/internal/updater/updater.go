@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/qxproject/qx/services/qxlauncher/internal/proc"
@@ -86,15 +88,43 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return err
 	}
 	_ = os.Remove(staging)
+	return nil
+}
 
+// ResolveURL turns a site-relative download path into an absolute URL using
+// the scheme and host of base (typically the launcher API root).
+func ResolveURL(base, raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return raw
+	}
+	if strings.HasPrefix(raw, "https://") || strings.HasPrefix(raw, "http://") {
+		return raw
+	}
+	parsed, err := url.Parse(strings.TrimSpace(base))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return raw
+	}
+	if !strings.HasPrefix(raw, "/") {
+		raw = "/" + raw
+	}
+	return parsed.Scheme + "://" + parsed.Host + raw
+}
+
+// Restart starts a new process of the current executable. The caller should exit.
+func Restart() error {
+	current, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	current, err = filepath.EvalSymlinks(current)
+	if err != nil {
+		return err
+	}
 	cmd := proc.Command(current)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	os.Exit(0)
-	return nil
+	return cmd.Start()
 }
 
 func stagingDir() string {

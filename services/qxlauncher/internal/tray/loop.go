@@ -20,7 +20,6 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/minecraft"
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
 	"github.com/qxproject/qx/services/qxlauncher/internal/updater"
-	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
 
 type Config struct {
@@ -125,7 +124,7 @@ func RunLoop(ctx context.Context, cfg Config) {
 				if _, loaded := activeUpdates.LoadOrStore(updateItem.ID, true); !loaded {
 					go func(item *apiclient.UpdateRequestItem) {
 						defer activeUpdates.Delete(item.ID)
-						executeUpdate(context.Background(), api, item)
+						executeUpdate(context.Background(), api, cfg.APIBase, item)
 					}(updateItem)
 				}
 			}
@@ -247,14 +246,24 @@ func RunLoop(ctx context.Context, cfg Config) {
 	}
 }
 
-func executeUpdate(ctx context.Context, api *apiclient.Client, item *apiclient.UpdateRequestItem) {
+func executeUpdate(ctx context.Context, api *apiclient.Client, apiBase string, item *apiclient.UpdateRequestItem) {
+	downloadURL := updater.ResolveURL(apiBase, item.DownloadURL)
 	notify.Show("QXLauncher", "Загрузка обновления…")
-	if err := updater.Apply(ctx, item.DownloadURL, item.Filename, nil); err != nil {
-		slog.Error("launcher update failed", "err", err)
+	if err := updater.Apply(ctx, downloadURL, item.Filename, nil); err != nil {
+		slog.Error("launcher update failed", "err", err, "url", downloadURL)
+		notify.Show("QXLauncher", "Не удалось обновить лаунчер")
 		_ = api.CompleteUpdate(ctx, item.ID, "failed", "", "UPDATE_FAILED")
 		return
 	}
-	_ = api.CompleteUpdate(ctx, item.ID, "completed", version.Version, "")
+	if err := api.CompleteUpdate(ctx, item.ID, "completed", item.Version, ""); err != nil {
+		slog.Error("launcher update complete report failed", "err", err)
+	}
+	if err := updater.Restart(); err != nil {
+		slog.Error("launcher restart after update failed", "err", err)
+		notify.Show("QXLauncher", "Обновление установлено — перезапустите QXLauncher")
+		return
+	}
+	os.Exit(0)
 }
 
 func modInstallFolder(resourceType string) string {

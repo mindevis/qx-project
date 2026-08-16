@@ -57,6 +57,10 @@ func (s *Service) FetchPendingUpdate(ctx context.Context, deviceID string) (*Upd
 		return nil, nil
 	}
 	release := s.releaseInfo()
+	if device.LauncherVersion != nil && strings.TrimSpace(*device.LauncherVersion) == release.Version {
+		_ = s.db.WithContext(ctx).Model(device).Update("update_requested_at", nil).Error
+		return nil, nil
+	}
 	return &UpdateRequestView{
 		ID:          device.DeviceID,
 		Version:     release.Version,

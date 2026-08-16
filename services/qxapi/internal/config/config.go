@@ -273,14 +273,21 @@ func (c Config) ResolvedLauncherVersion() string {
 }
 
 func (c Config) ResolvedLauncherDownloadURL() string {
-	if uri := strings.TrimSpace(c.LauncherDownloadURL); uri != "" {
+	uri := strings.TrimSpace(c.LauncherDownloadURL)
+	origin := strings.TrimRight(strings.TrimSpace(c.CORSOrigin), "/")
+	if uri == "" {
+		uri = "/downloads/qx-launcher.exe"
+	}
+	if strings.HasPrefix(uri, "https://") || strings.HasPrefix(uri, "http://") {
 		return uri
 	}
-	origin := strings.TrimRight(strings.TrimSpace(c.CORSOrigin), "/")
 	if origin == "" {
-		return "/downloads/qx-launcher.exe"
+		return uri
 	}
-	return origin + "/downloads/qx-launcher.exe"
+	if !strings.HasPrefix(uri, "/") {
+		uri = "/" + uri
+	}
+	return origin + uri
 }
 
 // sanitizeSecret trims whitespace and optional surrounding quotes from secret values
