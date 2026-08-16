@@ -441,6 +441,7 @@ func executeResourceUpload(ctx context.Context, api *apiclient.Client, dl *minec
 		return
 	}
 	folder := modInstallFolder(item.ResourceType)
+	slog.Info("resource upload write", "instance", item.InstanceID, "file", item.Filename, "bytes", len(data))
 	if err := dl.WriteInstanceResourceFile(item.InstanceID, folder, item.Filename, data); err != nil {
 		slog.Error("resource upload write failed", "instance", item.InstanceID, "file", item.Filename, "err", err)
 		_ = api.CompleteResourceUpload(ctx, item.ID, "failed", "UPLOAD_FAILED")

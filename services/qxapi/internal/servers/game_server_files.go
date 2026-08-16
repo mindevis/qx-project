@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -438,12 +439,15 @@ func (s *Service) ReadGameServerContent(
 	if err != nil {
 		return nil, err
 	}
+	if agentErr := agentPayloadError(raw); agentErr != nil {
+		return nil, agentErr
+	}
 	var result protocol.ServerContentReadResult
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return nil, err
 	}
 	if result.ContentB64 == "" {
-		return nil, ErrValidation
+		return nil, fmt.Errorf("empty content from agent")
 	}
 	data, err := base64.StdEncoding.DecodeString(result.ContentB64)
 	if err != nil {
@@ -592,6 +596,16 @@ func (s *Service) deliverRPCResponse(requestID string, payload []byte) {
 		return
 	}
 	ch <- rpcResult{payload: payload}
+}
+
+func agentPayloadError(raw []byte) error {
+	var fail struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal(raw, &fail) != nil || strings.TrimSpace(fail.Error) == "" {
+		return nil
+	}
+	return errors.New(fail.Error)
 }
 
 func isRPCResponseType(t string) bool {

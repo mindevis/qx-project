@@ -171,7 +171,7 @@ func ReadContentFile(workDir, serverType, contentKind, modTarget, filename strin
 		return nil, fmt.Errorf("path is a directory")
 	}
 	if info.Size() > protocol.MaxContentFileBytes {
-		return nil, fmt.Errorf("content too large")
+		return nil, fmt.Errorf("content too large: %s is %d bytes (limit %d)", filename, info.Size(), protocol.MaxContentFileBytes)
 	}
 	return safepath.ReadFileBytes(abs)
 }
