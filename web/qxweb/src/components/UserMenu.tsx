@@ -50,7 +50,9 @@ export function UserMenu({ user, onLogout }: UserMenuProps) {
           }
         }}
       >
-        <Avatar src={user.avatar_url}>{!user.avatar_url && emailInitials(user.email)}</Avatar>
+        <Avatar size={36} src={user.avatar_url}>
+          {!user.avatar_url && emailInitials(user.email)}
+        </Avatar>
       </span>
     </Dropdown>
   );

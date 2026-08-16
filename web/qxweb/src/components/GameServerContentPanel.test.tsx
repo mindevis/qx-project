@@ -155,6 +155,57 @@ describe('GameServerContentPanel', () => {
     expect(screen.queryByText('JEI')).not.toBeInTheDocument();
   });
 
+  it('does not treat stale catalog records as installed after files are gone', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listGameServerResources').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          project_id: 'sodium',
+          project_name: 'Sodium',
+          filename: 'sodium-fabric-0.5.8.jar',
+          resource_type: 'mod',
+          installed_at: 'now',
+        },
+      ],
+    });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'sodium',
+          slug: 'sodium',
+          name: 'Sodium',
+          summary: 'Performance',
+          project_type: 'mod',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Папка модов пуста')).toBeInTheDocument());
+    await user.click(screen.getByRole('radio', { name: /Каталог/ }));
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    expect(screen.queryByText('Установлен')).not.toBeInTheDocument();
+  });
+
   it('shows catalog metadata on installed mods', async () => {
     vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
       items: [{ name: 'jei.jar', path: 'mods/jei.jar', dir: false, size: 2048 }],

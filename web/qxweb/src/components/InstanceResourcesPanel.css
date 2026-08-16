@@ -149,6 +149,10 @@ html[data-theme='dark'] .instance-resources-panel {
   gap: 6px;
 }
 
+.qxmods-source-switch {
+  --header-control-height: 32px;
+}
+
 .qxmods-source-links {
   display: flex;
   flex-wrap: wrap;

@@ -1,7 +1,8 @@
-import { Button, Segmented } from 'antd';
+import { Button } from 'antd';
 import { LinkOutlined } from '@ant-design/icons';
 import type { ModCatalogItem, ModSource } from '@/api/client';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { useI18n } from '@/i18n/I18nContext';
 
 type CatalogSourceSwitchProps = {
@@ -18,15 +19,15 @@ export function CatalogSourceSwitch({ items, value, onChange }: CatalogSourceSwi
   }
 
   return (
-    <Segmented<ModSource>
+    <SegmentedControl<ModSource>
       className="qxmods-source-switch"
-      size="small"
       value={value}
-      aria-label={t('qxmods.filters.sourcePick')}
       onChange={onChange}
+      groupLabel={t('qxmods.filters.sourcePick')}
       options={sources.map((item) => ({
         value: item.source,
         label: t(`qxmods.source.${item.source}`),
+        ariaLabel: t(`qxmods.source.${item.source}`),
       }))}
     />
   );

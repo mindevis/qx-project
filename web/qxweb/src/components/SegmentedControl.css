@@ -1,0 +1,108 @@
+.qx-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--header-control-height, 36px);
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.045);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+
+html[data-theme='dark'] .qx-segment {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.qx-segment__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--header-control-height, 36px) - 6px);
+  min-width: 36px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.62);
+  background: transparent;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.qx-segment__btn--icon {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+  font-size: 15px;
+}
+
+html[data-theme='dark'] .qx-segment__btn {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.qx-segment__btn:hover:not(.qx-segment__btn--active) {
+  color: #1677ff;
+  background: rgba(22, 119, 255, 0.1);
+}
+
+html[data-theme='dark'] .qx-segment__btn:hover:not(.qx-segment__btn--active) {
+  color: #69b1ff;
+  background: rgba(22, 119, 255, 0.16);
+}
+
+.qx-segment__btn:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+}
+
+.qx-segment__btn--active {
+  color: #fff;
+  background: #0958d9;
+  box-shadow: 0 1px 4px rgba(9, 88, 217, 0.45);
+}
+
+html[data-theme='dark'] .qx-segment__btn--active {
+  background: #0958d9;
+  color: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+
+.qx-segment__btn:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 768px) {
+  .qx-segment {
+    height: var(--header-control-height, 48px);
+    padding: 4px;
+  }
+
+  .qx-segment__btn {
+    height: calc(var(--header-control-height, 48px) - 8px);
+    min-width: 40px;
+  }
+
+  .qx-segment__btn--icon {
+    width: 40px;
+    min-width: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qx-segment__btn {
+    transition: none;
+  }
+
+  .qx-segment__btn:active {
+    transform: none;
+  }
+}

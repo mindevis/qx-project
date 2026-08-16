@@ -323,6 +323,12 @@ export function GameServerDetailPage() {
   return (
     <div className="servers-page servers-page--detail">
       <section className="servers-hero servers-hero--detail game-server-detail-hero">
+        <div className="servers-hero-ambient" aria-hidden>
+          <span className="servers-hero-blob servers-hero-blob--1" />
+          <span className="servers-hero-blob servers-hero-blob--2" />
+          <span className="servers-hero-grid-pattern" />
+        </div>
+
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
             <Breadcrumb
@@ -339,8 +345,9 @@ export function GameServerDetailPage() {
                 },
               ]}
             />
+            <span className="servers-badge">{t('gameServerDetail.badge')}</span>
             <Title level={1} className="servers-title">
-              {game.name}
+              <span className="servers-title-highlight">{game.name}</span>
             </Title>
           </div>
         </div>

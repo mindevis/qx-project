@@ -457,7 +457,18 @@ func (s *Service) wipeAndBeginGameServerInstall(ctx context.Context, vpsID strin
 	if err := s.wipeGameServerWorkDir(ctx, vpsID, item); err != nil {
 		return err
 	}
+	if err := s.clearGameServerContentResources(ctx, item); err != nil {
+		return err
+	}
 	return s.beginGameServerInstall(ctx, vpsID, item)
+}
+
+func (s *Service) clearGameServerContentResources(ctx context.Context, item *models.GameServer) error {
+	if item == nil {
+		return ErrValidation
+	}
+	item.ContentResources = models.InstanceResourceList{}
+	return s.db.WithContext(ctx).Model(item).Update("content_resources", item.ContentResources).Error
 }
 
 func (s *Service) wipeGameServerWorkDir(ctx context.Context, vpsID string, item *models.GameServer) error {

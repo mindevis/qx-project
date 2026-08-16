@@ -408,16 +408,34 @@ function ServersList() {
   return (
     <div className="servers-page">
       <section className="servers-hero">
+        <div className="servers-hero-ambient" aria-hidden>
+          <span className="servers-hero-blob servers-hero-blob--1" />
+          <span className="servers-hero-blob servers-hero-blob--2" />
+          <span className="servers-hero-blob servers-hero-blob--3" />
+          <span className="servers-hero-grid-pattern" />
+        </div>
+
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
+            <span className="servers-badge">{t('servers.badge')}</span>
             <Title level={1} className="servers-title">
-              {t('servers.title')}
+              <span className="servers-title-highlight">{t('servers.title')}</span>
             </Title>
-            <Paragraph type="secondary" className="servers-intro">{t('servers.intro')}</Paragraph>
+            <Paragraph className="servers-intro">{t('servers.intro')}</Paragraph>
             <div className="servers-hero-actions">
               <Button type="primary" size="large" icon={<PlusOutlined />} onClick={openCreate}>
                 {t('servers.addDedicated')}
               </Button>
+            </div>
+          </div>
+
+          <div className="servers-hero-visual" aria-hidden>
+            <div className="servers-orbit">
+              <div className="servers-orbit-ring" />
+              <div className="servers-orbit-ring servers-orbit-ring--inner" />
+              <div className="servers-orbit-core">
+                <CloudServerOutlined />
+              </div>
             </div>
           </div>
         </div>
@@ -937,13 +955,20 @@ function ServerDetail() {
   return (
     <div className="servers-page servers-page--detail">
       <section className="servers-hero servers-hero--detail">
+        <div className="servers-hero-ambient" aria-hidden>
+          <span className="servers-hero-blob servers-hero-blob--1" />
+          <span className="servers-hero-blob servers-hero-blob--2" />
+          <span className="servers-hero-grid-pattern" />
+        </div>
+
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
             <Link to="/servers" className="servers-detail-back">
               <ArrowLeftOutlined /> {t('servers.backToList')}
             </Link>
+            <span className="servers-badge">{t('servers.detailBadge')}</span>
             <Title level={1} className="servers-title">
-              {server.name}
+              <span className="servers-title-highlight">{server.name}</span>
             </Title>
             <Paragraph className="servers-intro servers-detail-endpoint">
               <code>{formatSshEndpoint(server)}</code>
@@ -958,6 +983,16 @@ function ServerDetail() {
             <div className="servers-card-tags">
               <Tag color={vpsHostStatusColor(vpsStatus)}>{labels.host(vpsStatus)}</Tag>
               <Tag color={agentTag.color}>{agentTag.text}</Tag>
+            </div>
+          </div>
+
+          <div className="servers-hero-visual" aria-hidden>
+            <div className="servers-orbit">
+              <div className="servers-orbit-ring" />
+              <div className="servers-orbit-ring servers-orbit-ring--inner" />
+              <div className="servers-orbit-core">
+                <CloudServerOutlined />
+              </div>
             </div>
           </div>
         </div>

@@ -99,6 +99,14 @@ function matchResource(
   return resources.find((item) => item.filename.toLowerCase() === name);
 }
 
+function resourceFileOnDisk(
+  resource: Pick<InstanceResource, 'filename'>,
+  files: GameServerFileEntry[],
+): boolean {
+  const filename = (resource.filename ?? '').toLowerCase();
+  return Boolean(filename) && files.some((file) => !file.dir && file.name.toLowerCase() === filename);
+}
+
 function formatFileSize(size?: number): string {
   if (size == null || size <= 0) return '—';
   if (size < 1024) return `${size} B`;
@@ -257,8 +265,11 @@ export function GameServerContentPanel({
         listInstalled(kind, vpsId, gameServerId),
         api.listGameServerResources(vpsId, gameServerId, { kind: projectType }).catch(() => ({ items: [] })),
       ]);
-      setInstalled((res.items ?? []).filter((item) => !item.dir));
-      setInstalledResources(resourcesRes.items ?? []);
+      const files = (res.items ?? []).filter((item) => !item.dir);
+      setInstalled(files);
+      setInstalledResources(
+        (resourcesRes.items ?? []).filter((resource) => resourceFileOnDisk(resource, files)),
+      );
     } catch (e) {
       message.error(e instanceof Error ? e.message : t(`${i18nPrefix}.loadFailed`));
     } finally {
@@ -397,10 +408,17 @@ export function GameServerContentPanel({
   const isSearchMode = appliedSearch.trim().length > 0;
 
   const isItemOnServer = useCallback(
-    (item: ModCatalogItem) =>
-      installedResources.some(
-        (resource) => resource.source === item.source && resource.project_id === item.id,
-      ) || isCatalogItemOnServer(item, installed),
+    (item: ModCatalogItem) => {
+      if (isCatalogItemOnServer(item, installed)) {
+        return true;
+      }
+      return installedResources.some(
+        (resource) =>
+          resource.source === item.source &&
+          resource.project_id === item.id &&
+          resourceFileOnDisk(resource, installed),
+      );
+    },
     [installed, installedResources],
   );
 
@@ -422,7 +440,7 @@ export function GameServerContentPanel({
   const installedProjectIds = useMemo(() => {
     const keys = new Set<string>();
     for (const resource of installedResources) {
-      if (resource.project_id) {
+      if (resource.project_id && resourceFileOnDisk(resource, installed)) {
         keys.add(`${resource.source}:${resource.project_id}`);
       }
     }
@@ -432,7 +450,7 @@ export function GameServerContentPanel({
       }
     }
     return keys;
-  }, [catalogItems, installedResources, isItemOnServer]);
+  }, [catalogItems, installed, installedResources, isItemOnServer]);
 
   const visibleCatalogCards = useMemo(() => {
     if (showInstalledOnly) {

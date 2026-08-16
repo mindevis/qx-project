@@ -165,7 +165,7 @@ export async function listConfigPaths(
   const files: ModConfigFileEntry[] = [];
 
   const walk = async (path: string, depth: number) => {
-    let entries: ListDirEntry[] = [];
+    let entries: ListDirEntry[];
     try {
       entries = await listDirFn(path);
     } catch {

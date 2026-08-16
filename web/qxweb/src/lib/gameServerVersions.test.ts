@@ -120,7 +120,7 @@ describe('gameServerVersions', () => {
       'fetch',
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
-        let host = '';
+        let host: string;
         try {
           host = new URL(url, 'https://example.test').hostname;
         } catch {

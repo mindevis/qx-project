@@ -299,7 +299,7 @@ export function InstanceServerSyncProvider({
         },
       });
     },
-    [message, refreshAllServerMods, t, targets, versionFilenames],
+    [message, modal, refreshAllServerMods, t, targets, versionFilenames],
   );
 
   const value = useMemo(

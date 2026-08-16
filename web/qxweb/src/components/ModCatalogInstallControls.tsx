@@ -203,19 +203,17 @@ export function ModCatalogInstallControls({
         return;
       }
 
-      let directRequired: Awaited<ReturnType<typeof loadModDirectDependencies>>['required'] = [];
-      let optional: Awaited<ReturnType<typeof loadModDirectDependencies>>['optional'] = [];
+      let loaded: Awaited<ReturnType<typeof loadModDirectDependencies>>;
       try {
-        const loaded = await loadModDirectDependencies(source, projectId, resolved, {
+        loaded = await loadModDirectDependencies(source, projectId, resolved, {
           loader,
           mcVersion,
         });
-        directRequired = loaded.required;
-        optional = loaded.optional;
       } catch (e) {
         message.error(formatModCatalogError(e, t, 'qxmods.versionsFailed'));
         return;
       }
+      const { required: directRequired, optional } = loaded;
 
       const pendingRequired = directRequired.filter(
         (dep) => dep.project_id && !installedProjectIds.has(`${dep.source}:${dep.project_id}`),

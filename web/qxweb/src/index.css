@@ -21,3 +21,23 @@ html[data-theme='dark'] body {
 #root {
   min-height: 100vh;
 }
+
+.ant-segmented {
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.045);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme='dark'] .ant-segmented {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ant-segmented-item {
+  border-radius: 7px;
+}
+
+.ant-segmented-item-selected {
+  border-radius: 7px;
+}

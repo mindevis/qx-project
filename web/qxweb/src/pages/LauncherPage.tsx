@@ -831,12 +831,20 @@ function LauncherHome() {
   return (
     <div className="launcher-page">
       <section className="launcher-hero">
+        <div className="launcher-hero-ambient" aria-hidden>
+          <span className="launcher-hero-blob launcher-hero-blob--1" />
+          <span className="launcher-hero-blob launcher-hero-blob--2" />
+          <span className="launcher-hero-blob launcher-hero-blob--3" />
+          <span className="launcher-hero-grid-pattern" />
+        </div>
+
         <div className="launcher-hero-inner">
           <div className="launcher-hero-content">
+            <span className="launcher-badge">{t('home.heroTagLauncher')}</span>
             <Title level={1} className="launcher-title">
-              {t('launcher.title')}
+              <span className="launcher-title-highlight">{t('launcher.title')}</span>
             </Title>
-            <Paragraph type="secondary" className="launcher-intro">{t('launcher.intro')}</Paragraph>
+            <Paragraph className="launcher-intro">{t('launcher.intro')}</Paragraph>
             {canManage ? (
               <Space wrap size="middle" className="launcher-hero-actions">
                 <Button
@@ -853,6 +861,16 @@ function LauncherHome() {
                 </Button>
               </Space>
             ) : null}
+          </div>
+
+          <div className="launcher-hero-visual" aria-hidden>
+            <div className="launcher-orbit">
+              <div className="launcher-orbit-ring launcher-orbit-ring--outer" />
+              <div className="launcher-orbit-ring launcher-orbit-ring--inner" />
+              <div className="launcher-orbit-core">
+                <DesktopOutlined />
+              </div>
+            </div>
           </div>
         </div>
       </section>

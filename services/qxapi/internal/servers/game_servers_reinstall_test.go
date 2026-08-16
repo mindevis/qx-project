@@ -93,8 +93,11 @@ func TestReinstallStoppedGameServerWipesBeforeInstall(t *testing.T) {
 		WorkDir:       workDir,
 		StartCommand:  workDir + "/run.sh",
 		StartArgsJSON: `["nogui"]`,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ContentResources: models.InstanceResourceList{
+			{Source: "modrinth", ProjectID: "sodium", Filename: "sodium.jar", ResourceType: "mod"},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}).Error; err != nil {
 		t.Fatalf("create game server: %v", err)
 	}
@@ -114,6 +117,14 @@ func TestReinstallStoppedGameServerWipesBeforeInstall(t *testing.T) {
 	mu.Unlock()
 	if len(got) < 2 || got[0] != protocol.TypeCmdServerWipe || got[1] != protocol.TypeCmdServerInstall {
 		t.Fatalf("expected wipe then install, got %v", got)
+	}
+
+	var stored models.GameServer
+	if err := svc.db.WithContext(ctx).Where("id = ?", gameServerID).First(&stored).Error; err != nil {
+		t.Fatalf("reload game server: %v", err)
+	}
+	if len(stored.ContentResources) != 0 {
+		t.Fatalf("reinstall must clear catalog install records, got %+v", stored.ContentResources)
 	}
 }
 

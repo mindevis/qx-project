@@ -63,13 +63,13 @@ async function loadGameServerSyncTargetsUncached(
         const modsRes = await api.listVpsGameServerMods(vps.id, gs.id);
         serverMods = modsRes.items ?? [];
       } catch {
-        serverMods = [];
+        /* keep empty */
       }
       try {
         const clientRes = await api.listVpsGameServerClientMods(vps.id, gs.id);
         clientMods = clientRes.items ?? [];
       } catch {
-        clientMods = [];
+        /* keep empty */
       }
       loaded.push({
         vpsId: vps.id,
