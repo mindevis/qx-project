@@ -108,8 +108,13 @@ func (s *Service) PrepareConnectMods(
 		}
 		pull("mod", "client-mods", "mod", name, &result.ClientModsInstalled)
 	}
+	// Both-sided mods (Better Combat, Fabric API, …) live in mods/ on the
+	// dedicated server. The client must have the same jars — pull them like
+	// server resource packs. True extras stay in client-mods/ and stay optional.
+	for _, name := range s.resolveServerModFilenames(ctx, gs) {
+		pull("mod", "", "mod", name, &result.ServerModsInstalled)
+	}
 
-	// Server-only mods are intentionally not synced to launcher instances.
 	enabledResourcepacks := enabledClientModSet(binding.ClientResourcepackEnabled)
 	for _, name := range s.resolveClientResourcepackFilenames(ctx, gs) {
 		if !enabledResourcepacks[strings.ToLower(name)] {

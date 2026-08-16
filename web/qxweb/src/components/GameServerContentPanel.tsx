@@ -304,12 +304,17 @@ export function GameServerContentPanel({
 
   const isSearchMode = appliedSearch.trim().length > 0;
 
+  const installedForTarget = useMemo(() => {
+    if (kind !== 'mod') return installed;
+    return installed.filter((item) => (modTargetFromPath(item.path) ?? 'mods') === modTarget);
+  }, [installed, kind, modTarget]);
+
   const visibleCatalogItems = useMemo(() => {
     if (showInstalledOnly) {
-      return catalogItems.filter((item) => isCatalogItemOnServer(item, installed));
+      return catalogItems.filter((item) => isCatalogItemOnServer(item, installedForTarget));
     }
-    return catalogItems.filter((item) => !isCatalogItemOnServer(item, installed));
-  }, [catalogItems, installed, showInstalledOnly]);
+    return catalogItems.filter((item) => !isCatalogItemOnServer(item, installedForTarget));
+  }, [catalogItems, installedForTarget, showInstalledOnly]);
 
   const openDetail = useCallback(async (item: ModCatalogItem) => {
     setDetailItem(item);
@@ -331,13 +336,13 @@ export function GameServerContentPanel({
 
   const filteredInstalled = useMemo(() => {
     const query = appliedInstalledSearch.trim().toLowerCase();
-    if (!query) return installed;
-    return installed.filter((item) => {
+    if (!query) return installedForTarget;
+    return installedForTarget.filter((item) => {
       const name = item.name.toLowerCase();
       const path = item.path.toLowerCase();
       return name.includes(query) || path.includes(query);
     });
-  }, [appliedInstalledSearch, installed]);
+  }, [appliedInstalledSearch, installedForTarget]);
 
   const promptRestart = () => {
     Modal.confirm({
@@ -437,14 +442,14 @@ export function GameServerContentPanel({
         width: 140,
         render: (_, row) => (
           <Button type="primary" size="small" onClick={() => void openDetail(row)}>
-            {isCatalogItemOnServer(row, installed)
+            {isCatalogItemOnServer(row, installedForTarget)
               ? t('gameServerDetail.content.alreadyInstalled')
               : t('gameServerDetail.content.install')}
           </Button>
         ),
       },
     ],
-    [installed, openDetail, t],
+    [installedForTarget, openDetail, t],
   );
 
   const handleDelete = (row: GameServerFileEntry) => {
@@ -574,6 +579,7 @@ export function GameServerContentPanel({
           <div className="game-server-content-upload-wrapper">
             <Segmented
               value={modTarget}
+              aria-label={t('gameServerDetail.content.folder')}
               onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
               options={[
                 { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
@@ -600,7 +606,7 @@ export function GameServerContentPanel({
         <div className="servers-loading">
           <Spin />
         </div>
-      ) : installed.length === 0 ? (
+      ) : installedForTarget.length === 0 ? (
         <Empty description={t(`${i18nPrefix}.empty`)} />
       ) : filteredInstalled.length === 0 ? (
         <Empty description={t('qxmods.empty')} />
@@ -613,20 +619,6 @@ export function GameServerContentPanel({
           dataSource={filteredInstalled}
           columns={[
             { title: t('gameServerDetail.fileName'), dataIndex: 'name', key: 'name' },
-            ...(kind === 'mod'
-              ? [
-                  {
-                    title: t('gameServerDetail.content.folder'),
-                    key: 'folder',
-                    render: (_: unknown, row: GameServerFileEntry) => {
-                      const target = modTargetFromPath(row.path);
-                      return target === 'client-mods'
-                        ? t('gameServerDetail.content.clientModsFolder')
-                        : t('gameServerDetail.content.modsFolder');
-                    },
-                  },
-                ]
-              : []),
             {
               title: t('gameServerDetail.fileSize'),
               key: 'size',
@@ -679,6 +671,22 @@ export function GameServerContentPanel({
               className="qxmods-filter-select"
             />
           </label>
+          {kind === 'mod' ? (
+            <label className="qxmods-filter-field">
+              <Text type="secondary" className="qxmods-filter-label">
+                {t('gameServerDetail.content.folder')}
+              </Text>
+              <Segmented
+                value={modTarget}
+                aria-label={t('gameServerDetail.content.folder')}
+                onChange={(value) => setModTarget(value as 'mods' | 'client-mods')}
+                options={[
+                  { value: 'mods', label: t('gameServerDetail.content.modsFolder') },
+                  { value: 'client-mods', label: t('gameServerDetail.content.clientModsFolder') },
+                ]}
+              />
+            </label>
+          ) : null}
           <label className="qxmods-filter-field qxmods-filter-field--switch">
             <Text type="secondary" className="qxmods-filter-label">
               {t('qxmods.filters.installedOnly')}
@@ -799,7 +807,7 @@ export function GameServerContentPanel({
                     title: '',
                     key: 'action',
                     render: (_, version) => {
-                      const onServer = isModOnServer(installed, version);
+                      const onServer = isModOnServer(installedForTarget, version);
                       return (
                         <Button
                           type="primary"

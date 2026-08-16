@@ -149,4 +149,38 @@ describe('GameServerContentPanel', () => {
     await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
     expect(screen.queryByText('JEI')).not.toBeInTheDocument();
   });
+
+  it('filters installed mods by server and client folder', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
+      items: [
+        { name: 'bettercombat.jar', path: 'mods/bettercombat.jar', dir: false, size: 10 },
+      ],
+    });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({
+      items: [
+        { name: 'journeymap.jar', path: 'client-mods/journeymap.jar', dir: false, size: 8 },
+      ],
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('bettercombat.jar')).toBeInTheDocument());
+    expect(screen.queryByText('journeymap.jar')).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('Клиентские моды'));
+    await waitFor(() => expect(screen.getByText('journeymap.jar')).toBeInTheDocument());
+    expect(screen.queryByText('bettercombat.jar')).not.toBeInTheDocument();
+  });
 });

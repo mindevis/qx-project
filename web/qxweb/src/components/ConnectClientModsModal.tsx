@@ -27,7 +27,6 @@ type ClientContentSection = {
 
 function buildInitialSelection(
   items: ConnectModStatus['client_mods'],
-  allInstalled: boolean,
   savedEnabled: string[] | undefined,
   prefix: string,
 ): Set<string> {
@@ -35,11 +34,9 @@ function buildInitialSelection(
   const initial = new Set<string>();
   for (const item of items ?? []) {
     const key = `${prefix}:${item.filename.toLowerCase()}`;
-    if (allInstalled) {
-      initial.add(key);
-    } else if (saved.size > 0) {
+    if (savedEnabled != null) {
       if (saved.has(item.filename.toLowerCase())) initial.add(key);
-    } else if (item.installed_locally) {
+    } else {
       initial.add(key);
     }
   }
@@ -70,17 +67,12 @@ export function ConnectClientModsModal({
         if (cancelled) return;
         setStatus(res);
         const initial = new Set<string>();
-        for (const [prefix, items, allInstalled, saved] of [
-          ['mod', res.client_mods, res.all_client_mods_installed, res.saved_client_mod_enabled] as const,
-          [
-            'resourcepack',
-            res.client_resourcepacks,
-            res.all_client_resourcepacks_installed,
-            res.saved_client_resourcepack_enabled,
-          ] as const,
-          ['shader', res.client_shaders, res.all_client_shaders_installed, res.saved_client_shader_enabled] as const,
+        for (const [prefix, items, saved] of [
+          ['mod', res.client_mods, res.saved_client_mod_enabled] as const,
+          ['resourcepack', res.client_resourcepacks, res.saved_client_resourcepack_enabled] as const,
+          ['shader', res.client_shaders, res.saved_client_shader_enabled] as const,
         ]) {
-          for (const key of buildInitialSelection(items, allInstalled, saved, prefix)) {
+          for (const key of buildInitialSelection(items, saved, prefix)) {
             initial.add(key);
           }
         }
