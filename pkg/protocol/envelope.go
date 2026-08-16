@@ -4,6 +4,11 @@ import "encoding/json"
 
 const Version = 1
 
+// MaxContentFileBytes is the max jar/zip copied between game server and launcher.
+// Catalog installs stream from the vendor URL with no cap, so the server can
+// already hold mods larger than the old 32 MiB in-memory limit.
+const MaxContentFileBytes = 256 * 1024 * 1024
+
 const (
 	TypeCmdServerInstall   = "cmd.server.install"
 	TypeCmdServerWipe      = "cmd.server.wipe"

@@ -9,6 +9,7 @@ func TestValidateResourceFilename(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "jar ok", file: "mod.jar", wantErr: false},
+		{name: "apostrophe ok", file: "Mowzie's Mobs.jar", wantErr: false},
 		{name: "zip ok", file: "pack.zip", wantErr: false},
 		{name: "mrpack ok", file: "pack.mrpack", wantErr: false},
 		{name: "bad ext", file: "readme.txt", wantErr: true},

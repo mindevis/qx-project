@@ -238,6 +238,37 @@ describe('ModsCatalogPanel', () => {
     expect(screen.queryByText('Sodium')).not.toBeInTheDocument();
   });
 
+  it('hides catalog items already copied from a game server as uploads', async () => {
+    vi.mocked(api.browseMods).mockResolvedValue({
+      items: [
+        {
+          ...catalogItem,
+          id: '250498',
+          source: 'curseforge',
+          slug: 'mowzies-mobs',
+          name: "Mowzie's Mobs",
+        },
+        { ...catalogItem, id: 'lithium', name: 'Lithium', slug: 'lithium' },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+    vi.mocked(api.listInstanceResources).mockResolvedValue({
+      items: [
+        {
+          source: 'upload',
+          project_name: "Mowzie's Mobs-1.20.1-1.7.3",
+          filename: "Mowzie's Mobs-1.20.1-1.7.3.jar",
+          resource_type: 'mod',
+          installed_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+    });
+    renderCatalog();
+    await waitFor(() => expect(screen.getByText('Lithium')).toBeInTheDocument());
+    expect(screen.queryByText("Mowzie's Mobs")).not.toBeInTheDocument();
+  });
+
   it('shows only installed mods when toggle is enabled', async () => {
     const user = userEvent.setup({ delay: null });
     vi.mocked(api.browseMods).mockResolvedValue({

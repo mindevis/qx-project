@@ -16,6 +16,7 @@ import (
 )
 
 const agentRPCTimeout = 30 * time.Second
+const agentContentRPCTimeout = 3 * time.Minute
 
 type rpcResult struct {
 	payload []byte
@@ -376,7 +377,7 @@ func (s *Service) UploadGameServerContent(
 	if filename == "" || contentKind == "" || len(data) == 0 {
 		return nil, ErrValidation
 	}
-	if int64(len(data)) > 32*1024*1024 {
+	if int64(len(data)) > protocol.MaxContentFileBytes {
 		return nil, ErrValidation
 	}
 	if err := validateGameServerContentKind(item.ServerType, contentKind); err != nil {
@@ -394,7 +395,7 @@ func (s *Service) UploadGameServerContent(
 	if err != nil {
 		return nil, err
 	}
-	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerContentUpload, protocol.TypeResServerContentUpload, payload)
+	raw, err := s.agentRPCWait(ctx, vpsID, protocol.TypeCmdServerContentUpload, protocol.TypeResServerContentUpload, payload, agentContentRPCTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -433,7 +434,7 @@ func (s *Service) ReadGameServerContent(
 	if err != nil {
 		return nil, err
 	}
-	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerContentRead, protocol.TypeResServerContentRead, payload)
+	raw, err := s.agentRPCWait(ctx, vpsID, protocol.TypeCmdServerContentRead, protocol.TypeResServerContentRead, payload, agentContentRPCTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -535,6 +536,10 @@ func (s *Service) requireInstalledGameServer(ctx context.Context, ownerID, vpsID
 }
 
 func (s *Service) agentRPC(ctx context.Context, vpsID, cmdType, resType string, payload []byte) ([]byte, error) {
+	return s.agentRPCWait(ctx, vpsID, cmdType, resType, payload, agentRPCTimeout)
+}
+
+func (s *Service) agentRPCWait(ctx context.Context, vpsID, cmdType, resType string, payload []byte, timeout time.Duration) ([]byte, error) {
 	if s.hub == nil || !s.hub.IsOnline(vpsID) {
 		return nil, ErrAgentOffline
 	}
@@ -554,7 +559,7 @@ func (s *Service) agentRPC(ctx context.Context, vpsID, cmdType, resType string, 
 		return nil, err
 	}
 
-	timer := time.NewTimer(agentRPCTimeout)
+	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
 	case res := <-ch:

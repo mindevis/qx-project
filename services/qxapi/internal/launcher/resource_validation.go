@@ -3,9 +3,11 @@ package launcher
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/qxproject/qx/pkg/protocol"
 )
 
-const MaxResourceUploadBytes = 32 * 1024 * 1024
+const MaxResourceUploadBytes = protocol.MaxContentFileBytes
 
 var allowedResourceExtensions = map[string]struct{}{
 	".jar":  {},

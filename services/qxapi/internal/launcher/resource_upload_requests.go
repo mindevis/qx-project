@@ -14,7 +14,7 @@ import (
 )
 
 const resourceUploadRequestTTL = 10 * time.Minute
-const resourceUploadBridgeTimeout = 60 * time.Second
+const resourceUploadBridgeTimeout = 5 * time.Minute
 
 type InstanceResourceUploadView struct {
 	ID           string  `json:"id"`

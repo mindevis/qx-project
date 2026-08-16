@@ -623,10 +623,19 @@ export function MonitoringPage() {
         (prepared.server_resourcepacks_installed?.length ?? 0) +
         (prepared.client_shaders_installed?.length ?? 0) +
         (prepared.server_shaders_installed?.length ?? 0);
-      if (installedCount > 0) {
+      if ((prepared.errors?.length ?? 0) > 0) {
+        const names = prepared.errors
+          .map((item) => item.split(':')[0]?.trim())
+          .filter(Boolean)
+          .slice(0, 4)
+          .join(', ');
+        message.warning(
+          names
+            ? t('monitoring.connectMods.syncPartialDetail', { names })
+            : t('monitoring.connectMods.syncPartial'),
+        );
+      } else if (installedCount > 0) {
         message.success(t('monitoring.connectMods.synced', { count: installedCount }));
-      } else if ((prepared.errors?.length ?? 0) > 0) {
-        message.warning(t('monitoring.connectMods.syncPartial'));
       } else if (!prepared.agent_online && (prepared.client_mods_installed?.length ?? 0) === 0) {
         message.info(t('monitoring.connectMods.agentOffline'));
       }

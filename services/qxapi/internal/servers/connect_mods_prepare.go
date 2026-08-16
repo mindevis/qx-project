@@ -3,13 +3,17 @@ package servers
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/qxproject/qx/services/qxapi/internal/launcher"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 )
+
+const prepareConnectModsTimeout = 10 * time.Minute
 
 type PrepareConnectModsResult struct {
 	ClientModsInstalled          []string `json:"client_mods_installed"`
@@ -74,7 +78,10 @@ func (s *Service) PrepareConnectMods(
 		return result, nil
 	}
 
-	localByType := instanceResourceFilenamesByType(ctx, launcherSvc, userID, instanceID)
+	workCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), prepareConnectModsTimeout)
+	defer cancel()
+
+	localByType := instanceResourceFilenamesByType(workCtx, launcherSvc, userID, instanceID)
 	owner := launcher.Owner{UserID: userID}
 
 	pull := func(contentKind, modTarget, resourceType, filename string, installed *[]string) {
@@ -88,12 +95,12 @@ func (s *Service) PrepareConnectMods(
 			result.Skipped = append(result.Skipped, filename)
 			return
 		}
-		data, readErr := s.ReadGameServerContent(ctx, ownerID, vpsID, gs.ID, contentKind, modTarget, filename)
+		data, readErr := s.ReadGameServerContent(workCtx, ownerID, vpsID, gs.ID, contentKind, modTarget, filename)
 		if readErr != nil {
 			result.Errors = append(result.Errors, filename+": "+readErr.Error())
 			return
 		}
-		if _, uploadErr := launcherSvc.CreateInstanceResourceUpload(ctx, owner, instanceID, filename, resourceType, data); uploadErr != nil {
+		if _, uploadErr := launcherSvc.CreateInstanceResourceUpload(workCtx, owner, instanceID, filename, resourceType, data); uploadErr != nil {
 			result.Errors = append(result.Errors, filename+": "+uploadErr.Error())
 			return
 		}
@@ -111,7 +118,10 @@ func (s *Service) PrepareConnectMods(
 	// Both-sided mods (Better Combat, Fabric API, …) live in mods/ on the
 	// dedicated server. The client must have the same jars — pull them like
 	// server resource packs. True extras stay in client-mods/ and stay optional.
-	for _, name := range s.resolveServerModFilenames(ctx, gs) {
+	for _, name := range s.resolveServerModFilenames(workCtx, gs) {
+		if !isPullableResourceFilename(name) {
+			continue
+		}
 		pull("mod", "", "mod", name, &result.ServerModsInstalled)
 	}
 
@@ -179,6 +189,15 @@ func instanceResourceFilenamesByType(ctx context.Context, launcherSvc *launcher.
 		out[resourceType][strings.ToLower(res.Filename)] = struct{}{}
 	}
 	return out
+}
+
+func isPullableResourceFilename(name string) bool {
+	switch strings.ToLower(filepath.Ext(strings.TrimSpace(name))) {
+	case ".jar", ".zip", ".mrpack":
+		return true
+	default:
+		return false
+	}
 }
 
 func enabledClientModSet(enabled []string) map[string]bool {

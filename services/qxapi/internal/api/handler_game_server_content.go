@@ -348,7 +348,7 @@ func (h *GameServersHandler) uploadGameServerContent(
 		JSONValidation(c, "missing file")
 		return
 	}
-	if file.Size > 32*1024*1024 {
+	if file.Size > protocol.MaxContentFileBytes {
 		JSONValidation(c, "file too large")
 		return
 	}
@@ -358,12 +358,12 @@ func (h *GameServersHandler) uploadGameServerContent(
 		return
 	}
 	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, 32*1024*1024+1))
+	data, err := io.ReadAll(io.LimitReader(f, protocol.MaxContentFileBytes+1))
 	if err != nil {
 		JSONInternal(c)
 		return
 	}
-	if int64(len(data)) > 32*1024*1024 {
+	if int64(len(data)) > protocol.MaxContentFileBytes {
 		JSONValidation(c, "file too large")
 		return
 	}

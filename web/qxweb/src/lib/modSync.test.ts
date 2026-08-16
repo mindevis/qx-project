@@ -11,6 +11,7 @@ import {
   isInstanceResourceOnServer,
   isModOnServer,
   isCatalogItemOnServer,
+  isCatalogItemInstalledOnInstance,
   modSupportsServerSync,
   modSyncSide,
 } from './modSync';
@@ -296,6 +297,35 @@ describe('isCatalogItemOnServer', () => {
     ).toBe(true);
     expect(
       isCatalogItemOnServer({ id: 'jei', slug: 'jei', name: 'JEI' }, installed),
+    ).toBe(false);
+  });
+});
+
+describe('isCatalogItemInstalledOnInstance', () => {
+  it('matches a catalog project id on the instance', () => {
+    expect(
+      isCatalogItemInstalledOnInstance(
+        { id: 'sodium', slug: 'sodium', name: 'Sodium', source: 'modrinth' },
+        [{ source: 'modrinth', project_id: 'sodium', filename: 'sodium.jar' }],
+      ),
+    ).toBe(true);
+  });
+
+  it('matches a connect-copied upload by filename even without project id', () => {
+    expect(
+      isCatalogItemInstalledOnInstance(
+        { id: '250498', slug: 'mowzies-mobs', name: "Mowzie's Mobs", source: 'curseforge' },
+        [{ source: 'upload', filename: "Mowzie's Mobs-1.20.1-1.7.3.jar" }],
+      ),
+    ).toBe(true);
+  });
+
+  it('does not match an unrelated upload', () => {
+    expect(
+      isCatalogItemInstalledOnInstance(
+        { id: 'jei', slug: 'jei', name: 'JEI', source: 'curseforge' },
+        [{ source: 'upload', filename: 'sodium-fabric-0.5.8.jar' }],
+      ),
     ).toBe(false);
   });
 });

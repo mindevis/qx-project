@@ -194,6 +194,31 @@ export function isCatalogItemOnServer(
   });
 }
 
+export function instanceResourceFileEntries(
+  resources: Array<Pick<InstanceResource, 'filename'>>,
+): GameServerFileEntry[] {
+  return resources
+    .filter((resource) => resource.filename)
+    .map((resource) => ({
+      name: resource.filename,
+      path: resource.filename,
+      dir: false,
+    }));
+}
+
+export function isCatalogItemInstalledOnInstance(
+  item: Pick<ModCatalogItem, 'id' | 'slug' | 'name' | 'source'>,
+  resources: Array<Pick<InstanceResource, 'source' | 'project_id' | 'filename'>>,
+): boolean {
+  if (
+    item.id &&
+    resources.some((resource) => resource.project_id === item.id && resource.source === item.source)
+  ) {
+    return true;
+  }
+  return isCatalogItemOnServer(item, instanceResourceFileEntries(resources));
+}
+
 export function instanceResourceVersionKey(
   resource: Pick<InstanceResource, 'source' | 'project_id' | 'version_id' | 'filename'>,
 ): string | undefined {

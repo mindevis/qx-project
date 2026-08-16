@@ -119,7 +119,7 @@ func UploadContentFile(workDir, serverType, contentKind, modTarget, filename str
 	if len(data) == 0 {
 		return "", fmt.Errorf("empty content")
 	}
-	if len(data) > 32*1024*1024 {
+	if len(data) > protocol.MaxContentFileBytes {
 		return "", fmt.Errorf("content too large")
 	}
 	relPath, err := ContentRelPath(workDir, serverType, contentKind, filename, modTarget)
@@ -170,7 +170,7 @@ func ReadContentFile(workDir, serverType, contentKind, modTarget, filename strin
 	if info.IsDir() {
 		return nil, fmt.Errorf("path is a directory")
 	}
-	if info.Size() > 32*1024*1024 {
+	if info.Size() > protocol.MaxContentFileBytes {
 		return nil, fmt.Errorf("content too large")
 	}
 	return safepath.ReadFileBytes(abs)

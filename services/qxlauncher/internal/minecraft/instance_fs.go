@@ -12,7 +12,7 @@ import (
 )
 
 const instanceFileMaxBytes = 2 * 1024 * 1024
-const maxResourceUploadBytes = 32 * 1024 * 1024
+const maxResourceUploadBytes = protocol.MaxContentFileBytes
 
 func (d *Downloader) ListInstanceDir(instanceID, relPath string) ([]protocol.FileEntry, error) {
 	gameDir := d.InstanceGameDir(instanceID)

@@ -36,7 +36,7 @@ import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { formatCompactCount } from '@/lib/formatCompactCount';
 import { formatModCatalogError } from '@/lib/modCatalogError';
-import { modSupportsServerSync } from '@/lib/modSync';
+import { isCatalogItemInstalledOnInstance, modSupportsServerSync } from '@/lib/modSync';
 import {
   catalogLoaderForType,
   launcherCatalogTabs,
@@ -64,7 +64,6 @@ export function ModsCatalogPanel() {
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [installedProjectIds, setInstalledProjectIds] = useState<Set<string>>(new Set());
   const [installedResources, setInstalledResources] = useState<InstanceResource[]>([]);
   const [showInstalledOnly, setShowInstalledOnly] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -75,17 +74,9 @@ export function ModsCatalogPanel() {
       const res = await api.listInstanceResources(instance.id);
       const resources = res.items ?? [];
       setInstalledResources(resources);
-      setInstalledProjectIds(
-        new Set(
-          resources
-            .filter((r) => r.project_id)
-            .map((r) => `${r.source}:${r.project_id}`),
-        ),
-      );
       return resources;
     } catch {
       setInstalledResources([]);
-      setInstalledProjectIds(new Set());
       return [];
     }
   }, [instance.id]);
@@ -234,32 +225,64 @@ export function ModsCatalogPanel() {
     return map;
   }, [items]);
 
+  const installedProjectIds = useMemo(() => {
+    const keys = new Set<string>();
+    for (const resource of installedResources) {
+      if (resource.project_id) {
+        keys.add(`${resource.source}:${resource.project_id}`);
+      }
+    }
+    for (const item of items) {
+      if (isCatalogItemInstalledOnInstance(item, installedResources)) {
+        keys.add(`${item.source}:${item.id}`);
+      }
+    }
+    return keys;
+  }, [installedResources, items]);
+
   const visibleItems = useMemo(() => {
     if (showInstalledOnly) {
       const query = appliedSearch.trim().toLowerCase();
       return installedResources
         .filter((resource) => {
-          if (!resource.project_id || resource.resource_type !== activeTab) {
+          if (resource.resource_type !== activeTab) {
             return false;
           }
           if (sourceFilter !== 'all' && resource.source !== sourceFilter) {
             return false;
           }
-          if (query && !resource.project_name.toLowerCase().includes(query)) {
+          const label = (resource.project_name || resource.filename).toLowerCase();
+          if (query && !label.includes(query) && !resource.filename.toLowerCase().includes(query)) {
             return false;
           }
           return true;
         })
         .map((resource) => {
-          const fromCatalog = catalogByKey.get(`${resource.source}:${resource.project_id}`);
-          if (fromCatalog) {
-            return fromCatalog;
+          if (resource.project_id) {
+            const fromCatalog = catalogByKey.get(`${resource.source}:${resource.project_id}`);
+            if (fromCatalog) {
+              return fromCatalog;
+            }
+            return {
+              id: resource.project_id,
+              source: resource.source,
+              slug: resource.project_id,
+              name: resource.project_name,
+              icon_url: resource.icon_url,
+              downloads: resource.downloads,
+              project_type: resource.resource_type,
+              external_url: '',
+            } satisfies ModCatalogItem;
+          }
+          const matched = items.find((item) => isCatalogItemInstalledOnInstance(item, [resource]));
+          if (matched) {
+            return matched;
           }
           return {
-            id: resource.project_id!,
+            id: resource.filename,
             source: resource.source,
-            slug: resource.project_id!,
-            name: resource.project_name,
+            slug: resource.filename,
+            name: resource.project_name || resource.filename,
             icon_url: resource.icon_url,
             downloads: resource.downloads,
             project_type: resource.resource_type,
@@ -267,12 +290,11 @@ export function ModsCatalogPanel() {
           } satisfies ModCatalogItem;
         });
     }
-    return items.filter((item) => !installedProjectIds.has(`${item.source}:${item.id}`));
+    return items.filter((item) => !isCatalogItemInstalledOnInstance(item, installedResources));
   }, [
     activeTab,
     appliedSearch,
     catalogByKey,
-    installedProjectIds,
     installedResources,
     items,
     showInstalledOnly,

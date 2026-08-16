@@ -912,6 +912,7 @@ export const en: Messages = {
       serverShadersInfo: '{{count}} shader(s) on the server (sync automatically)',
       synced: 'Installed {{count}} mod(s) from the server',
       syncPartial: 'Some mods could not be downloaded — check that QXLauncher is running',
+      syncPartialDetail: 'Failed: {{names}}',
       syncFailed: 'Failed to sync mods from the server',
       agentOffline: 'Server agent is offline — launching without mod sync',
     },
@@ -1066,7 +1067,7 @@ export const en: Messages = {
     },
     upload: {
       dropHint: 'Drop a .jar or .zip file here, or click to browse',
-      extensionsHint: 'Supported: .jar, .zip, .mrpack (max 32 MB)',
+      extensionsHint: 'Supported: .jar, .zip, .mrpack (max 256 MB)',
       completed: 'Resource uploaded',
       failed: 'Upload failed',
     },

@@ -911,6 +911,7 @@ export const ru = {
       serverShadersInfo: 'На сервере {{count}} шейдер(ов) (синхронизируются автоматически)',
       synced: 'Установлено модов с сервера: {{count}}',
       syncPartial: 'Не все моды удалось загрузить с сервера — проверьте QXLauncher',
+      syncPartialDetail: 'Не скачались: {{names}}',
       syncFailed: 'Не удалось синхронизировать моды с сервера',
       agentOffline: 'Агент сервера офлайн — моды не синхронизированы, запуск без обновления',
     },
@@ -1065,7 +1066,7 @@ export const ru = {
     },
     upload: {
       dropHint: 'Перетащите .jar или .zip сюда или нажмите для выбора',
-      extensionsHint: 'Поддерживаются: .jar, .zip, .mrpack (до 32 МБ)',
+      extensionsHint: 'Поддерживаются: .jar, .zip, .mrpack (до 256 МБ)',
       completed: 'Ресурс загружен',
       failed: 'Не удалось загрузить',
     },
