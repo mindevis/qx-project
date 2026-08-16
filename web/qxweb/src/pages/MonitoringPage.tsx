@@ -623,8 +623,9 @@ export function MonitoringPage() {
         (prepared.server_resourcepacks_installed?.length ?? 0) +
         (prepared.client_shaders_installed?.length ?? 0) +
         (prepared.server_shaders_installed?.length ?? 0);
-      if ((prepared.errors?.length ?? 0) > 0) {
-        const names = prepared.errors
+      const prepareErrors = prepared.errors ?? [];
+      if (prepareErrors.length > 0) {
+        const names = prepareErrors
           .map((item) => item.split(':')[0]?.trim())
           .filter(Boolean)
           .slice(0, 4)
