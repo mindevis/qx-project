@@ -15,7 +15,6 @@ import (
 )
 
 func TestFetchMojangSkin(t *testing.T) {
-	t.Parallel()
 	skinPNG := mustTestSkinPNG(t, 64, 64)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -84,11 +83,11 @@ func httptestHost(raw string) string {
 }
 
 func TestSanitizeMojangLookupURL(t *testing.T) {
-	t.Parallel()
-	if _, err := sanitizeMojangLookupURL(mojangProfileURL, "../evil", minecraftUsernameRe); err == nil {
+	const profileBase = "https://api.mojang.com/users/profiles/minecraft/"
+	if _, err := sanitizeMojangLookupURL(profileBase, "../evil", minecraftUsernameRe); err == nil {
 		t.Fatal("expected invalid username")
 	}
-	got, err := sanitizeMojangLookupURL(mojangProfileURL, "Steve", minecraftUsernameRe)
+	got, err := sanitizeMojangLookupURL(profileBase, "Steve", minecraftUsernameRe)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +97,10 @@ func TestSanitizeMojangLookupURL(t *testing.T) {
 }
 
 func TestSanitizeSkinDownloadURL(t *testing.T) {
-	t.Parallel()
+	origExtra := extraSkinDownloadHosts
+	extraSkinDownloadHosts = nil
+	t.Cleanup(func() { extraSkinDownloadHosts = origExtra })
+
 	if _, err := sanitizeSkinDownloadURL("http://127.0.0.1/skin.png"); err == nil {
 		t.Fatal("expected localhost rejected")
 	}
