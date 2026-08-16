@@ -1012,17 +1012,6 @@ function LauncherHome() {
           </div>
         ) : null}
 
-        {linkedDevice && isAuthenticated && (
-          <div className="launcher-qxmods-promo">
-            <Title level={4} className="launcher-qxmods-promo-title">
-              {t('qxmods.promoTitle')}
-            </Title>
-            <Paragraph type="secondary" className="launcher-qxmods-promo-body">
-              {t('qxmods.promoBody')}
-            </Paragraph>
-          </div>
-        )}
-
         <div className="launcher-workspace-stack">
           {canManage ? (
             <div className="launcher-panel launcher-panel--player">

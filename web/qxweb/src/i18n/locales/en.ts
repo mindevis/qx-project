@@ -925,9 +925,6 @@ export const en: Messages = {
   qxmods: {
     brand: 'QXMods',
     sectionTitle: 'Resources',
-    promoTitle: 'QXMods — mod catalog in the launcher',
-    promoBody:
-      'Browse mods, resource packs, shaders, and datapacks from CurseForge and Modrinth. Filter by your instance version and loader, then sync server-side mods to your game server in one click.',
     tabs: {
       mod: 'Mods',
       modpack: 'Modpacks',

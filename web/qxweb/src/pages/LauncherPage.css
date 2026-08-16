@@ -586,24 +586,6 @@ html[data-theme='dark'] .launcher-download-band {
   opacity: 0.85;
 }
 
-.launcher-qxmods-promo {
-  margin-bottom: 24px;
-  padding: 20px 24px;
-  border-radius: 12px;
-  border: 1px solid rgba(114, 46, 209, 0.2);
-  background: linear-gradient(135deg, rgba(114, 46, 209, 0.06), rgba(22, 119, 255, 0.04));
-}
-
-html[data-theme='dark'] .launcher-qxmods-promo {
-  border-color: rgba(179, 127, 235, 0.25);
-  background: linear-gradient(135deg, rgba(114, 46, 209, 0.14), rgba(22, 119, 255, 0.08));
-}
-
-.launcher-qxmods-promo-title {
-  margin: 0 0 4px !important;
-  color: #722ed1 !important;
-}
-
 /* Workspace grid (legacy alias) */
 
 .launcher-workspace-grid {

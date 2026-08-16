@@ -924,9 +924,6 @@ export const ru = {
   qxmods: {
     brand: 'QXMods',
     sectionTitle: 'Ресурсы',
-    promoTitle: 'QXMods — каталог модов в лаунчере',
-    promoBody:
-      'Просматривайте моды, ресурспаки, шейдеры и датапаки из CurseForge и Modrinth. Каталог отфильтрован по версии Minecraft и загрузчику инстанса; серверные моды можно синхронизировать на game server одним кликом.',
     tabs: {
       mod: 'Моды',
       modpack: 'Модпаки',
