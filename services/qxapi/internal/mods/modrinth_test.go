@@ -85,3 +85,19 @@ func TestModrinthListVersionsFallsBackWithoutMCVersion(t *testing.T) {
 		t.Fatalf("expected third call to request all versions, got loaders=%q game_versions=%q", calls[2].Get("loaders"), calls[2].Get("game_versions"))
 	}
 }
+
+func TestNormalizeDependencyType(t *testing.T) {
+	t.Parallel()
+	if got := normalizeDependencyType("incompatible"); got != "incompatible" {
+		t.Fatalf("incompatible: got %q", got)
+	}
+	if got := normalizeDependencyType("optional"); got != "optional" {
+		t.Fatalf("optional: got %q", got)
+	}
+	if !skipCatalogDependency("incompatible") || !skipCatalogDependency("embedded") {
+		t.Fatal("should skip incompatible and embedded catalog dependencies")
+	}
+	if skipCatalogDependency("required") || skipCatalogDependency("optional") {
+		t.Fatal("should keep required and optional catalog dependencies")
+	}
+}

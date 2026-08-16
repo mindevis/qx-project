@@ -282,7 +282,7 @@ export type ModDependency = {
   project_id: string;
   project_name?: string;
   source: ModSource;
-  dependency_type: 'required' | 'optional' | 'embedded';
+  dependency_type: 'required' | 'optional' | 'embedded' | 'incompatible';
   version_id?: string;
   version_number?: string;
   filename?: string;

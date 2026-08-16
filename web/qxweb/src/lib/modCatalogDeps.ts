@@ -26,6 +26,10 @@ export function isDependencyResolved(dep: ModDependency): boolean {
   return Boolean(dep.project_id && dep.version_id && dep.filename && dep.download_url);
 }
 
+export function isInstallableDependency(dep: ModDependency): boolean {
+  return dep.dependency_type === 'required' || dep.dependency_type === 'optional';
+}
+
 export async function enrichModDependency(
   dep: ModDependency,
   params: EnrichModDepsParams,
@@ -85,8 +89,9 @@ export async function loadModDirectDependencies(
   if (!detail.files[0]?.url) {
     return { installVersion: detail, required: [], optional: [] };
   }
-  const directRequired = (detail.dependencies ?? []).filter((d) => d.dependency_type === 'required');
-  const directOptional = (detail.dependencies ?? []).filter((d) => d.dependency_type === 'optional');
+  const installable = (detail.dependencies ?? []).filter(isInstallableDependency);
+  const directRequired = installable.filter((d) => d.dependency_type === 'required');
+  const directOptional = installable.filter((d) => d.dependency_type === 'optional');
   const [required, optional] = await Promise.all([
     enrichModDependencies(directRequired, params),
     enrichModDependencies(directOptional, params),

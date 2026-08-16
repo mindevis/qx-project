@@ -231,6 +231,19 @@ func TestCurseForgeSearchMapsServerPackSide(t *testing.T) {
 	}
 }
 
+func TestCurseForgeRelationType(t *testing.T) {
+	t.Parallel()
+	if got := curseForgeRelationType(5); got != "incompatible" {
+		t.Fatalf("incompatible: got %q", got)
+	}
+	if got := curseForgeRelationType(4); got != "embedded" {
+		t.Fatalf("tool: got %q", got)
+	}
+	if !skipCatalogDependency(curseForgeRelationType(5)) {
+		t.Fatal("should skip CurseForge incompatible relations")
+	}
+}
+
 func TestCurseForgeGetVersionUsesInlineDependencies(t *testing.T) {
 	t.Parallel()
 	var gotPaths []string

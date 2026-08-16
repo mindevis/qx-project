@@ -129,6 +129,11 @@ describe('modCatalogDeps', () => {
           filename: 'opt.jar',
           download_url: 'https://example/opt.jar',
         },
+        {
+          source: 'modrinth',
+          project_id: 'tq47Uqpn',
+          dependency_type: 'incompatible',
+        },
       ],
     });
 
@@ -141,6 +146,7 @@ describe('modCatalogDeps', () => {
 
     expect(loaded.required.map((dep) => dep.project_id)).toEqual(['direct-req']);
     expect(loaded.optional.map((dep) => dep.project_id)).toEqual(['direct-opt']);
+    expect(loaded.required.some((dep) => dep.project_id === 'tq47Uqpn')).toBe(false);
   });
 
   it('queues nested wizard steps for required deps with pending sub-dependencies', async () => {

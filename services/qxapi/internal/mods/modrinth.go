@@ -279,7 +279,7 @@ func (c *modrinthClient) resolveDependencies(ctx context.Context, raw []struct {
 	out := make([]ModDependency, 0, len(raw))
 	for _, dep := range raw {
 		depType := normalizeDependencyType(dep.DependencyType)
-		if depType == "embedded" {
+		if skipCatalogDependency(depType) {
 			continue
 		}
 		entry := ModDependency{
@@ -328,8 +328,19 @@ func normalizeDependencyType(raw string) string {
 		return "optional"
 	case "embedded":
 		return "embedded"
+	case "incompatible":
+		return "incompatible"
 	default:
 		return "required"
+	}
+}
+
+func skipCatalogDependency(depType string) bool {
+	switch depType {
+	case "embedded", "incompatible":
+		return true
+	default:
+		return false
 	}
 }
 

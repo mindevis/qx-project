@@ -415,7 +415,7 @@ func (c *curseForgeClient) resolveFileDependencies(
 	out := make([]ModDependency, 0, len(raw))
 	for _, dep := range raw {
 		depType := curseForgeRelationType(dep.RelationType)
-		if depType == "embedded" {
+		if skipCatalogDependency(depType) {
 			continue
 		}
 		modID := strconv.Itoa(dep.ModID)
@@ -456,8 +456,10 @@ func curseForgeRelationType(code int) string {
 		return "optional"
 	case 3:
 		return "required"
-	case 1:
+	case 1, 4, 6:
 		return "embedded"
+	case 5:
+		return "incompatible"
 	default:
 		return "required"
 	}
