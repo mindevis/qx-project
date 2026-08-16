@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -137,6 +138,27 @@ func (h *ResourceUploadRequestsHandler) Pending(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"item": view})
+}
+
+func (h *ResourceUploadRequestsHandler) Content(c *gin.Context) {
+	deviceID, ok := deviceIDFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	rc, filename, size, err := h.Service.OpenResourceUpload(c.Request.Context(), deviceID, c.Param("id"))
+	if err != nil {
+		if errors.Is(err, launcher.ErrNotFound) {
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "resource upload not found")
+			return
+		}
+		mapInstanceBridgeError(c, err)
+		return
+	}
+	defer rc.Close()
+	safe := strings.ReplaceAll(filename, `"`, "")
+	c.Header("Content-Disposition", `attachment; filename="`+safe+`"`)
+	c.DataFromReader(http.StatusOK, size, "application/octet-stream", rc, nil)
 }
 
 type patchResourceUploadRequestBody struct {

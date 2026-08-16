@@ -27,6 +27,13 @@ public_api_url = "http://host.docker.internal:3000"
 # mojang_client_secret = ""
 # mojang_oauth_redirect_uri = "http://localhost:3000/api/v1/mojang/oauth/callback"
 
+# Connect-copy jars go to MinIO (S3). Defaults match infra/docker/docker-compose.yml.
+# minio_endpoint = "localhost:9000"
+# minio_access_key = "minio"
+# minio_secret_key = "minio123456"
+# minio_bucket = "qx"
+# minio_use_ssl = false
+
 # Uploaded skin/cape PNG storage (see docs/cosmetics.md)
 # cosmetics_data_dir = "data/cosmetics"
 

@@ -1,7 +1,9 @@
 package minecraft
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -119,7 +121,14 @@ func (d *Downloader) ReadInstanceResourceFile(instanceID, folder, filename strin
 }
 
 func (d *Downloader) WriteInstanceResourceFile(instanceID, folder, filename string, data []byte) error {
-	if instanceID == "" || folder == "" || filename == "" || len(data) == 0 {
+	if len(data) == 0 {
+		return fmt.Errorf("invalid upload parameters")
+	}
+	return d.WriteInstanceResourceStream(instanceID, folder, filename, bytes.NewReader(data))
+}
+
+func (d *Downloader) WriteInstanceResourceStream(instanceID, folder, filename string, r io.Reader) error {
+	if instanceID == "" || folder == "" || filename == "" || r == nil {
 		return fmt.Errorf("invalid upload parameters")
 	}
 	relPath := filepath.ToSlash(filepath.Join(folder, filename))
@@ -131,7 +140,22 @@ func (d *Downloader) WriteInstanceResourceFile(instanceID, folder, filename stri
 	if err := safepath.EnsureParent(abs); err != nil {
 		return err
 	}
-	return safepath.WriteFileBytes(abs, data, 0o644)
+	tmp := abs + ".part"
+	f, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(f, r)
+	closeErr := f.Close()
+	if err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmp)
+		return closeErr
+	}
+	return os.Rename(tmp, abs)
 }
 
 func (d *Downloader) RemoveInstanceResourceFile(instanceID, folder, filename string) error {

@@ -32,6 +32,11 @@ type file struct {
 	SkinServerPublicURL   string `toml:"skin_server_public_url"`
 	LauncherVersion       string `toml:"launcher_version"`
 	LauncherDownloadURL   string `toml:"launcher_download_url"`
+	MinioEndpoint         string `toml:"minio_endpoint"`
+	MinioAccessKey        string `toml:"minio_access_key"`
+	MinioSecretKey        string `toml:"minio_secret_key"`
+	MinioBucket           string `toml:"minio_bucket"`
+	MinioUseSSL           bool   `toml:"minio_use_ssl"`
 	GinMode          string `toml:"gin_mode"`
 	LogLevel         string `toml:"log_level"`
 	LogFormat        string `toml:"log_format"`
@@ -56,6 +61,11 @@ type Config struct {
 	SkinServerPublicURL   string
 	LauncherVersion       string
 	LauncherDownloadURL   string
+	MinioEndpoint         string
+	MinioAccessKey        string
+	MinioSecretKey        string
+	MinioBucket           string
+	MinioUseSSL           bool
 	GinMode            string
 	LogLevel        string
 	LogFormat       string
@@ -148,6 +158,25 @@ func (c *Config) applyEnv() {
 	if v := os.Getenv("LAUNCHER_DOWNLOAD_URL"); v != "" {
 		c.LauncherDownloadURL = v
 	}
+	if v := os.Getenv("MINIO_ENDPOINT"); v != "" {
+		c.MinioEndpoint = v
+	}
+	if v := os.Getenv("MINIO_ACCESS_KEY"); v != "" {
+		c.MinioAccessKey = v
+	} else if v := os.Getenv("MINIO_ROOT_USER"); v != "" {
+		c.MinioAccessKey = v
+	}
+	if v := os.Getenv("MINIO_SECRET_KEY"); v != "" {
+		c.MinioSecretKey = sanitizeSecret(v)
+	} else if v := os.Getenv("MINIO_ROOT_PASSWORD"); v != "" {
+		c.MinioSecretKey = sanitizeSecret(v)
+	}
+	if v := os.Getenv("MINIO_BUCKET"); v != "" {
+		c.MinioBucket = v
+	}
+	if v := os.Getenv("MINIO_USE_SSL"); v != "" {
+		c.MinioUseSSL = strings.EqualFold(v, "true") || v == "1"
+	}
 }
 
 func defaults() Config {
@@ -161,6 +190,10 @@ func defaults() Config {
 		SSHMasterKey:    devSSHMasterKey(),
 		PublicAPIURL:    "http://localhost:3000",
 		CosmeticsDataDir: "data/cosmetics",
+		MinioEndpoint:   "localhost:9000",
+		MinioAccessKey:  "minio",
+		MinioSecretKey:  "minio123456",
+		MinioBucket:     "qx",
 		GinMode:         "debug",
 		LogLevel:        "info",
 		LogFormat:       "text",
@@ -225,6 +258,21 @@ func (c *Config) applyFile(f file) {
 	}
 	if f.LauncherDownloadURL != "" {
 		c.LauncherDownloadURL = f.LauncherDownloadURL
+	}
+	if f.MinioEndpoint != "" {
+		c.MinioEndpoint = f.MinioEndpoint
+	}
+	if f.MinioAccessKey != "" {
+		c.MinioAccessKey = f.MinioAccessKey
+	}
+	if f.MinioSecretKey != "" {
+		c.MinioSecretKey = f.MinioSecretKey
+	}
+	if f.MinioBucket != "" {
+		c.MinioBucket = f.MinioBucket
+	}
+	if f.MinioUseSSL {
+		c.MinioUseSSL = true
 	}
 	if f.GinMode != "" {
 		c.GinMode = f.GinMode

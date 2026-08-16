@@ -8,6 +8,7 @@ import (
 
 	"github.com/qxproject/qx/services/qxapi/internal/agenthub"
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
+	"github.com/qxproject/qx/services/qxapi/internal/blob"
 	"github.com/qxproject/qx/services/qxapi/internal/crypto"
 	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
 	"github.com/qxproject/qx/services/qxapi/internal/deploy"
@@ -45,6 +46,7 @@ type CosmeticsSettings struct {
 type LauncherSettings struct {
 	Version     string
 	DownloadURL string
+	Blobs       blob.Store
 }
 
 func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey string, deployCfg DeploySettings, mojangCfg MojangSettings, modsCfg ModsSettings, cosmeticsCfg CosmeticsSettings, launcherCfg LauncherSettings) *gin.Engine {
@@ -59,6 +61,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	}
 	launcherSvc := launcher.NewService(db, tokens, corsOrigin)
 	launcherSvc.SetRelease(launcherCfg.Version, launcherCfg.DownloadURL)
+	launcherSvc.SetBlobs(launcherCfg.Blobs)
 	mojangSvc := mojang.NewService(db, enc, mojang.Config{
 		ClientID:     mojangCfg.ClientID,
 		ClientSecret: mojangCfg.ClientSecret,
@@ -279,6 +282,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			deviceAuth.GET("/launcher/mod-uninstall-requests/pending", modUninstallH.Pending)
 			deviceAuth.PATCH("/launcher/mod-uninstall-requests/:id", modUninstallH.Update)
 			deviceAuth.GET("/launcher/resource-upload-requests/pending", resourceUploadH.Pending)
+			deviceAuth.GET("/launcher/resource-upload-requests/:id/content", resourceUploadH.Content)
 			deviceAuth.PATCH("/launcher/resource-upload-requests/:id", resourceUploadH.Update)
 			deviceAuth.GET("/launcher/resource-export-requests/pending", resourceExportH.Pending)
 			deviceAuth.PATCH("/launcher/resource-export-requests/:id", resourceExportH.Update)

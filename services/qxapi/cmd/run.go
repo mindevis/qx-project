@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 	qxlog "github.com/qxproject/qx/pkg/log"
 	"github.com/qxproject/qx/services/qxapi/internal/api"
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
+	"github.com/qxproject/qx/services/qxapi/internal/blob"
 	"github.com/qxproject/qx/services/qxapi/internal/config"
 	"github.com/qxproject/qx/services/qxapi/internal/database"
 )
@@ -22,6 +24,16 @@ func bootstrap(cfg config.Config) (*gin.Engine, error) {
 	}
 	tokens := auth.NewTokenService(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
 	authSvc := auth.NewService(db, tokens)
+	blobs, err := blob.Open(context.Background(), blob.Config{
+		Endpoint:  cfg.MinioEndpoint,
+		AccessKey: cfg.MinioAccessKey,
+		SecretKey: cfg.MinioSecretKey,
+		Bucket:    cfg.MinioBucket,
+		UseSSL:    cfg.MinioUseSSL,
+	})
+	if err != nil {
+		return nil, err
+	}
 	return api.NewRouter(db, authSvc, cfg.CORSOrigin, cfg.SSHMasterKey, api.DeploySettings{
 		PublicAPIURL:    cfg.PublicAPIURL,
 		AgentBinaryPath: cfg.AgentBinaryPath,
@@ -41,6 +53,7 @@ func bootstrap(cfg config.Config) (*gin.Engine, error) {
 	}, api.LauncherSettings{
 		Version:     cfg.ResolvedLauncherVersion(),
 		DownloadURL: cfg.ResolvedLauncherDownloadURL(),
+		Blobs:       blobs,
 	}), nil
 }
 
@@ -60,6 +73,8 @@ func run() error {
 		"log_format", cfg.LogFormat,
 		"agent_binary", config.AgentBinaryAbs(cfg.AgentBinaryPath),
 		"public_api_url", cfg.PublicAPIURL,
+		"minio_endpoint", cfg.MinioEndpoint,
+		"minio_bucket", cfg.MinioBucket,
 	)
 	return router.Run(cfg.Addr)
 }

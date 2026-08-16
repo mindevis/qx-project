@@ -14,6 +14,7 @@ import (
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
 	"github.com/qxproject/qx/services/qxapi/internal/auth"
+	"github.com/qxproject/qx/services/qxapi/internal/blob"
 	"github.com/qxproject/qx/services/qxapi/internal/cosmetics"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 	"github.com/qxproject/qx/services/qxapi/internal/mojang"
@@ -53,6 +54,7 @@ type Service struct {
 	manifest            ManifestProvider
 	mojang              mojangLauncher
 	cosmetics           *cosmetics.Service
+	blobs               blob.Store
 	pendingFileRPC      sync.Map
 	pendingUninstallRPC sync.Map
 	pendingUploadRPC    sync.Map
@@ -60,7 +62,18 @@ type Service struct {
 }
 
 func NewService(db *gorm.DB, tokens *auth.TokenService, webBaseURL string) *Service {
-	return &Service{db: db, tokens: tokens, webBaseURL: strings.TrimRight(webBaseURL, "/")}
+	return &Service{
+		db:         db,
+		tokens:     tokens,
+		webBaseURL: strings.TrimRight(webBaseURL, "/"),
+		blobs:      blob.NewMemory(),
+	}
+}
+
+func (s *Service) SetBlobs(store blob.Store) {
+	if store != nil {
+		s.blobs = store
+	}
 }
 
 func (s *Service) SetRelease(version, downloadURL string) {

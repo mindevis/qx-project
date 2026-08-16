@@ -53,6 +53,7 @@ func TestBootstrapWithSQLite(t *testing.T) {
 	t.Cleanup(func() { connectDB = old })
 
 	cfg := config.Load()
+	cfg.MinioEndpoint = "memory"
 	router, err := bootstrap(cfg)
 	if err != nil {
 		t.Fatalf("bootstrap: %v", err)
@@ -69,7 +70,7 @@ func TestRunListenError(t *testing.T) {
 	}
 	t.Cleanup(func() { connectDB = old })
 
-	chdirRepo(t, "addr = \"invalid-address\"\n")
+	chdirRepo(t, "addr = \"invalid-address\"\nminio_endpoint = \"memory\"\n")
 	if err := run(); err == nil {
 		t.Fatal("expected listen error")
 	}

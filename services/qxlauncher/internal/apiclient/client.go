@@ -139,7 +139,8 @@ type ResourceUploadRequestItem struct {
 	InstanceID   string `json:"instance_id"`
 	Filename     string `json:"filename"`
 	ResourceType string `json:"resource_type"`
-	ContentB64   string `json:"content_b64"`
+	FileSize     int64  `json:"file_size,omitempty"`
+	ContentB64   string `json:"content_b64,omitempty"`
 }
 
 type ResourceExportRequestItem struct {
@@ -308,6 +309,34 @@ func (c *Client) FetchPendingResourceUpload(ctx context.Context) (*ResourceUploa
 		return nil, err
 	}
 	return resp.Item, nil
+}
+
+func (c *Client) DownloadResourceUpload(ctx context.Context, id string) (io.ReadCloser, int64, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/launcher/resource-upload-requests/"+id+"/content", nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	if c.DeviceToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.DeviceToken)
+	}
+	client := c.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	download := *client
+	if download.Timeout > 0 && download.Timeout < 5*time.Minute {
+		download.Timeout = 5 * time.Minute
+	}
+	res, err := download.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	if res.StatusCode >= 400 {
+		b, _ := io.ReadAll(io.LimitReader(res.Body, 512))
+		_ = res.Body.Close()
+		return nil, 0, fmt.Errorf("api %s %s: %d %s", req.Method, req.URL.Path, res.StatusCode, strings.TrimSpace(string(b)))
+	}
+	return res.Body, res.ContentLength, nil
 }
 
 func (c *Client) CompleteResourceUpload(ctx context.Context, id, status, errorCode string) error {

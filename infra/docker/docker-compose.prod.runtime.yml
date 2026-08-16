@@ -68,9 +68,16 @@ services:
       QX_AGENT_BINARY_PATH: ${QX_AGENT_BINARY_PATH:-/opt/qxsystem/bin/qx-agent-linux}
       LAUNCHER_VERSION: ${LAUNCHER_VERSION:-0.1.0-dev}
       LAUNCHER_DOWNLOAD_URL: ${LAUNCHER_DOWNLOAD_URL:-/downloads/qx-launcher.exe}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-qx}
+      MINIO_USE_SSL: "false"
     depends_on:
       mysql:
         condition: service_healthy
+      minio:
+        condition: service_started
     networks:
       - qx
 

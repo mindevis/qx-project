@@ -2,8 +2,8 @@ package launcher
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
+	"io"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,7 +23,6 @@ type InstanceResourceUploadView struct {
 	Filename     string  `json:"filename"`
 	ResourceType string  `json:"resource_type"`
 	FileSize     int64   `json:"file_size"`
-	ContentB64   string  `json:"content_b64,omitempty"`
 	ErrorCode    *string `json:"error_code,omitempty"`
 }
 
@@ -32,12 +31,19 @@ type UpdateResourceUploadRequestInput struct {
 	ErrorCode *string
 }
 
+func resourceUploadObjectKey(id string) string {
+	return "connect-mods/" + id
+}
+
 func (s *Service) CreateInstanceResourceUpload(ctx context.Context, owner Owner, instanceID, filename, resourceType string, data []byte) (*InstanceResourceUploadView, error) {
 	if err := ValidateResourceFilename(filename); err != nil {
 		return nil, err
 	}
 	if err := ValidateResourceUploadSize(int64(len(data))); err != nil {
 		return nil, err
+	}
+	if s.blobs == nil {
+		return nil, ErrValidation
 	}
 	deviceID, err := s.requireLinkedDevice(ctx, owner)
 	if err != nil {
@@ -54,13 +60,17 @@ func (s *Service) CreateInstanceResourceUpload(ctx context.Context, owner Owner,
 		InstanceID:   instanceID,
 		Filename:     filepath.Base(filename),
 		ResourceType: normalizeResourceType(resourceType),
-		ContentB64:   base64.StdEncoding.EncodeToString(data),
 		FileSize:     int64(len(data)),
 		Status:       models.ResourceUploadStatusQueued,
 		ExpiresAt:    now.Add(resourceUploadRequestTTL),
 		CreatedAt:    now,
 	}
+	req.ObjectKey = resourceUploadObjectKey(req.ID)
+	if err := s.blobs.Put(ctx, req.ObjectKey, data); err != nil {
+		return nil, err
+	}
 	if err := s.db.WithContext(ctx).Create(&req).Error; err != nil {
+		_ = s.blobs.Delete(context.Background(), req.ObjectKey)
 		return nil, err
 	}
 
@@ -74,10 +84,13 @@ func (s *Service) CreateInstanceResourceUpload(ctx context.Context, owner Owner,
 	select {
 	case res := <-ch:
 		if res.err != nil {
+			s.deleteUploadBlob(req)
 			return nil, res.err
 		}
-		return resourceUploadViewFromModel(req, false), nil
+		s.deleteUploadBlob(req)
+		return resourceUploadViewFromModel(req), nil
 	case <-waitCtx.Done():
+		s.deleteUploadBlob(req)
 		_ = s.db.WithContext(context.Background()).Model(&req).Update("status", models.ResourceUploadStatusExpired).Error
 		if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
 			return nil, ErrBridgeTimeout
@@ -111,7 +124,6 @@ func (s *Service) FetchPendingResourceUpload(ctx context.Context, deviceID strin
 	}
 	req := reqs[0]
 	dispatched := now
-	// Claim for the polling device so any online launcher of the owner handles it.
 	if err := s.db.WithContext(ctx).Model(&req).Updates(map[string]any{
 		"status":        models.ResourceUploadStatusDispatched,
 		"dispatched_at": dispatched,
@@ -121,7 +133,42 @@ func (s *Service) FetchPendingResourceUpload(ctx context.Context, deviceID strin
 	}
 	req.Status = models.ResourceUploadStatusDispatched
 	req.DeviceID = deviceID
-	return resourceUploadViewFromModel(req, true), nil
+	return resourceUploadViewFromModel(req), nil
+}
+
+func (s *Service) OpenResourceUpload(ctx context.Context, deviceID, requestID string) (io.ReadCloser, string, int64, error) {
+	if deviceID == "" || requestID == "" || s.blobs == nil {
+		return nil, "", 0, ErrValidation
+	}
+	var req models.InstanceResourceUploadRequest
+	if err := s.db.WithContext(ctx).Where("id = ?", requestID).First(&req).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", 0, ErrNotFound
+		}
+		return nil, "", 0, err
+	}
+	ids, err := s.deliveryDeviceIDs(ctx, deviceID)
+	if err != nil {
+		return nil, "", 0, err
+	}
+	allowed := false
+	for _, id := range ids {
+		if id == req.DeviceID {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return nil, "", 0, ErrNotFound
+	}
+	if req.ObjectKey == "" {
+		return nil, "", 0, ErrNotFound
+	}
+	rc, size, err := s.blobs.Open(ctx, req.ObjectKey)
+	if err != nil {
+		return nil, "", 0, err
+	}
+	return rc, req.Filename, size, nil
 }
 
 func (s *Service) UpdateResourceUploadRequest(ctx context.Context, deviceID, requestID string, in UpdateResourceUploadRequestInput) (*InstanceResourceUploadView, error) {
@@ -144,9 +191,6 @@ func (s *Service) UpdateResourceUploadRequest(ctx context.Context, deviceID, req
 	if in.Status == models.ResourceUploadStatusCompleted || in.Status == models.ResourceUploadStatusFailed {
 		updates["completed_at"] = now
 	}
-	// Persist the uploaded resource and flip the request to its terminal status in a
-	// single transaction so an upload only reports "completed" once the resource is
-	// durably recorded on the instance.
 	if err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if in.Status == models.ResourceUploadStatusCompleted {
 			if err := recordUploadedResource(tx, req); err != nil {
@@ -172,7 +216,7 @@ func (s *Service) UpdateResourceUploadRequest(ctx context.Context, deviceID, req
 	if in.ErrorCode != nil {
 		req.ErrorCode = in.ErrorCode
 	}
-	return resourceUploadViewFromModel(req, false), nil
+	return resourceUploadViewFromModel(req), nil
 }
 
 func recordUploadedResource(tx *gorm.DB, req models.InstanceResourceUploadRequest) error {
@@ -213,8 +257,8 @@ func (s *Service) deliverUploadRPC(requestID string, err error) {
 	}
 }
 
-func resourceUploadViewFromModel(req models.InstanceResourceUploadRequest, includeContent bool) *InstanceResourceUploadView {
-	view := &InstanceResourceUploadView{
+func resourceUploadViewFromModel(req models.InstanceResourceUploadRequest) *InstanceResourceUploadView {
+	return &InstanceResourceUploadView{
 		ID:           req.ID,
 		Status:       req.Status,
 		InstanceID:   req.InstanceID,
@@ -223,15 +267,25 @@ func resourceUploadViewFromModel(req models.InstanceResourceUploadRequest, inclu
 		FileSize:     req.FileSize,
 		ErrorCode:    req.ErrorCode,
 	}
-	if includeContent {
-		view.ContentB64 = req.ContentB64
+}
+
+func (s *Service) deleteUploadBlob(req models.InstanceResourceUploadRequest) {
+	if s.blobs == nil || req.ObjectKey == "" {
+		return
 	}
-	return view
+	_ = s.blobs.Delete(context.Background(), req.ObjectKey)
 }
 
 func (s *Service) expireStaleResourceUploads(ctx context.Context, deviceIDs []string, now time.Time) {
 	if len(deviceIDs) == 0 {
 		return
+	}
+	var expired []models.InstanceResourceUploadRequest
+	_ = s.db.WithContext(ctx).
+		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.ResourceUploadStatusQueued, now).
+		Find(&expired).Error
+	for _, req := range expired {
+		s.deleteUploadBlob(req)
 	}
 	_ = s.db.WithContext(ctx).Model(&models.InstanceResourceUploadRequest{}).
 		Where("device_id IN ? AND status = ? AND expires_at < ?", deviceIDs, models.ResourceUploadStatusQueued, now).
