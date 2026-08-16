@@ -9,9 +9,10 @@ import (
 
 // Options configures the default slog logger.
 type Options struct {
-	Level  string
-	Format string
-	Output io.Writer
+	Level     string
+	Format    string
+	Output    io.Writer
+	AddSource bool
 }
 
 // ParseLevel maps LOG_LEVEL strings to slog levels.
@@ -38,7 +39,7 @@ func Setup(opts Options) *slog.Logger {
 	}
 
 	level := ParseLevel(opts.Level)
-	handlerOpts := &slog.HandlerOptions{Level: level}
+	handlerOpts := &slog.HandlerOptions{Level: level, AddSource: opts.AddSource}
 
 	var handler slog.Handler
 	if strings.EqualFold(strings.TrimSpace(opts.Format), "json") {

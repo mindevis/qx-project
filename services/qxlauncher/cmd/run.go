@@ -15,6 +15,7 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
 	"github.com/qxproject/qx/services/qxlauncher/internal/tray"
 	"github.com/qxproject/qx/services/qxlauncher/internal/updater"
+	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
 
 func run() {
@@ -22,9 +23,17 @@ func run() {
 
 	cfg := config.Load()
 	dataDir := filepath.Dir(cfg.DeviceTokenPath)
-	logging.Setup(dataDir, qxlog.Options{Level: cfg.LogLevel, Format: cfg.LogFormat})
+	logPath := logging.Setup(dataDir, qxlog.Options{Level: cfg.LogLevel, Format: cfg.LogFormat})
+	defer logging.Close()
 	apiBase := cfg.APIBaseURL
 	webBase := cfg.WebBaseURL
+	slog.Info("qxlauncher started",
+		"version", version.Version,
+		"data_dir", dataDir,
+		"log_path", logPath,
+		"api_base", apiBase,
+		"web_base", webBase,
+	)
 	tokenPath := cfg.DeviceTokenPath
 	authPath := filepath.Join(dataDir, "user_auth.json")
 	maxPolls := cfg.LinkMaxPolls

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -55,6 +56,7 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return err
 	}
 	req.Header.Set("User-Agent", "QXLauncher/"+version.Version)
+	slog.Info("launcher update download", "url", downloadURL, "staging", staging)
 	res, err := client.Do(req)
 	if err != nil {
 		return err
@@ -69,7 +71,8 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(out, res.Body); err != nil {
+	n, err := io.Copy(out, res.Body)
+	if err != nil {
 		out.Close()
 		_ = os.Remove(staging)
 		return err
@@ -78,6 +81,7 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		_ = os.Remove(staging)
 		return err
 	}
+	slog.Info("launcher update downloaded", "bytes", n, "status", res.StatusCode)
 	if err := validateWindowsExecutable(staging); err != nil {
 		_ = os.Remove(staging)
 		return err
@@ -88,6 +92,7 @@ func Apply(ctx context.Context, downloadURL, filename string, httpClient *http.C
 		return err
 	}
 	_ = os.Remove(staging)
+	slog.Info("launcher update installed", "exe", current)
 	return nil
 }
 

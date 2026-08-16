@@ -11,6 +11,7 @@ import (
 	"github.com/qxproject/qx/services/qxlauncher/internal/browser"
 	"github.com/qxproject/qx/services/qxlauncher/internal/cache"
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
+	"github.com/qxproject/qx/services/qxlauncher/internal/logging"
 	"github.com/qxproject/qx/services/qxlauncher/internal/notify"
 )
 
@@ -74,6 +75,8 @@ func RunSystrayApp(cfg SystrayConfig) {
 				instancesMenu.Refresh(snap.Instances)
 			}
 		}
+		systray.AddSeparator()
+		mLogs := systray.AddMenuItem("Открыть логи", "Папка с qxlauncher.log")
 		mQuit := systray.AddMenuItem("Выход", "")
 
 		if linked {
@@ -163,6 +166,10 @@ func RunSystrayApp(cfg SystrayConfig) {
 					systray.SetTooltip("QXLauncher — ожидает привязки")
 					instancesMenu.Clear()
 					notify.Show("QXLauncher", "Устройство отвязано")
+				case <-mLogs.ClickedCh:
+					if err := browser.OpenFolder(logging.Dir(cfg.DataDir)); err != nil {
+						slog.Warn("open logs folder failed", "err", err)
+					}
 				case <-mQuit.ClickedCh:
 					cancel()
 					systray.Quit()

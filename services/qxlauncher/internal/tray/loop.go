@@ -74,6 +74,7 @@ func RunLoop(ctx context.Context, cfg Config) {
 	for {
 		select {
 		case <-ctx.Done():
+			slog.Info("QXLauncher loop stopped")
 			return
 		case <-syncTicker.C:
 			items, err := syncInstances(ctx, api, cfg.DataDir)
@@ -248,6 +249,7 @@ func RunLoop(ctx context.Context, cfg Config) {
 
 func executeUpdate(ctx context.Context, api *apiclient.Client, apiBase string, item *apiclient.UpdateRequestItem) {
 	downloadURL := updater.ResolveURL(apiBase, item.DownloadURL)
+	slog.Info("launcher update started", "version", item.Version, "url", downloadURL, "file", item.Filename)
 	notify.Show("QXLauncher", "Загрузка обновления…")
 	if err := updater.Apply(ctx, downloadURL, item.Filename, nil); err != nil {
 		slog.Error("launcher update failed", "err", err, "url", downloadURL)
@@ -258,6 +260,7 @@ func executeUpdate(ctx context.Context, api *apiclient.Client, apiBase string, i
 	if err := api.CompleteUpdate(ctx, item.ID, "completed", item.Version, ""); err != nil {
 		slog.Error("launcher update complete report failed", "err", err)
 	}
+	slog.Info("launcher update restarting", "version", item.Version)
 	if err := updater.Restart(); err != nil {
 		slog.Error("launcher restart after update failed", "err", err)
 		notify.Show("QXLauncher", "Обновление установлено — перезапустите QXLauncher")
