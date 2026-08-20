@@ -212,7 +212,7 @@ func TestAgentConnectDisconnect(t *testing.T) {
 	}
 
 	_ = svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Updates(map[string]any{
-		"status": models.ServerStatusOnline,
+		"status":      models.ServerStatusOnline,
 		"config_json": `{"mc_pid":4242,"active_game_server_id":"gs-1"}`,
 	}).Error
 	if err := svc.AgentConnected(ctx, view.ID, "dedicated server-1", "0.1.0"); err != nil {
@@ -238,6 +238,34 @@ func TestAgentConnectDisconnect(t *testing.T) {
 	got, err = svc.Get(ctx, "owner-1", view.ID)
 	if err != nil || got.Status != models.ServerStatusOffline {
 		t.Fatalf("offline: err=%v status=%s", err, got.Status)
+	}
+
+	now = time.Now().UTC()
+	if err := svc.db.WithContext(ctx).Create(&models.GameServer{
+		ID:         "gs-keep-running",
+		ServerID:   view.ID,
+		Name:       "Keep Running",
+		ServerType: "forge",
+		MCVersion:  "1.20.1",
+		Status:     models.GameServerStatusRunning,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	_ = svc.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", view.ID).Updates(map[string]any{
+		"status":      models.ServerStatusOnline,
+		"config_json": `{"mc_pid":4242,"active_game_server_id":"gs-keep-running"}`,
+	}).Error
+	if err := svc.AgentDisconnected(ctx, view.ID); err != nil {
+		t.Fatalf("disconnected while running: %v", err)
+	}
+	var kept models.GameServer
+	if err := svc.db.WithContext(ctx).Where("id = ?", "gs-keep-running").First(&kept).Error; err != nil {
+		t.Fatal(err)
+	}
+	if kept.Status != models.GameServerStatusRunning {
+		t.Fatalf("agent disconnect must not stop the game server: %s", kept.Status)
 	}
 }
 
@@ -407,13 +435,13 @@ func TestAttachConsole(t *testing.T) {
 	go hub.ReadLoop(agentConn)
 
 	if err := svc.db.WithContext(ctx).Create(&models.GameServer{
-		ID:       "gs-attach",
-		ServerID: view.ID,
-		Name:     "Test",
+		ID:         "gs-attach",
+		ServerID:   view.ID,
+		Name:       "Test",
 		ServerType: "forge",
-		MCVersion: "1.20.1",
-		Status:   models.GameServerStatusRunning,
-		WorkDir:  "/opt/qxsystem/server/instances/gs-attach",
+		MCVersion:  "1.20.1",
+		Status:     models.GameServerStatusRunning,
+		WorkDir:    "/opt/qxsystem/server/instances/gs-attach",
 	}).Error; err != nil {
 		t.Fatalf("create game server: %v", err)
 	}

@@ -20,14 +20,14 @@ import (
 )
 
 var (
-	ErrNotFound      = errors.New("not found")
-	ErrValidation    = errors.New("validation error")
-	ErrForbidden     = errors.New("forbidden")
-	ErrAgentOffline  = errors.New("agent offline")
-	ErrNotDeployed   = errors.New("agent not deployed")
-	ErrGameServerBusy          = errors.New("game server provisioning in progress")
-	ErrGameServerNotInstalled  = errors.New("game server is not installed")
-	ErrGameServerNotRunning    = errors.New("game server is not running")
+	ErrNotFound                 = errors.New("not found")
+	ErrValidation               = errors.New("validation error")
+	ErrForbidden                = errors.New("forbidden")
+	ErrAgentOffline             = errors.New("agent offline")
+	ErrNotDeployed              = errors.New("agent not deployed")
+	ErrGameServerBusy           = errors.New("game server provisioning in progress")
+	ErrGameServerNotInstalled   = errors.New("game server is not installed")
+	ErrGameServerNotRunning     = errors.New("game server is not running")
 	ErrGameServerAlreadyRunning = errors.New("game server already running")
 	ErrBindingLocked            = errors.New("game server instance binding is locked")
 )
@@ -35,11 +35,11 @@ var (
 const agentTokenTTL = 365 * 24 * time.Hour
 
 type Service struct {
-	db       *gorm.DB
-	tokens   *auth.TokenService
-	enc      *crypto.Encryptor
-	hub      *agenthub.Hub
-	deployer DeployExecutor
+	db         *gorm.DB
+	tokens     *auth.TokenService
+	enc        *crypto.Encryptor
+	hub        *agenthub.Hub
+	deployer   DeployExecutor
 	pending    sync.Map
 	pendingRPC sync.Map
 }
@@ -98,11 +98,11 @@ func (s *Service) OnAgentEvent(serverID string, env protocol.Envelope) {
 }
 
 type SSHInput struct {
-	Host                  string
-	Port                  int
-	Username              string
-	PrivateKey            string
-	PrivateKeyPassphrase  string
+	Host                 string
+	Port                 int
+	Username             string
+	PrivateKey           string
+	PrivateKeyPassphrase string
 }
 
 type ServerConfig struct {
@@ -450,7 +450,10 @@ func (s *Service) applyServerStatusEvent(ctx context.Context, serverID string, p
 }
 
 func (s *Service) AgentDisconnected(ctx context.Context, serverID string) error {
-	return s.markMinecraftStopped(ctx, serverID)
+	// Agent blips (deploy/update) must not look like Minecraft stopped.
+	// The game-server card stays on its last known status until a real
+	// process status event arrives.
+	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
 }
 
 func (s *Service) Start(ctx context.Context, ownerID, serverID string) error {

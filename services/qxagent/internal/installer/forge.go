@@ -173,6 +173,7 @@ func downloadFile(ctx context.Context, url, dest string) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("User-Agent", downloadUserAgent)
 	client := &http.Client{Timeout: 0}
 	res, err := client.Do(req)
 	if err != nil {

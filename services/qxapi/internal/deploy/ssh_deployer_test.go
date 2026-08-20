@@ -216,6 +216,9 @@ func TestBuildSystemdUnit(t *testing.T) {
 	if strings.Contains(unit, "EnvironmentFile") {
 		t.Fatal("systemd unit should read agent.toml directly")
 	}
+	if !strings.Contains(unit, "KillMode=process") {
+		t.Fatal("systemd unit should not kill Minecraft on agent restart")
+	}
 }
 
 func TestSSHDeployerTimeout(t *testing.T) {

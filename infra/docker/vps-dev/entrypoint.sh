@@ -26,6 +26,7 @@ ExecStart=/opt/qxsystem/agent/qx-agent
 WorkingDirectory=/opt/qxsystem/server
 Restart=always
 RestartSec=5
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target

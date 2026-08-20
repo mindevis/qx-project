@@ -281,6 +281,7 @@ ExecStart=%s
 WorkingDirectory=%s
 Restart=always
 RestartSec=5
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target

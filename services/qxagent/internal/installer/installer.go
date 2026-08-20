@@ -12,6 +12,8 @@ import (
 
 var ErrUnsupportedServerType = errors.New("unsupported server type for install")
 
+const downloadUserAgent = "QXProject/1.0 (https://github.com/qxproject/qx)"
+
 type StartSpec struct {
 	WorkDir   string
 	JarPath   string
@@ -83,6 +85,8 @@ func Install(ctx context.Context, opts Options, cfg InstallConfig) (StartSpec, e
 		return installForge(ctx, opts, cfg)
 	case "neoforge":
 		return installNeoForge(ctx, opts, cfg)
+	case "paper":
+		return installPaper(ctx, opts, cfg)
 	default:
 		return StartSpec{}, fmt.Errorf("%w: %s", ErrUnsupportedServerType, cfg.ServerType)
 	}

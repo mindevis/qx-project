@@ -41,13 +41,63 @@ func TestJavaRootFromServerRoot(t *testing.T) {
 
 func TestInstallUnsupportedType(t *testing.T) {
 	_, err := Install(context.Background(), Options{}, InstallConfig{
-		ServerType: "paper",
+		ServerType: "magma",
 		WorkDir:    "/tmp",
 		MCVersion:  "1.21",
 		Port:       25565,
 	})
 	if !errors.Is(err, ErrUnsupportedServerType) {
 		t.Fatalf("expected unsupported: %v", err)
+	}
+}
+
+func TestInstallPaperDryRun(t *testing.T) {
+	workDir := t.TempDir()
+	spec, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
+		ServerType:    "paper",
+		WorkDir:       workDir,
+		MCVersion:     "26.2",
+		LoaderVersion: "112",
+		Port:          25566,
+		RconPassword:  "test-rcon",
+	})
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if spec.WorkDir != workDir {
+		t.Fatalf("work dir: %q", spec.WorkDir)
+	}
+	if !strings.HasSuffix(spec.JarPath, "server.jar") {
+		t.Fatalf("jar path: %q", spec.JarPath)
+	}
+}
+
+func TestInstallPaperValidation(t *testing.T) {
+	_, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
+		ServerType: "paper",
+		WorkDir:    t.TempDir(),
+		MCVersion:  "26.2",
+		Port:       25565,
+	})
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
+func TestPaperJarURLFromBuilds(t *testing.T) {
+	body := []byte(`[
+		{"id":111,"downloads":{"server:default":{"url":"https://example.test/111.jar"}}},
+		{"id":112,"downloads":{"server:default":{"url":"https://example.test/112.jar"}}}
+	]`)
+	got, err := paperJarURLFromBuilds(body, "112")
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	if got != "https://example.test/112.jar" {
+		t.Fatalf("url: %q", got)
+	}
+	if _, err := paperJarURLFromBuilds(body, "999"); err == nil {
+		t.Fatal("expected missing build")
 	}
 }
 
