@@ -63,7 +63,10 @@ type UpdateGameServerInput struct {
 	MonitoringTags        []string
 }
 
-const gameServerProvisionTimeout = 25 * time.Minute
+const (
+	gameServerProvisionTimeout = 25 * time.Minute
+	gameServerRemoveTimeout    = 2 * time.Minute
+)
 
 func (s *Service) ListGameServers(ctx context.Context, ownerID, vpsID string) ([]GameServerView, error) {
 	if _, err := s.getOwned(ctx, ownerID, vpsID); err != nil {
@@ -363,6 +366,18 @@ func (s *Service) DeleteGameServer(ctx context.Context, ownerID, vpsID, gameServ
 	if _, err := s.getOwned(ctx, ownerID, vpsID); err != nil {
 		return err
 	}
+	var item models.GameServer
+	if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", gameServerID, vpsID).First(&item).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if err := s.removeGameServerWorkDir(ctx, vpsID, &item); err != nil {
+		return err
+	}
+	s.forgetActiveGameServer(ctx, vpsID, gameServerID)
+	s.cleanupGameServerRecords(ctx, gameServerID)
 	res := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", gameServerID, vpsID).Delete(&models.GameServer{})
 	if res.Error != nil {
 		return res.Error
@@ -472,17 +487,35 @@ func (s *Service) clearGameServerContentResources(ctx context.Context, item *mod
 }
 
 func (s *Service) wipeGameServerWorkDir(ctx context.Context, vpsID string, item *models.GameServer) error {
+	return s.sendGameServerWorkDirCommand(ctx, vpsID, item, false, agentRPCTimeout)
+}
+
+func (s *Service) removeGameServerWorkDir(ctx context.Context, vpsID string, item *models.GameServer) error {
+	if item == nil || strings.TrimSpace(item.WorkDir) == "" {
+		return nil
+	}
+	if err := s.requireAgentOnline(ctx, vpsID); err != nil {
+		return err
+	}
+	return s.sendGameServerWorkDirCommand(ctx, vpsID, item, true, gameServerRemoveTimeout)
+}
+
+func (s *Service) sendGameServerWorkDirCommand(ctx context.Context, vpsID string, item *models.GameServer, remove bool, timeout time.Duration) error {
 	if item == nil || strings.TrimSpace(item.WorkDir) == "" {
 		return ErrValidation
 	}
 	payload, err := json.Marshal(protocol.GameServerWorkDirPayload{
 		GameServerID: item.ID,
 		WorkDir:      item.WorkDir,
+		Remove:       remove,
 	})
 	if err != nil {
 		return err
 	}
-	_, err = s.agentRPC(ctx, vpsID, protocol.TypeCmdServerWipe, protocol.TypeResServerWipe, payload)
+	if timeout <= 0 {
+		timeout = agentRPCTimeout
+	}
+	_, err = s.agentRPCWait(ctx, vpsID, protocol.TypeCmdServerWipe, protocol.TypeResServerWipe, payload, timeout)
 	return err
 }
 
@@ -542,11 +575,11 @@ func (s *Service) applyServerInstallResult(ctx context.Context, vpsID, requestID
 	if json.Unmarshal(payload, &errPayload) == nil && strings.TrimSpace(errPayload.Error) != "" {
 		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, "")
 		if s.hub != nil {
-		s.hub.BroadcastConsole(vpsID, protocol.ConsoleOutputPayload{
-			Stream:       "stderr",
-			Line:         "install failed: " + errPayload.Error,
-			GameServerID: op.gameServerID,
-		})
+			s.hub.BroadcastConsole(vpsID, protocol.ConsoleOutputPayload{
+				Stream:       "stderr",
+				Line:         "install failed: " + errPayload.Error,
+				GameServerID: op.gameServerID,
+			})
 		}
 		return
 	}
@@ -793,5 +826,45 @@ func (s *Service) syncGameServerProperties(ctx context.Context, vpsID string, it
 
 // Ensure game server rows are removed when dedicated server is deleted.
 func (s *Service) deleteGameServersForVPS(ctx context.Context, vpsID string) error {
+	var items []models.GameServer
+	if err := s.db.WithContext(ctx).Where("server_id = ?", vpsID).Find(&items).Error; err != nil {
+		return err
+	}
+	if s.hub != nil && s.hub.IsOnline(vpsID) {
+		for i := range items {
+			if err := s.removeGameServerWorkDir(ctx, vpsID, &items[i]); err != nil {
+				return err
+			}
+		}
+	}
+	for _, item := range items {
+		s.forgetActiveGameServer(ctx, vpsID, item.ID)
+		s.cleanupGameServerRecords(ctx, item.ID)
+	}
 	return s.db.WithContext(ctx).Where("server_id = ?", vpsID).Delete(&models.GameServer{}).Error
+}
+
+func (s *Service) cleanupGameServerRecords(ctx context.Context, gameServerID string) {
+	_ = s.db.WithContext(ctx).Where("game_server_id = ?", gameServerID).Delete(&models.GameServerInstanceBinding{}).Error
+	_ = s.db.WithContext(ctx).Where("game_server_id = ?", gameServerID).Delete(&models.GameServerMonitoringFeedback{}).Error
+	_ = s.db.WithContext(ctx).Model(&models.LauncherInstance{}).
+		Where("managed_by_game_server_id = ?", gameServerID).
+		Update("managed_by_game_server_id", nil).Error
+}
+
+func (s *Service) forgetActiveGameServer(ctx context.Context, vpsID, gameServerID string) {
+	server, err := s.getByID(ctx, vpsID)
+	if err != nil {
+		return
+	}
+	cfg, err := parseConfig(server.ConfigJSON)
+	if err != nil {
+		return
+	}
+	if cfg.ActiveGameServerID != gameServerID {
+		return
+	}
+	cfg.ActiveGameServerID = ""
+	cfg.McPID = nil
+	_ = s.saveConfig(ctx, vpsID, cfg)
 }

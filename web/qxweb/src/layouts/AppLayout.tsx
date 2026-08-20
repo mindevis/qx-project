@@ -76,8 +76,8 @@ export function AppLayout() {
   const headerClassName = [
     'app-header',
     'app-header--sticky',
-    isFullBleedPage && 'app-header--landing',
-    scrolled && 'app-header--scrolled',
+    isHome && 'app-header--landing',
+    isHome && scrolled && 'app-header--scrolled',
   ]
     .filter(Boolean)
     .join(' ');

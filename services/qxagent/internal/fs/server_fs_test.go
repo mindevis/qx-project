@@ -39,6 +39,39 @@ func TestWipeWorkDirRemovesAllContent(t *testing.T) {
 	}
 }
 
+func TestRemoveWorkDirDeletesInstanceFolder(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "instances", "gs-1")
+	if err := os.MkdirAll(filepath.Join(root, "mods"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "server.jar"), []byte("jar"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveWorkDir(root); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Fatalf("expected instance dir gone, err=%v", err)
+	}
+}
+
+func TestRemoveWorkDirMissingIsOK(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "instances", "gs-missing")
+	if err := RemoveWorkDir(root); err != nil {
+		t.Fatalf("missing dir: %v", err)
+	}
+}
+
+func TestRemoveWorkDirRejectsOutsideInstances(t *testing.T) {
+	dir := t.TempDir()
+	if err := RemoveWorkDir(dir); err == nil {
+		t.Fatal("expected refusal outside instances")
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatalf("dir should remain: %v", err)
+	}
+}
+
 func TestWipeWorkDirMissingDirCreatesEmptyRoot(t *testing.T) {
 	dir := t.TempDir()
 	workDir := filepath.Join(dir, "new-instance")

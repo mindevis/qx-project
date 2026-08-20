@@ -60,6 +60,21 @@ describe('CosmeticsPanel', () => {
     expect(testMessage.success).toHaveBeenCalledWith('Настройки скина сохранены');
   });
 
+  it('shows applied status when a custom skin is equipped', async () => {
+    vi.spyOn(api, 'getCosmetics').mockResolvedValue({
+      ...cosmetics,
+      has_skin: true,
+      skin_url: '/api/v1/cosmetics/skins/1.png',
+    });
+    renderWithTheme(<CosmeticsPanel embedded />);
+    await waitFor(() => expect(screen.getByText('Скин применён')).toBeInTheDocument());
+  });
+
+  it('shows default status without a custom skin', async () => {
+    renderWithTheme(<CosmeticsPanel embedded />);
+    await waitFor(() => expect(screen.getByText('Стандартный скин')).toBeInTheDocument());
+  });
+
   it('renders embedded variant without card title', async () => {
     renderWithTheme(<CosmeticsPanel embedded />);
     await waitFor(() =>

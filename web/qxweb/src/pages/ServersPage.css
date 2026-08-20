@@ -87,6 +87,19 @@ html[data-theme='dark'] .servers-hero-grid-pattern {
   min-width: 0;
 }
 
+.servers-hero-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.servers-hero-kicker .servers-detail-back,
+.servers-hero-kicker .servers-badge {
+  margin-bottom: 0;
+}
+
 .servers-hero-actions {
   margin-top: 28px;
   display: flex;
@@ -322,6 +335,17 @@ html[data-theme='dark'] .servers-card {
   transform: translateY(-2px);
 }
 
+.servers-card--link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.servers-card--link:focus-visible {
+  outline: 2px solid rgba(22, 119, 255, 0.45);
+  outline-offset: 2px;
+}
+
 .servers-card-head {
   display: flex;
   align-items: flex-start;
@@ -351,7 +375,7 @@ html[data-theme='dark'] .servers-card {
 .servers-card-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   margin-top: 8px;
 }
 
@@ -363,27 +387,6 @@ html[data-theme='dark'] .servers-card {
 
 html[data-theme='dark'] .servers-card-meta {
   color: rgba(255, 255, 255, 0.55) !important;
-}
-
-.servers-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: auto;
-  padding-top: 4px;
-}
-
-.servers-card-type {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(0, 0, 0, 0.45);
-}
-
-html[data-theme='dark'] .servers-card-type {
-  color: rgba(255, 255, 255, 0.45);
 }
 
 /* ── Empty & auth ─────────────────────────────────────────────────────── */
@@ -461,7 +464,7 @@ html[data-theme='dark'] .servers-auth-section {
 .servers-detail-endpoint {
   display: flex !important;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 16px !important;
 }
@@ -653,9 +656,10 @@ html[data-theme='dark'] .servers-detail-stat-label {
 }
 
 .servers-detail-back {
-  display: inline-flex;
+  display: flex;
+  width: fit-content;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 16px;
   font-size: 14px;
   color: rgba(0, 0, 0, 0.55);
@@ -679,6 +683,19 @@ html[data-theme='dark'] .servers-detail-back {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.servers-detail-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (min-width: 900px) {
+  .servers-detail-split {
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  }
 }
 
 @media (min-width: 960px) {
@@ -1266,6 +1283,7 @@ html[data-theme='dark'] .servers-game-modal-actions {
 }
 
 .game-server-detail-breadcrumb {
+  display: block;
   margin-bottom: 16px;
 }
 

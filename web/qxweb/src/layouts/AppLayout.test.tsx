@@ -165,7 +165,7 @@ describe('AppLayout', () => {
     await waitFor(() => expect(header?.className).toContain('app-header--scrolled'));
   });
 
-  it('uses transparent landing header on launcher route', () => {
+  it('keeps a solid header on other sections', () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
@@ -176,8 +176,8 @@ describe('AppLayout', () => {
     );
 
     const header = document.querySelector('header');
-    expect(header?.className).toContain('app-header--landing');
     expect(header?.className).toContain('app-header--sticky');
+    expect(header?.className).not.toContain('app-header--landing');
   });
 
   it('navigates to skins page from header link', async () => {

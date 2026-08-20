@@ -250,6 +250,9 @@ func (s *Service) Delete(ctx context.Context, ownerID, serverID string) error {
 	if err != nil {
 		return err
 	}
+	if err := s.deleteGameServersForVPS(ctx, serverID); err != nil {
+		return err
+	}
 	res := s.db.WithContext(ctx).Delete(server)
 	if res.Error != nil {
 		return res.Error
@@ -257,7 +260,6 @@ func (s *Service) Delete(ctx context.Context, ownerID, serverID string) error {
 	if res.RowsAffected == 0 {
 		return ErrNotFound
 	}
-	_ = s.deleteGameServersForVPS(ctx, serverID)
 	return nil
 }
 

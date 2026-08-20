@@ -31,7 +31,8 @@ html[data-theme='dark'] .launcher-resources-hero-ambient {
 }
 
 .launcher-resources-back {
-  display: inline-flex;
+  display: flex;
+  width: fit-content;
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;

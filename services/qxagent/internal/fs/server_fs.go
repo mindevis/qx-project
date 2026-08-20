@@ -27,6 +27,24 @@ func WipeWorkDir(workDir string) error {
 	return safepath.EnsureDir(abs)
 }
 
+// RemoveWorkDir deletes the instance directory. Missing dirs are already gone.
+func RemoveWorkDir(workDir string) error {
+	abs, err := safepath.ResolveRoot(workDir)
+	if err != nil {
+		return err
+	}
+	if filepath.Base(filepath.Dir(abs)) != "instances" {
+		return fmt.Errorf("refusing to remove work dir outside instances")
+	}
+	if _, err := safepath.Stat(abs); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return safepath.RemoveAll(abs)
+}
+
 func ReadServerProperties(workDir string) ([]protocol.PropertyEntry, error) {
 	path, err := safepath.Join(workDir, "server.properties")
 	if err != nil {

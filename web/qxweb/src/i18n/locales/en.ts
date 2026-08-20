@@ -244,6 +244,8 @@ export const en: Messages = {
     title: 'QX Skin Server',
     hint: 'Upload a custom skin and cape. QXLauncher applies them like Ely.by — no Fabric/Forge mods required.',
     skinModel: 'Skin model',
+    skinApplied: 'Skin applied',
+    skinDefault: 'Default skin',
     uploadSkin: 'Upload skin (PNG)',
     resetSkin: 'Reset skin',
     resetSkinConfirm: 'Reset the skin to the default one?',
@@ -686,7 +688,7 @@ export const en: Messages = {
     gameServerStartStarted: 'Game server is starting…',
     gameServerStopStarted: 'Game server is stopping…',
     gameServerRestartStarted: 'Game server is restarting…',
-    deleteGameServerConfirm: 'Delete this game server?',
+    deleteGameServerConfirm: 'Delete this game server? Files on the VPS will also be removed.',
     noGameServers: 'No game servers yet',
     noGameServersHint:
       'Add a Minecraft game server on this dedicated host — configure version, loader, and port, then manage it via QXAgent.',
@@ -699,7 +701,7 @@ export const en: Messages = {
     actionAgent: 'QXAgent',
     stop: 'Stop',
     restart: 'Restart',
-    deleteConfirm: 'Delete server?',
+    deleteConfirm: 'Delete this host? Game-server files on the VPS will also be removed if the agent is online.',
     deployHint:
       'After Deploy the agent connects via WSS automatically — usually within seconds.',
     deploySshUnreachable:

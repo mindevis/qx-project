@@ -79,7 +79,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={value}>
-      <ConfigProvider locale={antdLocale} theme={antTheme}>
+      <ConfigProvider locale={antdLocale} theme={antTheme} space={{ size: 'small' }}>
         <App>{children}</App>
       </ConfigProvider>
     </ThemeContext.Provider>

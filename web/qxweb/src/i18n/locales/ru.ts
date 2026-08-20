@@ -241,6 +241,8 @@ export const ru = {
     title: 'QX Skin Server',
     hint: 'Загрузите скин и плащ. QXLauncher применяет их как Ely.by — моды Fabric/Forge не нужны.',
     skinModel: 'Модель скина',
+    skinApplied: 'Скин применён',
+    skinDefault: 'Стандартный скин',
     uploadSkin: 'Загрузить скин (PNG)',
     resetSkin: 'Сбросить скин',
     resetSkinConfirm: 'Сбросить скин до стандартного?',
@@ -685,7 +687,7 @@ export const ru = {
     gameServerStartStarted: 'Игровой сервер запускается…',
     gameServerStopStarted: 'Игровой сервер останавливается…',
     gameServerRestartStarted: 'Игровой сервер перезапускается…',
-    deleteGameServerConfirm: 'Удалить игровой сервер?',
+    deleteGameServerConfirm: 'Удалить игровой сервер? Файлы на VPS тоже будут удалены.',
     noGameServers: 'Пока нет игровых серверов',
     noGameServersHint:
       'Добавьте игровой сервер Minecraft на этом выделенном хосте — укажите версию, загрузчик и порт, затем управляйте через QXAgent.',
@@ -698,7 +700,7 @@ export const ru = {
     actionAgent: 'QXAgent',
     stop: 'Stop',
     restart: 'Restart',
-    deleteConfirm: 'Удалить сервер?',
+    deleteConfirm: 'Удалить сервер? Файлы игровых серверов на VPS тоже будут удалены, если агент онлайн.',
     deployHint:
       'После Deploy агент подключится по WSS автоматически — обычно в течение нескольких секунд.',
     deploySshUnreachable:

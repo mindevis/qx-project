@@ -228,6 +228,46 @@ describe('ServersPage', () => {
     await waitForNoDialog();
   });
 
+  it('opens dedicated host from the card and does not show a leftover loader label', async () => {
+    saveTokens({
+      access_token: 'a',
+      refresh_token: 'r',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+    vi.mocked(fetch).mockImplementation(
+      mockAuthedFetch((url, init) => {
+        if (url.includes('/servers/srv-1/game-servers')) {
+          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+        }
+        if (url.includes('/servers/srv-1')) {
+          return new Response(JSON.stringify({ ...sampleServer, agent_deployed: true, agent_online: true }), {
+            status: 200,
+          });
+        }
+        if (url.includes('/servers') && (!init?.method || init.method === 'GET')) {
+          return new Response(
+            JSON.stringify({
+              items: [{ ...sampleServer, server_type: 'forge', agent_deployed: true, agent_online: true }],
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      }),
+    );
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers');
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /Survival/ })).toBeInTheDocument());
+    expect(screen.queryByText(/^forge$/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Открыть' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: /Survival/ }));
+    await waitFor(() => expect(screen.getByText('Игровые серверы')).toBeInTheDocument());
+  });
+
   it('shows error when server list fails', async () => {
     saveTokens({
       access_token: 'a',

@@ -364,7 +364,12 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 			return nil, err
 		}
 		c.runner.StopIfWorkDir(payload.WorkDir, true, 30*time.Second)
-		err := fs.WipeWorkDir(payload.WorkDir)
+		var err error
+		if payload.Remove {
+			err = fs.RemoveWorkDir(payload.WorkDir)
+		} else {
+			err = fs.WipeWorkDir(payload.WorkDir)
+		}
 		var resPayload []byte
 		if err != nil {
 			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})

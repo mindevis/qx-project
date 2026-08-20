@@ -197,13 +197,12 @@ function AgentDetailStat({
 }
 
 function ServerCard({ server }: { server: GameServer }) {
-  const { t } = useI18n();
   const labels = useStatusLabels();
   const vpsStatus = getVpsHostStatus(server);
   const agentTag = agentListTag(server, labels);
 
   return (
-    <article className="servers-card">
+    <Link to={`/servers/${server.id}`} className="servers-card servers-card--link">
       <div className="servers-card-head">
         <span className="servers-card-icon" aria-hidden>
           <CloudServerOutlined />
@@ -219,15 +218,7 @@ function ServerCard({ server }: { server: GameServer }) {
         </div>
       </div>
       <Paragraph className="servers-card-meta">{formatSshEndpoint(server)}</Paragraph>
-      <div className="servers-card-footer">
-        <span className="servers-card-type">{server.server_type}</span>
-        <Link to={`/servers/${server.id}`}>
-          <Button type="primary" ghost size="small">
-            {t('common.open')}
-          </Button>
-        </Link>
-      </div>
-    </article>
+    </Link>
   );
 }
 
@@ -963,10 +954,12 @@ function ServerDetail() {
 
         <div className="servers-hero-inner">
           <div className="servers-hero-content">
-            <Link to="/servers" className="servers-detail-back">
-              <ArrowLeftOutlined /> {t('servers.backToList')}
-            </Link>
-            <span className="servers-badge">{t('servers.detailBadge')}</span>
+            <div className="servers-hero-kicker">
+              <Link to="/servers" className="servers-detail-back">
+                <ArrowLeftOutlined /> {t('servers.backToList')}
+              </Link>
+              <span className="servers-badge">{t('servers.detailBadge')}</span>
+            </div>
             <Title level={1} className="servers-title">
               <span className="servers-title-highlight">{server.name}</span>
             </Title>
@@ -1057,39 +1050,99 @@ function ServerDetail() {
               </div>
             ) : null}
 
-            <div className="servers-panel">
-              <Title level={4} className="servers-panel-title">
-                {t('servers.infoTitle')}
-              </Title>
-              <div className="servers-info-rows">
-                <div className="servers-info-row">
-                  <span className="servers-info-label">{t('servers.sshLabel')}</span>
-                  <Text className="servers-info-value">{formatSshEndpoint(server)}</Text>
+            <div className="servers-detail-split">
+              <div className="servers-panel">
+                <Title level={4} className="servers-panel-title">
+                  {t('servers.infoTitle')}
+                </Title>
+                <div className="servers-info-rows">
+                  <div className="servers-info-row">
+                    <span className="servers-info-label">{t('servers.sshLabel')}</span>
+                    <Text className="servers-info-value">{formatSshEndpoint(server)}</Text>
+                  </div>
+                  {createdAt ? (
+                    <div className="servers-info-row">
+                      <span className="servers-info-label">{t('servers.createdAt')}</span>
+                      <Text className="servers-info-value">{createdAt}</Text>
+                    </div>
+                  ) : null}
+                  {lastSeen ? (
+                    <div className="servers-info-row">
+                      <span className="servers-info-label">{t('servers.lastSeen')}</span>
+                      <Text className="servers-info-value">{lastSeen}</Text>
+                    </div>
+                  ) : null}
+                  {server.config.jar_path ? (
+                    <div className="servers-info-row">
+                      <span className="servers-info-label">JAR</span>
+                      <Text className="servers-info-value">{server.config.jar_path}</Text>
+                    </div>
+                  ) : null}
+                  {server.config.jvm_args && server.config.jvm_args.length > 0 ? (
+                    <div className="servers-info-row">
+                      <span className="servers-info-label">JVM</span>
+                      <Text className="servers-info-value">{server.config.jvm_args.join(' ')}</Text>
+                    </div>
+                  ) : null}
                 </div>
-                {createdAt ? (
-                  <div className="servers-info-row">
-                    <span className="servers-info-label">{t('servers.createdAt')}</span>
-                    <Text className="servers-info-value">{createdAt}</Text>
+              </div>
+
+              <div className="servers-panel">
+                <Title level={4} className="servers-panel-title">
+                  {t('servers.management')}
+                </Title>
+                <div className="servers-action-groups">
+                  {!isAgentDeployed(server) ? (
+                    <div className="servers-action-group">
+                      <Text type="secondary" className="servers-action-group-label">
+                        {t('servers.actionDeploy')}
+                      </Text>
+                      <div className="servers-actions">
+                        <Button
+                          type="primary"
+                          icon={<RocketOutlined />}
+                          loading={busy && action === 'deploy'}
+                          onClick={() => void runAgentAction('deploy')}
+                        >
+                          {t('servers.deployAgent')}
+                        </Button>
+                      </div>
+                      <Paragraph type="secondary" className="servers-hint">
+                        {t('servers.deployHint')}
+                      </Paragraph>
+                    </div>
+                  ) : (
+                    <div className="servers-action-group">
+                      <Text type="secondary" className="servers-action-group-label">
+                        {t('servers.actionAgent')}
+                      </Text>
+                      <div className="servers-actions">
+                        <Button
+                          type="primary"
+                          icon={<ReloadOutlined />}
+                          loading={busy && action === 'update'}
+                          onClick={() => void runAgentAction('update')}
+                        >
+                          {t('servers.updateAgent')}
+                        </Button>
+                      </div>
+                      <Paragraph type="secondary" className="servers-hint">
+                        {t('servers.updateAgentHint')}
+                      </Paragraph>
+                    </div>
+                  )}
+
+                  <div className="servers-action-group servers-action-group--danger">
+                    <Text type="secondary" className="servers-action-group-label">
+                      {t('servers.dangerZone')}
+                    </Text>
+                    <Popconfirm title={t('servers.deleteConfirm')} onConfirm={() => void onDelete()}>
+                      <Button danger icon={<DeleteOutlined />}>
+                        {t('common.delete')}
+                      </Button>
+                    </Popconfirm>
                   </div>
-                ) : null}
-                {lastSeen ? (
-                  <div className="servers-info-row">
-                    <span className="servers-info-label">{t('servers.lastSeen')}</span>
-                    <Text className="servers-info-value">{lastSeen}</Text>
-                  </div>
-                ) : null}
-                {server.config.jar_path ? (
-                  <div className="servers-info-row">
-                    <span className="servers-info-label">JAR</span>
-                    <Text className="servers-info-value">{server.config.jar_path}</Text>
-                  </div>
-                ) : null}
-                {server.config.jvm_args && server.config.jvm_args.length > 0 ? (
-                  <div className="servers-info-row">
-                    <span className="servers-info-label">JVM</span>
-                    <Text className="servers-info-value">{server.config.jvm_args.join(' ')}</Text>
-                  </div>
-                ) : null}
+                </div>
               </div>
             </div>
 
@@ -1098,64 +1151,6 @@ function ServerDetail() {
               agentOnline={server.agent_online}
               defaultAddress={server.ssh.host}
             />
-
-            <div className="servers-panel">
-              <Title level={4} className="servers-panel-title">
-                {t('servers.management')}
-              </Title>
-              <div className="servers-action-groups">
-                {!isAgentDeployed(server) ? (
-                  <div className="servers-action-group">
-                    <Text type="secondary" className="servers-action-group-label">
-                      {t('servers.actionDeploy')}
-                    </Text>
-                    <div className="servers-actions">
-                      <Button
-                        type="primary"
-                        icon={<RocketOutlined />}
-                        loading={busy && action === 'deploy'}
-                        onClick={() => void runAgentAction('deploy')}
-                      >
-                        {t('servers.deployAgent')}
-                      </Button>
-                    </div>
-                    <Paragraph type="secondary" className="servers-hint">
-                      {t('servers.deployHint')}
-                    </Paragraph>
-                  </div>
-                ) : (
-                  <div className="servers-action-group">
-                    <Text type="secondary" className="servers-action-group-label">
-                      {t('servers.actionAgent')}
-                    </Text>
-                    <div className="servers-actions">
-                      <Button
-                        type="primary"
-                        icon={<ReloadOutlined />}
-                        loading={busy && action === 'update'}
-                        onClick={() => void runAgentAction('update')}
-                      >
-                        {t('servers.updateAgent')}
-                      </Button>
-                    </div>
-                    <Paragraph type="secondary" className="servers-hint">
-                      {t('servers.updateAgentHint')}
-                    </Paragraph>
-                  </div>
-                )}
-
-                <div className="servers-action-group servers-action-group--danger">
-                  <Text type="secondary" className="servers-action-group-label">
-                    {t('servers.dangerZone')}
-                  </Text>
-                  <Popconfirm title={t('servers.deleteConfirm')} onConfirm={() => void onDelete()}>
-                    <Button danger icon={<DeleteOutlined />}>
-                      {t('common.delete')}
-                    </Button>
-                  </Popconfirm>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>

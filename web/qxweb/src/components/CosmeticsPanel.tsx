@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Card, Popconfirm, Segmented, Space, Spin, Typography, Upload } from 'antd';
-import { DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { Button, Card, Popconfirm, Segmented, Space, Spin, Tag, Typography, Upload } from 'antd';
+import { CheckCircleFilled, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { SkinViewer } from 'skinview3d';
 import { api, type ProfileModel, type UserCosmetics } from '@/api/client';
@@ -187,7 +187,18 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       {!embedded ? <p className="cosmetics-hint">{t('cosmetics.hint')}</p> : null}
       <div className="cosmetics-preview-row">
-        <CosmeticsPreview model={model} skinUrl={previewSkinUrl} capeUrl={previewCapeUrl} />
+        <div
+          className={`cosmetics-preview${cosmetics?.has_skin ? ' cosmetics-preview--applied' : ''}`}
+        >
+          <CosmeticsPreview model={model} skinUrl={previewSkinUrl} capeUrl={previewCapeUrl} />
+          <Tag
+            className="cosmetics-preview-status"
+            color={cosmetics?.has_skin ? 'success' : 'default'}
+            icon={cosmetics?.has_skin ? <CheckCircleFilled /> : undefined}
+          >
+            {cosmetics?.has_skin ? t('cosmetics.skinApplied') : t('cosmetics.skinDefault')}
+          </Tag>
+        </div>
         <div className="cosmetics-controls">
           <div className="cosmetics-field">
             <span className="cosmetics-label">{t('cosmetics.skinModel')}</span>
