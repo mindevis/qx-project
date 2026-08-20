@@ -123,6 +123,56 @@ func TestBuildLaunchPlanQuickPlayMultiplayer(t *testing.T) {
 	}
 }
 
+func TestBuildLaunchPlanMinecraft26NativesPaths(t *testing.T) {
+	manifest := &mcmanifest.InstanceLaunchManifest{
+		MCVersion:  "26.2",
+		MainClass:  "net.minecraft.client.main.Main",
+		AssetIndex: mcmanifest.AssetIndexRef{ID: "26.2"},
+		JVMArguments: []string{
+			"-Djava.library.path=${natives_directory}/java",
+			"-Djna.tmpdir=${natives_directory}/jna",
+			"-Dorg.lwjgl.system.SharedLibraryExtractPath=${natives_directory}/lwjgl",
+			"-Dio.netty.native.workdir=${natives_directory}/netty",
+			"-Dminecraft.launcher.brand=${launcher_name}",
+			"-Dminecraft.launcher.version=${launcher_version}",
+			"-cp",
+			"${classpath}",
+		},
+		GameArguments: []string{
+			"--username", "${auth_player_name}",
+			"--version", "${version_name}",
+			"--gameDir", "${game_directory}",
+		},
+	}
+	jar := filepath.Join(t.TempDir(), "26.2.jar")
+	lib := filepath.Join(t.TempDir(), "lwjgl.jar")
+	natives := filepath.Join(t.TempDir(), "natives")
+	plan := BuildLaunchPlan(manifest, jar, []string{lib}, natives, "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil, "")
+	joined := strings.Join(plan.Args, " ")
+	if strings.Contains(joined, "${") {
+		t.Fatalf("unresolved placeholders: %s", joined)
+	}
+	wantLibPath := "-Djava.library.path=" + strings.ReplaceAll(natives, "\\", "/") + "/java"
+	if !strings.Contains(joined, wantLibPath) {
+		t.Fatalf("library path: %s", joined)
+	}
+	if !strings.Contains(joined, "QXLauncher") {
+		t.Fatalf("launcher name: %s", joined)
+	}
+	if !strings.Contains(joined, lib) || !strings.Contains(joined, jar) {
+		t.Fatalf("classpath missing jars: %s", joined)
+	}
+	cpCount := 0
+	for _, arg := range plan.Args {
+		if arg == "-cp" || arg == "-classpath" {
+			cpCount++
+		}
+	}
+	if cpCount != 1 {
+		t.Fatalf("expected one -cp, got %d: %s", cpCount, joined)
+	}
+}
+
 func TestBuildLaunchPlan(t *testing.T) {
 	manifest := &mcmanifest.InstanceLaunchManifest{
 		MCVersion: "1.21",

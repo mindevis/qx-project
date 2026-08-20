@@ -91,6 +91,37 @@ func TestEnsureNativesExtract(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(nativesDir, nativeName)); err != nil {
 		t.Fatalf("missing native %s: %v", nativeName, err)
 	}
+	for _, sub := range []string{"java", "jna", "lwjgl", "netty"} {
+		if st, err := os.Stat(filepath.Join(nativesDir, sub)); err != nil || !st.IsDir() {
+			t.Fatalf("missing natives subdir %s: %v", sub, err)
+		}
+	}
+	for _, sub := range []string{"java", "lwjgl"} {
+		if _, err := os.Stat(filepath.Join(nativesDir, sub, nativeName)); err != nil {
+			t.Fatalf("missing native copy in %s: %v", sub, err)
+		}
+	}
+}
+
+func TestEnsureNativeRuntimeLayout(t *testing.T) {
+	dir := t.TempDir()
+	nativeName := "lwjgl.dll"
+	if err := os.WriteFile(filepath.Join(dir, nativeName), []byte("native"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureNativeRuntimeLayout(dir); err != nil {
+		t.Fatal(err)
+	}
+	for _, sub := range []string{"java", "jna", "lwjgl", "netty"} {
+		if st, err := os.Stat(filepath.Join(dir, sub)); err != nil || !st.IsDir() {
+			t.Fatalf("missing subdir %s: %v", sub, err)
+		}
+	}
+	for _, sub := range []string{"java", "lwjgl"} {
+		if _, err := os.Stat(filepath.Join(dir, sub, nativeName)); err != nil {
+			t.Fatalf("missing copy in %s: %v", sub, err)
+		}
+	}
 }
 
 func TestEnsureNativesNamedArtifact(t *testing.T) {

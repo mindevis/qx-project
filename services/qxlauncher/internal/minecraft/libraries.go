@@ -115,6 +115,9 @@ func (d *Downloader) EnsureNatives(ctx context.Context, manifest *mcmanifest.Ins
 			return "", err
 		}
 	}
+	if err := ensureNativeRuntimeLayout(nativesDir); err != nil {
+		return "", err
+	}
 	return nativesDir, nil
 }
 
@@ -239,6 +242,55 @@ func verifyNativeBinariesPresent(dir string) error {
 		}
 	}
 	return fmt.Errorf("no native binaries extracted to %s", dir)
+}
+
+// Minecraft 26.2+ looks for natives in subfolders:
+// ${natives_directory}/java, /lwjgl, /jna, /netty — not the natives root.
+func ensureNativeRuntimeLayout(nativesDir string) error {
+	javaDir, err := safepath.Join(nativesDir, "java")
+	if err != nil {
+		return err
+	}
+	lwjglDir, err := safepath.Join(nativesDir, "lwjgl")
+	if err != nil {
+		return err
+	}
+	for _, name := range []string{"java", "jna", "lwjgl", "netty"} {
+		dir, err := safepath.Join(nativesDir, name)
+		if err != nil {
+			return err
+		}
+		if err := safepath.EnsureDir(dir); err != nil {
+			return err
+		}
+	}
+	entries, err := safepath.ReadDir(nativesDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || !isNativeBinary(e.Name()) {
+			continue
+		}
+		src, err := safepath.Join(nativesDir, e.Name())
+		if err != nil {
+			return err
+		}
+		data, err := safepath.ReadFileBytes(src)
+		if err != nil {
+			return err
+		}
+		for _, destDir := range []string{javaDir, lwjglDir} {
+			dest, err := safepath.Join(destDir, e.Name())
+			if err != nil {
+				return err
+			}
+			if err := safepath.WriteFileBytes(dest, data, 0o644); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func extractNativeBinaries(jarPath, destDir string) (int, error) {

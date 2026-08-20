@@ -13,6 +13,7 @@ import (
 
 	"github.com/qxproject/qx/pkg/mcmanifest"
 	"github.com/qxproject/qx/pkg/safepath"
+	"github.com/qxproject/qx/services/qxlauncher/internal/version"
 )
 
 type Downloader struct {
@@ -90,7 +91,9 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 	if librariesDir == "" {
 		librariesDir = filepath.Join(filepath.Dir(clientJar), "libraries")
 	}
-	subs := launchSubstitutions(manifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID, licensed, quickPlayMultiplayer)
+	cpEntries := append(append([]string{}, libPaths...), clientJar)
+	classpath := BuildClasspath(cpEntries)
+	subs := launchSubstitutions(manifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID, licensed, quickPlayMultiplayer, classpath)
 
 	var args []string
 	if len(manifest.JVMArguments) > 0 {
@@ -103,8 +106,9 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 	}
 
 	if !usesModulePathLaunch(manifest) {
-		cpEntries := append(append([]string{}, libPaths...), clientJar)
-		args = append(args, "-cp", BuildClasspath(cpEntries))
+		if !containsClasspathFlag(args) {
+			args = append(args, "-cp", classpath)
+		}
 	} else if !containsArgPrefix(args, "-DlegacyClassPath=") {
 		args = append(args, "-DlegacyClassPath="+buildLegacyClassPath(libPaths))
 	}
@@ -169,11 +173,23 @@ func containsArgPrefix(args []string, prefix string) bool {
 	return false
 }
 
+func containsClasspathFlag(args []string) bool {
+	for _, arg := range args {
+		switch {
+		case arg == "-cp", arg == "-classpath":
+			return true
+		case strings.HasPrefix(arg, "-cp="), strings.HasPrefix(arg, "-classpath="):
+			return true
+		}
+	}
+	return false
+}
+
 func launchPathSlash(path string) string {
 	return strings.ReplaceAll(path, "\\", "/")
 }
 
-func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID string, licensed *LaunchAuth, quickPlayMultiplayer string) map[string]string {
+func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, assetsDir, librariesDir, nativesDir, username, offlineUUID string, licensed *LaunchAuth, quickPlayMultiplayer, classpath string) map[string]string {
 	if nativesDir == "" {
 		nativesDir = filepath.Join(gameDir, "natives")
 	}
@@ -216,6 +232,9 @@ func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, a
 		"${library_directory}":      launchPathSlash(librariesDir),
 		"${classpath_separator}":    sep,
 		"${natives_directory}":      launchPathSlash(nativesDir),
+		"${classpath}":              classpath,
+		"${launcher_name}":          "QXLauncher",
+		"${launcher_version}":       version.Version,
 		"${resolution_width}":       "854",
 		"${resolution_height}":      "480",
 		"${quickPlayPath}":          "",
