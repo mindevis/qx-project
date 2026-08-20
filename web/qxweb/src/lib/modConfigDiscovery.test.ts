@@ -6,8 +6,10 @@ import {
   filterConfigFileEntries,
   filterGroupedConfigs,
   groupConfigFilesByMod,
+  instanceConfigDestPath,
   isConfigFilePath,
   listConfigPaths,
+  sanitizeUploadRelativePath,
   type ModConfigMod,
 } from './modConfigDiscovery';
 
@@ -23,6 +25,39 @@ describe('isConfigFilePath', () => {
 describe('configRelativePath', () => {
   it('strips the config prefix', () => {
     expect(configRelativePath('config/fabric-api/client.json')).toBe('fabric-api/client.json');
+  });
+
+  it('strips the client-config prefix', () => {
+    expect(configRelativePath('client-config/journeymap/client.json')).toBe('journeymap/client.json');
+    expect(configRelativePath('CLIENT-CONFIG/sodium-options.json')).toBe('sodium-options.json');
+  });
+});
+
+describe('instanceConfigDestPath', () => {
+  it('maps client-config paths onto the instance config folder', () => {
+    expect(instanceConfigDestPath('client-config/sodium-options.json')).toBe('config/sodium-options.json');
+    expect(instanceConfigDestPath('client-config/journeymap/client.json')).toBe(
+      'config/journeymap/client.json',
+    );
+    expect(instanceConfigDestPath('config/fabric-api.toml')).toBe('config/fabric-api.toml');
+  });
+});
+
+describe('sanitizeUploadRelativePath', () => {
+  it('keeps nested folder uploads and rejects traversal or non-config files', () => {
+    const nested = new File(['{}'], 'client.json', { type: 'application/json' });
+    Object.defineProperty(nested, 'webkitRelativePath', { value: 'JourneyMap/client.json' });
+    expect(sanitizeUploadRelativePath(nested)).toBe('JourneyMap/client.json');
+
+    const loose = new File(['a=1'], 'sodium-options.json', { type: 'application/json' });
+    expect(sanitizeUploadRelativePath(loose)).toBe('sodium-options.json');
+
+    const skip = new File(['nope'], 'readme.txt', { type: 'text/plain' });
+    expect(sanitizeUploadRelativePath(skip)).toBeNull();
+
+    const traversal = new File(['{}'], 'client.json', { type: 'application/json' });
+    Object.defineProperty(traversal, 'webkitRelativePath', { value: '../client.json' });
+    expect(sanitizeUploadRelativePath(traversal)).toBeNull();
   });
 });
 
@@ -146,6 +181,30 @@ describe('listConfigPaths', () => {
       { path: 'config/fabric-api/client.json', size: 32 },
       { path: 'config/fabric-api/nested/extra.toml', size: 16 },
       { path: 'config/server.properties', size: 64 },
+    ]);
+  });
+
+  it('lists files under a custom root such as client-config', async () => {
+    const paths = await listConfigPaths(
+      async (path) => {
+        if (path === 'client-config') {
+          return [
+            { path: 'client-config/sodium-options.json', dir: false, name: 'sodium-options.json', size: 48 },
+            { path: 'client-config/journeymap', dir: true, name: 'journeymap' },
+          ];
+        }
+        if (path === 'client-config/journeymap') {
+          return [{ path: 'client-config/journeymap/client.json', dir: false, name: 'client.json', size: 12 }];
+        }
+        return [];
+      },
+      3,
+      'client-config',
+    );
+
+    expect(paths).toEqual([
+      { path: 'client-config/journeymap/client.json', size: 12 },
+      { path: 'client-config/sodium-options.json', size: 48 },
     ]);
   });
 });

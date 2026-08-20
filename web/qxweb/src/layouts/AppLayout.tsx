@@ -52,13 +52,13 @@ export function AppLayout() {
       : location.pathname === '/launcher' ||
           location.pathname === '/launcher/link' ||
           location.pathname.startsWith('/launcher/instances/')
-        ? 'app-footer app-footer--landing-launcher'
+        ? 'app-footer app-footer--landing app-footer--landing-launcher'
         : location.pathname === '/monitoring'
-          ? 'app-footer app-footer--landing-monitoring'
+          ? 'app-footer app-footer--landing app-footer--landing-monitoring'
           : location.pathname === '/skins'
-            ? 'app-footer app-footer--landing-skins'
+            ? 'app-footer app-footer--landing app-footer--landing-skins'
             : location.pathname === '/servers' || location.pathname.startsWith('/servers/')
-            ? 'app-footer app-footer--landing-servers'
+            ? 'app-footer app-footer--landing app-footer--landing-servers'
             : 'app-footer';
   const [scrolled, setScrolled] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -76,7 +76,7 @@ export function AppLayout() {
   const headerClassName = [
     'app-header',
     'app-header--sticky',
-    isHome && 'app-header--landing',
+    isFullBleedPage && 'app-header--landing',
     scrolled && 'app-header--scrolled',
   ]
     .filter(Boolean)

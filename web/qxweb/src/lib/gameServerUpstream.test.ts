@@ -9,8 +9,8 @@ describe('gameServerUpstream', () => {
     expect(gameServerUpstreamUrl('mavenforge', '/net/minecraftforge/forge/maven-metadata.xml')).toBe(
       '/upstream/mavenforge/net/minecraftforge/forge/maven-metadata.xml',
     );
-    expect(gameServerUpstreamUrl('papermc', '/v2/projects/paper')).toBe(
-      '/upstream/papermc/v2/projects/paper',
+    expect(gameServerUpstreamUrl('papermc', '/v3/projects/paper')).toBe(
+      '/upstream/papermc/v3/projects/paper',
     );
   });
 });

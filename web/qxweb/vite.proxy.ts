@@ -24,12 +24,17 @@ function writeBackendUnavailable(res: unknown) {
   );
 }
 
-function upstreamProxy(target: string, prefix: string): ProxyOptions {
+function upstreamProxy(
+  target: string,
+  prefix: string,
+  extraHeaders?: Record<string, string>,
+): ProxyOptions {
   return {
     target,
     changeOrigin: true,
     secure: true,
     rewrite: (path) => path.replace(new RegExp(`^/upstream/${prefix}`), ''),
+    ...(extraHeaders ? { headers: extraHeaders } : {}),
   };
 }
 
@@ -47,7 +52,10 @@ export function apiProxyConfig(): Record<string, ProxyOptions> {
     },
     '/upstream/forge': upstreamProxy('https://files.minecraftforge.net', 'forge'),
     '/upstream/mavenforge': upstreamProxy('https://maven.minecraftforge.net', 'mavenforge'),
-    '/upstream/papermc': upstreamProxy('https://api.papermc.io', 'papermc'),
+    '/upstream/papermc': upstreamProxy('https://fill.papermc.io', 'papermc', {
+      // Fill v3 rejects generic User-Agent values.
+      'User-Agent': 'QXProject/1.0 (https://github.com/qxproject/qx)',
+    }),
     '/upstream/purpur': upstreamProxy('https://api.purpurmc.org', 'purpur'),
     '/upstream/neoforge': upstreamProxy('https://maven.neoforged.net', 'neoforge'),
     '/upstream/fabric': upstreamProxy('https://meta.fabricmc.net', 'fabric'),

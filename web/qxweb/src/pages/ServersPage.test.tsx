@@ -378,10 +378,18 @@ describe('ServersPage', () => {
           );
         }
         if (url.includes('/versions/') && url.includes('/builds')) {
-          return new Response(JSON.stringify({ builds: [{ build: 456 }] }), { status: 200 });
+          return new Response(JSON.stringify([{ id: 456, channel: 'STABLE' }]), { status: 200 });
         }
-        if (url.includes('api.papermc.io/v2/projects/paper') || url.includes('/upstream/papermc/v2/projects/paper')) {
-          return new Response(JSON.stringify({ versions: ['1.20.4', '1.21'] }), { status: 200 });
+        if (
+          url.includes('/upstream/papermc/v3/projects/paper') ||
+          url.includes('/upstream/papermc/v2/projects/paper') ||
+          url.includes('api.papermc.io/v2/projects/paper') ||
+          url.includes('fill.papermc.io/v3/projects/paper')
+        ) {
+          return new Response(
+            JSON.stringify({ versions: { '1.21': ['1.21'], '1.20': ['1.20.4'] } }),
+            { status: 200 },
+          );
         }
         if (url.includes('/servers/srv-1/game-servers') && init?.method === 'POST') {
           const created = {

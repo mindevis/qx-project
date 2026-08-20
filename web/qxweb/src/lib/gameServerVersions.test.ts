@@ -87,11 +87,28 @@ describe('gameServerVersions', () => {
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes('/projects/paper') && !url.includes('/versions/')) {
-          return Promise.resolve(new Response(JSON.stringify({ versions: ['1.21'] }), { status: 200 }));
-        }
-        if (url.includes('/versions/1.21/builds')) {
           return Promise.resolve(
-            new Response(JSON.stringify({ builds: [{ build: 456 }, { build: 455 }] }), { status: 200 }),
+            new Response(
+              JSON.stringify({
+                versions: {
+                  '1.21': ['1.21.11-rc1', '1.21.11', '1.21'],
+                  '1.20': ['1.20.4'],
+                },
+              }),
+              { status: 200 },
+            ),
+          );
+        }
+        if (url.includes('/versions/1.21.11/builds')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify([
+                { id: 132, channel: 'STABLE' },
+                { id: 66, channel: 'BETA' },
+                { id: 48, channel: 'ALPHA' },
+              ]),
+              { status: 200 },
+            ),
           );
         }
         return Promise.reject(new Error(`unexpected ${url}`));
@@ -99,12 +116,13 @@ describe('gameServerVersions', () => {
     );
 
     const mcOptions = await listGameServerMcVersions('paper', mcFallback);
-    expect(mcOptions[0]?.value).toBe('1.21');
+    expect(mcOptions.map((item) => item.value)).toEqual(['1.21.11', '1.21', '1.20.4']);
 
-    const loaderOptions = await listGameServerLoaderVersions('paper', '1.21');
+    const loaderOptions = await listGameServerLoaderVersions('paper', '1.21.11');
     expect(loaderOptions).toEqual([
-      { value: '456', label: '#456' },
-      { value: '455', label: '#455' },
+      { value: '132', label: '#132' },
+      { value: '66', label: '#66 (beta)' },
+      { value: '48', label: '#48 (alpha)' },
     ]);
   });
 

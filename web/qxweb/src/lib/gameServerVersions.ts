@@ -7,7 +7,7 @@ export type VersionOption = {
   label: string;
 };
 
-const PAPER_API = gameServerUpstreamUrl('papermc', '/v2/projects');
+const PAPER_API = gameServerUpstreamUrl('papermc', '/v3/projects');
 const PURPUR_API = gameServerUpstreamUrl('purpur', '/v2/projects/purpur');
 const FORGE_PROMOTIONS = gameServerUpstreamUrl(
   'forge',
@@ -147,27 +147,101 @@ async function fetchForgePromos(): Promise<Record<string, string>> {
 }
 
 async function fetchPaperFamilyMcVersions(project: 'paper' | 'purpur'): Promise<VersionOption[]> {
-  const base = project === 'paper' ? `${PAPER_API}/paper` : PURPUR_API;
-  const data = await cachedFetchJson<{ versions: string[] }>(base);
-  return [...data.versions]
+  if (project === 'purpur') {
+    const data = await cachedFetchJson<{ versions: string[] }>(PURPUR_API);
+    return [...data.versions]
+      .sort(compareMcVersionsDesc)
+      .map((version) => ({ value: version, label: version }));
+  }
+  const data = await cachedFetchJson<unknown>(`${PAPER_API}/paper`);
+  return parsePaperMcVersions(data)
+    .filter(isPaperReleaseVersion)
     .sort(compareMcVersionsDesc)
     .map((version) => ({ value: version, label: version }));
+}
+
+function isPaperReleaseVersion(version: string): boolean {
+  return !version.includes('-');
+}
+
+function parsePaperMcVersions(data: unknown): string[] {
+  if (!data || typeof data !== 'object' || !('versions' in data)) {
+    throw new Error('unexpected paper versions payload');
+  }
+  const versions = (data as { versions: unknown }).versions;
+  if (Array.isArray(versions)) {
+    return versions.filter((item): item is string => typeof item === 'string');
+  }
+  if (versions && typeof versions === 'object') {
+    const out: string[] = [];
+    for (const group of Object.values(versions as Record<string, unknown>)) {
+      if (!Array.isArray(group)) continue;
+      for (const item of group) {
+        if (typeof item === 'string') out.push(item);
+      }
+    }
+    return out;
+  }
+  throw new Error('unexpected paper versions payload');
+}
+
+type PaperBuild = {
+  id: number;
+  channel?: string;
+};
+
+function parsePaperBuilds(data: unknown): PaperBuild[] {
+  const items = Array.isArray(data)
+    ? data
+    : data && typeof data === 'object' && 'builds' in data
+      ? (data as { builds: unknown }).builds
+      : null;
+  if (!Array.isArray(items)) {
+    throw new Error('unexpected paper builds payload');
+  }
+  const out: PaperBuild[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as { id?: unknown; build?: unknown; channel?: unknown };
+    const id = typeof rec.id === 'number' ? rec.id : typeof rec.build === 'number' ? rec.build : null;
+    if (id == null) continue;
+    out.push({
+      id,
+      channel: typeof rec.channel === 'string' ? rec.channel : undefined,
+    });
+  }
+  return out;
+}
+
+function paperBuildLabel(build: PaperBuild): string {
+  const channel = build.channel?.toUpperCase();
+  if (channel && channel !== 'STABLE' && channel !== 'RECOMMENDED') {
+    return `#${build.id} (${channel.toLowerCase()})`;
+  }
+  return `#${build.id}`;
 }
 
 async function fetchPaperFamilyBuilds(
   project: 'paper' | 'purpur',
   mcVersion: string,
 ): Promise<VersionOption[]> {
-  const base =
-    project === 'paper'
-      ? `${PAPER_API}/paper/versions/${mcVersion}/builds`
-      : `${PURPUR_API}/versions/${mcVersion}/builds`;
-  const data = await cachedFetchJson<{ builds: { build: number }[] }>(base);
-  return [...data.builds]
-    .sort((a, b) => b.build - a.build)
+  if (project === 'purpur') {
+    const data = await cachedFetchJson<{ builds: { build: number }[] }>(
+      `${PURPUR_API}/versions/${mcVersion}/builds`,
+    );
+    return [...data.builds]
+      .sort((a, b) => b.build - a.build)
+      .map((item) => ({
+        value: String(item.build),
+        label: `#${item.build}`,
+      }));
+  }
+  const data = await cachedFetchJson<unknown>(`${PAPER_API}/paper/versions/${mcVersion}/builds`);
+  return parsePaperBuilds(data)
+    .sort((a, b) => b.id - a.id)
     .map((item) => ({
-      value: String(item.build),
-      label: `#${item.build}`,
+      value: String(item.id),
+      label: paperBuildLabel(item),
     }));
 }
 

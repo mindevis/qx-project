@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Segmented } from 'antd';
 import { api, loadLinkedDevice, type GameServerFileEntry } from '@/api/client';
 import { ModConfigsByModPanel, serverModToModConfig, type ConfigSyncContext } from '@/components/ModConfigsByModPanel';
+import { CLIENT_CONFIG_ROOT, INSTANCE_CONFIG_ROOT } from '@/lib/modConfigDiscovery';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import './ModConfigsByModPanel.css';
 
 type GameServerModConfigsPanelProps = {
   vpsId: string;
@@ -11,6 +14,8 @@ type GameServerModConfigsPanelProps = {
   mcVersion?: string;
   loader?: string;
 };
+
+type ConfigScope = 'server' | 'client';
 
 export function GameServerModConfigsPanel({
   vpsId,
@@ -21,9 +26,11 @@ export function GameServerModConfigsPanel({
 }: GameServerModConfigsPanelProps) {
   const { t } = useI18n();
   const message = useMessage();
+  const [scope, setScope] = useState<ConfigScope>('server');
   const [serverMods, setServerMods] = useState<GameServerFileEntry[]>([]);
   const [boundInstanceId, setBoundInstanceId] = useState<string | undefined>();
   const deviceLinked = loadLinkedDevice() != null;
+  const configRoot = scope === 'client' ? CLIENT_CONFIG_ROOT : INSTANCE_CONFIG_ROOT;
 
   const loadMods = useCallback(async () => {
     if (!agentOnline) {
@@ -92,12 +99,26 @@ export function GameServerModConfigsPanel({
   );
 
   return (
-    <ModConfigsByModPanel
-      mode="server"
-      available={agentOnline}
-      mods={modConfigs}
-      fileApi={fileApi}
-      configSync={configSync}
-    />
+    <div className="game-server-mod-configs">
+      <Segmented
+        value={scope}
+        options={[
+          { value: 'server', label: t('qxmods.configSync.scopeServer') },
+          { value: 'client', label: t('qxmods.configSync.scopeClient') },
+        ]}
+        onChange={(value) => setScope(value as ConfigScope)}
+        aria-label={t('qxmods.configSync.scopeAria')}
+      />
+      <ModConfigsByModPanel
+        key={configRoot}
+        mode="server"
+        available={agentOnline}
+        mods={modConfigs}
+        fileApi={fileApi}
+        configSync={configSync}
+        configRoot={configRoot}
+        allowUpload={scope === 'client'}
+      />
+    </div>
   );
 }

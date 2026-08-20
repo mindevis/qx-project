@@ -1,5 +1,9 @@
 export const CONFIG_EXTENSIONS = ['.toml', '.json', '.properties', '.cfg', '.yml', '.yaml'] as const;
 
+export const INSTANCE_CONFIG_ROOT = 'config';
+export const CLIENT_CONFIG_ROOT = 'client-config';
+export const CONFIG_MAX_BYTES = 2 * 1024 * 1024;
+
 export type ModConfigMod = {
   key: string;
   label: string;
@@ -61,7 +65,7 @@ function modIdentifiers(mod: ModConfigMod): string[] {
 }
 
 function configPathKeys(path: string): string[] {
-  const relative = path.replace(/^config\/?/i, '');
+  const relative = configRelativePath(path);
   const parts = relative.split('/').filter(Boolean);
   const keys = new Set<string>();
   if (parts[0]) {
@@ -93,7 +97,30 @@ export function isConfigFilePath(path: string): boolean {
 }
 
 export function configRelativePath(path: string): string {
-  return path.replace(/^config\/?/i, '');
+  return path.replace(/\\/g, '/').replace(/^(client-)?config\/?/i, '');
+}
+
+export function instanceConfigDestPath(serverPath: string): string {
+  const rel = configRelativePath(serverPath).replace(/^\/+/, '');
+  return rel ? `${INSTANCE_CONFIG_ROOT}/${rel}` : INSTANCE_CONFIG_ROOT;
+}
+
+export function joinConfigRoot(root: string, relativePath: string): string {
+  const rel = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  return rel ? `${root}/${rel}` : root;
+}
+
+export function sanitizeUploadRelativePath(file: File): string | null {
+  const raw = (file.webkitRelativePath || file.name).replace(/\\/g, '/');
+  const parts = raw.split('/').filter(Boolean);
+  if (parts.length === 0 || parts.some((part) => part === '.' || part === '..')) {
+    return null;
+  }
+  const rel = parts.join('/');
+  if (!isConfigFilePath(rel)) {
+    return null;
+  }
+  return rel;
 }
 
 export function filterConfigFileEntries(
@@ -161,6 +188,7 @@ export function groupConfigFilesByMod(
 export async function listConfigPaths(
   listDirFn: (path: string) => Promise<ListDirEntry[]>,
   maxDepth = 3,
+  root = INSTANCE_CONFIG_ROOT,
 ): Promise<ModConfigFileEntry[]> {
   const files: ModConfigFileEntry[] = [];
 
@@ -182,6 +210,6 @@ export async function listConfigPaths(
     }
   };
 
-  await walk('config', 0);
+  await walk(root, 0);
   return files.sort((a, b) => a.path.localeCompare(b.path));
 }

@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Modal } from 'antd';
 import { testMessage } from '@/test/test-message';
+import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { ModConfigsByModPanel } from './ModConfigsByModPanel';
 
@@ -21,6 +22,9 @@ const fileApi = {
 
 describe('ModConfigsByModPanel', () => {
   beforeEach(() => {
+    fileApi.listDir.mockReset();
+    fileApi.readFile.mockReset();
+    fileApi.writeFile.mockReset();
     vi.spyOn(Modal, 'confirm').mockImplementation((config) => {
       config.onOk?.();
       return { destroy: vi.fn(), update: vi.fn() };
@@ -123,5 +127,75 @@ describe('ModConfigsByModPanel', () => {
 
     await waitFor(() => expect(screen.getByText('Конфигурационные файлы не найдены')).toBeInTheDocument());
     expect(screen.queryByText(/Привяжите QXLauncher/i)).not.toBeInTheDocument();
+  });
+
+  it('lists client-config files and uploads them under that folder', async () => {
+    const user = userEvent.setup({ delay: null });
+    fileApi.listDir.mockImplementation(async (path: string) => {
+      if (path === 'client-config') {
+        return [{ path: 'client-config/sodium-options.json', dir: false, name: 'sodium-options.json', size: 40 }];
+      }
+      return [];
+    });
+    fileApi.writeFile.mockResolvedValue(undefined);
+
+    renderWithTheme(
+      <ModConfigsByModPanel
+        mode="server"
+        available
+        mods={[]}
+        fileApi={fileApi}
+        configRoot="client-config"
+        allowUpload
+      />,
+    );
+
+    await waitFor(() => expect(screen.getAllByText('sodium-options.json').length).toBeGreaterThan(0));
+    expect(screen.getByRole('button', { name: /Загрузить файлы/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Загрузить папку/i })).toBeInTheDocument();
+
+    const fileInput = document.querySelector('input[type="file"][accept]') as HTMLInputElement;
+    expect(fileInput).toBeTruthy();
+    const nested = new File(['zoom=4'], 'client.json', { type: 'application/json' });
+    Object.defineProperty(nested, 'webkitRelativePath', { value: 'JourneyMap/client.json' });
+    await user.upload(fileInput, nested);
+
+    await waitFor(() =>
+      expect(fileApi.writeFile).toHaveBeenCalledWith('client-config/JourneyMap/client.json', 'zoom=4'),
+    );
+  });
+
+  it('pulls a client-config file into the instance config folder', async () => {
+    const user = userEvent.setup({ delay: null });
+    fileApi.listDir.mockResolvedValue([
+      { path: 'client-config/sodium-options.json', dir: false, name: 'sodium-options.json', size: 40 },
+    ]);
+    fileApi.readFile.mockResolvedValue('quality=high');
+    const writeInstance = vi.spyOn(api, 'writeInstanceFile').mockResolvedValue(undefined);
+
+    renderWithTheme(
+      <ModConfigsByModPanel
+        mode="server"
+        available
+        mods={[]}
+        fileApi={fileApi}
+        configRoot="client-config"
+        allowUpload
+        configSync={{
+          instanceId: 'inst-1',
+          instanceLoader: 'fabric',
+          deviceLinked: true,
+          agentOnline: true,
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getAllByText('sodium-options.json').length).toBeGreaterThan(0));
+    await user.click(screen.getByRole('button', { name: /sodium-options\.json/i }));
+    await waitFor(() => expect(screen.getByDisplayValue('quality=high')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Скопировать на инстанс/i }));
+    await waitFor(() =>
+      expect(writeInstance).toHaveBeenCalledWith('inst-1', 'config/sodium-options.json', 'quality=high'),
+    );
   });
 });

@@ -22,6 +22,7 @@ type PrepareConnectModsResult struct {
 	ServerResourcepacksInstalled []string `json:"server_resourcepacks_installed"`
 	ClientShadersInstalled       []string `json:"client_shaders_installed"`
 	ServerShadersInstalled       []string `json:"server_shaders_installed"`
+	ClientConfigsInstalled       []string `json:"client_configs_installed"`
 	Removed                      []string `json:"removed,omitempty"`
 	Skipped                      []string `json:"skipped,omitempty"`
 	Errors                       []string `json:"errors,omitempty"`
@@ -68,6 +69,7 @@ func (s *Service) PrepareConnectMods(
 		ServerResourcepacksInstalled: []string{},
 		ClientShadersInstalled:       []string{},
 		ServerShadersInstalled:       []string{},
+		ClientConfigsInstalled:       []string{},
 		AgentOnline:                  s.hub != nil && s.hub.IsOnline(gs.ServerID),
 	}
 	if !result.AgentOnline {
@@ -163,6 +165,8 @@ func (s *Service) PrepareConnectMods(
 	for _, name := range s.resolveServerShaderFilenames(ctx, gs) {
 		pull("shader", "", "shader", name, &result.ServerShadersInstalled)
 	}
+
+	s.pullClientConfigsToInstance(workCtx, ownerID, vpsID, gs.ID, instanceID, launcherSvc, owner, result)
 
 	result.Removed = pruneUnmanagedInstanceResources(workCtx, launcherSvc, owner, instanceID, intended, &result.Errors)
 	return result, nil

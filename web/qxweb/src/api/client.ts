@@ -372,6 +372,7 @@ export type PrepareConnectModsResult = {
   server_resourcepacks_installed: string[];
   client_shaders_installed: string[];
   server_shaders_installed: string[];
+  client_configs_installed?: string[];
   skipped?: string[];
   errors?: string[];
   agent_online: boolean;

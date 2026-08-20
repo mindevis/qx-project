@@ -635,7 +635,8 @@ export function MonitoringPage() {
         (prepared.client_resourcepacks_installed?.length ?? 0) +
         (prepared.server_resourcepacks_installed?.length ?? 0) +
         (prepared.client_shaders_installed?.length ?? 0) +
-        (prepared.server_shaders_installed?.length ?? 0);
+        (prepared.server_shaders_installed?.length ?? 0) +
+        (prepared.client_configs_installed?.length ?? 0);
       const prepareErrors = prepared.errors ?? [];
       if (prepareErrors.length > 0) {
         const names = prepareErrors

@@ -59,9 +59,21 @@
   gap: 12px;
 }
 
+.mod-configs-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .mod-configs-search {
   flex: 1 1 240px;
   max-width: 420px;
+}
+
+.game-server-mod-configs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .mod-configs-workspace {

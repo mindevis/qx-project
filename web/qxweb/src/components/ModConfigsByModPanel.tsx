@@ -9,14 +9,17 @@ import {
   Spin,
   Tag,
   Typography,
+  Upload,
 } from 'antd';
 import {
   ArrowLeftOutlined,
   CloudDownloadOutlined,
   CloudUploadOutlined,
+  FolderOpenOutlined,
   ReloadOutlined,
   RightOutlined,
   SearchOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import { api, type GameServerFileEntry, type InstanceResource } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
@@ -26,11 +29,16 @@ import { ModCatalogIcon } from '@/components/ModCatalogIcon';
 import { gameServerSyncTargetKey, loadGameServerSyncTargets } from '@/lib/gameServerSyncTargets';
 import { formatFileSize } from '@/lib/formatFileSize';
 import {
+  CLIENT_CONFIG_ROOT,
+  CONFIG_MAX_BYTES,
   configFileExtension,
   configRelativePath,
   filterGroupedConfigs,
   groupConfigFilesByMod,
+  instanceConfigDestPath,
+  joinConfigRoot,
   listConfigPaths,
+  sanitizeUploadRelativePath,
   type ModConfigFileEntry,
   type ModConfigMod,
 } from '@/lib/modConfigDiscovery';
@@ -59,6 +67,8 @@ type ModConfigsByModPanelProps = {
   mods: ModConfigMod[];
   fileApi: FileApi;
   configSync?: ConfigSyncContext;
+  configRoot?: string;
+  allowUpload?: boolean;
 };
 
 type ConfigTab = {
@@ -83,6 +93,8 @@ export function ModConfigsByModPanel({
   mods,
   fileApi,
   configSync,
+  configRoot = 'config',
+  allowUpload = false,
 }: ModConfigsByModPanelProps) {
   const { t } = useI18n();
   const message = useMessage();
@@ -97,6 +109,9 @@ export function ModConfigsByModPanel({
   const [fileLoading, setFileLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const uploadBatchRef = useRef<File[]>([]);
+  const uploadFlushScheduled = useRef(false);
   const [serverPickerOpen, setServerPickerOpen] = useState(false);
   const [serverTargets, setServerTargets] = useState<Awaited<ReturnType<typeof loadGameServerSyncTargets>>>([]);
   const [serverTargetsLoading, setServerTargetsLoading] = useState(false);
@@ -159,7 +174,7 @@ export function ModConfigsByModPanel({
     }
     setLoading(true);
     try {
-      const files = await listConfigPaths(async (path) => fileApi.listDir(path));
+      const files = await listConfigPaths(async (path) => fileApi.listDir(path), 3, configRoot);
       setConfigFiles(files);
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('gameServerDetail.filesLoadFailed'));
@@ -167,7 +182,7 @@ export function ModConfigsByModPanel({
     } finally {
       setLoading(false);
     }
-  }, [available, fileApi, message, t]);
+  }, [available, configRoot, fileApi, message, t]);
 
   useEffect(() => {
     void loadConfigTree();
@@ -298,7 +313,7 @@ export function ModConfigsByModPanel({
     setSyncing(true);
     try {
       const content = dirty ? fileContent : await fileApi.readFile(selectedFile);
-      await api.writeInstanceFile(configSync.instanceId, selectedFile, content);
+      await api.writeInstanceFile(configSync.instanceId, instanceConfigDestPath(selectedFile), content);
       setFileContent(content);
       setSavedContent(content);
       message.success(t('qxmods.configSync.success'));
@@ -309,15 +324,108 @@ export function ModConfigsByModPanel({
     }
   };
 
+  const uploadConfigFiles = async (files: File[]) => {
+    if (!allowUpload || files.length === 0) return;
+    setUploading(true);
+    let uploaded = 0;
+    let skipped = 0;
+    try {
+      for (const file of files) {
+        const rel = sanitizeUploadRelativePath(file);
+        if (!rel || file.size > CONFIG_MAX_BYTES) {
+          skipped += 1;
+          continue;
+        }
+        try {
+          const content = await file.text();
+          if (new TextEncoder().encode(content).length > CONFIG_MAX_BYTES) {
+            skipped += 1;
+            continue;
+          }
+          await fileApi.writeFile(joinConfigRoot(configRoot, rel), content);
+          uploaded += 1;
+        } catch {
+          skipped += 1;
+        }
+      }
+      if (uploaded > 0) {
+        message.success(t('qxmods.configSync.uploadSuccess', { count: uploaded }));
+        await loadConfigTree();
+      }
+      if (skipped > 0) {
+        message.warning(t('qxmods.configSync.uploadSkipped', { count: skipped }));
+      }
+      if (uploaded === 0 && skipped === 0) {
+        message.warning(t('qxmods.configSync.uploadEmpty'));
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const enqueueUploadFiles = (file: File) => {
+    uploadBatchRef.current.push(file);
+    if (uploadFlushScheduled.current) {
+      return false;
+    }
+    uploadFlushScheduled.current = true;
+    queueMicrotask(() => {
+      const batch = uploadBatchRef.current;
+      uploadBatchRef.current = [];
+      uploadFlushScheduled.current = false;
+      void uploadConfigFiles(batch);
+    });
+    return false;
+  };
+
   const selectTab = (key: string) => {
     userPickedTab.current = true;
     setActiveTab(key);
   };
 
-  const title =
-    mode === 'instance' ? t('qxmods.configSync.instanceTitle') : t('qxmods.configSync.serverTitle');
-  const intro =
-    mode === 'instance' ? t('qxmods.configSync.instanceIntro') : t('qxmods.configSync.serverIntro');
+  const clientScope = configRoot === CLIENT_CONFIG_ROOT;
+  const title = mode === 'instance'
+    ? t('qxmods.configSync.instanceTitle')
+    : clientScope
+      ? t('qxmods.configSync.clientTitle')
+      : t('qxmods.configSync.serverTitle');
+  const intro = mode === 'instance'
+    ? t('qxmods.configSync.instanceIntro')
+    : clientScope
+      ? t('qxmods.configSync.clientIntro')
+      : t('qxmods.configSync.serverIntro');
+  const emptyHintKey =
+    mode === 'server'
+      ? clientScope
+        ? 'qxmods.configSync.emptyHintClient'
+        : 'qxmods.configSync.emptyHintServer'
+      : 'qxmods.configSync.emptyHint';
+
+  const uploadButtons = allowUpload ? (
+    <div className="mod-configs-toolbar-actions">
+      <Upload
+        multiple
+        accept=".toml,.json,.properties,.cfg,.yml,.yaml"
+        showUploadList={false}
+        disabled={uploading}
+        beforeUpload={enqueueUploadFiles}
+      >
+        <Button icon={<UploadOutlined />} loading={uploading}>
+          {t('qxmods.configSync.uploadFiles')}
+        </Button>
+      </Upload>
+      <Upload
+        directory
+        showUploadList={false}
+        disabled={uploading}
+        beforeUpload={enqueueUploadFiles}
+      >
+        <Button icon={<FolderOpenOutlined />} loading={uploading}>
+          {t('qxmods.configSync.uploadFolder')}
+        </Button>
+      </Upload>
+    </div>
+  ) : null;
 
   if (!available) {
     return (
@@ -472,6 +580,7 @@ export function ModConfigsByModPanel({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        {uploadButtons}
         <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void loadConfigTree()}>
           {t('qxmods.configSync.refresh')}
         </Button>
@@ -489,12 +598,13 @@ export function ModConfigsByModPanel({
               <div>
                 <Typography.Text>{t('qxmods.configSync.noConfigs')}</Typography.Text>
                 <Typography.Paragraph type="secondary">
-                  {t(
-                    mode === 'server'
-                      ? 'qxmods.configSync.emptyHintServer'
-                      : 'qxmods.configSync.emptyHint',
-                  )}
+                  {t(emptyHintKey)}
                 </Typography.Paragraph>
+                {allowUpload ? (
+                  <Typography.Paragraph type="secondary">
+                    {t('qxmods.configSync.uploadHint')}
+                  </Typography.Paragraph>
+                ) : null}
               </div>
             }
           />
