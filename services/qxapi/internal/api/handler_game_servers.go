@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -422,7 +423,19 @@ func gameServerError(c *gin.Context, err error) {
 		JSONError(c, http.StatusConflict, "GAME_SERVER_ALREADY_RUNNING", "game server is already running")
 	case errors.Is(err, agenthub.ErrTimeout):
 		JSONError(c, http.StatusGatewayTimeout, "AGENT_TIMEOUT", "agent did not respond in time")
+	case isContentInstallError(err):
+		JSONError(c, http.StatusBadGateway, "CONTENT_INSTALL_FAILED", err.Error())
 	default:
 		JSONInternal(c)
 	}
+}
+
+func isContentInstallError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "download") ||
+		strings.Contains(msg, "invalid filename") ||
+		strings.Contains(msg, "rel_path")
 }

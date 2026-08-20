@@ -46,37 +46,28 @@ export function useGameServerModInstall(
     async (params: ModInstallParams): Promise<boolean> => {
       const file = params.version.files[0];
       if (!file?.url) {
-        message.error(t('qxmods.install.noFile'));
-        return false;
+        throw new Error(t('qxmods.install.noFile'));
       }
       const side = contentKindHasSide(kind) ? gameServerInstallSide(params.side) : undefined;
-      try {
-        const res = await syncContent(kind, vpsId, gameServerId, {
-          source: params.source,
-          project_id: params.projectId,
-          project_name: params.projectName,
-          version_id: params.version.id,
-          version_number: params.version.version_number,
-          filename: file.filename,
-          download_url: file.url,
-          icon_url: params.iconUrl,
-          downloads: params.downloads,
-          file_size: params.fileSize ?? file.size,
-          mod_target: contentKindHasSide(kind)
-            ? instanceResourceContentTarget({ side_override: side, resource_type: kind })
-            : undefined,
-          side_override: side,
-        });
-        if (res.status === 'already_installed') {
-          return true;
-        }
-        return true;
-      } catch (e) {
-        message.error(e instanceof Error ? e.message : t('qxmods.install.failed'));
-        return false;
-      }
+      await syncContent(kind, vpsId, gameServerId, {
+        source: params.source,
+        project_id: params.projectId,
+        project_name: params.projectName,
+        version_id: params.version.id,
+        version_number: params.version.version_number,
+        filename: file.filename,
+        download_url: file.url,
+        icon_url: params.iconUrl,
+        downloads: params.downloads,
+        file_size: params.fileSize ?? file.size,
+        mod_target: contentKindHasSide(kind)
+          ? instanceResourceContentTarget({ side_override: side, resource_type: kind })
+          : undefined,
+        side_override: side,
+      });
+      return true;
     },
-    [gameServerId, kind, message, t, vpsId],
+    [gameServerId, kind, t, vpsId],
   );
 
   const installBatch = useCallback(
@@ -84,21 +75,18 @@ export function useGameServerModInstall(
       if (items.length === 0) return false;
       const primary = items[items.length - 1];
       setInstallingVersionId(primary.version.id);
-      let allOk = true;
-      for (const item of items) {
-        const ok = await installOne(item);
-        if (!ok) {
-          allOk = false;
-          break;
+      try {
+        for (const item of items) {
+          await installOne(item);
         }
-      }
-      setInstallingVersionId(undefined);
-      if (allOk) {
         message.success(t('gameServerDetail.content.installed'));
-      } else {
-        message.error(t('qxmods.install.failed'));
+        return true;
+      } catch (e) {
+        message.error(e instanceof Error ? e.message : t('qxmods.install.failed'));
+        return false;
+      } finally {
+        setInstallingVersionId(undefined);
       }
-      return allOk;
     },
     [installOne, message, t],
   );

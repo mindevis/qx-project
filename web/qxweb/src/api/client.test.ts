@@ -230,6 +230,38 @@ describe('api client', () => {
     });
   });
 
+  it('preserves CONTENT_INSTALL_FAILED on 502', async () => {
+    saveTokens(tokens);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 'CONTENT_INSTALL_FAILED',
+            message: 'download host not allowed',
+          },
+        }),
+        { status: 502, statusText: 'Bad Gateway' },
+      ),
+    );
+
+    await expect(
+      api.syncPluginToGameServer('vps-1', 'gs-1', {
+        source: 'spigot',
+        project_id: '34315',
+        project_name: 'Vault',
+        version_id: '1',
+        version_number: '1.7.3',
+        filename: 'Vault.jar',
+        download_url: 'https://cdn.spiget.org/file/spiget-resources/34315.jar',
+      }),
+    ).rejects.toMatchObject({
+      message: 'download host not allowed',
+      apiCode: 'CONTENT_INSTALL_FAILED',
+      code: undefined,
+    });
+  });
+
   it('preserves SOURCE_UNAVAILABLE on 503', async () => {
     saveTokens(tokens);
     const fetchMock = vi.mocked(fetch);

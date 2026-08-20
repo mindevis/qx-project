@@ -177,6 +177,16 @@ func TestCurseForgeClassIDDatapack(t *testing.T) {
 	}
 }
 
+func TestCurseForgeNeedsResolvedDownload(t *testing.T) {
+	t.Parallel()
+	if !curseForgeNeedsResolvedDownload("https://www.curseforge.com/minecraft/bukkit-plugins/vault/download/123") {
+		t.Fatal("curseforge page should be resolved to a CDN url")
+	}
+	if curseForgeNeedsResolvedDownload("https://edge.forgecdn.net/files/1/2/Vault.jar") {
+		t.Fatal("forgecdn is already a direct file")
+	}
+}
+
 func TestCurseForgeSidesFromGameVersions(t *testing.T) {
 	t.Parallel()
 	client, server := curseForgeSidesFromGameVersions([]string{"Client", "1.20.1", "Forge", "Server"})

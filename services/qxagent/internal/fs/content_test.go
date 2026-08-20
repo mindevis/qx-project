@@ -151,6 +151,13 @@ func TestSanitizeContentDownloadURL(t *testing.T) {
 	if spigetURL == "" {
 		t.Fatal("expected spiget url")
 	}
+	cursecdnURL, err := sanitizeContentDownloadURL("https://media-elerium.cursecdn.com/files/vault.jar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cursecdnURL == "" {
+		t.Fatal("expected cursecdn url")
+	}
 }
 
 func TestReadContentFile(t *testing.T) {

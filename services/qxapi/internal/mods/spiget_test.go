@@ -63,7 +63,7 @@ func TestSpigetVersionUsesHostedDownload(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.URL.Path == "/resources/28140":
-			_, _ = w.Write([]byte(`{"id":28140,"name":"LuckPerms","premium":false,"external":false,"existenceStatus":1,"testedVersions":["1.21"],"file":{"type":".jar"}}`))
+			_, _ = w.Write([]byte(`{"id":28140,"name":"LuckPerms","premium":false,"external":false,"existenceStatus":1,"testedVersions":["1.21"],"file":{"type":".jar"},"version":{"id":123}}`))
 		case strings.HasSuffix(r.URL.Path, "/versions"):
 			_, _ = w.Write([]byte(`[{"id":123,"name":"5.4.0","releaseDate":1710000000}]`))
 		default:
@@ -80,8 +80,27 @@ func TestSpigetVersionUsesHostedDownload(t *testing.T) {
 	if len(versions) != 1 {
 		t.Fatalf("versions: %+v", versions)
 	}
-	if versions[0].Files[0].URL != "https://api.spiget.org/v2/resources/28140/versions/123/download" {
+	if versions[0].Files[0].URL != "https://api.spiget.org/v2/resources/28140/download" {
 		t.Fatalf("download: %s", versions[0].Files[0].URL)
+	}
+}
+
+func TestSpigetOlderVersionUsesProxyDownload(t *testing.T) {
+	t.Parallel()
+	resource := spigetResource{
+		ID:   34315,
+		Name: "Vault",
+		Version: struct {
+			ID int `json:"id"`
+		}{ID: 344916},
+	}
+	latest := spigetVersionFrom(resource, spigetVersion{ID: 344916, Name: "1.7.3"})
+	if latest == nil || latest.Files[0].URL != "https://api.spiget.org/v2/resources/34315/download" {
+		t.Fatalf("latest: %+v", latest)
+	}
+	older := spigetVersionFrom(resource, spigetVersion{ID: 271004, Name: "1.7.2"})
+	if older == nil || older.Files[0].URL != "https://api.spiget.org/v2/resources/34315/versions/271004/download/proxy" {
+		t.Fatalf("older: %+v", older)
 	}
 }
 

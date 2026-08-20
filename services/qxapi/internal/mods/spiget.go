@@ -323,8 +323,10 @@ func spigetDownloadURL(resource spigetResource, versionID int) string {
 		return ""
 	}
 	base := spigetAPIBase
-	if versionID > 0 {
-		return fmt.Sprintf("%s/resources/%d/versions/%d/download", base, resource.ID, versionID)
+	// Version-specific /download redirects to spigotmc.org (Cloudflare 403).
+	// Latest /download goes to cdn.spiget.org; older versions need /download/proxy.
+	if versionID > 0 && versionID != resource.Version.ID {
+		return fmt.Sprintf("%s/resources/%d/versions/%d/download/proxy", base, resource.ID, versionID)
 	}
 	return fmt.Sprintf("%s/resources/%d/download", base, resource.ID)
 }

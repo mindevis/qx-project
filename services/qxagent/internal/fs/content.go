@@ -15,6 +15,7 @@ import (
 )
 
 const contentDownloadTimeout = 5 * time.Minute
+const contentDownloadUserAgent = "QXProject/1.0 (https://github.com/qxproject/qx)"
 
 func ListPlugins(workDir string) ([]protocol.FileEntry, error) {
 	return ListDir(workDir, "plugins")
@@ -103,6 +104,7 @@ var allowedContentDownloadHostSuffixes = []string{
 	"papermc.io",
 	"spiget.org",
 	"forgecdn.net",
+	"cursecdn.com",
 	"curseforge.com",
 	"githubusercontent.com",
 }
@@ -189,7 +191,20 @@ func InstallContentFile(ctx context.Context, workDir, relPath, downloadURL strin
 	if err != nil {
 		return err
 	}
-	client := &http.Client{Timeout: 0}
+	req.Header.Set("User-Agent", contentDownloadUserAgent)
+	client := &http.Client{
+		Timeout: 0,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return fmt.Errorf("too many redirects")
+			}
+			if !isAllowedContentDownloadHost(req.URL.Hostname()) {
+				return fmt.Errorf("download host not allowed")
+			}
+			req.Header.Set("User-Agent", contentDownloadUserAgent)
+			return nil
+		},
+	}
 	res, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("download %s: %w", downloadURL, err)

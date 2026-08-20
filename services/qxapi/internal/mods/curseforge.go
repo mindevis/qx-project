@@ -299,7 +299,7 @@ func (c *curseForgeClient) listVersions(ctx context.Context, projectID, loader, 
 func (c *curseForgeClient) listVersionsOnce(ctx context.Context, projectID, loader, mcVersion string) ([]Version, error) {
 	path := "/mods/" + url.PathEscape(projectID) + "/files"
 	params := url.Values{}
-	if mcVersion != "" {
+	if mcVersion != "" && (loader == "" || curseForgeLoaderType(loader) != "") {
 		params.Set("gameVersion", mcVersion)
 	}
 	if loaderType := curseForgeLoaderType(loader); loaderType != "" {
@@ -322,8 +322,10 @@ func (c *curseForgeClient) listVersionsOnce(ctx context.Context, projectID, load
 			}
 		}
 		downloadURL := f.DownloadURL
-		if downloadURL == "" {
-			downloadURL, _ = c.fileDownloadURL(ctx, projectID, strconv.Itoa(f.ID))
+		if downloadURL == "" || curseForgeNeedsResolvedDownload(downloadURL) {
+			if resolved, err := c.fileDownloadURL(ctx, projectID, strconv.Itoa(f.ID)); err == nil && resolved != "" {
+				downloadURL = resolved
+			}
 		}
 		out = append(out, Version{
 			ID:            strconv.Itoa(f.ID),
@@ -388,8 +390,10 @@ func (c *curseForgeClient) versionFromFileData(
 		}
 	}
 	downloadURL := f.DownloadURL
-	if downloadURL == "" {
-		downloadURL, _ = c.fileDownloadURL(ctx, projectID, fileID)
+	if downloadURL == "" || curseForgeNeedsResolvedDownload(downloadURL) {
+		if resolved, err := c.fileDownloadURL(ctx, projectID, fileID); err == nil && resolved != "" {
+			downloadURL = resolved
+		}
 	}
 	if downloadURL == "" {
 		return nil, fmt.Errorf("missing download URL for file %s", fileID)
@@ -712,4 +716,17 @@ func curseForgeExternalURL(projectType, slug string) string {
 		segment = "bukkit-plugins"
 	}
 	return "https://www.curseforge.com/minecraft/" + segment + "/" + slug
+}
+
+func curseForgeNeedsResolvedDownload(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return true
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" {
+		return true
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return host == "curseforge.com" || strings.HasSuffix(host, ".curseforge.com")
 }

@@ -36,6 +36,7 @@ const UPSTREAM_API_ERROR_CODES = new Set([
   'CURSEFORGE_UNAVAILABLE',
   'CURSEFORGE_INVALID_KEY',
   'MODS_UNAVAILABLE',
+  'CONTENT_INSTALL_FAILED',
 ]);
 
 function throwBackendUnavailable(): never {
