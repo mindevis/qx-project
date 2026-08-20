@@ -76,22 +76,6 @@ func waitPrimaryThenPartner(
 	}
 }
 
-func waitOptionalHalf(ctx context.Context, ch <-chan catalogHalf, grace time.Duration) (catalogHalf, bool) {
-	if ch == nil {
-		return catalogHalf{}, false
-	}
-	timer := time.NewTimer(grace)
-	defer timer.Stop()
-	select {
-	case half := <-ch:
-		return half, true
-	case <-timer.C:
-		return catalogHalf{}, false
-	case <-ctx.Done():
-		return catalogHalf{}, false
-	}
-}
-
 func collectOptionalHalves(ctx context.Context, chans []<-chan catalogHalf, grace time.Duration) []catalogHalf {
 	n := 0
 	for _, ch := range chans {
