@@ -305,6 +305,11 @@ describe('GameServerDetailPage', () => {
           new Response(JSON.stringify({ error: { message: 'reinstall failed' } }), { status: 500 }),
         );
       }
+      if (url.includes('/servers/srv-1/game-servers/gs-1/clone') && init?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { message: 'clone failed' } }), { status: 500 }),
+        );
+      }
       if (url.includes('/servers/srv-1/game-servers/gs-1') && init?.method === 'DELETE') {
         return Promise.resolve(
           new Response(JSON.stringify({ error: { message: 'delete failed' } }), { status: 500 }),
@@ -330,6 +335,47 @@ describe('GameServerDetailPage', () => {
     await user.click(screen.getByRole('button', { name: /Переустановить/i }));
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
     await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('reinstall failed'));
+
+    await user.click(screen.getByRole('button', { name: /Клонировать/i }));
+    await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('clone failed'));
+  });
+
+  it('clones game server and opens the copy', async () => {
+    const user = userEvent.setup({ delay: null });
+    const cloned = { ...gameServer, id: 'gs-2', name: 'Forge RPG (copy)', port: 25566 };
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/users/me')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ id: '1', email: 'u@test.com', tier: 'free', created_at: 'now' }),
+            { status: 200 },
+          ),
+        );
+      }
+      if (url.includes('/servers/srv-1/game-servers/gs-1/clone') && init?.method === 'POST') {
+        return Promise.resolve(new Response(JSON.stringify(cloned), { status: 201 }));
+      }
+      if (url.includes('/servers/srv-1/game-servers')) {
+        return Promise.resolve(new Response(JSON.stringify({ items: [gameServer, cloned] }), { status: 200 }));
+      }
+      if (url.includes('/servers/srv-1')) {
+        return Promise.resolve(new Response(JSON.stringify(vpsServer), { status: 200 }));
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+
+    renderDetail();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG' })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('button', { name: /Клонировать/i }));
+    await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('Игровой сервер скопирован'));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Forge RPG (copy)' })).toBeInTheDocument(),
+    );
   });
 
   it('shows crash details when server is in error state', async () => {

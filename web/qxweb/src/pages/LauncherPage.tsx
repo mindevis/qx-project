@@ -19,6 +19,7 @@ import {
 import type { DefaultOptionType } from 'antd/es/select';
 import {
   CheckCircleOutlined,
+  CopyOutlined,
   DeleteOutlined,
   DesktopOutlined,
   DownloadOutlined,
@@ -138,6 +139,7 @@ function LauncherHome() {
   }>();
   const [profileOpen, setProfileOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [cloningId, setCloningId] = useState<string | null>(null);
   const [creatingProfile, setCreatingProfile] = useState(false);
   const [mcVersions, setMcVersions] = useState<McVersionItem[]>([]);
   const [defaultMcVersion, setDefaultMcVersion] = useState(DEFAULT_MC_VERSION);
@@ -600,6 +602,26 @@ function LauncherHome() {
       } else {
         message.error(t('launcher.deleteFailed'));
       }
+    }
+  };
+
+  const handleClone = async (id: string) => {
+    setCloningId(id);
+    try {
+      const cloned = await api.cloneInstance(id);
+      message.success(t('launcher.instanceCloned'));
+      await loadInstances();
+      if (cloned.prepare_request_id) {
+        void pollPrepareRequest(cloned.prepare_request_id, cloned.id);
+      }
+    } catch (e) {
+      if (e instanceof Error) {
+        message.error(e.message);
+      } else {
+        message.error(t('launcher.cloneFailed'));
+      }
+    } finally {
+      setCloningId(null);
     }
   };
 
@@ -1439,6 +1461,19 @@ function LauncherHome() {
                           aria-label={t('launcher.instanceSettings')}
                           onClick={() => openInstanceSettings(item)}
                         />
+                        <Popconfirm
+                          title={t('launcher.cloneInstanceConfirm')}
+                          description={t('launcher.cloneInstanceHint')}
+                          onConfirm={() => handleClone(item.id)}
+                        >
+                          <Button
+                            size="large"
+                            icon={<CopyOutlined />}
+                            loading={cloningId === item.id}
+                            disabled={cloningId != null}
+                            aria-label={t('launcher.cloneInstanceConfirm')}
+                          />
+                        </Popconfirm>
                         <Popconfirm
                           title={t('launcher.deleteInstanceConfirm')}
                           onConfirm={() => handleDelete(item.id)}

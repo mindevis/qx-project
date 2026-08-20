@@ -27,22 +27,13 @@ func WipeWorkDir(workDir string) error {
 	return safepath.EnsureDir(abs)
 }
 
-// RemoveWorkDir deletes the instance directory. Missing dirs are already gone.
+// RemoveWorkDir deletes the instance UUID directory. Missing dirs are already gone.
 func RemoveWorkDir(workDir string) error {
-	abs, err := safepath.ResolveRoot(workDir)
-	if err != nil {
-		return err
-	}
-	if filepath.Base(filepath.Dir(abs)) != "instances" {
-		return fmt.Errorf("refusing to remove work dir outside instances")
-	}
-	if _, err := safepath.Stat(abs); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	return safepath.RemoveAll(abs)
+	return safepath.RemoveInstancesChild(workDir)
+}
+
+func CopyWorkDir(src, dest string) error {
+	return safepath.CopyInstancesChild(src, dest)
 }
 
 func ReadServerProperties(workDir string) ([]protocol.PropertyEntry, error) {

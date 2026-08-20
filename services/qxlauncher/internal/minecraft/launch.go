@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -101,9 +102,7 @@ func BuildLaunchPlan(manifest *mcmanifest.InstanceLaunchManifest, clientJar stri
 	} else {
 		args = []string{"-Xms4G", "-Xmx4G"}
 	}
-	if nativesDir != "" && !containsArgPrefix(args, "-Djava.library.path=") {
-		args = append(args, "-Djava.library.path="+filepath.ToSlash(nativesDir))
-	}
+	args = finishJVMArgs(args, classpath, nativesDir)
 
 	if !usesModulePathLaunch(manifest) {
 		if !containsClasspathFlag(args) {
@@ -185,6 +184,80 @@ func containsClasspathFlag(args []string) bool {
 	return false
 }
 
+func finishJVMArgs(args []string, classpath, nativesDir string) []string {
+	args = rewriteUnresolvedClasspath(args, classpath)
+	args = applyNativeLibraryArgs(args, nativesDir)
+	return args
+}
+
+func rewriteUnresolvedClasspath(args []string, classpath string) []string {
+	out := make([]string, 0, len(args)+2)
+	skipNext := false
+	for i, arg := range args {
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		if arg == "-cp" || arg == "-classpath" {
+			next := ""
+			if i+1 < len(args) {
+				next = args[i+1]
+			}
+			if next == "" || isUnresolvedPlaceholder(next) || strings.Contains(next, "${") {
+				if classpath != "" {
+					out = append(out, arg, classpath)
+				}
+				if next != "" {
+					skipNext = true
+				}
+				continue
+			}
+		}
+		if strings.HasPrefix(arg, "-cp ") || strings.HasPrefix(arg, "-classpath ") {
+			if classpath != "" {
+				out = append(out, "-cp", classpath)
+			}
+			continue
+		}
+		out = append(out, arg)
+	}
+	return out
+}
+
+func setArgPrefix(args []string, prefix, value string) []string {
+	replacement := prefix + value
+	found := false
+	for i, arg := range args {
+		if strings.HasPrefix(arg, prefix) {
+			args[i] = replacement
+			found = true
+		}
+	}
+	if !found && value != "" {
+		args = append(args, replacement)
+	}
+	return args
+}
+
+func applyNativeLibraryArgs(args []string, nativesDir string) []string {
+	if nativesDir == "" {
+		return args
+	}
+	libDir := nativeLibrarySearchDir(nativesDir)
+	if libDir == "" {
+		javaDir := filepath.Join(nativesDir, "java")
+		if info, err := os.Stat(javaDir); err == nil && info.IsDir() {
+			libDir = javaDir
+		} else {
+			libDir = nativesDir
+		}
+	}
+	slash := launchPathSlash(libDir)
+	args = setArgPrefix(args, "-Djava.library.path=", slash)
+	args = setArgPrefix(args, "-Dorg.lwjgl.librarypath=", slash)
+	return args
+}
+
 func launchPathSlash(path string) string {
 	return strings.ReplaceAll(path, "\\", "/")
 }
@@ -218,29 +291,29 @@ func launchSubstitutions(manifest *mcmanifest.InstanceLaunchManifest, gameDir, a
 		}
 	}
 	return map[string]string{
-		"${auth_player_name}":       username,
-		"${version_name}":           versionName,
-		"${game_directory}":         launchPathSlash(gameDir),
-		"${assets_root}":            launchPathSlash(assetsDir),
-		"${assets_index_name}":      assetIndex,
-		"${auth_uuid}":              authUUID,
-		"${auth_access_token}":      authToken,
-		"${user_type}":              userType,
-		"${version_type}":           "release",
-		"${clientid}":               "",
-		"${auth_xuid}":              "",
-		"${library_directory}":      launchPathSlash(librariesDir),
-		"${classpath_separator}":    sep,
-		"${natives_directory}":      launchPathSlash(nativesDir),
-		"${classpath}":              classpath,
-		"${launcher_name}":          "QXLauncher",
-		"${launcher_version}":       version.Version,
-		"${resolution_width}":       "854",
-		"${resolution_height}":      "480",
-		"${quickPlayPath}":          "",
-		"${quickPlaySingleplayer}":  "",
+		"${auth_player_name}":      username,
+		"${version_name}":          versionName,
+		"${game_directory}":        launchPathSlash(gameDir),
+		"${assets_root}":           launchPathSlash(assetsDir),
+		"${assets_index_name}":     assetIndex,
+		"${auth_uuid}":             authUUID,
+		"${auth_access_token}":     authToken,
+		"${user_type}":             userType,
+		"${version_type}":          "release",
+		"${clientid}":              "",
+		"${auth_xuid}":             "",
+		"${library_directory}":     launchPathSlash(librariesDir),
+		"${classpath_separator}":   sep,
+		"${natives_directory}":     launchPathSlash(nativesDir),
+		"${classpath}":             classpath,
+		"${launcher_name}":         "QXLauncher",
+		"${launcher_version}":      version.Version,
+		"${resolution_width}":      "854",
+		"${resolution_height}":     "480",
+		"${quickPlayPath}":         "",
+		"${quickPlaySingleplayer}": "",
 		"${quickPlayMultiplayer}":  quickPlayMultiplayer,
-		"${quickPlayRealms}":        "",
+		"${quickPlayRealms}":       "",
 	}
 }
 

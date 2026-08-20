@@ -44,6 +44,49 @@ func TestInstanceFSListReadWrite(t *testing.T) {
 	}
 }
 
+func TestCloneInstanceDir(t *testing.T) {
+	root := t.TempDir()
+	dl := NewDownloader(root)
+	srcID := "src-inst"
+	destID := "dest-inst"
+	srcDir, err := dl.InstanceRoot(srcID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(srcDir, "mods"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "mods", "a.jar"), []byte("mod"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "session.lock"), []byte("lock"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	copied, err := dl.CloneInstanceDir(srcID, destID)
+	if err != nil || !copied {
+		t.Fatalf("clone: copied=%v err=%v", copied, err)
+	}
+	destDir, err := dl.InstanceRoot(destID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(destDir, "mods", "a.jar")); err != nil {
+		t.Fatalf("copied jar missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(destDir, "session.lock")); !os.IsNotExist(err) {
+		t.Fatal("session.lock should not be copied")
+	}
+
+	copied, err = dl.CloneInstanceDir("missing-inst", "dest-missing")
+	if err != nil || copied {
+		t.Fatalf("missing src: copied=%v err=%v", copied, err)
+	}
+	if _, err := dl.CloneInstanceDir(srcID, srcID); err == nil {
+		t.Fatal("expected same-id error")
+	}
+}
+
 func TestReadInstanceResourceFile(t *testing.T) {
 	root := t.TempDir()
 	dl := NewDownloader(root)

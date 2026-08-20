@@ -414,6 +414,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     );
     const createSpy = vi.spyOn(api, 'createInstance').mockRejectedValueOnce('boom' as never);
     const deleteSpy = vi.spyOn(api, 'deleteInstance').mockRejectedValueOnce('boom' as never);
+    const cloneSpy = vi.spyOn(api, 'cloneInstance').mockRejectedValueOnce('boom' as never);
 
     renderWithProviders(
       <Routes>
@@ -435,6 +436,11 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     await user.click(await screen.findByRole('button', { name: 'OK' }));
     await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось удалить'));
     deleteSpy.mockRestore();
+
+    await user.click(screen.getByRole('button', { name: 'Клонировать инстанс?' }));
+    await user.click(await screen.findByRole('button', { name: 'OK' }));
+    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith('Не удалось клонировать инстанс'));
+    cloneSpy.mockRestore();
   });
 
   it('shows sign-in required when unauthenticated on launcher workspace', async () => {

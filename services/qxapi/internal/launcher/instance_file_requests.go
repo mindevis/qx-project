@@ -15,6 +15,7 @@ import (
 
 const instanceFileRequestTTL = 30 * time.Second
 const instanceFileBridgeTimeout = 25 * time.Second
+const instanceCloneBridgeTimeout = 15 * time.Minute
 
 type fileRPCResult struct {
 	resultJSON string
@@ -78,7 +79,28 @@ func (s *Service) WriteInstanceFile(ctx context.Context, owner Owner, instanceID
 	return err
 }
 
+func (s *Service) cloneInstanceFiles(ctx context.Context, owner Owner, destID, sourceID string) (bool, error) {
+	raw, err := s.runInstanceFileBridgeWithTimeout(ctx, owner, destID, models.InstanceFileOpClone, sourceID, "", instanceCloneBridgeTimeout)
+	if err != nil {
+		return false, err
+	}
+	var result struct {
+		Copied *bool `json:"copied"`
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &result)
+	}
+	if result.Copied != nil {
+		return *result.Copied, nil
+	}
+	return true, nil
+}
+
 func (s *Service) runInstanceFileBridge(ctx context.Context, owner Owner, instanceID, operation, path, writeContent string) ([]byte, error) {
+	return s.runInstanceFileBridgeWithTimeout(ctx, owner, instanceID, operation, path, writeContent, instanceFileBridgeTimeout)
+}
+
+func (s *Service) runInstanceFileBridgeWithTimeout(ctx context.Context, owner Owner, instanceID, operation, path, writeContent string, timeout time.Duration) ([]byte, error) {
 	deviceID, err := s.requireLinkedDevice(ctx, owner)
 	if err != nil {
 		return nil, err
@@ -87,6 +109,10 @@ func (s *Service) runInstanceFileBridge(ctx context.Context, owner Owner, instan
 		return nil, err
 	}
 	now := time.Now().UTC()
+	expireAfter := instanceFileRequestTTL
+	if timeout > expireAfter {
+		expireAfter = timeout
+	}
 	req := models.InstanceFileRequest{
 		ID:           uuid.NewString(),
 		DeviceID:     deviceID,
@@ -95,7 +121,7 @@ func (s *Service) runInstanceFileBridge(ctx context.Context, owner Owner, instan
 		Path:         path,
 		WriteContent: writeContent,
 		Status:       models.InstanceFileStatusQueued,
-		ExpiresAt:    now.Add(instanceFileRequestTTL),
+		ExpiresAt:    now.Add(expireAfter),
 		CreatedAt:    now,
 	}
 	if err := s.db.WithContext(ctx).Create(&req).Error; err != nil {
@@ -106,7 +132,7 @@ func (s *Service) runInstanceFileBridge(ctx context.Context, owner Owner, instan
 	s.pendingFileRPC.Store(req.ID, ch)
 	defer s.pendingFileRPC.Delete(req.ID)
 
-	waitCtx, cancel := context.WithTimeout(ctx, instanceFileBridgeTimeout)
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	select {

@@ -40,6 +40,7 @@ func (r *ProcessRunner) clearManagedProcessLocked() {
 	r.cmd = nil
 	r.gameServerID = ""
 	r.stoppingGracefully = false
+	r.managedWorkDir = ""
 	r.closePipesLocked()
 	r.stopLogFollowLocked()
 }

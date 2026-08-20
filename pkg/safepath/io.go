@@ -229,6 +229,168 @@ func RemoveAll(path string) error {
 	return safe.removeAll()
 }
 
+// RemoveInstancesChild deletes the instance UUID folder.
+// path may be the UUID directory itself or anything inside it.
+// The removed directory is the direct child of a folder named "instances".
+func RemoveInstancesChild(path string) error {
+	abs, err := ResolveRoot(path)
+	if err != nil {
+		return err
+	}
+	target, err := instancesChildDir(abs)
+	if err != nil {
+		return err
+	}
+	return removeTree(target)
+}
+
+func instancesChildDir(abs string) (string, error) {
+	current := abs
+	for {
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", fmt.Errorf("refusing to remove path outside instances")
+		}
+		if filepath.Base(parent) == "instances" {
+			name := filepath.Base(current)
+			if name == "" || name == "." || name == ".." || name == string(os.PathSeparator) {
+				return "", fmt.Errorf("invalid instance dir")
+			}
+			return current, nil
+		}
+		current = parent
+	}
+}
+
+func removeTree(path string) error {
+	if _, err := Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	_ = chmodTreeWritable(path)
+	if err := RemoveAll(path); err != nil && !os.IsNotExist(err) {
+		_ = chmodTreeWritable(path)
+		if err := RemoveAll(path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if _, err := Stat(path); err == nil {
+		return fmt.Errorf("instance directory still exists")
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func chmodTreeWritable(path string) error {
+	safe, err := VettedAbs(path)
+	if err != nil {
+		return err
+	}
+	return filepath.WalkDir(string(safe), func(child string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		vetted, vetErr := VettedAbs(child)
+		if vetErr != nil {
+			return nil
+		}
+		mode := os.FileMode(0o666)
+		if d.IsDir() {
+			mode = 0o777
+		}
+		_ = vetted.chmod(mode)
+		return nil
+	})
+}
+
+// CopyInstancesChild copies one instances/{id} tree onto another UUID folder.
+func CopyInstancesChild(src, dest string) error {
+	srcAbs, err := ResolveRoot(src)
+	if err != nil {
+		return err
+	}
+	destAbs, err := ResolveRoot(dest)
+	if err != nil {
+		return err
+	}
+	srcRoot, err := instancesChildDir(srcAbs)
+	if err != nil {
+		return err
+	}
+	destRoot, err := instancesChildDir(destAbs)
+	if err != nil {
+		return err
+	}
+	if srcRoot == destRoot {
+		return fmt.Errorf("source and destination are the same")
+	}
+	sep := string(os.PathSeparator)
+	if strings.HasPrefix(destRoot, srcRoot+sep) {
+		return fmt.Errorf("destination is inside source")
+	}
+	if _, err := Stat(srcRoot); err != nil {
+		return err
+	}
+	return copyTree(srcRoot, destRoot)
+}
+
+func copyTree(src, dest string) error {
+	if err := EnsureDir(dest); err != nil {
+		return err
+	}
+	entries, err := ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if skipCopyName(entry.Name()) {
+			continue
+		}
+		childSrc, err := Join(src, entry.Name())
+		if err != nil {
+			return err
+		}
+		childDest, err := Join(dest, entry.Name())
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if err := copyTree(childSrc, childDest); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := copyFile(childSrc, childDest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func skipCopyName(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "session.lock", "client.lock":
+		return true
+	default:
+		return false
+	}
+}
+
+func copyFile(src, dest string) error {
+	in, err := OpenRead(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	if err := EnsureParent(dest); err != nil {
+		return err
+	}
+	return WriteStreamAtomic(dest, in)
+}
+
 // Rename moves a vetted absolute path to another vetted absolute path.
 func Rename(oldPath, newPath string) error {
 	oldSafe, err := VettedAbs(oldPath)

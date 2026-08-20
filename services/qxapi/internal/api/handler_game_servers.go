@@ -81,6 +81,20 @@ func (h *GameServersHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, view)
 }
 
+func (h *GameServersHandler) Clone(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	view, err := h.Service.CloneGameServer(c.Request.Context(), userID.(string), c.Param("id"), c.Param("gameServerId"))
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, view)
+}
+
 func (h *GameServersHandler) Update(c *gin.Context) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {

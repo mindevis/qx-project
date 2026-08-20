@@ -183,6 +183,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 
 			authed.GET("/servers/:id/game-servers", gameServersH.List)
 			authed.POST("/servers/:id/game-servers", gameServersH.Create)
+			authed.POST("/servers/:id/game-servers/:gameServerId/clone", gameServersH.Clone)
 			authed.GET("/servers/:id/game-servers/:gameServerId", gameServersH.Get)
 			authed.PATCH("/servers/:id/game-servers/:gameServerId", gameServersH.Update)
 			authed.GET("/servers/:id/game-servers/:gameServerId/properties", gameServersH.GetProperties)
@@ -241,6 +242,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 		{
 			launcherOwner.GET("/instances", instancesH.List)
 			launcherOwner.POST("/instances", instancesH.Create)
+			launcherOwner.POST("/instances/:id/clone", instancesH.Clone)
 			launcherOwner.GET("/instances/:id", instancesH.Get)
 			launcherOwner.PATCH("/instances/:id", instancesH.Update)
 			launcherOwner.GET("/instances/:id/resources", instancesH.ListResources)

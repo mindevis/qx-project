@@ -6,6 +6,7 @@ const (
 	InstanceFileOpList  = "list"
 	InstanceFileOpRead  = "read"
 	InstanceFileOpWrite = "write"
+	InstanceFileOpClone = "clone"
 
 	InstanceFileStatusQueued     = "queued"
 	InstanceFileStatusDispatched = "dispatched"

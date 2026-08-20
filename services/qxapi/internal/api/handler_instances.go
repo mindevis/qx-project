@@ -130,6 +130,31 @@ func (h *InstancesHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, instanceCreateResponse(*result.Instance, result.PrepareRequestID))
 }
 
+func (h *InstancesHandler) Clone(c *gin.Context) {
+	owner, ok := ownerFromContext(c)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	result, err := h.Service.CloneInstance(c.Request.Context(), owner, c.Param("id"))
+	if err != nil {
+		switch {
+		case errors.Is(err, launcher.ErrNotFound):
+			JSONError(c, http.StatusNotFound, "NOT_FOUND", "instance not found")
+		case errors.Is(err, launcher.ErrValidation):
+			JSONValidation(c, "invalid instance data")
+		case errors.Is(err, launcher.ErrDeviceNotLinked):
+			JSONError(c, http.StatusForbidden, "FORBIDDEN", "device not linked to account")
+		case errors.Is(err, launcher.ErrBridgeTimeout):
+			JSONError(c, http.StatusGatewayTimeout, "LAUNCHER_TIMEOUT", "launcher did not respond in time")
+		default:
+			JSONInternal(c)
+		}
+		return
+	}
+	c.JSON(http.StatusCreated, instanceCreateResponse(*result.Instance, result.PrepareRequestID))
+}
+
 func (h *InstancesHandler) Get(c *gin.Context) {
 	owner, ok := ownerFromContext(c)
 	if !ok {

@@ -61,6 +61,36 @@ func TestInstancesMenuHandleDeleteUpdatesCache(t *testing.T) {
 	}
 }
 
+func TestInstancesMenuHandleDeleteRemovesFilesWithoutCache(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete && r.URL.Path == "/instances/inst-del" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	removed := filepath.Join(dir, "instances", "inst-del")
+	if err := os.MkdirAll(removed, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(removed, "world.dat"), []byte("save"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	menu := NewInstancesMenu(InstancesMenuConfig{
+		APIBase:   srv.URL,
+		UserToken: "user-jwt",
+		DataDir:   dir,
+	})
+	menu.handleDelete(apiclient.InstanceItem{ID: "inst-del", Name: "Remove me"})
+	if _, err := os.Stat(removed); !os.IsNotExist(err) {
+		t.Fatalf("instance files still exist: %v", err)
+	}
+}
+
 func TestInstancesMenuHandleLaunchRequiresUserToken(t *testing.T) {
 	menu := NewInstancesMenu(InstancesMenuConfig{
 		APIBase: "http://127.0.0.1:1",

@@ -12,6 +12,7 @@ const MaxContentFileBytes = 256 * 1024 * 1024
 const (
 	TypeCmdServerInstall                 = "cmd.server.install"
 	TypeCmdServerWipe                    = "cmd.server.wipe"
+	TypeCmdServerCopy                    = "cmd.server.copy"
 	TypeCmdServerConfigure               = "cmd.server.configure"
 	TypeCmdServerStart                   = "cmd.server.start"
 	TypeCmdServerStop                    = "cmd.server.stop"
@@ -47,6 +48,7 @@ const (
 
 	TypeResServerInstall                 = "res.server.install"
 	TypeResServerWipe                    = "res.server.wipe"
+	TypeResServerCopy                    = "res.server.copy"
 	TypeResServerConfigure               = "res.server.configure"
 	TypeResServerStart                   = "res.server.start"
 	TypeResServerStop                    = "res.server.stop"
@@ -125,8 +127,10 @@ type ServerStartPayload struct {
 }
 
 type ServerStopPayload struct {
-	Graceful   bool `json:"graceful"`
-	TimeoutSec int  `json:"timeout_sec"`
+	Graceful     bool   `json:"graceful"`
+	TimeoutSec   int    `json:"timeout_sec"`
+	GameServerID string `json:"game_server_id,omitempty"`
+	WorkDir      string `json:"work_dir,omitempty"`
 }
 
 type ServerStartResult struct {
@@ -176,6 +180,12 @@ type GameServerWorkDirPayload struct {
 	WorkDir      string `json:"work_dir"`
 	// Remove deletes the instance directory itself. Wipe keeps an empty folder.
 	Remove bool `json:"remove,omitempty"`
+}
+
+type GameServerCopyPayload struct {
+	GameServerID  string `json:"game_server_id"`
+	SourceWorkDir string `json:"source_work_dir"`
+	DestWorkDir   string `json:"dest_work_dir"`
 }
 
 type ServerPropertiesPatchPayload struct {

@@ -8,6 +8,7 @@ import (
 
 	"fyne.io/systray"
 
+	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxlauncher/internal/browser"
 	"github.com/qxproject/qx/services/qxlauncher/internal/cache"
 	"github.com/qxproject/qx/services/qxlauncher/internal/device"
@@ -16,19 +17,19 @@ import (
 )
 
 type SystrayConfig struct {
-	WebBaseURL      string
-	LinkURL         string
-	DeviceToken     string
-	TokenPath       string
-	APIBase         string
-	DataDir         string
+	WebBaseURL       string
+	LinkURL          string
+	DeviceToken      string
+	TokenPath        string
+	APIBase          string
+	DataDir          string
 	LaunchDryRun     bool
 	JavaPath         string
 	SkipJavaDownload bool
 	DeviceClient     *device.Client
-	UserToken       string
-	MaxLinkPolls    int
-	PendingRegister *device.RegisterResult
+	UserToken        string
+	MaxLinkPolls     int
+	PendingRegister  *device.RegisterResult
 }
 
 type systrayMenuItem struct{ item *systray.MenuItem }
@@ -167,8 +168,15 @@ func RunSystrayApp(cfg SystrayConfig) {
 					instancesMenu.Clear()
 					notify.Show("QXLauncher", "Устройство отвязано")
 				case <-mLogs.ClickedCh:
-					if err := browser.OpenFolder(logging.Dir(cfg.DataDir)); err != nil {
-						slog.Warn("open logs folder failed", "err", err)
+					logDir := logging.Dir(cfg.DataDir)
+					if err := safepath.EnsureDir(logDir); err != nil {
+						slog.Warn("create logs folder failed", "dir", logDir, "err", err)
+						notify.Show("QXLauncher", "Не удалось открыть логи")
+						continue
+					}
+					if err := browser.OpenFolder(logDir); err != nil {
+						slog.Warn("open logs folder failed", "dir", logDir, "err", err)
+						notify.Show("QXLauncher", "Не удалось открыть логи")
 					}
 				case <-mQuit.ClickedCh:
 					cancel()

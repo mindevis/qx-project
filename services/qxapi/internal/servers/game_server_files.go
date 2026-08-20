@@ -623,7 +623,8 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerContentUpload,
 		protocol.TypeResServerContentRead,
 		protocol.TypeResServerContentDelete,
-		protocol.TypeResServerWipe:
+		protocol.TypeResServerWipe,
+		protocol.TypeResServerCopy:
 		return true
 	default:
 		return false

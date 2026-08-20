@@ -125,6 +125,49 @@ func TestInstancesHandlerDeleteNotFound(t *testing.T) {
 	}
 }
 
+func TestInstancesHandlerCloneRequiresDevice(t *testing.T) {
+	h, tokens := newInstancesHandler(t)
+	pair, _ := tokens.IssueUserTokens("user-1", "u@test.com")
+	claims, _ := tokens.Parse(pair.AccessToken)
+
+	body, _ := json.Marshal(map[string]string{
+		"name":       "Test",
+		"mc_version": "1.21",
+		"loader":     models.LoaderVanilla,
+	})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set(UserIDKey, claims.UserID)
+	h.Create(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", w.Code, w.Body.String())
+	}
+	var created instanceResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &created)
+
+	w = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+	c.Params = gin.Params{{Key: "id", Value: created.ID}}
+	c.Set(UserIDKey, claims.UserID)
+	h.Clone(c)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("clone without device: %d %s", w.Code, w.Body.String())
+	}
+
+	w = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+	c.Params = gin.Params{{Key: "id", Value: "00000000-0000-0000-0000-000000000099"}}
+	c.Set(UserIDKey, claims.UserID)
+	h.Clone(c)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("clone missing: %d", w.Code)
+	}
+}
+
 func TestInstancesHandlerUpdate(t *testing.T) {
 	h, tokens := newInstancesHandler(t)
 	pair, _ := tokens.IssueUserTokens("user-1", "u@test.com")
@@ -147,11 +190,11 @@ func TestInstancesHandlerUpdate(t *testing.T) {
 	ram := 4096
 	minRAM := 1024
 	updateBody, _ := json.Marshal(map[string]any{
-		"max_memory_mb":   ram,
-		"min_memory_mb":   minRAM,
-		"extra_jvm_args":  []string{"-XX:+UseG1GC"},
-		"window_width":    1280,
-		"window_height":   720,
+		"max_memory_mb":  ram,
+		"min_memory_mb":  minRAM,
+		"extra_jvm_args": []string{"-XX:+UseG1GC"},
+		"window_width":   1280,
+		"window_height":  720,
 	})
 	w = httptest.NewRecorder()
 	c, _ = gin.CreateTestContext(w)

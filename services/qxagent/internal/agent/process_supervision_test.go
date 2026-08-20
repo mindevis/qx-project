@@ -77,3 +77,70 @@ func TestProcessRunnerEmitsCrashedStatus(t *testing.T) {
 		t.Fatal("timeout waiting for crash status")
 	}
 }
+
+func TestProcessRunnerStopKillsShellChild(t *testing.T) {
+	dir := t.TempDir()
+	cmd := exec.Command("sh", "-c", "sleep 60")
+	cmd.Dir = dir
+	configureProcessGroup(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	r := &ProcessRunner{}
+	r.mu.Lock()
+	r.cmd = cmd
+	r.managedWorkDir = dir
+	r.mu.Unlock()
+	go r.watchManagedProcess(cmd, dir)
+
+	if _, err := r.Stop(false, 2*time.Second); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	waitExited(t, cmd, 3*time.Second)
+	if pids := runningWorkDirPIDs(dir); len(pids) > 0 {
+		t.Fatalf("child processes still running: %v", pids)
+	}
+}
+
+func TestProcessRunnerStopKillsOrphanInWorkDir(t *testing.T) {
+	dir := t.TempDir()
+	cmd := exec.Command("sleep", "60")
+	cmd.Dir = dir
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+
+	r := &ProcessRunner{}
+	if _, err := r.StopTarget(false, 2*time.Second, dir); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	waitExited(t, cmd, 3*time.Second)
+	if processRunning(cmd.Process.Pid) {
+		t.Fatal("orphan process still running")
+	}
+}
+
+func waitExited(t *testing.T, cmd *exec.Cmd, timeout time.Duration) {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		t.Fatal("process did not exit")
+	}
+}
+
+func runningWorkDirPIDs(workDir string) []int {
+	var alive []int
+	for _, pid := range pidsInWorkDir(workDir) {
+		if processRunning(pid) {
+			alive = append(alive, pid)
+		}
+	}
+	return alive
+}

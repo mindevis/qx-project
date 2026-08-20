@@ -16,6 +16,7 @@ import {
   AppstoreOutlined,
   BuildOutlined,
   CodeOutlined,
+  CopyOutlined,
   DeleteOutlined,
   FolderOutlined,
   PauseCircleOutlined,
@@ -43,6 +44,7 @@ import {
 import {
   isVpsGameServerProvisioning,
   listVpsGameServers,
+  cloneVpsGameServer,
   reinstallVpsGameServer,
   removeVpsGameServer,
   restartVpsGameServer,
@@ -95,6 +97,7 @@ export function GameServerDetailPage() {
   const [game, setGame] = useState<VpsGameServer | null>(null);
   const [loading, setLoading] = useState(true);
   const [reinstalling, setReinstalling] = useState(false);
+  const [cloning, setCloning] = useState(false);
   const [powerAction, setPowerAction] = useState(false);
 
   const load = useCallback(async () => {
@@ -189,6 +192,20 @@ export function GameServerDetailPage() {
     }
   };
 
+  const onClone = async () => {
+    if (!vpsId || !gameServerId) return;
+    setCloning(true);
+    try {
+      const cloned = await cloneVpsGameServer(vpsId, gameServerId);
+      message.success(t('servers.gameServerCloned'));
+      navigate(`/servers/${vpsId}/game-servers/${cloned.id}`);
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('common.error'));
+    } finally {
+      setCloning(false);
+    }
+  };
+
   if (loading || !vps || !game || !vpsId) {
     return (
       <div className="servers-page">
@@ -201,7 +218,7 @@ export function GameServerDetailPage() {
 
   const agentOnline = vps.agent_online;
   const rowBusy =
-    isVpsGameServerProvisioning(game.status) || reinstalling || powerAction;
+    isVpsGameServerProvisioning(game.status) || reinstalling || powerAction || cloning;
   const canStart = game.status === 'stopped' || game.status === 'error';
   const canStop = game.status === 'running' || game.status === 'starting';
   const canRestart =
@@ -421,6 +438,19 @@ export function GameServerDetailPage() {
             >
               <Button icon={<BuildOutlined />} loading={reinstalling} disabled={rowBusy || !agentOnline}>
                 {t('servers.reinstallGameServer')}
+              </Button>
+            </Popconfirm>
+            <Popconfirm
+              title={t('servers.cloneGameServerConfirm')}
+              disabled={rowBusy || !agentOnline}
+              onConfirm={() => void onClone()}
+            >
+              <Button
+                icon={<CopyOutlined />}
+                loading={cloning}
+                disabled={rowBusy || !agentOnline}
+              >
+                {t('servers.cloneGameServer')}
               </Button>
             </Popconfirm>
             <Popconfirm title={t('servers.deleteGameServerConfirm')} onConfirm={() => void onDelete()}>

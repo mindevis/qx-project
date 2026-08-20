@@ -51,7 +51,7 @@ func RunLoop(ctx context.Context, cfg Config) {
 		cfg.LaunchPoll = 2 * time.Second
 	}
 	if cfg.InstancePoll <= 0 {
-		cfg.InstancePoll = 30 * time.Second
+		cfg.InstancePoll = cfg.LaunchPoll
 	}
 	if cfg.DataDir == "" {
 		home, _ := os.UserHomeDir()
@@ -71,26 +71,30 @@ func RunLoop(ctx context.Context, cfg Config) {
 
 	slog.Info("QXLauncher loop started", "launch_poll", cfg.LaunchPoll, "sync_poll", cfg.InstancePoll)
 
+	syncAndNotify := func() {
+		items, err := syncInstances(ctx, api, cfg.DataDir)
+		if err != nil {
+			if apiclient.IsUnauthorized(err) && tryRefreshDeviceToken(ctx, api, cfg, err) {
+				items, err = syncInstances(ctx, api, cfg.DataDir)
+			}
+			if err != nil {
+				logAPIFailure("instance sync failed", err)
+				return
+			}
+		}
+		if cfg.OnInstancesSynced != nil {
+			cfg.OnInstancesSynced(items)
+		}
+	}
+	syncAndNotify()
+
 	for {
 		select {
 		case <-ctx.Done():
 			slog.Info("QXLauncher loop stopped")
 			return
 		case <-syncTicker.C:
-			items, err := syncInstances(ctx, api, cfg.DataDir)
-			if err != nil {
-				if apiclient.IsUnauthorized(err) && tryRefreshDeviceToken(ctx, api, cfg, err) {
-					items, err = syncInstances(ctx, api, cfg.DataDir)
-					if err != nil {
-						logAPIFailure("instance sync failed", err)
-					}
-				} else {
-					logAPIFailure("instance sync failed", err)
-				}
-			}
-			if err == nil && cfg.OnInstancesSynced != nil {
-				cfg.OnInstancesSynced(items)
-			}
+			syncAndNotify()
 		case <-launchTicker.C:
 			item, err := api.FetchPendingLaunch(ctx)
 			if err != nil {
@@ -440,6 +444,15 @@ func executeInstanceFile(ctx context.Context, api *apiclient.Client, dl *minecra
 			return
 		}
 		_ = api.CompleteInstanceFile(ctx, item.ID, "completed", `{"status":"ok"}`, "")
+	case "clone":
+		copied, err := dl.CloneInstanceDir(item.Path, item.InstanceID)
+		if err != nil {
+			slog.Error("instance clone failed", "src", item.Path, "dest", item.InstanceID, "err", err)
+			_ = api.CompleteInstanceFile(ctx, item.ID, "failed", "", "FILE_CLONE_FAILED")
+			return
+		}
+		raw, _ := json.Marshal(map[string]bool{"copied": copied})
+		_ = api.CompleteInstanceFile(ctx, item.ID, "completed", string(raw), "")
 	default:
 		_ = api.CompleteInstanceFile(ctx, item.ID, "failed", "", "UNKNOWN_OPERATION")
 	}

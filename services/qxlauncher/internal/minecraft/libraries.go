@@ -107,16 +107,16 @@ func (d *Downloader) EnsureNatives(ctx context.Context, manifest *mcmanifest.Ins
 		}
 		extracted += n
 	}
+	if err := ensureNativeRuntimeLayout(nativesDir); err != nil {
+		return "", err
+	}
 	if manifestExpectsNatives(manifest.Libraries, classifier) {
-		if extracted == 0 {
+		if extracted == 0 && nativeLibrarySearchDir(nativesDir) == "" {
 			return "", fmt.Errorf("no %s native libraries found in manifest", classifier)
 		}
 		if err := verifyNativeBinariesPresent(nativesDir); err != nil {
 			return "", err
 		}
-	}
-	if err := ensureNativeRuntimeLayout(nativesDir); err != nil {
-		return "", err
 	}
 	return nativesDir, nil
 }
@@ -228,34 +228,85 @@ func isNamedNativeLibraryForClassifier(name, classifier string) bool {
 	return len(parts) >= 4 && parts[3] == classifier
 }
 
-func verifyNativeBinariesPresent(dir string) error {
-	entries, err := safepath.ReadDir(dir)
+func nativeRuntimeSubdirs() []string {
+	return []string{"java", "jna", "lwjgl", "netty"}
+}
+
+func dirHasNativeBinary(dir string) bool {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return err
+		return false
 	}
 	for _, e := range entries {
-		if e.IsDir() {
-			continue
+		if !e.IsDir() && isNativeBinary(e.Name()) {
+			return true
 		}
-		if isNativeBinary(e.Name()) {
-			return nil
+	}
+	return false
+}
+
+func nativeLibrarySearchDir(nativesDir string) string {
+	if nativesDir == "" {
+		return ""
+	}
+	for _, candidate := range []string{
+		filepath.Join(nativesDir, "java"),
+		filepath.Join(nativesDir, "lwjgl"),
+		nativesDir,
+	} {
+		if dirHasNativeBinary(candidate) {
+			return candidate
 		}
+	}
+	return ""
+}
+
+func verifyNativeBinariesPresent(dir string) error {
+	if nativeLibrarySearchDir(dir) != "" {
+		return nil
 	}
 	return fmt.Errorf("no native binaries extracted to %s", dir)
 }
 
+func collectNativeBinaries(nativesDir string) (map[string][]byte, error) {
+	files := make(map[string][]byte)
+	dirs := []string{nativesDir}
+	for _, name := range nativeRuntimeSubdirs() {
+		dirs = append(dirs, filepath.Join(nativesDir, name))
+	}
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		for _, e := range entries {
+			if e.IsDir() || !isNativeBinary(e.Name()) {
+				continue
+			}
+			if _, ok := files[e.Name()]; ok {
+				continue
+			}
+			src, err := safepath.Join(dir, e.Name())
+			if err != nil {
+				return nil, err
+			}
+			data, err := safepath.ReadFileBytes(src)
+			if err != nil {
+				return nil, err
+			}
+			files[e.Name()] = data
+		}
+	}
+	return files, nil
+}
+
 // Minecraft 26.2+ looks for natives in subfolders:
-// ${natives_directory}/java, /lwjgl, /jna, /netty — not the natives root.
+// ${natives_directory}/java, /lwjgl, /jna, /netty — not only the natives root.
 func ensureNativeRuntimeLayout(nativesDir string) error {
-	javaDir, err := safepath.Join(nativesDir, "java")
-	if err != nil {
-		return err
-	}
-	lwjglDir, err := safepath.Join(nativesDir, "lwjgl")
-	if err != nil {
-		return err
-	}
-	for _, name := range []string{"java", "jna", "lwjgl", "netty"} {
+	for _, name := range nativeRuntimeSubdirs() {
 		dir, err := safepath.Join(nativesDir, name)
 		if err != nil {
 			return err
@@ -264,24 +315,21 @@ func ensureNativeRuntimeLayout(nativesDir string) error {
 			return err
 		}
 	}
-	entries, err := safepath.ReadDir(nativesDir)
+	files, err := collectNativeBinaries(nativesDir)
 	if err != nil {
 		return err
 	}
-	for _, e := range entries {
-		if e.IsDir() || !isNativeBinary(e.Name()) {
-			continue
-		}
-		src, err := safepath.Join(nativesDir, e.Name())
+	destDirs := []string{nativesDir}
+	for _, name := range nativeRuntimeSubdirs() {
+		dir, err := safepath.Join(nativesDir, name)
 		if err != nil {
 			return err
 		}
-		data, err := safepath.ReadFileBytes(src)
-		if err != nil {
-			return err
-		}
-		for _, destDir := range []string{javaDir, lwjglDir} {
-			dest, err := safepath.Join(destDir, e.Name())
+		destDirs = append(destDirs, dir)
+	}
+	for name, data := range files {
+		for _, destDir := range destDirs {
+			dest, err := safepath.Join(destDir, name)
 			if err != nil {
 				return err
 			}

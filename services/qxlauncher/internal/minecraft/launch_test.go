@@ -64,9 +64,9 @@ func TestExcludedFromLegacyClasspath(t *testing.T) {
 
 func TestBuildLaunchPlanForgeLegacyClasspath(t *testing.T) {
 	manifest := &mcmanifest.InstanceLaunchManifest{
-		MCVersion: "1.20.1",
-		Loader:    mcmanifest.LoaderForge,
-		MainClass: "cpw.mods.bootstraplauncher.BootstrapLauncher",
+		MCVersion:  "1.20.1",
+		Loader:     mcmanifest.LoaderForge,
+		MainClass:  "cpw.mods.bootstraplauncher.BootstrapLauncher",
 		AssetIndex: mcmanifest.AssetIndexRef{ID: "1.20.1"},
 		JVMArguments: []string{
 			"-DlibraryDirectory=/libs",
@@ -87,8 +87,8 @@ func TestBuildLaunchPlanForgeLegacyClasspath(t *testing.T) {
 
 func TestBuildLaunchPlanModded(t *testing.T) {
 	manifest := &mcmanifest.InstanceLaunchManifest{
-		MCVersion: "1.20.1",
-		MainClass: "net.fabricmc.loader.impl.launch.knot.KnotClient",
+		MCVersion:  "1.20.1",
+		MainClass:  "net.fabricmc.loader.impl.launch.knot.KnotClient",
 		AssetIndex: mcmanifest.AssetIndexRef{ID: "1.20.1"},
 		GameArguments: []string{
 			"--username", "${auth_player_name}",
@@ -147,6 +147,12 @@ func TestBuildLaunchPlanMinecraft26NativesPaths(t *testing.T) {
 	jar := filepath.Join(t.TempDir(), "26.2.jar")
 	lib := filepath.Join(t.TempDir(), "lwjgl.jar")
 	natives := filepath.Join(t.TempDir(), "natives")
+	if err := os.MkdirAll(filepath.Join(natives, "java"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(natives, "java", "lwjgl.dll"), []byte("dll"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	plan := BuildLaunchPlan(manifest, jar, []string{lib}, natives, "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil, "")
 	joined := strings.Join(plan.Args, " ")
 	if strings.Contains(joined, "${") {
@@ -158,6 +164,9 @@ func TestBuildLaunchPlanMinecraft26NativesPaths(t *testing.T) {
 	}
 	if !strings.Contains(joined, "QXLauncher") {
 		t.Fatalf("launcher name: %s", joined)
+	}
+	if !strings.Contains(joined, "-Dorg.lwjgl.librarypath=") {
+		t.Fatalf("missing lwjgl librarypath: %s", joined)
 	}
 	if !strings.Contains(joined, lib) || !strings.Contains(joined, jar) {
 		t.Fatalf("classpath missing jars: %s", joined)
@@ -173,10 +182,41 @@ func TestBuildLaunchPlanMinecraft26NativesPaths(t *testing.T) {
 	}
 }
 
+func TestBuildLaunchPlanFallsBackWhenJavaNativesDirMissing(t *testing.T) {
+	natives := t.TempDir()
+	if err := os.WriteFile(filepath.Join(natives, "lwjgl.dll"), []byte("dll"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest := &mcmanifest.InstanceLaunchManifest{
+		MCVersion:  "26.2",
+		MainClass:  "net.minecraft.client.main.Main",
+		AssetIndex: mcmanifest.AssetIndexRef{ID: "26.2"},
+		JVMArguments: []string{
+			"-Djava.library.path=${natives_directory}/java",
+			"-Dminecraft.launcher.brand=${launcher_name}",
+			"-cp",
+			"${classpath}",
+		},
+	}
+	jar := filepath.Join(t.TempDir(), "26.2.jar")
+	plan := BuildLaunchPlan(manifest, jar, []string{"lib.jar"}, natives, "/assets", "/game", "/libs", "Steve", "uuid-1", "", nil, "")
+	joined := strings.Join(plan.Args, " ")
+	if strings.Contains(joined, "${") {
+		t.Fatalf("unresolved placeholders: %s", joined)
+	}
+	wantLibPath := "-Djava.library.path=" + strings.ReplaceAll(natives, "\\", "/")
+	if !strings.Contains(joined, wantLibPath) {
+		t.Fatalf("expected natives root library path, got: %s", joined)
+	}
+	if strings.Contains(joined, wantLibPath+"/java") {
+		t.Fatalf("should not keep missing java natives dir: %s", joined)
+	}
+}
+
 func TestBuildLaunchPlan(t *testing.T) {
 	manifest := &mcmanifest.InstanceLaunchManifest{
-		MCVersion: "1.21",
-		MainClass: "net.minecraft.client.main.Main",
+		MCVersion:  "1.21",
+		MainClass:  "net.minecraft.client.main.Main",
 		AssetIndex: mcmanifest.AssetIndexRef{ID: "1.21"},
 	}
 	jar := filepath.Join(t.TempDir(), "1.21.jar")

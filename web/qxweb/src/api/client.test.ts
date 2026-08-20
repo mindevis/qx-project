@@ -676,6 +676,7 @@ describe('api client', () => {
     fetchMock
       .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 201 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify(gameServer), { status: 200 }))
@@ -691,6 +692,7 @@ describe('api client', () => {
 
     await api.updateVpsGameServer('srv-1', 'gs-1', { name: 'Renamed' });
     await api.deleteVpsGameServer('srv-1', 'gs-1');
+    await api.cloneVpsGameServer('srv-1', 'gs-1');
     await api.reinstallVpsGameServer('srv-1', 'gs-1');
     await api.startVpsGameServer('srv-1', 'gs-1');
     await api.stopVpsGameServer('srv-1', 'gs-1');
@@ -705,6 +707,7 @@ describe('api client', () => {
     await api.writeVpsGameServerFile('srv-1', 'gs-1', 'server.properties', 'motd=hi');
 
     const urls = fetchMock.mock.calls.map(([input]) => String(input));
+    expect(urls.some((url) => url.includes('/game-servers/gs-1/clone'))).toBe(true);
     expect(urls.some((url) => url.includes('/game-servers/gs-1') && url.includes('properties'))).toBe(
       true,
     );

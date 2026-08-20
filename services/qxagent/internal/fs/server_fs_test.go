@@ -55,6 +55,41 @@ func TestRemoveWorkDirDeletesInstanceFolder(t *testing.T) {
 	}
 }
 
+func TestRemoveWorkDirDeletesUUIDFolderFromNestedPath(t *testing.T) {
+	uuidDir := filepath.Join(t.TempDir(), "instances", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+	nested := filepath.Join(uuidDir, "world", "datapacks")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(uuidDir, "server.properties"), []byte("motd=x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveWorkDir(nested); err != nil {
+		t.Fatalf("remove nested: %v", err)
+	}
+	if _, err := os.Stat(uuidDir); !os.IsNotExist(err) {
+		t.Fatalf("expected uuid dir gone, err=%v", err)
+	}
+}
+
+func TestCopyWorkDirCopiesUUIDFolder(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "instances", "src-gs")
+	dest := filepath.Join(root, "instances", "dest-gs")
+	if err := os.MkdirAll(filepath.Join(src, "mods"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "mods", "mod.jar"), []byte("jar"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := CopyWorkDir(src, dest); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "mods", "mod.jar")); err != nil {
+		t.Fatalf("copied file missing: %v", err)
+	}
+}
+
 func TestRemoveWorkDirMissingIsOK(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "instances", "gs-missing")
 	if err := RemoveWorkDir(root); err != nil {

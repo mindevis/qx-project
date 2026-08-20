@@ -1143,6 +1143,25 @@ describe('ServersPage', () => {
     await waitFor(() => expect(screen.getByText('Vanilla World')).toBeInTheDocument());
   });
 
+  it('clones game server from the card list', async () => {
+    mockOnlineDetail([stoppedGame], (url, init) => {
+      if (url.includes('/game-servers/gs-1/clone') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({ ...stoppedGame, id: 'gs-2', name: 'Stopped MC (copy)', port: 25566 }),
+          { status: 201 },
+        );
+      }
+      return null;
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Stopped MC')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Клонировать' }));
+    await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('Игровой сервер скопирован'));
+  });
+
   it('refreshes servers list from workspace', async () => {
     saveTokens({
       access_token: 'a',

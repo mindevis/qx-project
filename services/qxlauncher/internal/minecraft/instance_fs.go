@@ -16,6 +16,31 @@ import (
 const instanceFileMaxBytes = 2 * 1024 * 1024
 const maxResourceUploadBytes = protocol.MaxContentFileBytes
 
+func (d *Downloader) CloneInstanceDir(srcID, destID string) (copied bool, err error) {
+	if srcID == "" || destID == "" || srcID == destID {
+		return false, fmt.Errorf("invalid clone parameters")
+	}
+	src, err := d.InstanceRoot(srcID)
+	if err != nil {
+		return false, err
+	}
+	dest, err := d.InstanceRoot(destID)
+	if err != nil {
+		return false, err
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if err := safepath.CopyInstancesChild(src, dest); err != nil {
+		_ = safepath.RemoveInstancesChild(dest)
+		return false, err
+	}
+	return true, nil
+}
+
 func (d *Downloader) ListInstanceDir(instanceID, relPath string) ([]protocol.FileEntry, error) {
 	gameDir, err := d.InstanceGameDir(instanceID)
 	if err != nil {

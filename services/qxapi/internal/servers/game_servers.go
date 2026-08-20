@@ -66,6 +66,7 @@ type UpdateGameServerInput struct {
 const (
 	gameServerProvisionTimeout = 25 * time.Minute
 	gameServerRemoveTimeout    = 2 * time.Minute
+	gameServerCopyTimeout      = 15 * time.Minute
 )
 
 func (s *Service) ListGameServers(ctx context.Context, ownerID, vpsID string) ([]GameServerView, error) {
@@ -162,6 +163,158 @@ func (s *Service) CreateGameServer(ctx context.Context, ownerID, vpsID string, i
 	return &view, nil
 }
 
+func cloneGameServerDisplayName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "Server"
+	}
+	suffix := " (copy)"
+	if len(name)+len(suffix) > 128 {
+		name = strings.TrimSpace(name[:128-len(suffix)])
+	}
+	return name + suffix
+}
+
+func remapWorkDirValue(value, srcWorkDir, destWorkDir string) string {
+	if value == "" || srcWorkDir == "" || destWorkDir == "" {
+		return value
+	}
+	return strings.ReplaceAll(value, srcWorkDir, destWorkDir)
+}
+
+func cloneStringPtr(v *string) *string {
+	if v == nil {
+		return nil
+	}
+	s := *v
+	return &s
+}
+
+func (s *Service) nextFreeGameServerPort(ctx context.Context, vpsID string) (int, error) {
+	var items []models.GameServer
+	if err := s.db.WithContext(ctx).Where("server_id = ?", vpsID).Find(&items).Error; err != nil {
+		return 0, err
+	}
+	used := make(map[int]struct{}, len(items)*2)
+	for _, item := range items {
+		if item.Port > 0 {
+			used[item.Port] = struct{}{}
+			used[rconPortFor(item.Port)] = struct{}{}
+		}
+	}
+	for port := 25565; port < 55535; port++ {
+		if _, ok := used[port]; ok {
+			continue
+		}
+		if _, ok := used[rconPortFor(port)]; ok {
+			continue
+		}
+		return port, nil
+	}
+	return 0, ErrValidation
+}
+
+func (s *Service) CloneGameServer(ctx context.Context, ownerID, vpsID, gameServerID string) (*GameServerView, error) {
+	if _, err := s.getOwned(ctx, ownerID, vpsID); err != nil {
+		return nil, err
+	}
+	if err := s.requireAgentOnline(ctx, vpsID); err != nil {
+		return nil, err
+	}
+	var src models.GameServer
+	if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", gameServerID, vpsID).First(&src).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if src.Status == models.GameServerStatusInstalling || src.Status == models.GameServerStatusStarting {
+		return nil, ErrGameServerBusy
+	}
+	if strings.TrimSpace(src.WorkDir) == "" {
+		return nil, ErrGameServerNotInstalled
+	}
+
+	port, err := s.nextFreeGameServerPort(ctx, vpsID)
+	if err != nil {
+		return nil, err
+	}
+	rconPassword, err := generateRconPassword()
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	destID := uuid.NewString()
+	destWorkDir := fmt.Sprintf("/opt/qxsystem/server/instances/%s", destID)
+	dest := models.GameServer{
+		ID:                    destID,
+		ServerID:              vpsID,
+		Name:                  cloneGameServerDisplayName(src.Name),
+		ServerType:            src.ServerType,
+		MCVersion:             src.MCVersion,
+		LoaderVersion:         cloneStringPtr(src.LoaderVersion),
+		Address:               cloneStringPtr(src.Address),
+		Port:                  port,
+		RconPassword:          &rconPassword,
+		Status:                models.GameServerStatusInstalling,
+		WorkDir:               destWorkDir,
+		StartCommand:          remapWorkDirValue(src.StartCommand, src.WorkDir, destWorkDir),
+		StartArgsJSON:         remapWorkDirValue(src.StartArgsJSON, src.WorkDir, destWorkDir),
+		JarPath:               remapWorkDirValue(src.JarPath, src.WorkDir, destWorkDir),
+		ShowInMonitoring:      false,
+		MonitoringDescription: src.MonitoringDescription,
+		BannerURL:             src.BannerURL,
+		MonitoringTagsJSON:    src.MonitoringTagsJSON,
+		ContentResources:      src.ContentResources,
+		CreatedAt:             now,
+		UpdatedAt:             now,
+	}
+	if err := s.db.WithContext(ctx).Create(&dest).Error; err != nil {
+		return nil, err
+	}
+	if err := s.copyGameServerWorkDir(ctx, vpsID, &src, &dest); err != nil {
+		_ = s.db.WithContext(context.Background()).Where("id = ?", dest.ID).Delete(&models.GameServer{}).Error
+		_ = s.removeGameServerWorkDir(context.Background(), vpsID, &dest)
+		return nil, err
+	}
+	dest.Status = models.GameServerStatusStopped
+	if err := s.db.WithContext(ctx).Model(&dest).Updates(map[string]any{
+		"status":     dest.Status,
+		"updated_at": time.Now().UTC(),
+	}).Error; err != nil {
+		return nil, err
+	}
+	s.syncGameServerProperties(ctx, vpsID, &dest)
+	view := gameServerViewFromModel(&dest)
+	return &view, nil
+}
+
+func (s *Service) copyGameServerWorkDir(ctx context.Context, vpsID string, src, dest *models.GameServer) error {
+	payload, err := json.Marshal(protocol.GameServerCopyPayload{
+		GameServerID:  dest.ID,
+		SourceWorkDir: src.WorkDir,
+		DestWorkDir:   dest.WorkDir,
+	})
+	if err != nil {
+		return err
+	}
+	raw, err := s.agentRPCWait(ctx, vpsID, protocol.TypeCmdServerCopy, protocol.TypeResServerCopy, payload, gameServerCopyTimeout)
+	if err != nil {
+		return err
+	}
+	var res struct {
+		Error  string `json:"error"`
+		Status string `json:"status"`
+	}
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &res)
+	}
+	if strings.TrimSpace(res.Error) != "" {
+		return fmt.Errorf("copy work dir: %s", res.Error)
+	}
+	return nil
+}
+
 func (s *Service) ReinstallGameServer(ctx context.Context, ownerID, vpsID, gameServerID string) (*GameServerView, error) {
 	server, err := s.getOwned(ctx, ownerID, vpsID)
 	if err != nil {
@@ -205,7 +358,7 @@ func (s *Service) ReinstallGameServer(ctx context.Context, ownerID, vpsID, gameS
 	item.UpdatedAt = now
 
 	if wasRunning {
-		if err := s.sendGameServerStop(ctx, vpsID, gameServerID, "reinstall"); err != nil {
+		if err := s.sendGameServerStop(ctx, vpsID, &item, "reinstall"); err != nil {
 			_ = s.db.WithContext(ctx).Model(&item).Updates(map[string]any{
 				"status":     models.GameServerStatusError,
 				"updated_at": time.Now().UTC(),
@@ -254,7 +407,7 @@ func (s *Service) StopGameServer(ctx context.Context, ownerID, vpsID, gameServer
 	if item.Status != models.GameServerStatusRunning && item.Status != models.GameServerStatusStarting {
 		return nil, ErrGameServerNotRunning
 	}
-	if err := s.sendGameServerStop(ctx, vpsID, gameServerID, "stop"); err != nil {
+	if err := s.sendGameServerStop(ctx, vpsID, item, "stop"); err != nil {
 		return nil, err
 	}
 	view := gameServerViewFromModel(item)
@@ -273,7 +426,7 @@ func (s *Service) RestartGameServer(ctx context.Context, ownerID, vpsID, gameSer
 		return nil, ErrGameServerNotInstalled
 	}
 	if item.Status == models.GameServerStatusRunning || item.Status == models.GameServerStatusStarting {
-		if err := s.sendGameServerStop(ctx, vpsID, gameServerID, "restart"); err != nil {
+		if err := s.sendGameServerStop(ctx, vpsID, item, "restart"); err != nil {
 			return nil, err
 		}
 		view := gameServerViewFromModel(item)
@@ -344,7 +497,7 @@ func (s *Service) startGameServerProcess(ctx context.Context, vpsID string, item
 	return s.beginGameServerStart(ctx, vpsID, item.ID, item.JarPath, item.WorkDir, item.StartCommand, args, nil, nil, javaBin, item.ServerType, item.MCVersion)
 }
 
-func (s *Service) sendGameServerStop(ctx context.Context, vpsID, gameServerID, phase string) error {
+func (s *Service) sendGameServerStop(ctx context.Context, vpsID string, item *models.GameServer, phase string) error {
 	if err := s.requireAgentOnline(ctx, vpsID); err != nil {
 		return err
 	}
@@ -352,9 +505,14 @@ func (s *Service) sendGameServerStop(ctx context.Context, vpsID, gameServerID, p
 	s.pending.Store(requestID, pendingProvision{
 		phase:        phase,
 		vpsServerID:  vpsID,
-		gameServerID: gameServerID,
+		gameServerID: item.ID,
 	})
-	payload, _ := json.Marshal(protocol.ServerStopPayload{Graceful: true, TimeoutSec: 30})
+	payload, _ := json.Marshal(protocol.ServerStopPayload{
+		Graceful:     true,
+		TimeoutSec:   30,
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+	})
 	return s.hub.SendCommand(ctx, vpsID, protocol.Envelope{
 		Type:      protocol.TypeCmdServerStop,
 		RequestID: requestID,
@@ -672,6 +830,9 @@ func (s *Service) applyServerStopResult(ctx context.Context, serverID, requestID
 		return
 	}
 	op := raw.(pendingProvision)
+	if op.gameServerID != "" {
+		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusStopped, "")
+	}
 	switch op.phase {
 	case "restart":
 		var item models.GameServer

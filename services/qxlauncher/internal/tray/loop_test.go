@@ -211,6 +211,58 @@ func TestSyncInstances(t *testing.T) {
 	}
 }
 
+func TestRunLoopPrunesDeletedInstancesOnStart(t *testing.T) {
+	apiSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/launcher/devices/me/instances":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"items": []map[string]any{
+					{"id": "inst-keep", "name": "Keep", "mc_version": "1.21", "loader": "vanilla"},
+				},
+			})
+		case "/launcher/launch-requests/pending", "/launcher/update-requests/pending":
+			_ = json.NewEncoder(w).Encode(map[string]any{"item": nil})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(apiSrv.Close)
+
+	dir := t.TempDir()
+	stale := filepath.Join(dir, "instances", "inst-stale")
+	kept := filepath.Join(dir, "instances", "inst-keep")
+	if err := os.MkdirAll(stale, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(kept, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	go RunLoop(ctx, Config{
+		APIBase:      apiSrv.URL,
+		DeviceToken:  "token",
+		DataDir:      dir,
+		LaunchPoll:   time.Hour,
+		InstancePoll: time.Hour,
+	})
+
+	deadline := time.Now().Add(800 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(stale); os.IsNotExist(err) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("stale instance dir still exists: %v", err)
+	}
+	if _, err := os.Stat(kept); err != nil {
+		t.Fatalf("kept instance dir missing: %v", err)
+	}
+}
+
 func TestRunLoop_DryLaunchOnce(t *testing.T) {
 	jarSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("jar-bytes"))
@@ -260,6 +312,8 @@ func TestRunLoop_DryLaunchOnce(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"id": "req-loop-1", "status": body["status"]})
 		case r.Method == http.MethodGet && r.URL.Path == "/launcher/update-requests/pending":
 			_ = json.NewEncoder(w).Encode(map[string]any{"item": nil})
+		case r.Method == http.MethodGet && r.URL.Path == "/launcher/devices/me/instances":
+			_ = json.NewEncoder(w).Encode(map[string]any{"items": []any{}})
 		default:
 			http.NotFound(w, r)
 		}

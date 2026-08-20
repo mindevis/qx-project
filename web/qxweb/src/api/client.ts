@@ -790,6 +790,9 @@ export const api = {
   deleteInstance: (id: string) =>
     request<void>(`/instances/${id}`, { method: 'DELETE' }, 'launcher'),
 
+  cloneInstance: (id: string) =>
+    request<LauncherInstance>(`/instances/${encodeURIComponent(id)}/clone`, { method: 'POST' }, 'launcher'),
+
   updateInstance: (
     id: string,
     body: {
@@ -1058,6 +1061,12 @@ export const api = {
     request<void>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}`,
       { method: 'DELETE' },
+    ),
+
+  cloneVpsGameServer: (vpsId: string, gameServerId: string) =>
+    request<VpsGameServerInstance>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/clone`,
+      { method: 'POST' },
     ),
 
   reinstallVpsGameServer: (vpsId: string, gameServerId: string) =>

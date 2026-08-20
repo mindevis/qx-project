@@ -498,7 +498,12 @@ func (s *Service) Stop(ctx context.Context, ownerID, serverID string) error {
 	if s.hub == nil || !s.hub.IsOnline(serverID) {
 		return ErrAgentOffline
 	}
-	payload, _ := json.Marshal(protocol.ServerStopPayload{Graceful: true, TimeoutSec: 30})
+	stopPayload := protocol.ServerStopPayload{Graceful: true, TimeoutSec: 30}
+	if cfg, err := parseConfig(server.ConfigJSON); err == nil {
+		stopPayload.WorkDir = cfg.WorkDir
+		stopPayload.GameServerID = cfg.ActiveGameServerID
+	}
+	payload, _ := json.Marshal(stopPayload)
 	_ = s.db.WithContext(ctx).Model(server).Update("status", models.ServerStatusStopping).Error
 	return s.hub.SendCommand(ctx, serverID, protocol.Envelope{
 		Type:    protocol.TypeCmdServerStop,

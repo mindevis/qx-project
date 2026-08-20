@@ -2,7 +2,10 @@ package cache
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/qxproject/qx/pkg/safepath"
@@ -28,6 +31,23 @@ func InstanceDataRoot(dataDir string) string {
 		return ""
 	}
 	return path
+}
+
+// RemoveInstanceData deletes the local folder for one instance.
+func RemoveInstanceData(dataDir, instanceID string) error {
+	instanceID = strings.TrimSpace(instanceID)
+	if instanceID == "" {
+		return fmt.Errorf("missing instance id")
+	}
+	root := InstanceDataRoot(dataDir)
+	if root == "" {
+		return fmt.Errorf("invalid data dir")
+	}
+	abs, err := safepath.Join(root, instanceID)
+	if err != nil {
+		return err
+	}
+	return safepath.RemoveInstancesChild(abs)
 }
 
 // PruneInstanceData removes local instance folders that are no longer on the server.
@@ -66,7 +86,7 @@ func PruneInstanceData(dataDir string, items []apiclient.InstanceItem) error {
 			}
 			continue
 		}
-		if err := safepath.RemoveAll(abs); err != nil && firstErr == nil {
+		if err := safepath.RemoveInstancesChild(abs); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -75,7 +95,9 @@ func PruneInstanceData(dataDir string, items []apiclient.InstanceItem) error {
 
 // SyncInstances updates the local cache and deletes instance data removed on the website.
 func SyncInstances(dataDir string, items []apiclient.InstanceItem) error {
-	_ = PruneInstanceData(dataDir, items)
+	if err := PruneInstanceData(dataDir, items); err != nil {
+		slog.Warn("prune instance data failed", "err", err)
+	}
 	return SaveInstances(dataDir, items)
 }
 

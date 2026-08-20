@@ -170,6 +170,9 @@ func (m *InstancesMenu) handleDelete(item apiclient.InstanceItem) {
 		notify.Show("QXLauncher", "Не удалось удалить: "+item.Name)
 		return
 	}
+	if err := cache.RemoveInstanceData(dataDir, item.ID); err != nil {
+		slog.Warn("remove instance files failed", "instance", item.ID, "err", err)
+	}
 	if snap, err := cache.LoadInstances(dataDir); err == nil {
 		filtered := make([]apiclient.InstanceItem, 0, len(snap.Instances))
 		for _, inst := range snap.Instances {
@@ -177,7 +180,9 @@ func (m *InstancesMenu) handleDelete(item apiclient.InstanceItem) {
 				filtered = append(filtered, inst)
 			}
 		}
-		_ = cache.SyncInstances(dataDir, filtered)
+		if err := cache.SaveInstances(dataDir, filtered); err != nil {
+			slog.Warn("save instances after delete failed", "err", err)
+		}
 		m.Refresh(filtered)
 	}
 	notify.Show("QXLauncher", "Инстанс удалён: "+item.Name)

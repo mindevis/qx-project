@@ -141,6 +141,11 @@ export async function removeVpsGameServer(vpsId: string, id: string): Promise<vo
   await api.deleteVpsGameServer(vpsId, id);
 }
 
+export async function cloneVpsGameServer(vpsId: string, id: string): Promise<VpsGameServer> {
+  const created = await api.cloneVpsGameServer(vpsId, id);
+  return mapGameServer(created);
+}
+
 export async function reinstallVpsGameServer(vpsId: string, id: string): Promise<VpsGameServer> {
   const updated = await api.reinstallVpsGameServer(vpsId, id);
   return mapGameServer(updated);

@@ -54,6 +54,7 @@ import { logger } from '@/lib/logger';
 import {
   isVpsGameServerProvisioning,
   listVpsGameServers,
+  cloneVpsGameServer,
   restartVpsGameServer,
   removeVpsGameServer,
   startVpsGameServer,
@@ -532,7 +533,9 @@ function GameServersCardList({
   games,
   agentOnline,
   powerActionId,
+  cloneActionId,
   onDelete,
+  onClone,
   onEdit,
   onStart,
   onStop,
@@ -544,7 +547,9 @@ function GameServersCardList({
   games: VpsGameServer[];
   agentOnline: boolean;
   powerActionId: string | null;
+  cloneActionId: string | null;
   onDelete: (id: string) => void;
+  onClone: (id: string) => void;
   onEdit: (game: VpsGameServer) => void;
   onStart: (id: string) => void;
   onStop: (id: string) => void;
@@ -558,7 +563,11 @@ function GameServersCardList({
   return (
     <div className="servers-game-list">
       {games.map((game) => {
-        const rowBusy = isVpsGameServerProvisioning(game.status) || powerActionId === game.id;
+        const rowBusy =
+          isVpsGameServerProvisioning(game.status) ||
+          powerActionId === game.id ||
+          cloneActionId === game.id;
+        const canClone = agentOnline && !isVpsGameServerProvisioning(game.status);
         const canStart = game.status === 'stopped' || game.status === 'error';
         const canStop = game.status === 'running' || game.status === 'starting';
         const canRestart =
@@ -627,6 +636,19 @@ function GameServersCardList({
                   onClick={() => onEdit(game)}
                 />
                 <Popconfirm
+                  title={t('servers.cloneGameServerConfirm')}
+                  onConfirm={() => onClone(game.id)}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CopyOutlined />}
+                    loading={cloneActionId === game.id}
+                    disabled={!canClone || cloneActionId != null}
+                    aria-label={t('servers.cloneGameServer')}
+                  />
+                </Popconfirm>
+                <Popconfirm
                   title={t('servers.deleteGameServerConfirm')}
                   onConfirm={() => onDelete(game.id)}
                 >
@@ -681,6 +703,7 @@ function VpsGameServersSection({
   const [addOpen, setAddOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<VpsGameServer | null>(null);
   const [powerActionId, setPowerActionId] = useState<string | null>(null);
+  const [cloneActionId, setCloneActionId] = useState<string | null>(null);
 
   const gameServerTypeLabel = useCallback(
     (type: VpsGameServerType | undefined) => gameServerTypeLabelText(t, type),
@@ -749,6 +772,18 @@ function VpsGameServersSection({
     [message, refresh, t, vpsId],
   );
 
+  const handleClone = useCallback(
+    (gameServerId: string) => {
+      setCloneActionId(gameServerId);
+      void cloneVpsGameServer(vpsId, gameServerId)
+        .then(() => refresh())
+        .then(() => message.success(t('servers.gameServerCloned')))
+        .catch((e) => message.error(e instanceof Error ? e.message : t('common.error')))
+        .finally(() => setCloneActionId(null));
+    },
+    [message, refresh, t, vpsId],
+  );
+
   return (
     <div className="servers-panel">
       <div className="servers-panel-header">
@@ -793,7 +828,9 @@ function VpsGameServersSection({
           games={games}
           agentOnline={agentOnline}
           powerActionId={powerActionId}
+          cloneActionId={cloneActionId}
           onDelete={handleDelete}
+          onClone={handleClone}
           onEdit={setEditingGame}
           /* v8 ignore next -- @preserve power actions covered in GameServerDetailPage tests */
           onStart={(id) => void runPowerAction(id, 'start')}

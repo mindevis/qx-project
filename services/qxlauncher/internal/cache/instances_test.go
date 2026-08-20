@@ -34,6 +34,36 @@ func TestSaveInstancesEmptySlice(t *testing.T) {
 	}
 }
 
+func TestRemoveInstanceData(t *testing.T) {
+	dir := t.TempDir()
+	removed := filepath.Join(InstanceDataRoot(dir), "inst-del")
+	kept := filepath.Join(InstanceDataRoot(dir), "inst-keep")
+	if err := os.MkdirAll(removed, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(removed, "marker.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(kept, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveInstanceData(dir, "inst-del"); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if _, err := os.Stat(removed); !os.IsNotExist(err) {
+		t.Fatalf("removed dir still exists: %v", err)
+	}
+	if _, err := os.Stat(kept); err != nil {
+		t.Fatalf("kept dir missing: %v", err)
+	}
+	if err := RemoveInstanceData(dir, "inst-del"); err != nil {
+		t.Fatalf("remove missing: %v", err)
+	}
+	if err := RemoveInstanceData(dir, ".."); err == nil {
+		t.Fatal("expected traversal id to fail")
+	}
+}
+
 func TestPruneInstanceDataRemovesDeletedInstances(t *testing.T) {
 	dir := t.TempDir()
 	removed := filepath.Join(InstanceDataRoot(dir), "inst-old")

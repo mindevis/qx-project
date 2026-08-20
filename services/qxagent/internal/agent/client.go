@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -322,7 +321,7 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		if timeout <= 0 {
 			timeout = 30 * time.Second
 		}
-		exitCode, err := c.runner.Stop(payload.Graceful, timeout)
+		exitCode, err := c.runner.StopTarget(payload.Graceful, timeout, payload.WorkDir)
 		resPayload, _ := json.Marshal(protocol.ServerStopResult{ExitCode: exitCode})
 		if err != nil {
 			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
@@ -379,6 +378,25 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		return &protocol.Envelope{
 			V:         protocol.Version,
 			Type:      protocol.TypeResServerWipe,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerCopy:
+		var payload protocol.GameServerCopyPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := fs.CopyWorkDir(payload.SourceWorkDir, payload.DestWorkDir)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(map[string]string{"status": "ok"})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerCopy,
 			RequestID: env.RequestID,
 			TS:        ts,
 			Payload:   resPayload,
@@ -844,7 +862,6 @@ func (r *ProcessRunner) startLogFollowLocked(workDir string) {
 
 func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.cleanupDeadProcessLocked()
 	if r.cmd != nil && r.cmd.Process != nil {
 		if payload.WorkDir != "" {
@@ -853,13 +870,27 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 		if id := strings.TrimSpace(payload.GameServerID); id != "" {
 			r.gameServerID = id
 		}
-		return r.cmd.Process.Pid, nil
+		pid := r.cmd.Process.Pid
+		r.mu.Unlock()
+		return pid, nil
 	}
-	r.gameServerID = strings.TrimSpace(payload.GameServerID)
+	r.mu.Unlock()
+
 	start, err := ValidateStartPayload(payload)
 	if err != nil {
 		return 0, err
 	}
+	if !r.DryRun && start.WorkDir != "" {
+		_, _ = r.StopTarget(false, 8*time.Second, start.WorkDir)
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.cleanupDeadProcessLocked()
+	if r.cmd != nil && r.cmd.Process != nil {
+		return r.cmd.Process.Pid, nil
+	}
+	r.gameServerID = strings.TrimSpace(payload.GameServerID)
 	if r.DryRun {
 		if r.dryPID == 0 {
 			r.dryPID = os.Getpid()
@@ -904,6 +935,7 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 		cmd.Dir = start.WorkDir
 	}
 	applyJavaEnv(cmd, start.JavaBin)
+	configureProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		_ = stdinR.Close()
 		_ = stdinW.Close()
@@ -918,6 +950,7 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
 	r.stoppingGracefully = false
 	r.managedWorkDir = start.WorkDir
+	writePidFile(start.WorkDir, cmd.Process.Pid)
 	go streamLines("stdout", stdoutR, r.emit)
 	go streamLines("stderr", stderrR, r.emit)
 	r.startLogFollowLocked(start.WorkDir)
@@ -944,6 +977,7 @@ func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
 	cmd.Stdin = stdinR
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
+	configureProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		_ = stdinR.Close()
 		_ = stdinW.Close()
@@ -958,21 +992,12 @@ func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
 	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
 	r.stoppingGracefully = false
 	r.managedWorkDir = start.WorkDir
+	writePidFile(start.WorkDir, cmd.Process.Pid)
 	go streamLines("stdout", stdoutR, r.emit)
 	go streamLines("stderr", stderrR, r.emit)
 	r.startLogFollowLocked(start.WorkDir)
 	go r.watchManagedProcess(cmd, start.WorkDir)
 	return cmd.Process.Pid, nil
-}
-
-func (r *ProcessRunner) StopIfWorkDir(workDir string, graceful bool, timeout time.Duration) {
-	r.mu.Lock()
-	managed := r.managedWorkDir
-	r.mu.Unlock()
-	if managed == "" || !workDirsMatch(managed, workDir) {
-		return
-	}
-	_, _ = r.Stop(graceful, timeout)
 }
 
 func workDirsMatch(a, b string) bool {
@@ -982,53 +1007,6 @@ func workDirsMatch(a, b string) bool {
 		return aRoot == bRoot
 	}
 	return filepath.Clean(strings.TrimSpace(a)) == filepath.Clean(strings.TrimSpace(b))
-}
-
-func (r *ProcessRunner) Stop(graceful bool, timeout time.Duration) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.DryRun {
-		slog.Info("dry-run stop server")
-		r.dryPID = 0
-		r.gameServerID = ""
-		r.stopLogFollowLocked()
-		return 0, nil
-	}
-	if r.cmd == nil || r.cmd.Process == nil {
-		r.closePipesLocked()
-		r.gameServerID = ""
-		r.stopLogFollowLocked()
-		return 0, nil
-	}
-	cmd := r.cmd
-	r.stoppingGracefully = true
-	r.cmd = nil
-	r.gameServerID = ""
-	r.stopLogFollowLocked()
-	r.closePipesLocked()
-
-	if graceful {
-		_ = cmd.Process.Signal(syscall.SIGTERM)
-		done := make(chan error, 1)
-		go func() { done <- cmd.Wait() }()
-		select {
-		case err := <-done:
-			if err == nil {
-				return cmd.ProcessState.ExitCode(), nil
-			}
-		case <-time.After(timeout):
-			_ = cmd.Process.Kill()
-		}
-	} else {
-		_ = cmd.Process.Kill()
-	}
-	if err := cmd.Wait(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return exitErr.ExitCode(), nil
-		}
-		return -1, err
-	}
-	return cmd.ProcessState.ExitCode(), nil
 }
 
 func applyJavaEnv(cmd *exec.Cmd, javaBinPath string) {
