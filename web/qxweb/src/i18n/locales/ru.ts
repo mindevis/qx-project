@@ -1081,6 +1081,9 @@ export const ru = {
     source: {
       curseforge: 'CurseForge',
       modrinth: 'Modrinth',
+      hangar: 'Hangar',
+      spigot: 'SpigotMC',
+      bukkit: 'Bukkit',
       upload: 'С ПК',
     },
     sync: {

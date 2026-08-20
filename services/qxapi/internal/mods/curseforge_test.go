@@ -166,6 +166,15 @@ func TestCurseForgeClassIDDatapack(t *testing.T) {
 	if got := curseForgeClassID(ProjectTypeDatapack); got != 6945 {
 		t.Fatalf("datapack classId: got %d want 6945", got)
 	}
+	if got := curseForgeClassID(ProjectTypePlugin); got != 5 {
+		t.Fatalf("plugin classId: got %d want 5", got)
+	}
+	if got := curseForgeExternalURL(ProjectTypePlugin, "protocollib"); got != "https://www.curseforge.com/minecraft/bukkit-plugins/protocollib" {
+		t.Fatalf("plugin url: %s", got)
+	}
+	if got := curseForgeProjectTypeFromClassID(5); got != ProjectTypePlugin {
+		t.Fatalf("class 5: %s", got)
+	}
 }
 
 func TestCurseForgeSidesFromGameVersions(t *testing.T) {

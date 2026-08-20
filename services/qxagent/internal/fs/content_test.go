@@ -137,6 +137,20 @@ func TestSanitizeContentDownloadURL(t *testing.T) {
 	if got != "https://cdn.modrinth.com/data/AANobbMI/versions/foo/sodium.jar" {
 		t.Fatalf("url: %s", got)
 	}
+	hangarURL, err := sanitizeContentDownloadURL("https://hangarcdn.papermc.io/plugins/dmulloy2/ProtocolLib/versions/5.1.0/PAPER/ProtocolLib.jar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hangarURL == "" {
+		t.Fatal("expected hangar cdn url")
+	}
+	spigetURL, err := sanitizeContentDownloadURL("https://api.spiget.org/v2/resources/28140/versions/123/download")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spigetURL == "" {
+		t.Fatal("expected spiget url")
+	}
 }
 
 func TestReadContentFile(t *testing.T) {

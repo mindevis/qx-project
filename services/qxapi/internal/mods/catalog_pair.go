@@ -2,6 +2,7 @@ package mods
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -103,5 +104,31 @@ func pairAndInterleaveSearch(primary, secondary []SearchItem, limit int) []Searc
 			cards++
 		}
 	}
+	return out
+}
+
+func preferQueryMatches(items []SearchItem, query string) []SearchItem {
+	q := catalogNameKey(query)
+	if q == "" || len(items) < 2 {
+		return items
+	}
+	score := func(item SearchItem) int {
+		name := catalogNameKey(item.Name)
+		slug := strings.ToLower(strings.TrimSpace(item.Slug))
+		switch {
+		case name == q || slug == q:
+			return 3
+		case strings.HasPrefix(name, q) || strings.HasPrefix(slug, q):
+			return 2
+		case strings.Contains(name, q) || strings.Contains(slug, q):
+			return 1
+		default:
+			return 0
+		}
+	}
+	out := append([]SearchItem(nil), items...)
+	sort.SliceStable(out, func(i, j int) bool {
+		return score(out[i]) > score(out[j])
+	})
 	return out
 }

@@ -20,6 +20,8 @@ type Config struct {
 type Service struct {
 	modrinth    *modrinthClient
 	curseforge  *curseForgeClient
+	hangar      *hangarClient
+	spiget      *spigetClient
 	browseCache *ttlcache.Cache[[]SearchItem]
 	searchCache *ttlcache.Cache[[]SearchItem]
 }
@@ -36,6 +38,8 @@ func NewService(cfg Config) *Service {
 			httpClient: httpClient,
 			apiKey:     strings.TrimSpace(cfg.CurseForgeAPIKey),
 		},
+		hangar:      &hangarClient{httpClient: httpClient, userAgent: ua},
+		spiget:      &spigetClient{httpClient: httpClient, userAgent: ua},
 		browseCache: ttlcache.New[[]SearchItem](2*time.Minute, 200),
 		searchCache: ttlcache.New[[]SearchItem](2*time.Minute, 200),
 	}
@@ -82,6 +86,15 @@ func (s *Service) searchUncached(ctx context.Context, query, projectType, loader
 	case SourceModrinth:
 		items, err := s.modrinth.search(ctx, query, projectType, loader, mcVersion, limit)
 		return items, err == nil && len(items) > 0, err
+	case SourceHangar:
+		items, err := s.hangar.search(ctx, query, projectType, loader, mcVersion, limit)
+		return items, err == nil && len(items) > 0, err
+	case SourceSpigot:
+		items, err := s.spiget.search(ctx, query, projectType, loader, mcVersion, limit)
+		return items, err == nil && len(items) > 0, err
+	case SourceBukkit:
+		items, err := s.searchBukkit(ctx, query, projectType, loader, mcVersion, limit)
+		return items, err == nil && len(items) > 0, err
 	default:
 		return s.searchUpstream(ctx, query, projectType, loader, mcVersion, limit)
 	}
@@ -92,10 +105,27 @@ func (s *Service) searchUpstream(ctx context.Context, query, projectType, loader
 		return s.modrinth.search(ctx, query, projectType, loader, mcVersion, limit)
 	})
 	cfCh := runCatalogHalf(func() ([]SearchItem, error) {
-		return s.curseforge.search(ctx, query, projectType, loader, mcVersion, limit)
+		items, err := s.curseforge.search(ctx, query, projectType, loader, mcVersion, limit)
+		if projectType == ProjectTypePlugin {
+			return tagBukkitPlugins(items), err
+		}
+		return items, err
 	})
+	var extraChans []<-chan catalogHalf
+	if projectType == ProjectTypePlugin {
+		extraChans = []<-chan catalogHalf{
+			runCatalogHalf(func() ([]SearchItem, error) {
+				return s.hangar.search(ctx, query, projectType, loader, mcVersion, limit)
+			}),
+			runCatalogHalf(func() ([]SearchItem, error) {
+				return s.spiget.search(ctx, query, projectType, loader, mcVersion, limit)
+			}),
+		}
+	}
 	mr, cf, cfOK := waitPrimaryThenPartner(ctx, mrCh, cfCh, catalogPartnerGrace)
 	items, err := mergeCatalogHalves(mr, cf, cfOK, limit)
+	items = mergeOptionalCatalogs(items, collectOptionalHalves(ctx, extraChans, catalogPartnerGrace), limit)
+	items = preferQueryMatches(items, query)
 	return items, catalogResultCacheable(s.curseforge.enabled(), cfOK, cf.err, items, err), err
 }
 
@@ -144,6 +174,15 @@ func (s *Service) browseUncached(ctx context.Context, projectType, loader, mcVer
 	case SourceModrinth:
 		items, err := s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
 		return items, err == nil && len(items) > 0, err
+	case SourceHangar:
+		items, err := s.hangar.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+		return items, err == nil && len(items) > 0, err
+	case SourceSpigot:
+		items, err := s.spiget.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+		return items, err == nil && len(items) > 0, err
+	case SourceBukkit:
+		items, err := s.browseBukkit(ctx, projectType, loader, mcVersion, sort, limit, offset)
+		return items, err == nil && len(items) > 0, err
 	default:
 		return s.browseBoth(ctx, projectType, loader, mcVersion, sort, limit, offset)
 	}
@@ -159,10 +198,26 @@ func (s *Service) browseBoth(ctx context.Context, projectType, loader, mcVersion
 		return s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
 	})
 	cfCh := runCatalogHalf(func() ([]SearchItem, error) {
-		return s.curseforge.browseStrict(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
+		items, err := s.curseforge.browseStrict(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
+		if projectType == ProjectTypePlugin {
+			return tagBukkitPlugins(items), err
+		}
+		return items, err
 	})
+	var extraChans []<-chan catalogHalf
+	if projectType == ProjectTypePlugin {
+		extraChans = []<-chan catalogHalf{
+			runCatalogHalf(func() ([]SearchItem, error) {
+				return s.hangar.browse(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
+			}),
+			runCatalogHalf(func() ([]SearchItem, error) {
+				return s.spiget.browse(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
+			}),
+		}
+	}
 	mr, cf, cfOK := waitPrimaryThenPartner(ctx, mrCh, cfCh, catalogPartnerGrace)
 	items, err := mergeCatalogHalves(mr, cf, cfOK, pageSize)
+	items = mergeOptionalCatalogs(items, collectOptionalHalves(ctx, extraChans, catalogPartnerGrace), pageSize)
 	return items, catalogResultCacheable(s.curseforge.enabled(), cfOK, cf.err, items, err), err
 }
 
@@ -208,6 +263,12 @@ func (s *Service) GetProject(ctx context.Context, source, projectID string) (*Pr
 			return s.modrinth.getProject(ctx, projectID)
 		case SourceCurseForge:
 			return s.curseforge.getProject(ctx, projectID)
+		case SourceHangar:
+			return s.hangar.getProject(ctx, projectID)
+		case SourceSpigot:
+			return s.spiget.getProject(ctx, projectID)
+		case SourceBukkit:
+			return s.getBukkitProject(ctx, projectID)
 		default:
 			return nil, fmt.Errorf("unknown source %q", source)
 		}
@@ -226,6 +287,12 @@ func (s *Service) ListVersions(ctx context.Context, source, projectID, loader, m
 		case SourceModrinth:
 			return s.modrinth.listVersions(ctx, projectID, loader, mcVersion)
 		case SourceCurseForge:
+			return s.curseforge.listVersions(ctx, projectID, loader, mcVersion)
+		case SourceHangar:
+			return s.hangar.listVersions(ctx, projectID, loader, mcVersion)
+		case SourceSpigot:
+			return s.spiget.listVersions(ctx, projectID, loader, mcVersion)
+		case SourceBukkit:
 			return s.curseforge.listVersions(ctx, projectID, loader, mcVersion)
 		default:
 			return nil, fmt.Errorf("unknown source %q", source)
@@ -247,10 +314,49 @@ func (s *Service) GetVersion(ctx context.Context, source, projectID, versionID, 
 			return s.modrinth.getVersion(ctx, versionID, loader, mcVersion)
 		case SourceCurseForge:
 			return s.curseforge.getVersion(ctx, projectID, versionID, loader, mcVersion)
+		case SourceHangar:
+			return s.hangar.getVersion(ctx, projectID, versionID, loader, mcVersion)
+		case SourceSpigot:
+			return s.spiget.getVersion(ctx, projectID, versionID, loader, mcVersion)
+		case SourceBukkit:
+			return s.curseforge.getVersion(ctx, projectID, versionID, loader, mcVersion)
 		default:
 			return nil, fmt.Errorf("unknown source %q", source)
 		}
 	})
+}
+
+func (s *Service) searchBukkit(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {
+	if projectType != ProjectTypePlugin {
+		return nil, nil
+	}
+	if !s.curseforge.enabled() {
+		return nil, fmt.Errorf("curseforge api key not configured")
+	}
+	items, err := s.curseforge.search(ctx, query, projectType, loader, mcVersion, limit)
+	return tagBukkitPlugins(items), err
+}
+
+func (s *Service) browseBukkit(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
+	if projectType != ProjectTypePlugin {
+		return nil, nil
+	}
+	if !s.curseforge.enabled() {
+		return nil, fmt.Errorf("curseforge api key not configured")
+	}
+	items, err := s.curseforge.browse(ctx, projectType, loader, mcVersion, sort, limit, offset)
+	return tagBukkitPlugins(items), err
+}
+
+func (s *Service) getBukkitProject(ctx context.Context, projectID string) (*ProjectDetail, error) {
+	if !s.curseforge.enabled() {
+		return nil, fmt.Errorf("curseforge api key not configured")
+	}
+	detail, err := s.curseforge.getProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return tagBukkitProject(detail), nil
 }
 
 func normalizeProjectType(raw string) string {

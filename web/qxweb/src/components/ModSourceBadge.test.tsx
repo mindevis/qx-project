@@ -13,4 +13,19 @@ describe('ModSourceBadge', () => {
     renderWithTheme(<ModSourceBadge source="curseforge" />);
     expect(screen.getByText('CurseForge')).toBeInTheDocument();
   });
+
+  it('renders Hangar source label', () => {
+    renderWithTheme(<ModSourceBadge source="hangar" />);
+    expect(screen.getByText('Hangar')).toBeInTheDocument();
+  });
+
+  it('renders SpigotMC source label', () => {
+    renderWithTheme(<ModSourceBadge source="spigot" />);
+    expect(screen.getByText('SpigotMC')).toBeInTheDocument();
+  });
+
+  it('renders Bukkit source label', () => {
+    renderWithTheme(<ModSourceBadge source="bukkit" />);
+    expect(screen.getByText('Bukkit')).toBeInTheDocument();
+  });
 });

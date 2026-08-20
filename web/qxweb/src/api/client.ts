@@ -234,7 +234,7 @@ export type GameServerFileContent = {
   size: number;
 };
 
-export type ModSource = 'curseforge' | 'modrinth' | 'upload';
+export type ModSource = 'curseforge' | 'modrinth' | 'hangar' | 'spigot' | 'bukkit' | 'upload';
 
 export type ModCatalogSourceFilter = 'all' | ModSource;
 

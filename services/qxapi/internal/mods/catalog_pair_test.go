@@ -39,6 +39,17 @@ func TestPairAndInterleaveSearchMatchesSlugAndStrippedName(t *testing.T) {
 	}
 }
 
+func TestPreferQueryMatchesRanksExactName(t *testing.T) {
+	t.Parallel()
+	out := preferQueryMatches([]SearchItem{
+		{Name: "FurnitureLib", Slug: "furniturelib", Source: SourceModrinth},
+		{Name: "ProtocolLib", Slug: "ProtocolLib", Source: SourceHangar},
+	}, "ProtocolLib")
+	if out[0].Name != "ProtocolLib" {
+		t.Fatalf("expected ProtocolLib first, got %+v", out)
+	}
+}
+
 func TestCatalogNameKey(t *testing.T) {
 	t.Parallel()
 	if catalogNameKey("  Xaero's Minimap ") != "xaero's minimap" {

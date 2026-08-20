@@ -87,20 +87,17 @@ describe('mergeCatalogCardsByName', () => {
     expect(cards[0].items).toHaveLength(2);
   });
 
-  it('merges by slug when display names differ', () => {
+  it('merges plugin listings from more than two catalogs onto one card', () => {
     const cards = mergeCatalogCardsByName(
       [
-        item({ id: 'jei', source: 'modrinth', slug: 'jei', name: 'JEI' }),
-        item({
-          id: '238222',
-          source: 'curseforge',
-          slug: 'jei',
-          name: 'Just Enough Items (JEI)',
-        }),
+        item({ id: 'protocollib', source: 'modrinth', slug: 'protocollib', name: 'ProtocolLib' }),
+        item({ id: '1997', source: 'spigot', slug: 'protocollib', name: 'ProtocolLib' }),
+        item({ id: 'ProtocolLib', source: 'hangar', slug: 'ProtocolLib', name: 'ProtocolLib' }),
+        item({ id: '15590', source: 'bukkit', slug: 'protocollib', name: 'ProtocolLib' }),
       ],
       'all',
     );
     expect(cards).toHaveLength(1);
-    expect(cards[0].items).toHaveLength(2);
+    expect(cards[0].items.map((row) => row.source)).toEqual(['hangar', 'spigot', 'bukkit', 'modrinth']);
   });
 });

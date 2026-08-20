@@ -70,6 +70,7 @@ type curseForgeSearchResponse struct {
 			ModLoader   int    `json:"modLoader"`
 		} `json:"latestFilesIndexes"`
 		LatestFiles []curseForgeLatestFile `json:"latestFiles"`
+		ClassID     int                    `json:"classId"`
 	} `json:"data"`
 }
 
@@ -88,6 +89,7 @@ type curseForgeModResponse struct {
 			Name string `json:"name"`
 		} `json:"authors"`
 		LatestFiles []curseForgeLatestFile `json:"latestFiles"`
+		ClassID     int                    `json:"classId"`
 	} `json:"data"`
 }
 
@@ -186,7 +188,7 @@ func (c *curseForgeClient) searchProjectsOnce(
 	sortField, sortOrder := curseForgeSortParams(sort)
 	params.Set("sortField", sortField)
 	params.Set("sortOrder", sortOrder)
-	if mcVersion != "" {
+	if mcVersion != "" && projectType != ProjectTypePlugin {
 		params.Set("gameVersion", mcVersion)
 	}
 	if CatalogProjectUsesLoader(projectType) {
@@ -251,6 +253,10 @@ func (c *curseForgeClient) getProject(ctx context.Context, projectID string) (*P
 	if len(item.Authors) > 0 {
 		author = item.Authors[0].Name
 	}
+	projectType := curseForgeProjectTypeFromClassID(item.ClassID)
+	if projectType == "" {
+		projectType = ProjectTypeMod
+	}
 	return &ProjectDetail{
 		SearchItem: SearchItem{
 			ID:          strconv.Itoa(item.ID),
@@ -261,9 +267,10 @@ func (c *curseForgeClient) getProject(ctx context.Context, projectID string) (*P
 			IconURL:     item.Logo.ThumbnailURL,
 			Downloads:   item.DownloadCount,
 			Author:      author,
+			ProjectType: projectType,
 			ClientSide:  curseForgeClientSide(item.LatestFiles, "", ""),
 			ServerSide:  curseForgeServerSide(item.LatestFiles, "", ""),
-			ExternalURL: curseForgeExternalURL(ProjectTypeMod, item.Slug),
+			ExternalURL: curseForgeExternalURL(projectType, item.Slug),
 		},
 		Description: item.Description,
 	}, nil
@@ -551,6 +558,25 @@ func curseForgeClassID(projectType string) int {
 		return 5
 	default:
 		return 6
+	}
+}
+
+func curseForgeProjectTypeFromClassID(classID int) string {
+	switch classID {
+	case 5:
+		return ProjectTypePlugin
+	case 4471:
+		return ProjectTypeModpack
+	case 12:
+		return ProjectTypeResourcePack
+	case 6552:
+		return ProjectTypeShader
+	case 6945:
+		return ProjectTypeDatapack
+	case 6:
+		return ProjectTypeMod
+	default:
+		return ""
 	}
 }
 

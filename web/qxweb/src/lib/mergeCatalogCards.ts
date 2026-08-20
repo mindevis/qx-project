@@ -1,4 +1,4 @@
-import type { ModCatalogItem, ModCatalogSourceFilter, ModSource } from '@/api/client';
+import type { ModCatalogItem, ModCatalogSourceFilter, ModProjectType, ModSource } from '@/api/client';
 
 export type CatalogCard = {
   key: string;
@@ -7,9 +7,12 @@ export type CatalogCard = {
 };
 
 const SOURCE_ORDER: Record<ModSource, number> = {
-  modrinth: 0,
-  curseforge: 1,
-  upload: 2,
+  hangar: 0,
+  spigot: 1,
+  bukkit: 2,
+  modrinth: 3,
+  curseforge: 4,
+  upload: 5,
 };
 
 export function catalogItemNameKey(name: string): string {
@@ -33,9 +36,15 @@ export function catalogPartnerSource(source: ModSource): ModSource | null {
   return null;
 }
 
+export function catalogPartnerSources(source: ModSource, projectType?: ModProjectType): ModSource[] {
+  const pool: ModSource[] =
+    projectType === 'plugin' ? ['modrinth', 'hangar', 'spigot', 'bukkit'] : ['modrinth', 'curseforge'];
+  return pool.filter((item) => item !== source);
+}
+
 export function catalogItemsMatch(left: ModCatalogItem, right: ModCatalogItem): boolean {
   if (left.source === right.source) return false;
-  if (catalogPartnerSource(left.source) !== right.source) return false;
+  if (left.source === 'upload' || right.source === 'upload') return false;
   const rightKeys = new Set(catalogItemMatchKeys(right));
   return catalogItemMatchKeys(left).some((key) => rightKeys.has(key));
 }
@@ -70,17 +79,13 @@ function toCard(item: ModCatalogItem): CatalogCard {
   };
 }
 
-function toMergedCard(first: ModCatalogItem, second: ModCatalogItem): CatalogCard {
-  const items = [first, second].sort((a, b) => SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source]);
+function toMergedGroup(items: ModCatalogItem[]): CatalogCard {
+  const sorted = [...items].sort((a, b) => SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source]);
   return {
-    key: catalogCardKey(items),
-    name: first.name,
-    items,
+    key: catalogCardKey(sorted),
+    name: items[0].name,
+    items: sorted,
   };
-}
-
-function partnerSource(source: ModSource): ModSource | null {
-  return catalogPartnerSource(source);
 }
 
 export function mergeCatalogCardsByName(
@@ -96,25 +101,16 @@ export function mergeCatalogCardsByName(
 
   for (let i = 0; i < items.length; i++) {
     if (used.has(i)) continue;
-    const item = items[i];
-    const other = partnerSource(item.source);
-    if (!other) {
-      used.add(i);
-      cards.push(toCard(item));
-      continue;
-    }
-
-    const partnerIndex = items.findIndex(
-      (candidate, index) => index > i && !used.has(index) && catalogItemsMatch(item, candidate),
-    );
-
+    const group = [items[i]];
     used.add(i);
-    if (partnerIndex >= 0) {
-      used.add(partnerIndex);
-      cards.push(toMergedCard(item, items[partnerIndex]));
-    } else {
-      cards.push(toCard(item));
+    for (let j = i + 1; j < items.length; j++) {
+      if (used.has(j)) continue;
+      if (group.some((item) => catalogItemsMatch(item, items[j]))) {
+        group.push(items[j]);
+        used.add(j);
+      }
     }
+    cards.push(group.length === 1 ? toCard(group[0]) : toMergedGroup(group));
   }
 
   return cards;

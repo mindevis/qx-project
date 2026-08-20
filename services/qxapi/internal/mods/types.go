@@ -3,6 +3,9 @@ package mods
 const (
 	SourceCurseForge = "curseforge"
 	SourceModrinth   = "modrinth"
+	SourceHangar     = "hangar"
+	SourceSpigot     = "spigot"
+	SourceBukkit     = "bukkit"
 )
 
 const (

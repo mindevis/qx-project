@@ -13,7 +13,7 @@ type CatalogSourceSwitchProps = {
 
 export function CatalogSourceSwitch({ items, value, onChange }: CatalogSourceSwitchProps) {
   const { t } = useI18n();
-  const sources = items.filter((item) => item.source === 'modrinth' || item.source === 'curseforge');
+  const sources = items.filter((item) => item.source !== 'upload');
   if (sources.length < 2) {
     return <ModSourceBadge source={items[0]?.source ?? value} />;
   }

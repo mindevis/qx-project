@@ -579,14 +579,22 @@ export function GameServerContentPanel({
     }
   };
 
-  const sourceOptions = useMemo(
-    () => [
+  const sourceOptions = useMemo(() => {
+    const options = [
       { value: 'all', label: t('qxmods.filters.sourceAll') },
       { value: 'modrinth', label: t('qxmods.source.modrinth') },
-      { value: 'curseforge', label: t('qxmods.source.curseforge') },
-    ],
-    [t],
-  );
+    ];
+    if (kind === 'plugin') {
+      options.push(
+        { value: 'hangar', label: t('qxmods.source.hangar') },
+        { value: 'spigot', label: t('qxmods.source.spigot') },
+        { value: 'bukkit', label: t('qxmods.source.bukkit') },
+      );
+    } else {
+      options.push({ value: 'curseforge', label: t('qxmods.source.curseforge') });
+    }
+    return options;
+  }, [kind, t]);
 
   const sortOptions = useMemo(
     () => [
@@ -614,7 +622,9 @@ export function GameServerContentPanel({
   }
 
   const showCurseforgeUnavailable =
-    sourceFilter === 'curseforge' && catalogLoaded && !curseforgeEnabled;
+    (sourceFilter === 'curseforge' || sourceFilter === 'bukkit') &&
+    catalogLoaded &&
+    !curseforgeEnabled;
   const introKey =
     kind === 'plugin'
       ? 'gameServerDetail.content.introPlugin'

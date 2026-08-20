@@ -105,10 +105,10 @@ func (c *modrinthClient) searchProjects(
 	limit, offset int,
 ) ([]SearchItem, error) {
 	facets := [][]string{{"project_type:" + modrinthProjectTypeFacet(projectType)}}
-	if loader != "" && CatalogProjectUsesLoader(projectType) {
+	if loader != "" && CatalogProjectUsesLoader(projectType) && !(projectType == ProjectTypePlugin && query != "") {
 		facets = append(facets, []string{"categories:" + loaderFacetModrinth(loader)})
 	}
-	if mcVersion != "" {
+	if mcVersion != "" && !(projectType == ProjectTypePlugin && query != "") {
 		facets = append(facets, []string{"versions:" + mcVersion})
 	}
 	facetsJSON, err := json.Marshal(facets)

@@ -89,6 +89,9 @@ var extraContentDownloadHosts []string
 var allowedContentDownloadHosts = []string{
 	"cdn.modrinth.com",
 	"cdn-raw.modrinth.com",
+	"hangarcdn.papermc.io",
+	"api.spiget.org",
+	"cdn.spiget.org",
 	"edge.forgecdn.net",
 	"mediafilez.forgecdn.net",
 	"media.forgecdn.net",
@@ -97,6 +100,8 @@ var allowedContentDownloadHosts = []string{
 
 var allowedContentDownloadHostSuffixes = []string{
 	"modrinth.com",
+	"papermc.io",
+	"spiget.org",
 	"forgecdn.net",
 	"curseforge.com",
 	"githubusercontent.com",

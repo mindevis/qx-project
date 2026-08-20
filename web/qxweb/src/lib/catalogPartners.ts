@@ -6,7 +6,7 @@ import {
 } from '@/api/client';
 import {
   catalogItemsMatch,
-  catalogPartnerSource,
+  catalogPartnerSources,
   mergeCatalogCardsByName,
 } from '@/lib/mergeCatalogCards';
 import { createTtlCache } from '@/lib/ttlCache';
@@ -27,11 +27,10 @@ function itemKey(item: ModCatalogItem): string {
 
 async function lookupCatalogPartner(
   item: ModCatalogItem,
+  source: ModSource,
   params: CatalogPartnerParams,
 ): Promise<ModCatalogItem | null> {
-  const other = catalogPartnerSource(item.source);
-  if (!other) return null;
-  const cacheKey = `${other}:${item.slug}:${item.name}:${params.loader ?? ''}:${params.mcVersion}:${params.type ?? ''}`;
+  const cacheKey = `${source}:${item.slug}:${item.name}:${params.loader ?? ''}:${params.mcVersion}:${params.type ?? ''}`;
   return partnerCache.getOrLoad(cacheKey, async () => {
     const query = item.slug?.trim() || item.name;
     if (!query) return null;
@@ -40,7 +39,7 @@ async function lookupCatalogPartner(
       type: params.type,
       loader: params.loader,
       mc_version: params.mcVersion,
-      source: other,
+      source,
       limit: 8,
     });
     return (res.items ?? []).find((candidate) => catalogItemsMatch(item, candidate)) ?? null;
@@ -67,16 +66,19 @@ export async function attachCatalogPartners(
   const unpaired = mergeCatalogCardsByName(items, 'all')
     .filter((card) => card.items.length === 1)
     .map((card) => card.items[0])
-    .filter((item) => catalogPartnerSource(item.source as ModSource))
+    .filter((item) => catalogPartnerSources(item.source as ModSource, params.type).length > 0)
     .slice(0, MAX_PARTNER_LOOKUPS);
 
   const extras: ModCatalogItem[] = [];
   await mapPool(unpaired, PARTNER_CONCURRENCY, async (item) => {
     try {
-      const partner = await lookupCatalogPartner(item, params);
-      if (partner && !known.has(itemKey(partner))) {
-        known.add(itemKey(partner));
-        extras.push(partner);
+      const sources = catalogPartnerSources(item.source as ModSource, params.type);
+      const partners = await Promise.all(sources.map((source) => lookupCatalogPartner(item, source, params)));
+      for (const partner of partners) {
+        if (partner && !known.has(itemKey(partner))) {
+          known.add(itemKey(partner));
+          extras.push(partner);
+        }
       }
     } catch {
       /* keep the original listing */

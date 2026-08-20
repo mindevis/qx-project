@@ -1082,6 +1082,9 @@ export const en: Messages = {
     source: {
       curseforge: 'CurseForge',
       modrinth: 'Modrinth',
+      hangar: 'Hangar',
+      spigot: 'SpigotMC',
+      bukkit: 'Bukkit',
       upload: 'PC upload',
     },
     sync: {
