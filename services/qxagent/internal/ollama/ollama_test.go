@@ -138,6 +138,7 @@ func TestExtractTGZAndListPull(t *testing.T) {
 		}
 	}
 
+	disableExtraOllamaModelDirs(t)
 	m := NewManager(root, false)
 	st := m.Status(context.Background())
 	if !st.Installed || !st.Running {
@@ -151,6 +152,127 @@ func TestExtractTGZAndListPull(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := m.DeleteModel(context.Background(), "phi4"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListModelsFallsBackToModelField(t *testing.T) {
+	prevGet := httpGet
+	t.Cleanup(func() { httpGet = prevGet })
+	httpGet = func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.HasSuffix(req.URL.Path, "/api/version"):
+			return jsonResponse(200, `{"version":"0.9.0"}`), nil
+		case strings.HasSuffix(req.URL.Path, "/api/tags"):
+			return jsonResponse(200, `{"models":[{"model":"qwen2.5:1.5b","size":986,"digest":"def"}]}`), nil
+		default:
+			return jsonResponse(404, `{}`), nil
+		}
+	}
+	disableExtraOllamaModelDirs(t)
+	m := NewManager(t.TempDir(), false)
+	models, err := m.ListModels(context.Background())
+	if err != nil || len(models) != 1 || models[0].Name != "qwen2.5:1.5b" {
+		t.Fatalf("models: %v %v", models, err)
+	}
+}
+
+func disableExtraOllamaModelDirs(t *testing.T) {
+	t.Helper()
+	prev := extraOllamaModelDirsFn
+	extraOllamaModelDirsFn = func(string, string) []string { return nil }
+	t.Cleanup(func() { extraOllamaModelDirsFn = prev })
+}
+
+func TestImportExternalModelsIntoQXStore(t *testing.T) {
+	src := t.TempDir()
+	dest := t.TempDir()
+	blobDir := filepath.Join(src, "blobs")
+	manifestDir := filepath.Join(src, "manifests", "registry.ollama.ai", "library", "qwen2.5")
+	if err := os.MkdirAll(blobDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(blobDir, "sha256-abc"), []byte("blob"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(manifestDir, "1.5b"), []byte(`{"schemaVersion":2}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := importOllamaModelStore(src, dest); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "blobs", "sha256-abc")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dest, "manifests", "registry.ollama.ai", "library", "qwen2.5", "1.5b")); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager(t.TempDir(), false)
+	prev := extraOllamaModelDirsFn
+	extraOllamaModelDirsFn = func(string, string) []string { return []string{src} }
+	t.Cleanup(func() { extraOllamaModelDirsFn = prev })
+	m.importExternalModels()
+	qxModels := m.ModelsDir()
+	if _, err := os.Stat(filepath.Join(qxModels, "blobs", "sha256-abc")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(qxModels, "manifests", "registry.ollama.ai", "library", "qwen2.5", "1.5b")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDefaultExtraOllamaModelDirsSkipsQXStore(t *testing.T) {
+	home := filepath.Join(string(filepath.Separator), "opt", "qxsystem", "ollama")
+	models := filepath.Join(home, "models")
+	dirs := defaultExtraOllamaModelDirs(home, models)
+	for _, dir := range dirs {
+		if sameOrNestedPath(dir, models) {
+			t.Fatalf("must not import into itself: %q", dir)
+		}
+	}
+}
+
+func TestStartImportsExternalModelsWhenAlreadyRunning(t *testing.T) {
+	src := t.TempDir()
+	blob := filepath.Join(src, "blobs", "sha256-run")
+	if err := os.MkdirAll(filepath.Dir(blob), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(blob, []byte("run"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	prevGet := httpGet
+	t.Cleanup(func() { httpGet = prevGet })
+	httpGet = func(req *http.Request) (*http.Response, error) {
+		if strings.HasSuffix(req.URL.Path, "/api/version") {
+			return jsonResponse(200, `{"version":"0.9.0"}`), nil
+		}
+		return jsonResponse(404, `{}`), nil
+	}
+
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bin", "ollama"), []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	prevDirs := extraOllamaModelDirsFn
+	extraOllamaModelDirsFn = func(string, string) []string { return []string{src} }
+	t.Cleanup(func() { extraOllamaModelDirsFn = prevDirs })
+
+	m := NewManager(root, false)
+	if err := m.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(m.ModelsDir(), "blobs", "sha256-run")); err != nil {
 		t.Fatal(err)
 	}
 }

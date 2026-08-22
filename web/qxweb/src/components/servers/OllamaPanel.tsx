@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Empty, Input, Popconfirm, Space, Spin, Tag, Typography } from 'antd';
+import { AutoComplete, Button, Empty, Popconfirm, Space, Spin, Tag, Typography } from 'antd';
 import {
   CloudDownloadOutlined,
   DeleteOutlined,
@@ -13,7 +13,18 @@ import { logger } from '@/lib/logger';
 
 const { Paragraph, Text, Title } = Typography;
 
-const suggestedOllamaModels = ['llama3.2', 'llama3.1', 'gemma3', 'qwen2.5', 'mistral', 'phi4'];
+const suggestedOllamaModels = [
+  'qwen2.5:1.5b',
+  'qwen2.5:3b',
+  'qwen2.5',
+  'llama3.2',
+  'llama3.2:1b',
+  'llama3.1',
+  'gemma3',
+  'gemma3:1b',
+  'mistral',
+  'phi4',
+];
 
 function ollamaStatusColor(status: OllamaStatus): string {
   switch (status) {
@@ -52,7 +63,7 @@ export function OllamaPanel({ vpsId, agentOnline }: { vpsId: string; agentOnline
   const [view, setView] = useState<OllamaView>(emptyOllama);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [modelName, setModelName] = useState('llama3.2');
+  const [modelName, setModelName] = useState('');
 
   const refresh = useCallback(async () => {
     try {
@@ -182,12 +193,17 @@ export function OllamaPanel({ vpsId, agentOnline }: { vpsId: string; agentOnline
               <div className="ollama-models-header">
                 <Text strong>{t('servers.ollamaModels')}</Text>
                 <Space.Compact className="ollama-pull">
-                  <Input
+                  <AutoComplete
                     value={modelName}
+                    options={suggestedOllamaModels.map((name) => ({ value: name }))}
                     placeholder={t('servers.ollamaModelPlaceholder')}
-                    onChange={(e) => setModelName(e.target.value)}
+                    onChange={setModelName}
                     disabled={busy}
-                    list="ollama-model-suggestions"
+                    filterOption={(input, option) =>
+                      String(option?.value ?? '')
+                        .toLowerCase()
+                        .includes(input.trim().toLowerCase())
+                    }
                   />
                   <Button
                     type="primary"
@@ -204,11 +220,6 @@ export function OllamaPanel({ vpsId, agentOnline }: { vpsId: string; agentOnline
                     {t('servers.ollamaPull')}
                   </Button>
                 </Space.Compact>
-                <datalist id="ollama-model-suggestions">
-                  {suggestedOllamaModels.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
               </div>
               {view.models.length === 0 ? (
                 <Empty

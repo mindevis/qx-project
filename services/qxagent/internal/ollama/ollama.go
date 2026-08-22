@@ -206,6 +206,7 @@ func (m *Manager) Install(ctx context.Context, onLog func(string)) (InstallResul
 }
 
 func (m *Manager) Start(ctx context.Context) error {
+	m.importExternalModels()
 	status := m.Status(ctx)
 	if !status.Installed && !m.DryRun {
 		return ErrNotInstalled
@@ -267,6 +268,7 @@ func (m *Manager) ListModels(ctx context.Context) ([]Model, error) {
 	if m.DryRun {
 		return []Model{}, nil
 	}
+	m.importExternalModels()
 	if !m.apiAlive(ctx) {
 		return nil, ErrNotRunning
 	}
@@ -285,6 +287,7 @@ func (m *Manager) ListModels(ctx context.Context) ([]Model, error) {
 	var payload struct {
 		Models []struct {
 			Name       string `json:"name"`
+			Model      string `json:"model"`
 			Size       int64  `json:"size"`
 			Digest     string `json:"digest"`
 			ModifiedAt string `json:"modified_at"`
@@ -295,8 +298,15 @@ func (m *Manager) ListModels(ctx context.Context) ([]Model, error) {
 	}
 	out := make([]Model, 0, len(payload.Models))
 	for _, item := range payload.Models {
+		name := strings.TrimSpace(item.Name)
+		if name == "" {
+			name = strings.TrimSpace(item.Model)
+		}
+		if name == "" {
+			continue
+		}
 		out = append(out, Model{
-			Name:       item.Name,
+			Name:       name,
 			Size:       item.Size,
 			Digest:     item.Digest,
 			ModifiedAt: item.ModifiedAt,
