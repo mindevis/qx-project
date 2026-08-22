@@ -4,16 +4,27 @@ import {
   Button,
   Empty,
   Input,
+  Modal,
   Popconfirm,
   Space,
   Spin,
   Table,
   Typography,
+  Upload,
 } from 'antd';
-import { FolderOutlined, FileOutlined, ArrowLeftOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  DeleteOutlined,
+  FileAddOutlined,
+  FileOutlined,
+  FolderAddOutlined,
+  FolderOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { api, type GameServerFileEntry } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
+import { modalMotionProps } from '@/lib/modal';
 
 type GameServerFilesPanelProps = {
   vpsId: string;
@@ -54,6 +65,18 @@ function isHighlighted(name: string, extensions?: string[]): boolean {
   return extensions.some((ext) => lower.endsWith(ext.toLowerCase()));
 }
 
+export function joinGameServerRelPath(dir: string, name: string): string {
+  const cleanDir = dir.replace(/^\/+|\/+$/g, '');
+  const cleanName = name.trim();
+  return cleanDir ? `${cleanDir}/${cleanName}` : cleanName;
+}
+
+export function isValidFileManagerName(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed === '.' || trimmed === '..') return false;
+  return !/[\\/]/.test(trimmed);
+}
+
 export function GameServerFilesPanel({
   vpsId,
   gameServerId,
@@ -72,6 +95,10 @@ export function GameServerFilesPanel({
   const [fileLoading, setFileLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string>();
+  const [createKind, setCreateKind] = useState<'file' | 'folder' | null>(null);
+  const [createName, setCreateName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const normalizedRoot = rootPath?.replace(/^\/+|\/+$/g, '') ?? '';
 
@@ -148,6 +175,68 @@ export function GameServerFilesPanel({
     }
   };
 
+  const nameExists = (name: string) =>
+    entries.some((entry) => entry.name.toLowerCase() === name.trim().toLowerCase());
+
+  const handleCreate = async () => {
+    const name = createName.trim();
+    if (!isValidFileManagerName(name)) {
+      message.error(t('gameServerDetail.fileNameInvalid'));
+      return;
+    }
+    if (nameExists(name)) {
+      message.error(t('gameServerDetail.fileExists'));
+      return;
+    }
+    const path = joinGameServerRelPath(currentPath, name);
+    setCreating(true);
+    try {
+      if (createKind === 'folder') {
+        await api.mkdirVpsGameServerFile(vpsId, gameServerId, path);
+        message.success(t('gameServerDetail.folderCreated'));
+        setCreateKind(null);
+        setCreateName('');
+        await loadDir();
+      } else {
+        await api.writeVpsGameServerFile(vpsId, gameServerId, path, '');
+        message.success(t('gameServerDetail.fileCreated'));
+        setCreateKind(null);
+        setCreateName('');
+        setSelectedFile(path);
+        setFileContent('');
+        await loadDir();
+      }
+    } catch (e) {
+      message.error(
+        e instanceof Error
+          ? e.message
+          : createKind === 'folder'
+            ? t('gameServerDetail.folderCreateFailed')
+            : t('gameServerDetail.fileCreateFailed'),
+      );
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    if (!isValidFileManagerName(file.name)) {
+      message.error(t('gameServerDetail.fileNameInvalid'));
+      return false;
+    }
+    setUploading(true);
+    try {
+      await api.uploadVpsGameServerFile(vpsId, gameServerId, currentPath, file);
+      message.success(t('gameServerDetail.fileUploadCompleted', { name: file.name }));
+      await loadDir();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('gameServerDetail.fileUploadFailed'));
+    } finally {
+      setUploading(false);
+    }
+    return false;
+  };
+
   if (!agentOnline) {
     return (
       <Empty
@@ -193,20 +282,55 @@ export function GameServerFilesPanel({
 
   return (
     <div className="game-server-files">
-      <Breadcrumb
-        className="game-server-files-breadcrumb"
-        items={pathSegments(currentPath, normalizedRoot).map((crumb) => ({
-          title: (
-            <button
-              type="button"
-              className="game-server-files-crumb"
-              onClick={() => navigateTo(crumb.path)}
-            >
-              {crumb.label}
-            </button>
-          ),
-        }))}
-      />
+      <div className="game-server-files-header">
+        <Breadcrumb
+          className="game-server-files-breadcrumb"
+          items={pathSegments(currentPath, normalizedRoot).map((crumb) => ({
+            title: (
+              <button
+                type="button"
+                className="game-server-files-crumb"
+                onClick={() => navigateTo(crumb.path)}
+              >
+                {crumb.label}
+              </button>
+            ),
+          }))}
+        />
+        <Space wrap>
+          <Button
+            icon={<FileAddOutlined aria-hidden />}
+            onClick={() => {
+              setCreateName('');
+              setCreateKind('file');
+            }}
+          >
+            {t('gameServerDetail.fileNew')}
+          </Button>
+          <Button
+            icon={<FolderAddOutlined aria-hidden />}
+            onClick={() => {
+              setCreateName('');
+              setCreateKind('folder');
+            }}
+          >
+            {t('gameServerDetail.folderNew')}
+          </Button>
+          <Upload
+            showUploadList={false}
+            multiple
+            disabled={uploading}
+            beforeUpload={(file) => {
+              void handleUpload(file);
+              return false;
+            }}
+          >
+            <Button icon={<UploadOutlined aria-hidden />} loading={uploading}>
+              {t('gameServerDetail.fileUpload')}
+            </Button>
+          </Upload>
+        </Space>
+      </div>
       {loading ? (
         <div className="servers-loading">
           <Spin />
@@ -289,6 +413,42 @@ export function GameServerFilesPanel({
           ]}
         />
       )}
+      <Modal
+        {...modalMotionProps}
+        title={
+          createKind === 'folder'
+            ? t('gameServerDetail.folderCreateTitle')
+            : t('gameServerDetail.fileCreateTitle')
+        }
+        open={createKind != null}
+        onCancel={() => {
+          if (!creating) {
+            setCreateKind(null);
+          }
+        }}
+        onOk={() => void handleCreate()}
+        confirmLoading={creating}
+        okText={t('common.create')}
+        cancelText={t('common.cancel')}
+        destroyOnHidden
+      >
+        <Input
+          autoFocus
+          value={createName}
+          placeholder={
+            createKind === 'folder'
+              ? t('gameServerDetail.folderCreatePlaceholder')
+              : t('gameServerDetail.fileCreatePlaceholder')
+          }
+          onChange={(e) => setCreateName(e.target.value)}
+          onPressEnter={() => void handleCreate()}
+          aria-label={
+            createKind === 'folder'
+              ? t('gameServerDetail.folderCreateTitle')
+              : t('gameServerDetail.fileCreateTitle')
+          }
+        />
+      </Modal>
     </div>
   );
 }

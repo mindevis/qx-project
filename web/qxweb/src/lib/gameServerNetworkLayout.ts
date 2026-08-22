@@ -1,4 +1,5 @@
 import type { GameServerNetworkMember, GameServerNetworkRole } from '@/api/client';
+import { isKnownGameServerType, isProxyGameServerType } from '@/lib/gameServerTypes';
 
 export type NetworkDiagramNode = {
   id: string;
@@ -50,7 +51,7 @@ export function suggestedRoleForServer(
   serverType: string | undefined,
   existing: Array<{ role: GameServerNetworkRole }>,
 ): GameServerNetworkRole {
-  if (serverType === 'velocity') return 'proxy';
+  if (isKnownGameServerType(serverType) && isProxyGameServerType(serverType)) return 'proxy';
   if (!existing.some((item) => item.role === 'lobby')) return 'lobby';
   return 'backend';
 }

@@ -36,9 +36,17 @@ export function catalogPartnerSource(source: ModSource): ModSource | null {
   return null;
 }
 
-export function catalogPartnerSources(source: ModSource, projectType?: ModProjectType): ModSource[] {
+export function catalogPartnerSources(
+  source: ModSource,
+  projectType?: ModProjectType,
+  loader?: string,
+): ModSource[] {
   const pool: ModSource[] =
-    projectType === 'plugin' ? ['modrinth', 'hangar', 'spigot', 'bukkit'] : ['modrinth', 'curseforge'];
+    projectType === 'plugin'
+      ? loader === 'velocity'
+        ? ['modrinth', 'hangar']
+        : ['modrinth', 'hangar', 'spigot', 'bukkit']
+      : ['modrinth', 'curseforge'];
   return pool.filter((item) => item !== source);
 }
 

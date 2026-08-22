@@ -109,6 +109,27 @@ var allowedContentDownloadHostSuffixes = []string{
 	"githubusercontent.com",
 }
 
+func isBlockedCustomDownloadHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" || net.ParseIP(host) != nil {
+		return true
+	}
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	if strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") || strings.HasSuffix(host, ".lan") {
+		return true
+	}
+	return false
+}
+
+func hostAllowedForDownload(host string, allowCustomHost bool) bool {
+	if allowCustomHost {
+		return !isBlockedCustomDownloadHost(host)
+	}
+	return isAllowedContentDownloadHost(host)
+}
+
 func isAllowedContentDownloadHost(host string) bool {
 	host = strings.ToLower(strings.TrimSpace(host))
 	if host == "" || net.ParseIP(host) != nil {
@@ -134,6 +155,14 @@ func isAllowedContentDownloadHost(host string) bool {
 
 // sanitizeContentDownloadURL rejects SSRF targets and returns a reconstructed https URL.
 func sanitizeContentDownloadURL(raw string) (string, error) {
+	return sanitizeDownloadURL(raw, false)
+}
+
+func sanitizeUserContentDownloadURL(raw string) (string, error) {
+	return sanitizeDownloadURL(raw, true)
+}
+
+func sanitizeDownloadURL(raw string, allowCustomHost bool) (string, error) {
 	raw = strings.TrimSpace(raw)
 	parsed, err := url.ParseRequestURI(raw)
 	if err != nil || parsed.Host == "" {
@@ -150,7 +179,7 @@ func sanitizeContentDownloadURL(raw string) (string, error) {
 	if scheme != "https" && scheme != "http" {
 		return "", fmt.Errorf("invalid download url")
 	}
-	if !isAllowedContentDownloadHost(host) {
+	if !hostAllowedForDownload(host, allowCustomHost) {
 		return "", fmt.Errorf("download host not allowed")
 	}
 	// Parse decodes once; a second unescape fixes already-double-encoded
@@ -173,13 +202,18 @@ func sanitizeContentDownloadURL(raw string) (string, error) {
 	return safe.String(), nil
 }
 
-func InstallContentFile(ctx context.Context, workDir, relPath, downloadURL string) error {
+func InstallContentFile(ctx context.Context, workDir, relPath, downloadURL string, allowCustomHost bool) error {
 	relPath = strings.TrimSpace(relPath)
 	downloadURL = strings.TrimSpace(downloadURL)
 	if relPath == "" || downloadURL == "" {
 		return fmt.Errorf("rel_path and download_url required")
 	}
-	downloadURL, err := sanitizeContentDownloadURL(downloadURL)
+	var err error
+	if allowCustomHost {
+		downloadURL, err = sanitizeUserContentDownloadURL(downloadURL)
+	} else {
+		downloadURL, err = sanitizeContentDownloadURL(downloadURL)
+	}
 	if err != nil {
 		return err
 	}
@@ -206,7 +240,7 @@ func InstallContentFile(ctx context.Context, workDir, relPath, downloadURL strin
 			if len(via) >= 5 {
 				return fmt.Errorf("too many redirects")
 			}
-			if !isAllowedContentDownloadHost(req.URL.Hostname()) {
+			if !hostAllowedForDownload(req.URL.Hostname(), allowCustomHost) {
 				return fmt.Errorf("download host not allowed")
 			}
 			req.Header.Set("User-Agent", contentDownloadUserAgent)

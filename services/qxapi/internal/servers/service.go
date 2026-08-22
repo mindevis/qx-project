@@ -35,6 +35,13 @@ var (
 	ErrOllamaNotRunning         = errors.New("ollama is not running")
 	ErrOllamaAlreadyRunning     = errors.New("ollama is already running")
 	ErrOllamaInvalidModel       = errors.New("invalid ollama model name")
+	ErrMySQLBusy                = errors.New("mysql operation already in progress")
+	ErrMySQLNotInstalled        = errors.New("mysql is not installed")
+	ErrMySQLNotRunning          = errors.New("mysql is not running")
+	ErrMySQLAlreadyRunning      = errors.New("mysql is already running")
+	ErrMySQLInvalidIdent        = errors.New("invalid mysql identifier")
+	ErrMySQLInvalidPrivilege    = errors.New("invalid mysql privilege")
+	ErrMySQLInvalidEngine       = errors.New("invalid mysql engine or version")
 )
 
 const agentTokenTTL = 365 * 24 * time.Hour
@@ -97,6 +104,12 @@ func (s *Service) OnAgentEvent(serverID string, env protocol.Envelope) {
 		s.applyOllamaStopResult(ctx, serverID, env.Payload)
 	case protocol.TypeResOllamaModelPull:
 		s.applyOllamaPullResult(ctx, serverID, env.Payload)
+	case protocol.TypeResMySQLInstall:
+		s.applyMySQLInstallResult(ctx, serverID, env.Payload)
+	case protocol.TypeResMySQLStart:
+		s.applyMySQLStartResult(ctx, serverID, env.Payload)
+	case protocol.TypeResMySQLStop:
+		s.applyMySQLStopResult(ctx, serverID, env.Payload)
 	}
 	if isRPCResponseType(env.Type) {
 		s.deliverRPCResponse(env.RequestID, env.Payload)
@@ -266,6 +279,7 @@ func (s *Service) Delete(ctx context.Context, ownerID, serverID string) error {
 		return err
 	}
 	_ = s.db.WithContext(ctx).Where("server_id = ?", serverID).Delete(&models.ServerOllama{}).Error
+	s.deleteMySQLForVPS(ctx, serverID)
 	res := s.db.WithContext(ctx).Delete(server)
 	if res.Error != nil {
 		return res.Error

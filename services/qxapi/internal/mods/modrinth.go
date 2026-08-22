@@ -105,10 +105,18 @@ func (c *modrinthClient) searchProjects(
 	limit, offset int,
 ) ([]SearchItem, error) {
 	facets := [][]string{{"project_type:" + modrinthProjectTypeFacet(projectType)}}
-	if loader != "" && CatalogProjectUsesLoader(projectType) && !(projectType == ProjectTypePlugin && query != "") {
+	applyLoader := loader != "" && CatalogProjectUsesLoader(projectType)
+	if applyLoader && projectType == ProjectTypePlugin && query != "" && !IsProxyPluginLoader(loader) {
+		applyLoader = false
+	}
+	if applyLoader {
 		facets = append(facets, []string{"categories:" + loaderFacetModrinth(loader)})
 	}
-	if mcVersion != "" && !(projectType == ProjectTypePlugin && query != "") {
+	applyVersion := mcVersion != "" && !IsProxyPluginLoader(loader)
+	if applyVersion && projectType == ProjectTypePlugin && query != "" {
+		applyVersion = false
+	}
+	if applyVersion {
 		facets = append(facets, []string{"versions:" + mcVersion})
 	}
 	facetsJSON, err := json.Marshal(facets)
@@ -220,7 +228,7 @@ func (c *modrinthClient) listVersionsOnce(ctx context.Context, projectID, loader
 	if loader != "" {
 		params.Set("loaders", fmt.Sprintf(`["%s"]`, loaderFacetModrinth(loader)))
 	}
-	if mcVersion != "" {
+	if mcVersion != "" && !IsProxyPluginLoader(loader) {
 		params.Set("game_versions", fmt.Sprintf(`["%s"]`, mcVersion))
 	}
 	if q := params.Encode(); q != "" {
@@ -392,6 +400,8 @@ func loaderFacetModrinth(loader string) string {
 	case "quilt":
 		return "quilt"
 	case "paper", "spigot", "purpur", "bukkit", "folia":
+		return strings.ToLower(loader)
+	case "velocity", "waterfall", "bungeecord":
 		return strings.ToLower(loader)
 	case "mohist", "magma", "arclight":
 		return "bukkit"

@@ -5,13 +5,21 @@ import { Modal } from 'antd';
 import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
-import { GameServerFilesPanel } from './GameServerFilesPanel';
+import { GameServerFilesPanel, isValidFileManagerName, joinGameServerRelPath } from './GameServerFilesPanel';
 
 describe('GameServerFilesPanel', () => {
   afterEach(() => {
     Modal.destroyAll();
     cleanup();
     vi.restoreAllMocks();
+  });
+
+  it('joins relative paths and validates names', () => {
+    expect(joinGameServerRelPath('', 'eula.txt')).toBe('eula.txt');
+    expect(joinGameServerRelPath('plugins', 'LuckPerms.jar')).toBe('plugins/LuckPerms.jar');
+    expect(isValidFileManagerName('config')).toBe(true);
+    expect(isValidFileManagerName('a/b')).toBe(false);
+    expect(isValidFileManagerName('..')).toBe(false);
   });
 
   it('shows agent required when offline', () => {
@@ -74,6 +82,91 @@ describe('GameServerFilesPanel', () => {
       <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
     );
     await waitFor(() => expect(screen.getByText('Папка пуста')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Новый файл' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Новая папка' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Загрузить' })).toBeInTheDocument();
+  });
+
+  it('creates a folder in the current directory', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles').mockResolvedValue({ items: [] });
+    const mkdir = vi.spyOn(api, 'mkdirVpsGameServerFile').mockResolvedValue({
+      status: 'ok',
+      path: 'plugins',
+    });
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Новая папка' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Новая папка' }));
+    await user.type(screen.getByPlaceholderText('config'), 'plugins');
+    await user.click(screen.getByRole('button', { name: 'Создать' }));
+    await waitFor(() => expect(mkdir).toHaveBeenCalledWith('srv-1', 'gs-1', 'plugins'));
+  });
+
+  it('creates a file and opens the editor', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles').mockResolvedValue({ items: [] });
+    const write = vi.spyOn(api, 'writeVpsGameServerFile').mockResolvedValue({ status: 'ok' });
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Новый файл' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Новый файл' }));
+    await user.type(screen.getByPlaceholderText('notes.txt'), 'eula.txt');
+    await user.click(screen.getByRole('button', { name: 'Создать' }));
+    await waitFor(() => expect(write).toHaveBeenCalledWith('srv-1', 'gs-1', 'eula.txt', ''));
+    await waitFor(() => expect(screen.getByText('eula.txt')).toBeInTheDocument());
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
+
+  it('uploads a file into the opened folder', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles').mockImplementation(async (_vpsId, _gameServerId, path) => {
+      if (path === 'plugins') {
+        return { items: [] };
+      }
+      return { items: [{ name: 'plugins', path: 'plugins', dir: true }] };
+    });
+    const upload = vi.spyOn(api, 'uploadVpsGameServerFile').mockResolvedValue({
+      status: 'ok',
+      path: 'plugins/LuckPerms.jar',
+      filename: 'LuckPerms.jar',
+    });
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await waitFor(() => expect(screen.getByText('plugins')).toBeInTheDocument());
+    await user.click(screen.getByText('plugins'));
+    await waitFor(() => expect(screen.getByText('Папка пуста')).toBeInTheDocument());
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const jar = new File(['jar-bytes'], 'LuckPerms.jar', { type: 'application/java-archive' });
+    await user.upload(fileInput, jar);
+    await waitFor(() =>
+      expect(upload).toHaveBeenCalledWith('srv-1', 'gs-1', 'plugins', jar),
+    );
+  });
+
+  it('rejects a name with slashes', async () => {
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerFiles').mockResolvedValue({ items: [] });
+    const mkdir = vi.spyOn(api, 'mkdirVpsGameServerFile').mockResolvedValue({
+      status: 'ok',
+      path: 'bad',
+    });
+
+    renderWithTheme(
+      <GameServerFilesPanel vpsId="srv-1" gameServerId="gs-1" agentOnline={true} />,
+    );
+    await user.click(await screen.findByRole('button', { name: 'Новая папка' }));
+    await user.type(screen.getByPlaceholderText('config'), 'a/b');
+    await user.click(screen.getByRole('button', { name: 'Создать' }));
+    await waitFor(() => expect(testMessage.error).toHaveBeenCalled());
+    expect(mkdir).not.toHaveBeenCalled();
   });
 
   it('shows read errors', async () => {

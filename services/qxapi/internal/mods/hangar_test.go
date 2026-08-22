@@ -96,3 +96,77 @@ func TestHangarProjectSlug(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestHangarSearchKeepsVelocityPluginsOnly(t *testing.T) {
+	t.Parallel()
+	var got url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ = url.ParseQuery(r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"result":[
+			{"id":1,"name":"LuckPerms","description":"perms","namespace":{"owner":"Luck","slug":"LuckPerms"},"stats":{"downloads":10},"supportedPlatforms":{"VELOCITY":["3.4"]}},
+			{"id":2,"name":"ProtocolLib","description":"packets","namespace":{"owner":"dmulloy2","slug":"ProtocolLib"},"stats":{"downloads":20},"supportedPlatforms":{"PAPER":["1.21.8"]}}
+		]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &hangarClient{httpClient: srv.Client(), userAgent: "qx-test", apiBase: srv.URL}
+	items, err := c.search(context.Background(), "LuckPerms", ProjectTypePlugin, "velocity", "3.4.0-SNAPSHOT", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Name != "LuckPerms" {
+		t.Fatalf("items: %+v", items)
+	}
+	if got.Get("platform") != "VELOCITY" {
+		t.Fatalf("platform: %s", got.Get("platform"))
+	}
+	if got.Get("version") != "" {
+		t.Fatalf("velocity search must not send proxy version, got %q", got.Get("version"))
+	}
+}
+
+func TestHangarBrowseOmitsProxyMinecraftVersion(t *testing.T) {
+	t.Parallel()
+	var got url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ = url.ParseQuery(r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"result":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &hangarClient{httpClient: srv.Client(), userAgent: "qx-test", apiBase: srv.URL}
+	_, err := c.browse(context.Background(), ProjectTypePlugin, "velocity", "3.4.0-SNAPSHOT", "downloads", 20, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Get("platform") != "VELOCITY" {
+		t.Fatalf("platform: %s", got.Get("platform"))
+	}
+	if got.Get("version") != "" {
+		t.Fatalf("velocity browse must not send proxy version, got %q", got.Get("version"))
+	}
+}
+
+func TestHangarVersionDoesNotFallBackToPaperForVelocity(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "/versions") {
+			_, _ = w.Write([]byte(`{"result":[{"id":1,"name":"1.0.0","createdAt":"2025-01-01T00:00:00Z","downloads":{"PAPER":{"fileInfo":{"name":"paper.jar","sizeBytes":1},"downloadUrl":"https://example.com/paper.jar"}},"platformDependencies":{"PAPER":["1.21"]}}]}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &hangarClient{httpClient: srv.Client(), userAgent: "qx-test", apiBase: srv.URL}
+	versions, err := c.listVersions(context.Background(), "Luck/LuckPerms", "velocity", "3.4.0-SNAPSHOT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(versions) != 0 {
+		t.Fatalf("expected no paper fallback for velocity, got %+v", versions)
+	}
+}

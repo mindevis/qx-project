@@ -165,6 +165,52 @@ func (s *Service) WriteGameServerFile(ctx context.Context, ownerID, vpsID, gameS
 	return err
 }
 
+func (s *Service) MkdirGameServerFile(ctx context.Context, ownerID, vpsID, gameServerID, path string) error {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return err
+	}
+	path = strings.TrimSpace(path)
+	if path == "" || path == "." {
+		return ErrValidation
+	}
+	payload, err := json.Marshal(protocol.ServerFilesPathPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		Path:         path,
+	})
+	if err != nil {
+		return err
+	}
+	_, err = s.agentRPC(ctx, vpsID, protocol.TypeCmdServerFilesMkdir, protocol.TypeResServerFilesMkdir, payload)
+	return err
+}
+
+func (s *Service) UploadGameServerFile(ctx context.Context, ownerID, vpsID, gameServerID, path string, data []byte) error {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return err
+	}
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ErrValidation
+	}
+	if int64(len(data)) > protocol.MaxContentFileBytes {
+		return ErrValidation
+	}
+	payload, err := json.Marshal(protocol.ServerFilesWritePayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		Path:         path,
+		ContentB64:   base64.StdEncoding.EncodeToString(data),
+	})
+	if err != nil {
+		return err
+	}
+	_, err = s.agentRPCWait(ctx, vpsID, protocol.TypeCmdServerFilesWrite, protocol.TypeResServerFilesWrite, payload, agentContentRPCTimeout)
+	return err
+}
+
 func (s *Service) DeleteGameServerFile(ctx context.Context, ownerID, vpsID, gameServerID, path string) error {
 	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
 	if err != nil {
@@ -325,6 +371,7 @@ func (s *Service) ListGameServerDatapacks(ctx context.Context, ownerID, vpsID, g
 func (s *Service) InstallGameServerContent(
 	ctx context.Context,
 	ownerID, vpsID, gameServerID, contentKind, modTarget, filename, downloadURL string,
+	allowCustomHost bool,
 ) (*protocol.ServerContentInstallResult, error) {
 	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
 	if err != nil {
@@ -341,13 +388,14 @@ func (s *Service) InstallGameServerContent(
 		return nil, err
 	}
 	payload, err := json.Marshal(protocol.ServerContentInstallPayload{
-		GameServerID: item.ID,
-		WorkDir:      item.WorkDir,
-		ServerType:   item.ServerType,
-		ContentKind:  contentKind,
-		ModTarget:    modTarget,
-		Filename:     filename,
-		DownloadURL:  downloadURL,
+		GameServerID:    item.ID,
+		WorkDir:         item.WorkDir,
+		ServerType:      item.ServerType,
+		ContentKind:     contentKind,
+		ModTarget:       modTarget,
+		Filename:        filename,
+		DownloadURL:     downloadURL,
+		AllowCustomHost: allowCustomHost,
 	})
 	if err != nil {
 		return nil, err
@@ -506,7 +554,7 @@ func validateGameServerContentKind(serverType, contentKind string) error {
 		}
 	case "plugin":
 		switch strings.ToLower(strings.TrimSpace(serverType)) {
-		case "paper", "spigot", "purpur", "mohist", "magma", "arclight", "velocity":
+		case "paper", "spigot", "purpur", "mohist", "magma", "arclight", "velocity", "waterfall", "bungeecord":
 			return nil
 		default:
 			return ErrValidation
@@ -616,6 +664,7 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerFilesList,
 		protocol.TypeResServerFilesRead,
 		protocol.TypeResServerFilesWrite,
+		protocol.TypeResServerFilesMkdir,
 		protocol.TypeResServerFilesDelete,
 		protocol.TypeResServerModsList,
 		protocol.TypeResServerClientModsList,
@@ -635,7 +684,15 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResOllamaStop,
 		protocol.TypeResOllamaStatus,
 		protocol.TypeResOllamaModelList,
-		protocol.TypeResOllamaModelDelete:
+		protocol.TypeResOllamaModelDelete,
+		protocol.TypeResMySQLStart,
+		protocol.TypeResMySQLStop,
+		protocol.TypeResMySQLStatus,
+		protocol.TypeResMySQLDatabaseCreate,
+		protocol.TypeResMySQLDatabaseDrop,
+		protocol.TypeResMySQLUserCreate,
+		protocol.TypeResMySQLUserDrop,
+		protocol.TypeResMySQLUserGrant:
 		return true
 	default:
 		return false

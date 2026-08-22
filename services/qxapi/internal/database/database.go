@@ -85,6 +85,10 @@ var migrateUsers = func(db *gorm.DB) error {
 		&models.GameServerNetwork{},
 		&models.GameServerNetworkMember{},
 		&models.ServerOllama{},
+		&models.ServerMySQL{},
+		&models.ServerMySQLDatabase{},
+		&models.ServerMySQLUser{},
+		&models.ServerMySQLGrant{},
 	); err != nil {
 		return err
 	}

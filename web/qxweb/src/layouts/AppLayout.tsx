@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu, Button, Space, Typography, Spin, Tooltip, theme, Drawer } from 'antd';
 import { MenuOutlined } from '@ant-design/icons';
@@ -12,6 +12,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { BackendUnavailableNotification } from '@/components/BackendUnavailableNotification';
 import { RouteSeo } from '@/components/RouteSeo';
 import { UserMenu } from '@/components/UserMenu';
+import { DiscordInviteLink } from '@/components/DiscordInviteLink';
 import './AppLayout.css';
 
 const { Header, Content, Footer } = Layout;
@@ -76,8 +77,8 @@ export function AppLayout() {
   const headerClassName = [
     'app-header',
     'app-header--sticky',
-    isHome && 'app-header--landing',
-    isHome && scrolled && 'app-header--scrolled',
+    'app-header--landing',
+    scrolled && 'app-header--scrolled',
   ]
     .filter(Boolean)
     .join(' ');
@@ -86,7 +87,17 @@ export function AppLayout() {
     { key: '/', label: <Link to="/">{t('layout.navHome')}</Link> },
     { key: '/launcher', label: <Link to="/launcher">{t('layout.navLauncher')}</Link> },
     { key: '/monitoring', label: <Link to="/monitoring">{t('layout.navMonitoring')}</Link> },
-    { key: '/skins', label: <Link to="/skins">{t('layout.navSkins')}</Link> },
+    {
+      key: '/skins',
+      label: (
+        <Link to="/skins" className="app-nav-with-badge">
+          <span className="app-nav-new-badge" aria-hidden>
+            {t('layout.navNewBadge')}
+          </span>
+          {t('layout.navSkins')}
+        </Link>
+      ),
+    },
     { key: '/servers', label: <Link to="/servers">{t('layout.navServers')}</Link> },
   ];
   const selectedKey = navSelectedKey(location.pathname);
@@ -95,15 +106,7 @@ export function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <RouteSeo />
       <BackendUnavailableNotification />
-      <Header
-        className={headerClassName}
-        style={
-          {
-            '--app-header-bg': token.colorBgContainer,
-            '--app-header-border': token.colorBorderSecondary,
-          } as CSSProperties
-        }
-      >
+      <Header className={headerClassName}>
         <Link to="/" className="app-header-brand">
           <Typography.Title level={4} style={{ color: token.colorText, margin: 0 }}>
             QXSystem
@@ -141,6 +144,7 @@ export function AppLayout() {
           />
         </Drawer>
         <Space className="app-header-controls" size={8}>
+          <DiscordInviteLink size="sm" />
           <ThemeToggle />
           <LanguageSwitcher />
           {loading ? (
@@ -180,7 +184,10 @@ export function AppLayout() {
         </main>
       </Content>
       <Footer className={footerClassName}>
-        {t('layout.footer')}
+        <div className="app-footer-inner">
+          <span className="app-footer-copy">{t('layout.footer')}</span>
+          <DiscordInviteLink />
+        </div>
       </Footer>
     </Layout>
   );

@@ -3,8 +3,10 @@ import { Button, Card, Space, Typography } from 'antd';
 import {
   AppstoreOutlined,
   CloudServerOutlined,
+  DatabaseOutlined,
   DesktopOutlined,
   LoginOutlined,
+  RobotOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
   SkinOutlined,
@@ -12,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import { useAuth } from '@/auth/AuthContext';
 import { useI18n } from '@/i18n/I18nContext';
+import { DiscordInviteLink } from '@/components/DiscordInviteLink';
 import './HomePage.css';
 
 const { Title, Paragraph, Text } = Typography;
@@ -67,11 +70,30 @@ export function HomePage() {
     },
   ] as const;
 
-  const heroTags = [
+  const heroTags: Array<{ key: string; label: string; fresh?: boolean }> = [
     { key: 'launcher', label: t('home.heroTagLauncher') },
     { key: 'agent', label: t('home.heroTagAgent') },
     { key: 'skins', label: t('home.heroTagSkins') },
+    { key: 'mysql', label: t('home.heroTagMysql'), fresh: true },
+    { key: 'ollama', label: t('home.heroTagOllama'), fresh: true },
   ];
+
+  const stackCards = [
+    {
+      key: 'mysql',
+      icon: <DatabaseOutlined />,
+      title: t('home.stackMysqlTitle'),
+      body: t('home.stackMysqlBody'),
+      pills: [t('home.stackMysqlPill1'), t('home.stackMysqlPill2'), t('home.stackMysqlPill3')],
+    },
+    {
+      key: 'ollama',
+      icon: <RobotOutlined />,
+      title: t('home.stackOllamaTitle'),
+      body: t('home.stackOllamaBody'),
+      pills: [t('home.stackOllamaPill1'), t('home.stackOllamaPill2'), t('home.stackOllamaPill3')],
+    },
+  ] as const;
 
   const benefits = [
     {
@@ -126,8 +148,14 @@ export function HomePage() {
 
             <div className="home-hero-tags" aria-label={t('home.badge')}>
               {heroTags.map((tag) => (
-                <span key={tag.key} className={`home-hero-tag home-hero-tag--${tag.key}`}>
+                <span
+                  key={tag.key}
+                  className={`home-hero-tag home-hero-tag--${tag.key}${tag.fresh ? ' home-hero-tag--fresh' : ''}`}
+                >
                   {tag.label}
+                  {tag.fresh ? (
+                    <span className="home-hero-tag-new">{t('layout.navNewBadge')}</span>
+                  ) : null}
                 </span>
               ))}
             </div>
@@ -179,6 +207,44 @@ export function HomePage() {
                 {item.desc}
               </Paragraph>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="home-section home-section--stack" aria-labelledby="home-stack-title">
+        <div className="home-section-header">
+          <span className="home-section-eyebrow">{t('layout.navNewBadge')}</span>
+          <Title level={2} id="home-stack-title" className="home-section-title">
+            {t('home.stackTitle')}
+          </Title>
+          <Paragraph type="secondary" className="home-section-lead">
+            {t('home.stackLead')}
+          </Paragraph>
+        </div>
+        <div className="home-stack">
+          {stackCards.map((card) => (
+            <Link
+              key={card.key}
+              to="/servers"
+              className={`home-stack-card home-stack-card--${card.key}`}
+            >
+              <span className="home-stack-badge">{t('layout.navNewBadge')}</span>
+              <span className="home-stack-icon">{card.icon}</span>
+              <Title level={3} className="home-stack-title">
+                {card.title}
+              </Title>
+              <Paragraph className="home-stack-body">{card.body}</Paragraph>
+              <div className="home-stack-pills">
+                {card.pills.map((pill) => (
+                  <span key={pill} className="home-stack-pill">
+                    {pill}
+                  </span>
+                ))}
+              </div>
+              <span className="home-stack-link">
+                {t('home.stackOpen')} →
+              </span>
+            </Link>
           ))}
         </div>
       </section>
@@ -251,6 +317,7 @@ export function HomePage() {
                   {t('home.ctaLauncher')}
                 </Button>
               </Link>
+              <DiscordInviteLink />
             </Space>
           </div>
         </div>

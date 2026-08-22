@@ -63,6 +63,9 @@ export function apiProxyConfig(): Record<string, ProxyOptions> {
     '/upstream/mohist': upstreamProxy('https://mohistmc.com', 'mohist'),
     '/upstream/magma': upstreamProxy('https://magmafoundation.org', 'magma'),
     '/upstream/arclight': upstreamProxy('https://files.hypertention.cn', 'arclight'),
+    '/upstream/bungeecord': upstreamProxy('https://ci.md-5.net', 'bungeecord', {
+      'User-Agent': 'QXProject/1.0 (https://github.com/qxproject/qx)',
+    }),
   };
 }
 

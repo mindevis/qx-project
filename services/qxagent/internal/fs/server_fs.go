@@ -173,6 +173,13 @@ func DeletePath(workDir, relPath string) error {
 }
 
 func WriteFile(workDir, relPath, content string) error {
+	if len(content) > 2*1024*1024 {
+		return fmt.Errorf("content too large")
+	}
+	return WriteFileBytes(workDir, relPath, []byte(content))
+}
+
+func WriteFileBytes(workDir, relPath string, data []byte) error {
 	abs, err := safepath.JoinRel(workDir, relPath)
 	if err != nil {
 		return err
@@ -180,13 +187,43 @@ func WriteFile(workDir, relPath, content string) error {
 	if info, err := safepath.Stat(abs); err == nil && info.IsDir() {
 		return fmt.Errorf("path is a directory")
 	}
-	if len(content) > 2*1024*1024 {
+	if int64(len(data)) > protocol.MaxContentFileBytes {
 		return fmt.Errorf("content too large")
 	}
 	if err := safepath.EnsureParent(abs); err != nil {
 		return err
 	}
-	return safepath.WriteFileBytes(abs, []byte(content), 0o644)
+	return safepath.WriteFileBytes(abs, data, 0o644)
+}
+
+func Mkdir(workDir, relPath string) error {
+	relPath = strings.TrimSpace(relPath)
+	relPath = strings.TrimPrefix(relPath, "/")
+	if relPath == "" || relPath == "." {
+		return fmt.Errorf("invalid path")
+	}
+	abs, err := safepath.JoinRel(workDir, relPath)
+	if err != nil {
+		return err
+	}
+	root, err := safepath.ResolveRoot(workDir)
+	if err != nil {
+		return err
+	}
+	if abs == root {
+		return fmt.Errorf("invalid path")
+	}
+	info, err := safepath.Stat(abs)
+	if err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("folder already exists")
+		}
+		return fmt.Errorf("path is a file")
+	}
+	if !os.IsNotExist(err) {
+		return err
+	}
+	return safepath.EnsureDir(abs)
 }
 
 func ListMods(workDir, serverType string) ([]protocol.FileEntry, error) {

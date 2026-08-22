@@ -147,16 +147,16 @@ func TestStartGameServerNotInstalled(t *testing.T) {
 	now := time.Now().UTC()
 	gameServerID := "gs-empty"
 	if err := svc.db.WithContext(ctx).Create(&models.GameServer{
-		ID:        gameServerID,
-		ServerID:  view.ID,
-		Name:      "Empty",
+		ID:         gameServerID,
+		ServerID:   view.ID,
+		Name:       "Empty",
 		ServerType: "forge",
-		MCVersion: "1.20.1",
-		Port:      25565,
-		Status:    models.GameServerStatusStopped,
-		WorkDir:   "/opt/qxsystem/server/instances/" + gameServerID,
-		CreatedAt: now,
-		UpdatedAt: now,
+		MCVersion:  "1.20.1",
+		Port:       25565,
+		Status:     models.GameServerStatusStopped,
+		WorkDir:    "/opt/qxsystem/server/instances/" + gameServerID,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}).Error; err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -164,5 +164,86 @@ func TestStartGameServerNotInstalled(t *testing.T) {
 	_, err = svc.StartGameServer(ctx, "owner-1", view.ID, gameServerID)
 	if !errors.Is(err, ErrGameServerNotInstalled) {
 		t.Fatalf("expected not installed: %v", err)
+	}
+}
+
+func TestGameServerStartSendsMCVersion(t *testing.T) {
+	svc, _, hub := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+	if _, err := svc.Deploy(ctx, "owner-1", view.ID); err != nil {
+		t.Fatalf("deploy: %v", err)
+	}
+
+	got := make(chan protocol.ServerStartPayload, 1)
+	server := httptestWSServer(t, func(conn *websocket.Conn) {
+		for {
+			_, data, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			var env protocol.Envelope
+			if json.Unmarshal(data, &env) != nil {
+				continue
+			}
+			if env.Type != protocol.TypeCmdServerStart {
+				continue
+			}
+			var payload protocol.ServerStartPayload
+			_ = json.Unmarshal(env.Payload, &payload)
+			select {
+			case got <- payload:
+			default:
+			}
+			resPayload, _ := json.Marshal(protocol.ServerStartResult{PID: 9001})
+			_ = conn.WriteJSON(protocol.Envelope{
+				V:         protocol.Version,
+				Type:      protocol.TypeResServerStart,
+				RequestID: env.RequestID,
+				Payload:   resPayload,
+			})
+		}
+	})
+	defer server.Close()
+
+	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL(server.URL), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer wsConn.Close()
+	agentConn := hub.Register(view.ID, wsConn)
+	go hub.ReadLoop(agentConn)
+
+	now := time.Now().UTC()
+	gameServerID := "gs-velocity-4"
+	if err := svc.db.WithContext(ctx).Create(&models.GameServer{
+		ID:           gameServerID,
+		ServerID:     view.ID,
+		Name:         "Velocity 4",
+		ServerType:   "velocity",
+		MCVersion:    "4.1.0-SNAPSHOT",
+		Port:         25565,
+		Status:       models.GameServerStatusStopped,
+		WorkDir:      "/opt/qxsystem/server/instances/" + gameServerID,
+		StartCommand: "/opt/qxsystem/java/bin/java",
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}).Error; err != nil {
+		t.Fatalf("create game server: %v", err)
+	}
+
+	if _, err := svc.StartGameServer(ctx, "owner-1", view.ID, gameServerID); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	select {
+	case payload := <-got:
+		if payload.MCVersion != "4.1.0-SNAPSHOT" {
+			t.Fatalf("mc_version: %q", payload.MCVersion)
+		}
+		if payload.ServerType != "velocity" {
+			t.Fatalf("server_type: %q", payload.ServerType)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for start command")
 	}
 }

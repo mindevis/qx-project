@@ -59,3 +59,31 @@ func TestGenerateForwardingSecret(t *testing.T) {
 		t.Fatalf("secret: %q err=%v", a, err)
 	}
 }
+
+func TestBungeeConfigYAML(t *testing.T) {
+	yaml := BungeeConfigYAML("0.0.0.0:25565", "QX", []Backend{
+		{Alias: "lobby", Address: "127.0.0.1:25566"},
+	}, []string{"lobby"})
+	for _, want := range []string{
+		"host: 0.0.0.0:25565",
+		"ip_forward: true",
+		"  lobby:",
+		"    address: 127.0.0.1:25566",
+		"  - lobby",
+	} {
+		if !strings.Contains(yaml, want) {
+			t.Fatalf("missing %q in:\n%s", want, yaml)
+		}
+	}
+}
+
+func TestPatchSpigotBungeeCord(t *testing.T) {
+	got := PatchSpigotBungeeCord("settings:\n  bungeecord: false\n")
+	if !strings.Contains(got, "bungeecord: true") || strings.Contains(got, "bungeecord: false") {
+		t.Fatalf("got:\n%s", got)
+	}
+	empty := PatchSpigotBungeeCord("")
+	if !strings.Contains(empty, "bungeecord: true") {
+		t.Fatalf("empty:\n%s", empty)
+	}
+}

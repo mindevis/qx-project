@@ -131,7 +131,7 @@ func (c *curseForgeClient) browse(ctx context.Context, projectType, loader, mcVe
 }
 
 func (c *curseForgeClient) browseStrict(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
-	if !c.enabled() {
+	if skipBukkitPluginSources(projectType, loader) || !c.enabled() {
 		return nil, nil
 	}
 	return c.searchProjectsOnce(ctx, "", projectType, loader, mcVersion, sort, limit, offset)
@@ -142,6 +142,9 @@ func (c *curseForgeClient) searchProjects(
 	query, projectType, loader, mcVersion, sort string,
 	limit, offset int,
 ) ([]SearchItem, error) {
+	if skipBukkitPluginSources(projectType, loader) {
+		return nil, nil
+	}
 	if !c.enabled() {
 		return nil, nil
 	}

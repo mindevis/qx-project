@@ -11,6 +11,7 @@ import { ProfilePage } from './ProfilePage';
 import { PlaceholderPage } from './PlaceholderPage';
 import { clearTokens, saveTokens, api } from '@/api/client';
 import * as launcherDownload from '@/lib/launcherDownload';
+import { LAUNCHER_INSTANCES_VIEW_STORAGE_KEY } from '@/lib/installedResourcesView';
 
 function requestUrl(input: RequestInfo | URL): string {
   return typeof input === 'string'
@@ -131,8 +132,8 @@ async function expectAuthModalError(message: string) {
 
 async function expectLauncherProfileListed(username: string) {
   await waitFor(() => {
-    const el = document.querySelector('.launcher-profile-name');
-    expect(el).toHaveTextContent(username);
+    const names = [...document.querySelectorAll('.launcher-profile-name')].map((el) => el.textContent ?? '');
+    expect(names.some((name) => name.includes(username))).toBe(true);
   });
 }
 
@@ -166,6 +167,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       vi.fn(() => Promise.resolve(new Response('{}', { status: 200 }))),
     );
     clearTokens();
+    window.localStorage.removeItem(LAUNCHER_INSTANCES_VIEW_STORAGE_KEY);
   });
 
   afterEach(() => {
@@ -179,7 +181,14 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     );
     expect(screen.getAllByText('QXLauncher').length).toBeGreaterThan(0);
     expect(screen.getAllByText('QXAgent').length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'MySQL и Ollama на вашем VPS' })).toBeInTheDocument();
+    expect(screen.getAllByText('MySQL').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Ollama').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /Открыть лаунчер/ }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Сообщество QXSystem в Discord' })).toHaveAttribute(
+      'href',
+      'https://discord.gg/uNtN2yAGnA',
+    );
   });
 
   it('highlightMinecraft returns plain text when marker is absent', () => {
@@ -1055,7 +1064,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
   });
 
   it('shows licensed launch hint when Microsoft account is not linked', async () => {
-    const user = userEvent.setup({ delay: null });
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1092,27 +1100,46 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     );
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    await user.click(screen.getByText('Лицензия (Microsoft)'));
     await waitFor(() =>
-      expect(screen.getAllByText(/Привяжите Microsoft в профиле/).length).toBeGreaterThan(0),
+      expect(screen.getByRole('link', { name: /Привязать Microsoft/ })).toHaveAttribute('href', '/profile'),
     );
-    expect(screen.getByRole('button', { name: /Играть/ })).toBeDisabled();
-    expect(screen.getByRole('link', { name: /Привязать Microsoft/ })).toHaveAttribute('href', '/profile');
+    expect(screen.getByText(/Привяжите Microsoft в профиле/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Играть/ })).toBeEnabled();
+    expect(screen.queryByText('Лицензия (Microsoft)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Оффлайн')).not.toBeInTheDocument();
   });
 
-  it('refreshes launcher workspace data', async () => {
-    const user = userEvent.setup({ delay: null });
-  const successSpy = testMessage.success;
+  it('shows launcher instances as cards by default and can switch to a list', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
       token_type: 'Bearer',
       expires_in: 3600,
     });
+    const instance = {
+      id: 'inst-1',
+      name: 'Survival',
+      mc_version: '1.21',
+      loader: 'vanilla',
+      created_at: 't',
+      updated_at: 't',
+    };
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url) => {
+        if (url.includes('/users/me/launcher-device')) {
+          return new Response(
+            JSON.stringify({
+              linked: true,
+              device_id: 'dev-99',
+              status: 'linked',
+              launcher_version: '0.2.0',
+            }),
+            { status: 200 },
+          );
+        }
         if (url.includes('/instances')) {
-          return new Response(JSON.stringify({ items: [] }), { status: 200 });
+          return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
         }
         return null;
       }),
@@ -1127,15 +1154,24 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       '/launcher',
     );
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Обновить/ })).toBeInTheDocument(),
-    );
-    await user.click(screen.getByRole('button', { name: /Обновить/ }));
-    await waitFor(() => expect(successSpy).toHaveBeenCalledWith('Данные обновлены'));
+    await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
+    expect(screen.getByText('u@test.com')).toBeInTheDocument();
+    expect(screen.getByText(/QXLauncher связан \(dev-99\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/Инстансы синхронизируются/)).not.toBeInTheDocument();
+    expect(document.querySelector('.launcher-hero-device')).toBeInTheDocument();
+    expect(document.querySelector('.launcher-section--status')).not.toBeInTheDocument();
+    expect(document.querySelector('.launcher-instance-list--cards')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Карточки', checked: true })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Обновить$/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Список' }));
+
+    expect(document.querySelector('.launcher-instance-list--cards')).not.toBeInTheDocument();
+    expect(document.querySelector('.launcher-instance-list')).toBeInTheDocument();
+    expect(window.localStorage.getItem(LAUNCHER_INSTANCES_VIEW_STORAGE_KEY)).toBe('list');
   });
 
   it('handles mojang status load failure in licensed mode', async () => {
-    const user = userEvent.setup({ delay: null });
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -1164,7 +1200,6 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     );
 
     await waitFor(() => expect(screen.getByText('Игрок')).toBeInTheDocument());
-    await user.click(screen.getByText('Лицензия (Microsoft)'));
     await waitFor(() =>
       expect(screen.getByRole('link', { name: /Привязать Microsoft/ })).toBeInTheDocument(),
     );
@@ -1207,8 +1242,10 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Игрок')).toBeInTheDocument());
     await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
-    expect(screen.getByText('uuid-notchy')).toBeInTheDocument();
-    expect(screen.getByText(/Используется привязанный Microsoft-аккаунт/)).toBeInTheDocument();
+    expect(screen.getByText('Официальный аккаунт')).toBeInTheDocument();
+    const playingAs = document.querySelector('.launcher-launch-bar');
+    expect(playingAs?.querySelector('img')).toBeTruthy();
+    expect(screen.queryByText('uuid-notchy')).not.toBeInTheDocument();
     expect(screen.queryByText(/Привяжите Microsoft в профиле/)).not.toBeInTheDocument();
   });
 
@@ -1370,7 +1407,10 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
-    expect(screen.queryByText('Steve')).not.toBeInTheDocument();
+    expect(screen.getByText('Steve')).toBeInTheDocument();
+    expect(document.querySelector('.launcher-profile-chip--selected .launcher-profile-name')).toHaveTextContent(
+      /Notch/,
+    );
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(fetch).toHaveBeenCalled());
   });
@@ -1458,7 +1498,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
     await waitFor(() => expect(screen.getAllByText('Notch').length).toBeGreaterThan(0));
-    await user.click(screen.getByText('Оффлайн'));
+    await user.click(screen.getByText('Steve'));
     await waitFor(() => expect(screen.getAllByText('Steve').length).toBeGreaterThan(0));
     await user.click(screen.getByRole('button', { name: /Играть/ }));
     await waitFor(() => expect(fetch).toHaveBeenCalled());

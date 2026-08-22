@@ -12,7 +12,9 @@ export type VpsGameServerType =
   | 'mohist'
   | 'magma'
   | 'arclight'
-  | 'velocity';
+  | 'velocity'
+  | 'waterfall'
+  | 'bungeecord';
 
 export const DEFAULT_GAME_SERVER_TYPE: VpsGameServerType = 'vanilla';
 
@@ -24,17 +26,24 @@ export const GAME_SERVER_TYPE_GROUPS: {
   { id: 'plugins', types: ['paper', 'spigot', 'purpur'] },
   { id: 'mods', types: ['forge', 'neoforge', 'fabric', 'quilt'] },
   { id: 'hybrid', types: ['mohist', 'magma', 'arclight'] },
-  { id: 'proxy', types: ['velocity'] },
+  { id: 'proxy', types: ['velocity', 'waterfall', 'bungeecord'] },
 ];
 
 export const ALL_GAME_SERVER_TYPES: VpsGameServerType[] = GAME_SERVER_TYPE_GROUPS.flatMap(
   (group) => group.types,
 );
 
-const PLUGIN_TYPES = new Set<VpsGameServerType>(['paper', 'spigot', 'purpur', 'velocity']);
+const PLUGIN_TYPES = new Set<VpsGameServerType>([
+  'paper',
+  'spigot',
+  'purpur',
+  'velocity',
+  'waterfall',
+  'bungeecord',
+]);
 const MOD_TYPES = new Set<VpsGameServerType>(['forge', 'neoforge', 'fabric', 'quilt']);
 const HYBRID_TYPES = new Set<VpsGameServerType>(['mohist', 'magma', 'arclight']);
-const PROXY_TYPES = new Set<VpsGameServerType>(['velocity']);
+const PROXY_TYPES = new Set<VpsGameServerType>(['velocity', 'waterfall', 'bungeecord']);
 
 export function isKnownGameServerType(value: string): value is VpsGameServerType {
   return (ALL_GAME_SERVER_TYPES as string[]).includes(value);
@@ -84,12 +93,23 @@ export function gameServerCatalogTabs(type: VpsGameServerType): Array<
   return tabs;
 }
 
+export function pluginCatalogSources(type: VpsGameServerType): Array<
+  'hangar' | 'modrinth' | 'spigot' | 'bukkit'
+> {
+  if (type === 'velocity') {
+    return ['hangar', 'modrinth'];
+  }
+  return ['hangar', 'spigot', 'bukkit', 'modrinth'];
+}
+
 export function pluginLoaderForServerType(type: VpsGameServerType): string {
   switch (type) {
     case 'paper':
     case 'spigot':
     case 'purpur':
     case 'velocity':
+    case 'waterfall':
+    case 'bungeecord':
       return type;
     case 'mohist':
     case 'magma':

@@ -198,6 +198,12 @@ func TestGameServerSupportsContent(t *testing.T) {
 	if !gameServerSupportsPlugins("velocity") {
 		t.Fatal("velocity should support plugins")
 	}
+	if !gameServerSupportsPlugins("waterfall") || !gameServerSupportsPlugins("bungeecord") {
+		t.Fatal("waterfall and bungeecord should support plugins")
+	}
+	if gameServerSupportsDatapacks("bungeecord") {
+		t.Fatal("bungeecord should not support datapacks")
+	}
 }
 
 func TestSyncModValidation(t *testing.T) {

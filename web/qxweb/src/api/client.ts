@@ -239,6 +239,64 @@ export type OllamaView = {
   models: OllamaModel[];
 };
 
+export type MysqlStatus =
+  | 'not_installed'
+  | 'installing'
+  | 'installed'
+  | 'starting'
+  | 'running'
+  | 'stopping'
+  | 'error';
+
+export type MysqlGrant = {
+  database: string;
+  privileges: string[];
+};
+
+export type MysqlUser = {
+  id: string;
+  username: string;
+  host: string;
+  password: string;
+  grants: MysqlGrant[];
+  jdbc?: string;
+  dsn?: string;
+};
+
+export type MysqlDatabase = {
+  id: string;
+  name: string;
+};
+
+export type MysqlView = {
+  status: MysqlStatus;
+  engine?: string;
+  version?: string;
+  package_version?: string;
+  method?: string;
+  bind_addr?: string;
+  port?: number;
+  image?: string;
+  host_local?: string;
+  host_public?: string;
+  root_user?: string;
+  root_password?: string;
+  jdbc?: string;
+  dsn?: string;
+  last_error?: string;
+  databases: MysqlDatabase[];
+  users: MysqlUser[];
+  privilege_catalog: string[];
+};
+
+export type MysqlInstallBody = {
+  engine: 'mariadb' | 'percona';
+  version: '5.7' | '8.0';
+  method: 'docker' | 'native';
+  bind_addr?: string;
+  port?: number;
+};
+
 export type MonitoringServer = {
   id: string;
   name: string;
@@ -990,6 +1048,35 @@ export const api = {
     return (await res.json()) as { status: string; filename: string; path?: string };
   },
 
+  uploadGameServerPlugin: async (vpsId: string, gameServerId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const headers = new Headers();
+    const tokens = loadTokens();
+    if (tokens?.access_token) {
+      headers.set('Authorization', `Bearer ${tokens.access_token}`);
+    }
+    const res = await fetch(
+      `${API_BASE}/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/plugins/upload`,
+      { method: 'POST', headers, body: form },
+    );
+    if (!res.ok) {
+      const err = (await res.json().catch(() => null)) as ApiError | null;
+      throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+    }
+    return (await res.json()) as { status: string; filename: string; path?: string };
+  },
+
+  installGameServerPluginFromURL: (
+    vpsId: string,
+    gameServerId: string,
+    body: { url: string; filename?: string },
+  ) =>
+    request<{ status: string; filename?: string; path?: string; message?: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/plugins/install-url`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
   createModInstallRequest: (body: {
     instance_id: string;
     source: ModSource;
@@ -1193,6 +1280,56 @@ export const api = {
       { method: 'DELETE' },
     ),
 
+  getVpsMysql: (vpsId: string) =>
+    request<MysqlView>(`/servers/${encodeURIComponent(vpsId)}/mysql`),
+
+  installVpsMysql: (vpsId: string, body: MysqlInstallBody) =>
+    request<MysqlView>(`/servers/${encodeURIComponent(vpsId)}/mysql/install`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  startVpsMysql: (vpsId: string) =>
+    request<MysqlView>(`/servers/${encodeURIComponent(vpsId)}/mysql/start`, { method: 'POST' }),
+
+  stopVpsMysql: (vpsId: string) =>
+    request<MysqlView>(`/servers/${encodeURIComponent(vpsId)}/mysql/stop`, { method: 'POST' }),
+
+  createVpsMysqlDatabase: (vpsId: string, name: string) =>
+    request<MysqlView>(`/servers/${encodeURIComponent(vpsId)}/mysql/databases`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  dropVpsMysqlDatabase: (vpsId: string, name: string) =>
+    request<MysqlView>(
+      `/servers/${encodeURIComponent(vpsId)}/mysql/databases/${encodeURIComponent(name)}`,
+      { method: 'DELETE' },
+    ),
+
+  createVpsMysqlUser: (
+    vpsId: string,
+    body: { username: string; password?: string; host?: string; grants?: MysqlGrant[] },
+  ) =>
+    request<MysqlView>(`/servers/${encodeURIComponent(vpsId)}/mysql/users`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  dropVpsMysqlUser: (vpsId: string, username: string, host?: string) =>
+    request<MysqlView>(
+      `/servers/${encodeURIComponent(vpsId)}/mysql/users/${encodeURIComponent(username)}${
+        host ? `?host=${encodeURIComponent(host)}` : ''
+      }`,
+      { method: 'DELETE' },
+    ),
+
+  setVpsMysqlUserGrants: (vpsId: string, username: string, host: string, grants: MysqlGrant[]) =>
+    request<MysqlView>(
+      `/servers/${encodeURIComponent(vpsId)}/mysql/users/${encodeURIComponent(username)}/grants`,
+      { method: 'PUT', body: JSON.stringify({ host, grants }) },
+    ),
+
   changeVpsGameServerVersion: (
     vpsId: string,
     gameServerId: string,
@@ -1377,6 +1514,32 @@ export const api = {
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files/content?path=${encodeURIComponent(path)}`,
       { method: 'PUT', body: JSON.stringify({ content }) },
     ),
+
+  mkdirVpsGameServerFile: (vpsId: string, gameServerId: string, path: string) =>
+    request<{ status: string; path: string }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files/mkdir`,
+      { method: 'POST', body: JSON.stringify({ path }) },
+    ),
+
+  uploadVpsGameServerFile: async (vpsId: string, gameServerId: string, dir: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const headers = new Headers();
+    const tokens = loadTokens();
+    if (tokens?.access_token) {
+      headers.set('Authorization', `Bearer ${tokens.access_token}`);
+    }
+    const pathQuery = dir ? `?path=${encodeURIComponent(dir)}` : '';
+    const res = await fetch(
+      `${API_BASE}/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/files/upload${pathQuery}`,
+      { method: 'POST', headers, body: form },
+    );
+    if (!res.ok) {
+      const err = (await res.json().catch(() => null)) as ApiError | null;
+      throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+    }
+    return (await res.json()) as { status: string; path: string; filename: string };
+  },
 
   deleteVpsGameServerFile: (vpsId: string, gameServerId: string, path: string) =>
     request<{ status: string }>(

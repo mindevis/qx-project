@@ -4,10 +4,12 @@ import {
   GAME_SERVER_CONTENT_VIEW_STORAGE_KEY,
   GAME_SERVERS_LIST_VIEW_STORAGE_KEY,
   INSTALLED_RESOURCES_VIEW_STORAGE_KEY,
+  LAUNCHER_INSTANCES_VIEW_STORAGE_KEY,
   readInstalledResourcesViewMode,
   useGameServerContentViewMode,
   useGameServersListViewMode,
   useInstalledResourcesViewMode,
+  useLauncherInstancesViewMode,
 } from './installedResourcesView';
 
 describe('installedResourcesView', () => {
@@ -70,5 +72,18 @@ describe('installedResourcesView', () => {
 
     expect(result.current.viewMode).toBe('list');
     expect(window.localStorage.getItem(GAME_SERVERS_LIST_VIEW_STORAGE_KEY)).toBe('list');
+  });
+
+  it('defaults launcher instances view to cards and persists list mode', () => {
+    const { result } = renderHook(() => useLauncherInstancesViewMode());
+
+    expect(result.current.viewMode).toBe('cards');
+
+    act(() => {
+      result.current.setViewMode('list');
+    });
+
+    expect(result.current.viewMode).toBe('list');
+    expect(window.localStorage.getItem(LAUNCHER_INSTANCES_VIEW_STORAGE_KEY)).toBe('list');
   });
 });

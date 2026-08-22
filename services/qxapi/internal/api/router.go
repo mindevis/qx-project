@@ -107,6 +107,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	gameServersH := &GameServersHandler{Service: serversSvc}
 	gameServerNetworksH := &GameServerNetworksHandler{Service: serversSvc}
 	ollamaH := &OllamaHandler{Service: serversSvc}
+	mysqlH := &MySQLHandler{Service: serversSvc}
 	monitoringH := &MonitoringHandler{Service: serversSvc, LauncherService: launcherSvc}
 	consoleH := &ServerConsoleHandler{Servers: serversSvc, Tokens: tokens}
 	mojangH := &MojangHandler{Service: mojangSvc}
@@ -207,6 +208,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.DELETE("/servers/:id/game-servers/:gameServerId/shaders", gameServersH.DeleteShader)
 			authed.GET("/servers/:id/game-servers/:gameServerId/plugins", gameServersH.ListPlugins)
 			authed.POST("/servers/:id/game-servers/:gameServerId/plugins/sync", gameServersH.SyncPlugin)
+			authed.POST("/servers/:id/game-servers/:gameServerId/plugins/upload", gameServersH.UploadPlugin)
+			authed.POST("/servers/:id/game-servers/:gameServerId/plugins/install-url", gameServersH.InstallPluginFromURL)
 			authed.DELETE("/servers/:id/game-servers/:gameServerId/plugins", gameServersH.DeletePlugin)
 			authed.GET("/servers/:id/game-servers/:gameServerId/datapacks", gameServersH.ListDatapacks)
 			authed.POST("/servers/:id/game-servers/:gameServerId/datapacks/sync", gameServersH.SyncDatapack)
@@ -215,6 +218,8 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.DELETE("/servers/:id/game-servers/:gameServerId/files", gameServersH.DeleteFile)
 			authed.GET("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.ReadFile)
 			authed.PUT("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.WriteFile)
+			authed.POST("/servers/:id/game-servers/:gameServerId/files/mkdir", gameServersH.MkdirFile)
+			authed.POST("/servers/:id/game-servers/:gameServerId/files/upload", gameServersH.UploadFile)
 			authed.POST("/servers/:id/game-servers/:gameServerId/version", gameServersH.ChangeVersion)
 			authed.POST("/servers/:id/game-servers/:gameServerId/reinstall", gameServersH.Reinstall)
 			authed.POST("/servers/:id/game-servers/:gameServerId/start", gameServersH.Start)
@@ -234,6 +239,16 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.POST("/servers/:id/ollama/stop", ollamaH.Stop)
 			authed.POST("/servers/:id/ollama/models", ollamaH.PullModel)
 			authed.DELETE("/servers/:id/ollama/models", ollamaH.DeleteModel)
+
+			authed.GET("/servers/:id/mysql", mysqlH.Get)
+			authed.POST("/servers/:id/mysql/install", mysqlH.Install)
+			authed.POST("/servers/:id/mysql/start", mysqlH.Start)
+			authed.POST("/servers/:id/mysql/stop", mysqlH.Stop)
+			authed.POST("/servers/:id/mysql/databases", mysqlH.CreateDatabase)
+			authed.DELETE("/servers/:id/mysql/databases/:name", mysqlH.DropDatabase)
+			authed.POST("/servers/:id/mysql/users", mysqlH.CreateUser)
+			authed.DELETE("/servers/:id/mysql/users/:username", mysqlH.DropUser)
+			authed.PUT("/servers/:id/mysql/users/:username/grants", mysqlH.SetUserGrants)
 
 			authed.POST("/monitoring/servers/:id/like", monitoringH.Like)
 			authed.POST("/monitoring/servers/:id/rate", monitoringH.Rate)

@@ -4,6 +4,7 @@ import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import {
   DEFAULT_GAME_SERVER_MEMORY_MB,
+  defaultExtraJvmArgsForGameServer,
   updateVpsGameServer,
   type VpsGameServer,
 } from '@/lib/vpsGameServers';
@@ -46,7 +47,7 @@ export function GameServerLaunchSettingsPanel({
     form.setFieldsValue({
       min_memory_mb: game.min_memory_mb ?? DEFAULT_GAME_SERVER_MEMORY_MB,
       max_memory_mb: game.max_memory_mb ?? DEFAULT_GAME_SERVER_MEMORY_MB,
-      extra_jvm_args: (game.extra_jvm_args ?? []).join('\n'),
+      extra_jvm_args: defaultExtraJvmArgsForGameServer(game).join('\n'),
       extra_args: (game.extra_args ?? []).join('\n'),
     });
   }, [form, game]);
@@ -122,9 +123,9 @@ export function GameServerLaunchSettingsPanel({
         <Form.Item
           name="extra_jvm_args"
           label={t('launcher.extraJvmArgs')}
-          extra={t('launcher.extraJvmArgsHint')}
+          extra={t('gameServerDetail.extraJvmArgsHint')}
         >
-          <Input.TextArea rows={4} placeholder="-XX:+UseG1GC" />
+          <Input.TextArea rows={10} placeholder="-XX:+UseG1GC" />
         </Form.Item>
         <Form.Item
           name="extra_args"

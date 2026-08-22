@@ -142,8 +142,8 @@ func resolveCommand(command, root string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		base := filepath.Base(abs)
-		if base != "java" && base != "run.sh" {
+		base := strings.ToLower(filepath.Base(abs))
+		if base != "java" && base != "java.exe" && base != "run.sh" {
 			return "", fmt.Errorf("command not allowed: %q", command)
 		}
 		if base == "run.sh" {
@@ -155,6 +155,15 @@ func resolveCommand(command, root string) (string, error) {
 		return abs, nil
 	}
 	return "", fmt.Errorf("command not allowed: %q", command)
+}
+
+func isJavaExecutableName(name string) bool {
+	switch strings.ToLower(name) {
+	case "java", "java.exe":
+		return true
+	default:
+		return false
+	}
 }
 
 func resolvePathRef(path, root string) (string, error) {
@@ -188,7 +197,7 @@ func resolveJavaBin(bin, root string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if filepath.Base(abs) != "java" {
+		if !isJavaExecutableName(filepath.Base(abs)) {
 			return "", fmt.Errorf("java bin not allowed: %q", bin)
 		}
 		// Mojang Java lives outside per-instance work dirs (e.g. /opt/qxsystem/java).

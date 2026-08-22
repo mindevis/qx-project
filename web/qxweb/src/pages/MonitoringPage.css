@@ -6,8 +6,8 @@
 
 .monitoring-hero {
   position: relative;
-  margin: 0;
-  padding: 48px clamp(24px, 5vw, 48px) 48px;
+  margin: -64px 0 0;
+  padding: 112px clamp(24px, 5vw, 48px) 48px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   overflow: hidden;
   background: linear-gradient(180deg, rgba(114, 46, 209, 0.06) 0%, rgba(19, 168, 168, 0.03) 55%, transparent 90%);
@@ -598,7 +598,7 @@ html[data-theme='dark'] .monitoring-card--offline .monitoring-card-online-dot {
 
 @media (max-width: 768px) {
   .monitoring-hero {
-    padding-top: 32px;
+    padding-top: 96px;
     padding-bottom: 32px;
   }
 

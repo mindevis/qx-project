@@ -2,11 +2,15 @@ package api
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/qxproject/qx/pkg/protocol"
 	"github.com/qxproject/qx/services/qxapi/internal/agenthub"
 	"github.com/qxproject/qx/services/qxapi/internal/servers"
 )
@@ -417,6 +421,100 @@ func (h *GameServersHandler) WriteFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+type mkdirFileBody struct {
+	Path string `json:"path" binding:"required"`
+}
+
+func (h *GameServersHandler) MkdirFile(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var body mkdirFileBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	path, err := validateFileManagerPath(body.Path)
+	if err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	err = h.Service.MkdirGameServerFile(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		path,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"status": "ok", "path": path})
+}
+
+func (h *GameServersHandler) UploadFile(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	dir := strings.TrimSpace(c.Query("path"))
+	if dir != "" {
+		cleaned, err := validateFileManagerPath(dir)
+		if err != nil {
+			JSONValidation(c, err.Error())
+			return
+		}
+		dir = cleaned
+	}
+	file, err := c.FormFile("file")
+	if err != nil {
+		JSONValidation(c, "missing file")
+		return
+	}
+	if file.Size > protocol.MaxContentFileBytes {
+		JSONValidation(c, "file too large")
+		return
+	}
+	name, err := sanitizeFileManagerName(file.Filename)
+	if err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	f, err := file.Open()
+	if err != nil {
+		JSONInternal(c)
+		return
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, protocol.MaxContentFileBytes+1))
+	if err != nil {
+		JSONInternal(c)
+		return
+	}
+	if int64(len(data)) > protocol.MaxContentFileBytes {
+		JSONValidation(c, "file too large")
+		return
+	}
+	path := joinFileManagerPath(dir, name)
+	err = h.Service.UploadGameServerFile(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		path,
+		data,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"status": "ok", "path": path, "filename": name})
+}
+
 func (h *GameServersHandler) DeleteFile(c *gin.Context) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {
@@ -466,9 +564,25 @@ func gameServerError(c *gin.Context, err error) {
 		JSONError(c, http.StatusGatewayTimeout, "AGENT_TIMEOUT", "agent did not respond in time")
 	case isContentInstallError(err):
 		JSONError(c, http.StatusBadGateway, "CONTENT_INSTALL_FAILED", err.Error())
+	case isFileManagerClientError(err):
+		JSONValidation(c, err.Error())
 	default:
 		JSONInternal(c)
 	}
+}
+
+func isFileManagerClientError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "already exists") ||
+		strings.Contains(msg, "path is a") ||
+		strings.Contains(msg, "invalid path") ||
+		strings.Contains(msg, "invalid filename") ||
+		strings.Contains(msg, "content too large") ||
+		strings.Contains(msg, "file too large") ||
+		strings.Contains(msg, "cannot delete")
 }
 
 func isContentInstallError(err error) bool {
@@ -479,4 +593,54 @@ func isContentInstallError(err error) bool {
 	return strings.Contains(msg, "download") ||
 		strings.Contains(msg, "invalid filename") ||
 		strings.Contains(msg, "rel_path")
+}
+
+func validateFileManagerPath(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	path = strings.ReplaceAll(path, "\\", "/")
+	path = strings.Trim(path, "/")
+	if path == "" || path == "." {
+		return "", fmt.Errorf("path required")
+	}
+	parts := strings.Split(path, "/")
+	clean := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || part == "." {
+			continue
+		}
+		if part == ".." {
+			return "", fmt.Errorf("invalid path")
+		}
+		if strings.ContainsAny(part, `/\`) {
+			return "", fmt.Errorf("invalid path")
+		}
+		clean = append(clean, part)
+	}
+	if len(clean) == 0 {
+		return "", fmt.Errorf("path required")
+	}
+	return strings.Join(clean, "/"), nil
+}
+
+func sanitizeFileManagerName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	name = strings.ReplaceAll(name, "\\", "/")
+	name = filepath.Base(name)
+	name = strings.TrimSpace(name)
+	if name == "" || name == "." || name == ".." {
+		return "", fmt.Errorf("invalid filename")
+	}
+	if strings.ContainsAny(name, `/\`) {
+		return "", fmt.Errorf("invalid filename")
+	}
+	return name, nil
+}
+
+func joinFileManagerPath(dir, name string) string {
+	dir = strings.Trim(strings.ReplaceAll(strings.TrimSpace(dir), "\\", "/"), "/")
+	if dir == "" {
+		return name
+	}
+	return dir + "/" + name
 }

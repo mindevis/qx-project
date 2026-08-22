@@ -4,7 +4,7 @@ import { testMessage } from '@/test/test-message';
 import { api } from '@/api/client';
 import { renderWithTheme } from '@/test/test-utils';
 import { clearModCatalogCaches } from '@/lib/modCatalogCache';
-import { GameServerContentPanel } from './GameServerContentPanel';
+import { GameServerContentPanel, pluginFilenameFromURL } from './GameServerContentPanel';
 
 function mockCatalogApis() {
   vi.spyOn(api, 'browseMods').mockResolvedValue({
@@ -29,6 +29,15 @@ describe('GameServerContentPanel', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('derives a plugin filename from a download url', () => {
+    expect(
+      pluginFilenameFromURL(
+        'https://ci.example.com/job/LuckPerms/lastSuccessfulBuild/artifact/LuckPerms.jar',
+      ),
+    ).toBe('LuckPerms.jar');
+    expect(pluginFilenameFromURL('https://example.com/download.php?id=1')).toBe('');
   });
 
   it('shows unsupported message for plugins on forge', () => {
@@ -64,6 +73,44 @@ describe('GameServerContentPanel', () => {
     );
 
     await waitFor(() => expect(screen.getByText('EssentialsX.jar')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /загрузить с компьютера/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /по ссылке/i })).toBeInTheDocument();
+  });
+
+  it('installs a plugin from a url', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerPlugins').mockResolvedValue({ items: [] });
+    const install = vi.spyOn(api, 'installGameServerPluginFromURL').mockResolvedValue({
+      status: 'installed',
+      filename: 'LuckPerms.jar',
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="plugin"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="paper"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /по ссылке/i }));
+    await user.type(
+      screen.getByPlaceholderText('https://example.com/plugins/MyPlugin.jar'),
+      'https://ci.example.com/job/LuckPerms/lastSuccessfulBuild/artifact/LuckPerms.jar',
+    );
+    await user.click(screen.getByRole('button', { name: /^установить$/i }));
+
+    await waitFor(() =>
+      expect(install).toHaveBeenCalledWith('srv-1', 'gs-1', {
+        url: 'https://ci.example.com/job/LuckPerms/lastSuccessfulBuild/artifact/LuckPerms.jar',
+        filename: 'LuckPerms.jar',
+      }),
+    );
   });
 
   it('lists installed datapacks and handles errors', async () => {
@@ -86,6 +133,7 @@ describe('GameServerContentPanel', () => {
     );
 
     await waitFor(() => expect(screen.getByText('vanilla-tweaks.zip')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /по ссылке/i })).not.toBeInTheDocument();
 
     renderWithTheme(
       <GameServerContentPanel
@@ -622,5 +670,31 @@ describe('GameServerContentPanel', () => {
     await waitFor(() =>
       expect(browse).toHaveBeenCalledWith(expect.objectContaining({ type: 'resourcepack' })),
     );
+  });
+
+  it('hides spigot and bukkit catalog sources for velocity', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerPlugins').mockResolvedValue({ items: [] });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="plugin"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="velocity"
+        mcVersion="3.4.0-SNAPSHOT"
+      />,
+    );
+
+    await user.click(screen.getByText('Каталог'));
+    const sourceSelect = screen.getAllByRole('combobox')[0];
+    await user.click(sourceSelect);
+    expect(await screen.findByText('Hangar')).toBeInTheDocument();
+    expect(screen.getByText('Modrinth')).toBeInTheDocument();
+    expect(screen.queryByText('SpigotMC')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bukkit')).not.toBeInTheDocument();
   });
 });

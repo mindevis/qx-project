@@ -1,5 +1,7 @@
 package mods
 
+import "strings"
+
 const (
 	SourceCurseForge = "curseforge"
 	SourceModrinth   = "modrinth"
@@ -81,6 +83,27 @@ func CatalogProjectUsesLoader(projectType string) bool {
 	default:
 		return true
 	}
+}
+
+func IsVelocityLoader(loader string) bool {
+	return strings.EqualFold(strings.TrimSpace(loader), "velocity")
+}
+
+func IsProxyPluginLoader(loader string) bool {
+	switch strings.ToLower(strings.TrimSpace(loader)) {
+	case "velocity", "waterfall", "bungeecord":
+		return true
+	default:
+		return false
+	}
+}
+
+func pluginCatalogAllowsBukkitSources(loader string) bool {
+	return !IsVelocityLoader(loader)
+}
+
+func skipBukkitPluginSources(projectType, loader string) bool {
+	return projectType == ProjectTypePlugin && !pluginCatalogAllowsBukkitSources(loader)
 }
 
 // SyncModRequest is the body for POST .../mods/sync.

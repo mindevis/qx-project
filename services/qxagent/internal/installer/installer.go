@@ -61,14 +61,18 @@ func ensureJava(ctx context.Context, opts Options, mcVersion string) (string, er
 	return bin, nil
 }
 
-func ensureJavaMajor(ctx context.Context, opts Options, major int) (string, error) {
+func EnsureJavaMajor(ctx context.Context, opts Options, major int) (string, error) {
 	mgr := ensureJavaManager(opts)
+	source := "Mojang"
+	if major > 21 {
+		source = "Temurin"
+	}
 	if !(opts.DryRun || opts.SkipJavaDownload) {
-		logLine(opts, fmt.Sprintf("[QX] Installing Mojang Java %d…", major))
+		logLine(opts, fmt.Sprintf("[QX] Installing %s Java %d…", source, major))
 	}
 	bin, err := mgr.EnsureForRuntime(ctx, mojangjava.ComponentForMajor(major), major)
 	if err != nil {
-		return "", fmt.Errorf("mojang java: %w", err)
+		return "", fmt.Errorf("java %d: %w", major, err)
 	}
 	if !(opts.DryRun || opts.SkipJavaDownload) {
 		logLine(opts, "[QX] Java ready: "+bin)
@@ -109,6 +113,10 @@ func Install(ctx context.Context, opts Options, cfg InstallConfig) (StartSpec, e
 		return installPaper(ctx, opts, cfg)
 	case "velocity":
 		return installVelocity(ctx, opts, cfg)
+	case "waterfall":
+		return installWaterfall(ctx, opts, cfg)
+	case "bungeecord":
+		return installBungeeCord(ctx, opts, cfg)
 	default:
 		return StartSpec{}, fmt.Errorf("%w: %s", ErrUnsupportedServerType, cfg.ServerType)
 	}

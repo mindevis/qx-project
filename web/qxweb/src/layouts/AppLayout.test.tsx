@@ -19,6 +19,7 @@ describe('AppLayout', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
     vi.mocked(BackendStatus.useBackendStatus).mockReturnValue({ available: true });
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
   });
 
   afterEach(() => {
@@ -37,7 +38,9 @@ describe('AppLayout', () => {
     await waitFor(() => expect(screen.getByText('QXSystem')).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'Вход' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: 'Серверы' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'QXSkins' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Скины' })).toBeInTheDocument();
+    expect(document.querySelector('.app-nav-new-badge')).toHaveTextContent('Новинка');
+    expect(screen.getAllByRole('link', { name: 'Сообщество QXSystem в Discord' }).length).toBeGreaterThan(0);
   });
 
   it('disables login button when backend is unavailable', async () => {
@@ -104,7 +107,7 @@ describe('AppLayout', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
-    expect(screen.getByRole('link', { name: 'QXSkins' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Скины' })).toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: 'Светлая тема' }));
     expect(window.localStorage.getItem('qxweb-theme')).toBe('light');
   });
@@ -165,7 +168,7 @@ describe('AppLayout', () => {
     await waitFor(() => expect(header?.className).toContain('app-header--scrolled'));
   });
 
-  it('keeps a solid header on other sections', () => {
+  it('uses a transparent header on other sections that solidifies on scroll', async () => {
     renderWithProviders(
       <Routes>
         <Route element={<AppLayout />}>
@@ -177,7 +180,13 @@ describe('AppLayout', () => {
 
     const header = document.querySelector('header');
     expect(header?.className).toContain('app-header--sticky');
-    expect(header?.className).not.toContain('app-header--landing');
+    expect(header?.className).toContain('app-header--landing');
+    expect(header?.className).not.toContain('app-header--scrolled');
+
+    Object.defineProperty(window, 'scrollY', { value: 32, configurable: true });
+    window.dispatchEvent(new Event('scroll'));
+
+    await waitFor(() => expect(header?.className).toContain('app-header--scrolled'));
   });
 
   it('navigates to skins page from header link', async () => {
@@ -258,9 +267,9 @@ describe('AppLayout', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Серверы')).toBeInTheDocument());
-    await user.click(screen.getByRole('link', { name: 'QXSkins' }));
+    await user.click(screen.getByRole('link', { name: 'Скины' }));
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /QXSkins для Minecraft/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: 'Скины' })).toBeInTheDocument(),
     );
   });
 });

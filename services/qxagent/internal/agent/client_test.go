@@ -164,3 +164,36 @@ func TestDispatchOllamaDryRun(t *testing.T) {
 		t.Fatalf("pull: %+v", pull)
 	}
 }
+
+func TestDispatchVelocityStartResolvesJava(t *testing.T) {
+	dir := t.TempDir()
+	jar := filepath.Join(dir, "server.jar")
+	if err := os.WriteFile(jar, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := NewClient(Config{DryRun: true, ServerRoot: filepath.Join(dir, "server")})
+	payload, _ := json.Marshal(protocol.ServerStartPayload{
+		ServerType: "velocity",
+		WorkDir:    dir,
+		JarPath:    jar,
+		MCVersion:  "4.1.0-SNAPSHOT",
+	})
+	res, err := c.dispatchCommand(protocol.Envelope{
+		Type:      protocol.TypeCmdServerStart,
+		RequestID: "vel-4",
+		Payload:   payload,
+	})
+	if err != nil || res == nil {
+		t.Fatalf("start: %v %v", res, err)
+	}
+	if res.Type != protocol.TypeResServerStart {
+		t.Fatalf("type: %s", res.Type)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(res.Payload, &body); err != nil {
+		t.Fatalf("payload: %v", err)
+	}
+	if _, hasErr := body["error"]; hasErr {
+		t.Fatalf("unexpected error: %v", body["error"])
+	}
+}

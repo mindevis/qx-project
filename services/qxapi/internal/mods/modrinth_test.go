@@ -101,3 +101,34 @@ func TestNormalizeDependencyType(t *testing.T) {
 		t.Fatal("should keep required and optional catalog dependencies")
 	}
 }
+
+func TestModrinthSearchKeepsVelocityLoaderFacet(t *testing.T) {
+	t.Parallel()
+	var got url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ = url.ParseQuery(r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"hits":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	base, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &modrinthClient{
+		httpClient: &http.Client{Transport: rewriteTransport{base: base, rt: http.DefaultTransport}},
+		userAgent:  "qx-test",
+	}
+	_, err = client.search(context.Background(), "LuckPerms", ProjectTypePlugin, "velocity", "3.4.0-SNAPSHOT", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facets := got.Get("facets")
+	if !strings.Contains(facets, "categories:velocity") {
+		t.Fatalf("named velocity search must keep loader facet, got %s", facets)
+	}
+	if strings.Contains(facets, "versions:3.4.0-SNAPSHOT") {
+		t.Fatalf("velocity search must not send proxy version facet, got %s", facets)
+	}
+}

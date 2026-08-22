@@ -8,6 +8,7 @@ use (
 	./pkg/protocol
 	./pkg/reporoot
 	./pkg/msauth
+	./pkg/mysqlutil
 	./pkg/safepath
 	./pkg/mcproxy
 	./scripts/gen-jwt-secret

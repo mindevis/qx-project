@@ -13,6 +13,7 @@ require (
 	github.com/qxproject/qx/pkg/log v0.0.0
 	github.com/qxproject/qx/pkg/mcmanifest v0.0.0
 	github.com/qxproject/qx/pkg/msauth v0.0.0
+	github.com/qxproject/qx/pkg/mysqlutil v0.0.0
 	github.com/qxproject/qx/pkg/protocol v0.0.0
 	github.com/qxproject/qx/pkg/reporoot v0.0.0
 	github.com/qxproject/qx/pkg/safepath v0.0.0
@@ -97,6 +98,8 @@ replace github.com/qxproject/qx/pkg/reporoot => ../../pkg/reporoot
 replace github.com/qxproject/qx/pkg/log => ../../pkg/log
 
 replace github.com/qxproject/qx/pkg/mcmanifest => ../../pkg/mcmanifest
+
+replace github.com/qxproject/qx/pkg/mysqlutil => ../../pkg/mysqlutil
 
 replace github.com/qxproject/qx/pkg/protocol => ../../pkg/protocol
 

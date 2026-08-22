@@ -163,6 +163,46 @@ func TestDeletePathRejectsWorkDirAndTraversal(t *testing.T) {
 	}
 }
 
+func TestMkdirCreatesFolderAndRejectsConflicts(t *testing.T) {
+	workDir := t.TempDir()
+	if err := Mkdir(workDir, "plugins/configs"); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	info, err := os.Stat(filepath.Join(workDir, "plugins", "configs"))
+	if err != nil || !info.IsDir() {
+		t.Fatalf("expected folder: err=%v", err)
+	}
+	if err := Mkdir(workDir, "plugins/configs"); err == nil {
+		t.Fatal("expected already exists")
+	}
+	if err := os.WriteFile(filepath.Join(workDir, "eula.txt"), []byte("eula=true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Mkdir(workDir, "eula.txt"); err == nil {
+		t.Fatal("expected file conflict")
+	}
+	for _, path := range []string{"", ".", "/", "..", "../outside"} {
+		if err := Mkdir(workDir, path); err == nil {
+			t.Fatalf("expected error for path %q", path)
+		}
+	}
+}
+
+func TestWriteFileBytesWritesBinary(t *testing.T) {
+	workDir := t.TempDir()
+	payload := []byte{0x00, 0x01, 0x02, 0xff}
+	if err := WriteFileBytes(workDir, "plugins/demo.jar", payload); err != nil {
+		t.Fatalf("write bytes: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(workDir, "plugins", "demo.jar"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(payload) {
+		t.Fatalf("bytes: %v", got)
+	}
+}
+
 func TestListClientModsMissingDirReturnsEmpty(t *testing.T) {
 	dir := t.TempDir()
 	entries, err := ListClientMods(dir, "forge")

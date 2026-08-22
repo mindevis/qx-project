@@ -28,6 +28,10 @@ const QUILT_LOADER_VERSIONS = gameServerUpstreamUrl('quilt', '/v3/versions/loade
 const MOHIST_PROJECT = gameServerUpstreamUrl('mohist', '/api/v2/projects/mohist');
 const MAGMA_VERSIONS = gameServerUpstreamUrl('magma', '/api/versions?limit=0');
 const ARCLIGHT_MINECRAFT = gameServerUpstreamUrl('arclight', '/v1/files/arclight/minecraft');
+const BUNGEECORD_API = gameServerUpstreamUrl(
+  'bungeecord',
+  '/job/BungeeCord/api/json?tree=builds[number,result]{0,40}',
+);
 
 const FORGE_ARTIFACT_VERSION = /^(\d+\.\d+(?:\.\d+)?)-(.+)$/;
 const LOADER_COMPAT_BATCH_SIZE = 15;
@@ -156,7 +160,7 @@ async function fetchPaperFamilyMcVersions(project: 'paper' | 'purpur'): Promise<
   return fetchPaperMCVersions('paper');
 }
 
-async function fetchPaperMCVersions(project: 'paper' | 'velocity'): Promise<VersionOption[]> {
+async function fetchPaperMCVersions(project: 'paper' | 'velocity' | 'waterfall'): Promise<VersionOption[]> {
   const data = await cachedFetchJson<unknown>(`${PAPER_API}/${project}`);
   let versions = parsePaperMcVersions(data);
   if (project === 'paper') {
@@ -227,7 +231,7 @@ function paperBuildLabel(build: PaperBuild): string {
 }
 
 async function fetchPaperFamilyBuilds(
-  project: 'paper' | 'purpur' | 'velocity',
+  project: 'paper' | 'purpur' | 'velocity' | 'waterfall',
   mcVersion: string,
 ): Promise<VersionOption[]> {
   if (project === 'purpur') {
@@ -250,6 +254,17 @@ async function fetchPaperFamilyBuilds(
       value: String(item.id),
       label: paperBuildLabel(item),
     }));
+}
+
+async function fetchBungeeCordBuilds(): Promise<VersionOption[]> {
+  const data = await cachedFetchJson<{ builds?: Array<{ number?: number; result?: string }> }>(
+    BUNGEECORD_API,
+  );
+  const builds = (data.builds ?? [])
+    .filter((item) => item.result === 'SUCCESS' && typeof item.number === 'number')
+    .map((item) => item.number as number);
+  const unique = [...new Set(builds)].sort((a, b) => b - a);
+  return unique.map((id) => ({ value: String(id), label: `#${id}` }));
 }
 
 async function fetchForgeMcVersions(): Promise<VersionOption[]> {
@@ -530,6 +545,10 @@ export async function listGameServerMcVersions(
         return await fetchPaperFamilyMcVersions('paper');
       case 'velocity':
         return await fetchPaperMCVersions('velocity');
+      case 'waterfall':
+        return await fetchPaperMCVersions('waterfall');
+      case 'bungeecord':
+        return [{ value: 'latest', label: 'BungeeCord' }];
       case 'purpur':
         return await fetchPaperFamilyMcVersions('purpur');
       case 'forge':
@@ -571,6 +590,10 @@ export async function listGameServerLoaderVersions(
         return await fetchPaperFamilyBuilds('paper', mcVersion);
       case 'velocity':
         return await fetchPaperFamilyBuilds('velocity', mcVersion);
+      case 'waterfall':
+        return await fetchPaperFamilyBuilds('waterfall', mcVersion);
+      case 'bungeecord':
+        return await fetchBungeeCordBuilds();
       case 'forge':
         return await fetchForgeLoaderVersions(mcVersion);
       case 'neoforge':

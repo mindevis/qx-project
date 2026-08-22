@@ -24,6 +24,8 @@ describe('gameServerNetworkLayout', () => {
   it('slugs aliases and suggests roles', () => {
     expect(aliasFromServerName('Lobby #1')).toBe('lobby-1');
     expect(suggestedRoleForServer('velocity', [])).toBe('proxy');
+    expect(suggestedRoleForServer('waterfall', [])).toBe('proxy');
+    expect(suggestedRoleForServer('bungeecord', [])).toBe('proxy');
     expect(suggestedRoleForServer('paper', [])).toBe('lobby');
     expect(suggestedRoleForServer('paper', [{ role: 'lobby' }])).toBe('backend');
   });

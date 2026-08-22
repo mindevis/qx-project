@@ -383,7 +383,7 @@ func gameServerTypeUsesMods(serverType string) bool {
 
 func gameServerTypeUsesPlugins(serverType string) bool {
 	switch strings.ToLower(strings.TrimSpace(serverType)) {
-	case "paper", "spigot", "purpur", "mohist", "magma", "arclight", "velocity":
+	case "paper", "spigot", "purpur", "mohist", "magma", "arclight", "velocity", "waterfall", "bungeecord":
 		return true
 	default:
 		return false

@@ -74,6 +74,23 @@ func TestValidateStartPayloadAllowsMojangJavaOutsideWorkDir(t *testing.T) {
 	}
 }
 
+func TestValidateStartPayloadAllowsWindowsJavaExe(t *testing.T) {
+	dir := t.TempDir()
+	javaBin := filepath.Join(filepath.Dir(dir), "java", "bin", "java.exe")
+	payload := protocol.ServerStartPayload{
+		WorkDir: dir,
+		JavaBin: javaBin,
+		JarPath: filepath.Join(dir, "server.jar"),
+	}
+	start, err := ValidateStartPayload(payload)
+	if err != nil {
+		t.Fatalf("java.exe: %v", err)
+	}
+	if start.JavaBin != javaBin {
+		t.Fatalf("java_bin: %q", start.JavaBin)
+	}
+}
+
 func TestMergeCommandArgsDropsUserJVMFileWhenInline(t *testing.T) {
 	t.Parallel()
 	got := mergeCommandArgs(ValidatedStart{

@@ -64,6 +64,14 @@ function mockAuthedFetch(handler: (url: string, init?: RequestInit) => Response 
         new Response(JSON.stringify({ status: 'not_installed', models: [] }), { status: 200 }),
       );
     }
+    if (url.includes('/mysql')) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ status: 'not_installed', databases: [], users: [], privilege_catalog: [] }),
+          { status: 200 },
+        ),
+      );
+    }
     if (url.includes('/auth/refresh')) {
       return Promise.resolve(
         new Response(
@@ -945,9 +953,12 @@ describe('ServersPage', () => {
         if (url.includes('/servers/srv-1/game-servers') || url.includes('/networks')) {
           return new Response(JSON.stringify({ items: [] }), { status: 200 });
         }
-        if (url.includes('/ollama')) {
-          return null;
-        }
+    if (url.includes('/ollama')) {
+      return null;
+    }
+    if (url.includes('/mysql')) {
+      return null;
+    }
         if (url.includes('/servers/srv-1')) {
           detailCalls += 1;
           return new Response(JSON.stringify({ ...sampleServer, agent_deployed: true, agent_online: true }), { status: 200 });
@@ -1077,9 +1088,12 @@ describe('ServersPage', () => {
         if (url.includes('/servers/srv-1/game-servers') && !url.includes('/gs-1')) {
           return new Response(JSON.stringify({ items: games }), { status: 200 });
         }
-        if (url.includes('/ollama')) {
-          return null;
-        }
+    if (url.includes('/ollama')) {
+      return null;
+    }
+    if (url.includes('/mysql')) {
+      return null;
+    }
         if (url.includes('/servers/srv-1')) {
           return new Response(JSON.stringify(onlineVps), { status: 200 });
         }
@@ -1194,6 +1208,26 @@ describe('ServersPage', () => {
     await waitFor(() => expect(screen.getByText('Ollama')).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: /Установить Ollama/i }));
     await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('Ollama установлена и запускается'));
+  });
+
+  it('installs mysql from the dedicated server page', async () => {
+    let mysql = { status: 'not_installed', databases: [] as unknown[], users: [] as unknown[], privilege_catalog: [] as string[] };
+    mockOnlineDetail([], (url, init) => {
+      if (url.includes('/mysql/install') && init?.method === 'POST') {
+        mysql = { status: 'installing', databases: [], users: [], privilege_catalog: [] };
+        return new Response(JSON.stringify(mysql), { status: 202 });
+      }
+      if (url.includes('/mysql')) {
+        return new Response(JSON.stringify(mysql), { status: 200 });
+      }
+      return null;
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('MySQL')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Установить MySQL/i }));
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('MySQL установлена и запускается'));
   });
 
   it('clones game server from the card list', async () => {

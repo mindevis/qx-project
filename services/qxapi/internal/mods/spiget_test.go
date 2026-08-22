@@ -57,6 +57,30 @@ func TestSpigetSearchIgnoresNonPlugins(t *testing.T) {
 	}
 }
 
+func TestSpigetSearchSkipsVelocity(t *testing.T) {
+	t.Parallel()
+	c := &spigetClient{httpClient: http.DefaultClient, userAgent: "qx-test"}
+	items, err := c.search(context.Background(), "LuckPerms", ProjectTypePlugin, "velocity", "3.4.0-SNAPSHOT", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items != nil {
+		t.Fatalf("expected no spigot plugins for velocity, got %+v", items)
+	}
+}
+
+func TestSpigetBrowseSkipsVelocity(t *testing.T) {
+	t.Parallel()
+	c := &spigetClient{httpClient: http.DefaultClient, userAgent: "qx-test"}
+	items, err := c.browse(context.Background(), ProjectTypePlugin, "velocity", "3.4.0-SNAPSHOT", "downloads", 20, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items != nil {
+		t.Fatalf("expected no spigot browse results for velocity, got %+v", items)
+	}
+}
+
 func TestSpigetVersionUsesHostedDownload(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

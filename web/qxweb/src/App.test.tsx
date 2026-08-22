@@ -185,7 +185,7 @@ describe('App', () => {
 
     renderApp('/skins');
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /QXSkins (for|\u0434\u043b\u044f) Minecraft/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: /^(Skins|Скины)$/ })).toBeInTheDocument(),
     );
   });
 });

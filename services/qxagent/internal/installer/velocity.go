@@ -13,6 +13,23 @@ import (
 
 const velocityFillAPI = "https://fill.papermc.io/v3/projects/velocity"
 
+// VelocityJavaMajor is the JDK needed to run a Velocity release.
+// 3.x needs Java 21; 4.x is compiled for Java 25 (class file 69).
+func VelocityJavaMajor(version string) int {
+	version = strings.TrimSpace(version)
+	n := 0
+	for _, r := range version {
+		if r < '0' || r > '9' {
+			break
+		}
+		n = n*10 + int(r-'0')
+	}
+	if n >= 4 {
+		return 25
+	}
+	return 21
+}
+
 func installVelocity(ctx context.Context, opts Options, cfg InstallConfig) (StartSpec, error) {
 	version := strings.TrimSpace(cfg.MCVersion)
 	build := strings.TrimSpace(cfg.LoaderVersion)
@@ -30,7 +47,7 @@ func installVelocity(ctx context.Context, opts Options, cfg InstallConfig) (Star
 	if err != nil {
 		return StartSpec{}, fmt.Errorf("work dir: %w", err)
 	}
-	javaBin, err := ensureJavaMajor(ctx, opts, 21)
+	javaBin, err := EnsureJavaMajor(ctx, opts, VelocityJavaMajor(version))
 	if err != nil {
 		return StartSpec{}, err
 	}

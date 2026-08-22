@@ -75,7 +75,7 @@ func (c *hangarClient) search(ctx context.Context, query, projectType, loader, _
 
 func (c *hangarClient) browse(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
 	items, err := c.searchProjects(ctx, "", projectType, loader, mcVersion, sort, limit, offset)
-	if err != nil || len(items) > 0 || mcVersion == "" {
+	if err != nil || len(items) > 0 || hangarGameVersion(loader, mcVersion) == "" {
 		return items, err
 	}
 	return c.searchProjects(ctx, "", projectType, loader, "", sort, limit, offset)
@@ -96,15 +96,19 @@ func (c *hangarClient) searchProjects(
 	params.Set("platform", hangarPlatform(loader))
 	if strings.TrimSpace(query) != "" {
 		params.Set("q", strings.TrimSpace(query))
-	} else if strings.TrimSpace(mcVersion) != "" {
-		params.Set("version", strings.TrimSpace(mcVersion))
+	} else if version := hangarGameVersion(loader, mcVersion); version != "" {
+		params.Set("version", version)
 	}
 	var resp hangarProjectsResponse
 	if err := c.getJSON(ctx, "/projects?"+params.Encode(), &resp); err != nil {
 		return nil, err
 	}
 	out := make([]SearchItem, 0, len(resp.Result))
+	platform := hangarPlatform(loader)
 	for _, project := range resp.Result {
+		if !hangarSupportsPlatform(project, platform) {
+			continue
+		}
 		if item := hangarSearchItem(project); item.ID != "" {
 			out = append(out, item)
 		}
@@ -217,7 +221,11 @@ func hangarVersionFrom(raw hangarVersion, platform string) *Version {
 }
 
 func hangarVersionFile(raw hangarVersion, preferred string) (VersionFile, []string, []string) {
-	order := []string{preferred, "PAPER", "WATERFALL", "VELOCITY"}
+	preferred = strings.ToUpper(strings.TrimSpace(preferred))
+	order := []string{preferred}
+	if preferred == "" || preferred == "PAPER" {
+		order = []string{preferred, "PAPER", "WATERFALL", "VELOCITY"}
+	}
 	seen := map[string]struct{}{}
 	try := make([]string, 0, len(order)+len(raw.Downloads))
 	for _, platform := range order {
@@ -231,11 +239,13 @@ func hangarVersionFile(raw hangarVersion, preferred string) (VersionFile, []stri
 		seen[platform] = struct{}{}
 		try = append(try, platform)
 	}
-	for platform := range raw.Downloads {
-		if _, ok := seen[platform]; ok {
-			continue
+	if preferred == "" || preferred == "PAPER" {
+		for platform := range raw.Downloads {
+			if _, ok := seen[platform]; ok {
+				continue
+			}
+			try = append(try, platform)
 		}
-		try = append(try, platform)
 	}
 	loaders := make([]string, 0, len(raw.Downloads))
 	for platform := range raw.Downloads {
@@ -290,6 +300,26 @@ func hangarPlatform(loader string) string {
 	default:
 		return "PAPER"
 	}
+}
+
+func hangarGameVersion(loader, mcVersion string) string {
+	if IsProxyPluginLoader(loader) {
+		return ""
+	}
+	return strings.TrimSpace(mcVersion)
+}
+
+func hangarSupportsPlatform(project hangarProject, platform string) bool {
+	platform = strings.ToUpper(strings.TrimSpace(platform))
+	if platform == "" || len(project.SupportedPlatforms) == 0 {
+		return true
+	}
+	for name := range project.SupportedPlatforms {
+		if strings.EqualFold(name, platform) {
+			return true
+		}
+	}
+	return false
 }
 
 func hangarSort(sort string) string {

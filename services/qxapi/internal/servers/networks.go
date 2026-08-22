@@ -49,7 +49,21 @@ type GameServerNetworkView struct {
 }
 
 func isProxyGameServerType(serverType string) bool {
-	return strings.EqualFold(strings.TrimSpace(serverType), "velocity")
+	switch strings.ToLower(strings.TrimSpace(serverType)) {
+	case "velocity", "waterfall", "bungeecord":
+		return true
+	default:
+		return false
+	}
+}
+
+func isBungeeFamilyProxy(serverType string) bool {
+	switch strings.ToLower(strings.TrimSpace(serverType)) {
+	case "waterfall", "bungeecord":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Service) ListGameServerNetworks(ctx context.Context, ownerID, vpsID string) ([]GameServerNetworkView, error) {
@@ -452,15 +466,24 @@ func (s *Service) applyGameServerNetwork(
 	if port <= 0 {
 		port = 25565
 	}
-	toml := mcproxy.VelocityToml(bindHost+":"+strconv.Itoa(port), strings.TrimSpace(proxy.Name), tomlBackends, tryList)
-	if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "velocity.toml", toml); err != nil {
-		return err
-	}
-	if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "forwarding.secret", network.ForwardingSecret+"\n"); err != nil {
-		return err
+	bind := bindHost + ":" + strconv.Itoa(port)
+	if isBungeeFamilyProxy(proxyRow.ServerType) {
+		yaml := mcproxy.BungeeConfigYAML(bind, strings.TrimSpace(proxy.Name), tomlBackends, tryList)
+		if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "config.yml", yaml); err != nil {
+			return err
+		}
+	} else {
+		toml := mcproxy.VelocityToml(bind, strings.TrimSpace(proxy.Name), tomlBackends, tryList)
+		if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "velocity.toml", toml); err != nil {
+			return err
+		}
+		if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "forwarding.secret", network.ForwardingSecret+"\n"); err != nil {
+			return err
+		}
 	}
 	_ = ownerID
 	var applyErr error
+	bungeeProxy := isBungeeFamilyProxy(proxyRow.ServerType)
 	for _, backend := range backends {
 		var row models.GameServer
 		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", backend.GameServerID, vpsID).First(&row).Error; err != nil {
@@ -471,6 +494,28 @@ func (s *Service) applyGameServerNetwork(
 		}
 		if err := s.patchInstalledGameServerProperties(ctx, vpsID, &row, map[string]string{"online-mode": "false"}); err != nil {
 			applyErr = err
+		}
+		if bungeeProxy {
+			if !supportsSpigotBungeeForwarding(row.ServerType) {
+				continue
+			}
+			spigot := ""
+			if file, err := s.readInstalledGameServerFile(ctx, vpsID, &row, "spigot.yml"); err == nil {
+				spigot = file
+			}
+			if err := s.writeInstalledGameServerFile(ctx, vpsID, &row, "spigot.yml", mcproxy.PatchSpigotBungeeCord(spigot)); err != nil {
+				applyErr = err
+			}
+			if supportsPaperVelocityForwarding(row.ServerType) {
+				existing := ""
+				if file, err := s.readInstalledGameServerFile(ctx, vpsID, &row, "config/paper-global.yml"); err == nil {
+					existing = file
+				}
+				if err := s.writeInstalledGameServerFile(ctx, vpsID, &row, "config/paper-global.yml", mcproxy.PatchPaperBungeeForwarding(existing)); err != nil {
+					applyErr = err
+				}
+			}
+			continue
 		}
 		if !supportsPaperVelocityForwarding(row.ServerType) {
 			continue
@@ -518,6 +563,15 @@ func isLoopbackIP(ip string) bool {
 func supportsPaperVelocityForwarding(serverType string) bool {
 	switch strings.ToLower(strings.TrimSpace(serverType)) {
 	case "paper", "purpur":
+		return true
+	default:
+		return false
+	}
+}
+
+func supportsSpigotBungeeForwarding(serverType string) bool {
+	switch strings.ToLower(strings.TrimSpace(serverType)) {
+	case "paper", "spigot", "purpur":
 		return true
 	default:
 		return false

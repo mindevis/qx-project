@@ -12,5 +12,8 @@ describe('gameServerUpstream', () => {
     expect(gameServerUpstreamUrl('papermc', '/v3/projects/paper')).toBe(
       '/upstream/papermc/v3/projects/paper',
     );
+    expect(gameServerUpstreamUrl('bungeecord', '/job/BungeeCord/api/json')).toBe(
+      '/upstream/bungeecord/job/BungeeCord/api/json',
+    );
   });
 });

@@ -97,8 +97,12 @@ func gameServerJVMArgs(item *models.GameServer) []string {
 	manifest := &mcmanifest.InstanceLaunchManifest{}
 	mcmanifest.ApplyMaxMemoryMB(manifest, maxMB)
 	mcmanifest.ApplyMinMemoryMB(manifest, minMB)
-	mcmanifest.ApplyExtraJVMArgs(manifest, stripMemoryJVMArgs(mcmanifest.SanitizeJVMArgs([]string(item.ExtraJVMArgs))))
-	return manifest.JVMArguments
+	base := manifest.JVMArguments
+	if !isProxyGameServerType(item.ServerType) {
+		base = mcmanifest.MergeJVMArgs(base, mcmanifest.AikarJVMFlags())
+	}
+	extras := stripMemoryJVMArgs(mcmanifest.SanitizeJVMArgs([]string(item.ExtraJVMArgs)))
+	return mcmanifest.MergeJVMArgs(base, extras)
 }
 
 func gameServerStartArgSets(item *models.GameServer) (args, jvmArgs, extraArgs []string) {

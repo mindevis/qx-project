@@ -78,8 +78,8 @@ type spigetVersion struct {
 	UUID        string `json:"uuid"`
 }
 
-func (c *spigetClient) search(ctx context.Context, query, projectType, _, _ string, limit int) ([]SearchItem, error) {
-	if projectType != ProjectTypePlugin {
+func (c *spigetClient) search(ctx context.Context, query, projectType, loader, _ string, limit int) ([]SearchItem, error) {
+	if projectType != ProjectTypePlugin || skipBukkitPluginSources(projectType, loader) {
 		return nil, nil
 	}
 	query = strings.TrimSpace(query)
@@ -100,8 +100,8 @@ func (c *spigetClient) search(ctx context.Context, query, projectType, _, _ stri
 	return spigetSearchItems(resources), nil
 }
 
-func (c *spigetClient) browse(ctx context.Context, projectType, _, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
-	if projectType != ProjectTypePlugin {
+func (c *spigetClient) browse(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
+	if projectType != ProjectTypePlugin || skipBukkitPluginSources(projectType, loader) {
 		return nil, nil
 	}
 	limit = clampSearchLimit(limit)

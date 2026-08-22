@@ -19,6 +19,31 @@ func TestCatalogProjectUsesLoader(t *testing.T) {
 	}
 }
 
+func TestSkipBukkitPluginSourcesForVelocity(t *testing.T) {
+	t.Parallel()
+	if !skipBukkitPluginSources(ProjectTypePlugin, "velocity") {
+		t.Fatal("velocity plugins must skip bukkit catalogs")
+	}
+	if skipBukkitPluginSources(ProjectTypePlugin, "paper") {
+		t.Fatal("paper plugins still use bukkit catalogs")
+	}
+	if skipBukkitPluginSources(ProjectTypeMod, "velocity") {
+		t.Fatal("non-plugin searches should not skip curseforge")
+	}
+}
+
+func TestCurseForgePluginSearchSkipsVelocity(t *testing.T) {
+	t.Parallel()
+	c := &curseForgeClient{httpClient: http.DefaultClient, apiKey: "test-key"}
+	items, err := c.search(context.Background(), "LuckPerms", ProjectTypePlugin, "velocity", "3.4.0-SNAPSHOT", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items != nil {
+		t.Fatalf("expected no curseforge plugins for velocity, got %+v", items)
+	}
+}
+
 func TestCurseForgeBrowseRelaxesStrictFilters(t *testing.T) {
 	t.Parallel()
 	var calls []url.Values

@@ -322,13 +322,11 @@ func (s *Service) mergeOllamaStatus(ctx context.Context, vpsID string, raw []byt
 	if ollamaBusy(row.Status) {
 		return
 	}
-	status := row.Status
+	status := models.OllamaStatusNotInstalled
 	if st.Running {
 		status = models.OllamaStatusRunning
 	} else if st.Installed {
 		status = models.OllamaStatusInstalled
-	} else {
-		status = models.OllamaStatusNotInstalled
 	}
 	updates := map[string]any{
 		"status":     status,

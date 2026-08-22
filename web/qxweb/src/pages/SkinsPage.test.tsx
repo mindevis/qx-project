@@ -86,8 +86,9 @@ describe('SkinsPage', () => {
     renderWithProviders(<SkinsPage />, '/skins');
 
     await waitFor(() =>
-      expect(screen.getByRole('heading', { name: /QXSkins для Minecraft/i })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { name: 'Скины' })).toBeInTheDocument(),
     );
+    expect(screen.getByText('Новинка')).toBeInTheDocument();
     expect(screen.getByText(/популярных источников/i)).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Загрузить скин/i })).toBeInTheDocument(),

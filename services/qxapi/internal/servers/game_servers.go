@@ -956,6 +956,7 @@ func (s *Service) beginGameServerStart(
 		JVMArgs:      jvmArgs,
 		ExtraArgs:    extraArgs,
 		JavaBin:      javaBin,
+		MCVersion:    mcVersion,
 	})
 	startRequestID := uuid.NewString()
 	s.pending.Store(startRequestID, pendingProvision{

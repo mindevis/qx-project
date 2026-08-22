@@ -1,6 +1,8 @@
 import { api } from '@/api/client';
 import {
   DEFAULT_GAME_SERVER_TYPE,
+  isKnownGameServerType,
+  isProxyGameServerType,
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
 
@@ -52,6 +54,40 @@ export type CreateVpsGameServerInput = {
 };
 
 export const DEFAULT_GAME_SERVER_MEMORY_MB = 2048;
+
+/** Keep in sync with pkg/mcmanifest/aikar.go — applied on Minecraft server start. */
+export const DEFAULT_AIKAR_JVM_ARGS = [
+  '-XX:+AlwaysPreTouch',
+  '-XX:+DisableExplicitGC',
+  '-XX:+ParallelRefProcEnabled',
+  '-XX:+PerfDisableSharedMem',
+  '-XX:+UnlockExperimentalVMOptions',
+  '-XX:+UseG1GC',
+  '-XX:G1HeapRegionSize=8M',
+  '-XX:G1HeapWastePercent=5',
+  '-XX:G1MaxNewSizePercent=40',
+  '-XX:G1MixedGCCountTarget=4',
+  '-XX:G1MixedGCLiveThresholdPercent=90',
+  '-XX:G1NewSizePercent=30',
+  '-XX:G1RSetUpdatingPauseTimePercent=5',
+  '-XX:G1ReservePercent=20',
+  '-XX:InitiatingHeapOccupancyPercent=15',
+  '-XX:MaxGCPauseMillis=200',
+  '-XX:MaxTenuringThreshold=1',
+  '-XX:SurvivorRatio=32',
+  '-Dusing.aikars.flags=https://mcflags.emc.gs',
+  '-Daikars.new.flags=true',
+];
+
+export function defaultExtraJvmArgsForGameServer(game: Pick<VpsGameServer, 'server_type' | 'extra_jvm_args'>): string[] {
+  if (game.extra_jvm_args && game.extra_jvm_args.length > 0) {
+    return game.extra_jvm_args;
+  }
+  if (game.server_type && isKnownGameServerType(game.server_type) && isProxyGameServerType(game.server_type)) {
+    return [];
+  }
+  return [...DEFAULT_AIKAR_JVM_ARGS];
+}
 
 export type UpdateVpsGameServerInput = {
   name?: string;

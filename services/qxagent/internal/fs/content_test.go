@@ -173,6 +173,28 @@ func TestSanitizeContentDownloadURL(t *testing.T) {
 	}
 }
 
+func TestSanitizeUserContentDownloadURL(t *testing.T) {
+	got, err := sanitizeUserContentDownloadURL("https://ci.lucko.me/job/LuckPerms/plugin.jar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == "" {
+		t.Fatal("expected custom host url")
+	}
+	if _, err := sanitizeUserContentDownloadURL("https://127.0.0.1/plugin.jar"); err == nil {
+		t.Fatal("expected ip rejected for custom host")
+	}
+	if _, err := sanitizeUserContentDownloadURL("https://localhost/plugin.jar"); err == nil {
+		t.Fatal("expected localhost rejected for custom host")
+	}
+	if _, err := sanitizeUserContentDownloadURL("https://router.local/plugin.jar"); err == nil {
+		t.Fatal("expected .local rejected for custom host")
+	}
+	if _, err := sanitizeContentDownloadURL("https://ci.lucko.me/job/LuckPerms/plugin.jar"); err == nil {
+		t.Fatal("expected custom host rejected without allowlist")
+	}
+}
+
 func TestReadContentFile(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "client-mods"), 0o755); err != nil {

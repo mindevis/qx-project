@@ -466,6 +466,10 @@ html[data-theme='dark'] .qxmods-version-row {
   flex-wrap: wrap;
 }
 
+.game-server-content-url-filename {
+  margin-top: 8px;
+}
+
 .qxmods-installed-item {
   display: flex;
   gap: 12px;

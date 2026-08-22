@@ -49,21 +49,6 @@ html[data-theme='dark'] .app-header--landing.app-header--scrolled {
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
 }
 
-.app-header--sticky:not(.app-header--landing) {
-  border-bottom: 1px solid var(--app-header-border);
-  background: var(--app-header-bg) !important;
-}
-
-.app-header--sticky:not(.app-header--landing).app-header--scrolled {
-  backdrop-filter: saturate(180%) blur(10px);
-  -webkit-backdrop-filter: saturate(180%) blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-}
-
-html[data-theme='dark'] .app-header--sticky:not(.app-header--landing).app-header--scrolled {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-}
-
 .app-content--landing {
   padding-top: 0 !important;
   padding-inline: 0 !important;
@@ -82,6 +67,18 @@ html[data-theme='dark'] .app-header--sticky:not(.app-header--landing).app-header
 
 .app-footer {
   text-align: center;
+}
+
+.app-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px 20px;
+}
+
+.app-footer-copy {
+  font-size: 14px;
 }
 
 .app-header-burger.ant-btn {
@@ -141,6 +138,51 @@ html[data-theme='dark'] .app-header .ant-menu-item-selected a {
 .app-header-controls {
   flex-shrink: 0;
   --header-control-height: 36px;
+}
+
+.app-header .ant-menu-item,
+.app-header .ant-menu-overflow-item,
+.app-header .ant-menu-title-content {
+  overflow: visible !important;
+}
+
+.app-nav-with-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.app-nav-new-badge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #eb2f96, #722ed1);
+  box-shadow: 0 4px 10px rgba(235, 47, 150, 0.28);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ant-drawer .app-nav-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ant-drawer .app-nav-new-badge {
+  position: static;
+  transform: none;
+  top: auto;
+  left: auto;
 }
 
 .app-header-controls .ant-space-item {

@@ -66,4 +66,15 @@ describe('GameServerLaunchSettingsPanel', () => {
     expect(onUpdated).toHaveBeenCalled();
     expect(testMessage.success).toHaveBeenCalled();
   });
+
+  it('prefills Aikar flags when extra JVM args are empty', () => {
+    renderWithTheme(
+      <GameServerLaunchSettingsPanel
+        vpsId="srv-1"
+        game={{ ...game, extra_jvm_args: [] }}
+        onUpdated={vi.fn()}
+      />,
+    );
+    expect(screen.getByDisplayValue(/AlwaysPreTouch/)).toBeInTheDocument();
+  });
 });

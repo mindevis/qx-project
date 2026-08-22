@@ -721,7 +721,8 @@ describe('api client', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ content: 'line' }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'ok', path: 'plugins' }), { status: 201 }));
 
     await api.updateVpsGameServer('srv-1', 'gs-1', { name: 'Renamed' });
     await api.deleteVpsGameServer('srv-1', 'gs-1');
@@ -742,6 +743,7 @@ describe('api client', () => {
     await api.listVpsGameServerFiles('srv-1', 'gs-1', 'config');
     await api.readVpsGameServerFile('srv-1', 'gs-1', 'server.properties');
     await api.writeVpsGameServerFile('srv-1', 'gs-1', 'server.properties', 'motd=hi');
+    await api.mkdirVpsGameServerFile('srv-1', 'gs-1', 'plugins');
 
     const urls = fetchMock.mock.calls.map(([input]) => String(input));
     expect(urls.some((url) => url.includes('/game-servers/gs-1/clone'))).toBe(true);
@@ -750,6 +752,7 @@ describe('api client', () => {
       true,
     );
     expect(urls.some((url) => url.includes('/files/content'))).toBe(true);
+    expect(urls.some((url) => url.includes('/files/mkdir'))).toBe(true);
   });
 
   it('calls cosmetics, mojang, monitoring, and mods endpoints', async () => {

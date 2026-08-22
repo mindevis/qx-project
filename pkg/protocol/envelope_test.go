@@ -12,4 +12,7 @@ func TestProtocolConstants(t *testing.T) {
 	if TypeCmdOllamaInstall == "" || TypeResOllamaModelPull == "" {
 		t.Fatal("expected ollama command types")
 	}
+	if TypeCmdMySQLInstall == "" || TypeResMySQLUserGrant == "" {
+		t.Fatal("expected mysql command types")
+	}
 }

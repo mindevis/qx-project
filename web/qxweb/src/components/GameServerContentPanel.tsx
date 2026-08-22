@@ -20,6 +20,7 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   AppstoreOutlined,
   DeleteOutlined,
+  LinkOutlined,
   SearchOutlined,
   UnorderedListOutlined,
   UploadOutlined,
@@ -48,6 +49,7 @@ import { useMessage } from '@/hooks/useMessage';
 import { useModal } from '@/hooks/useModal';
 import {
   gameServerTypeLabelText,
+  pluginCatalogSources,
   pluginLoaderForServerType,
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
@@ -80,6 +82,19 @@ import './GameServerContentPanel.css';
 const { Paragraph, Text, Title } = Typography;
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 400;
+
+export function pluginFilenameFromURL(raw: string): string {
+  try {
+    const parsed = new URL(raw.trim());
+    const base = decodeURIComponent(parsed.pathname.split('/').filter(Boolean).pop() ?? '');
+    if (/\.(jar|zip)$/i.test(base)) {
+      return base;
+    }
+  } catch {
+    // ignore invalid urls
+  }
+  return '';
+}
 
 type GameServerContentPanelProps = {
   kind: GameServerContentKind;
@@ -248,6 +263,10 @@ export function GameServerContentPanel({
   const [deletingPath, setDeletingPath] = useState<string>();
   const [sideSavingPath, setSideSavingPath] = useState<string>();
   const [uploadSide, setUploadSide] = useState<ModSyncSide>('both');
+  const [urlModalOpen, setUrlModalOpen] = useState(false);
+  const [pluginUrl, setPluginUrl] = useState('');
+  const [pluginUrlFilename, setPluginUrlFilename] = useState('');
+  const [installingFromUrl, setInstallingFromUrl] = useState(false);
   const { viewMode, setViewMode } = useGameServerContentViewMode();
 
   const i18nPrefix = `gameServerDetail.content.${kind}`;
@@ -533,20 +552,31 @@ export function GameServerContentPanel({
   };
 
   const handleUpload = async (file: File) => {
-    if (kind !== 'mod') return false;
+    if (kind !== 'mod' && kind !== 'plugin') return false;
     setUploading(true);
     try {
-      const side = gameServerInstallSide(uploadSide);
-      await api.uploadGameServerMod(
-        vpsId,
-        gameServerId,
-        file,
-        instanceResourceModTarget({ side_override: side, resource_type: 'mod' }),
-        side,
-      );
+      if (kind === 'plugin') {
+        await api.uploadGameServerPlugin(vpsId, gameServerId, file);
+      } else {
+        const side = gameServerInstallSide(uploadSide);
+        await api.uploadGameServerMod(
+          vpsId,
+          gameServerId,
+          file,
+          instanceResourceModTarget({ side_override: side, resource_type: 'mod' }),
+          side,
+        );
+      }
       message.success(t('gameServerDetail.content.uploadCompleted'));
       void loadInstalled();
-      if (needsServerRestartAfterSync(instanceResourceModTarget({ side_override: side, resource_type: 'mod' }))) {
+      const restartTarget =
+        kind === 'plugin'
+          ? undefined
+          : instanceResourceModTarget({
+              side_override: gameServerInstallSide(uploadSide),
+              resource_type: 'mod',
+            });
+      if (needsServerRestartAfterSync(restartTarget)) {
         promptRestart();
       }
     } catch (e) {
@@ -555,6 +585,36 @@ export function GameServerContentPanel({
       setUploading(false);
     }
     return false;
+  };
+
+  const handleInstallFromUrl = async () => {
+    const url = pluginUrl.trim();
+    const filename = pluginUrlFilename.trim() || pluginFilenameFromURL(url);
+    if (!url) {
+      message.error(t('gameServerDetail.content.installFromUrlInvalid'));
+      return;
+    }
+    setInstallingFromUrl(true);
+    try {
+      const result = await api.installGameServerPluginFromURL(vpsId, gameServerId, {
+        url,
+        filename: filename || undefined,
+      });
+      if (result.status === 'already_installed') {
+        message.info(t('gameServerDetail.content.alreadyInstalled'));
+      } else {
+        message.success(t('gameServerDetail.content.uploadCompleted'));
+        promptRestart();
+      }
+      setUrlModalOpen(false);
+      setPluginUrl('');
+      setPluginUrlFilename('');
+      void loadInstalled();
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('gameServerDetail.content.installFromUrlFailed'));
+    } finally {
+      setInstallingFromUrl(false);
+    }
   };
 
   const handleSideChange = async (row: GameServerFileEntry, side: ModSyncSide) => {
@@ -585,16 +645,17 @@ export function GameServerContentPanel({
       { value: 'modrinth', label: t('qxmods.source.modrinth') },
     ];
     if (kind === 'plugin') {
-      options.push(
-        { value: 'hangar', label: t('qxmods.source.hangar') },
-        { value: 'spigot', label: t('qxmods.source.spigot') },
-        { value: 'bukkit', label: t('qxmods.source.bukkit') },
-      );
+      for (const source of pluginCatalogSources(serverType)) {
+        if (source === 'modrinth') {
+          continue;
+        }
+        options.push({ value: source, label: t(`qxmods.source.${source}`) });
+      }
     } else {
       options.push({ value: 'curseforge', label: t('qxmods.source.curseforge') });
     }
     return options;
-  }, [kind, t]);
+  }, [kind, serverType, t]);
 
   const sortOptions = useMemo(
     () => [
@@ -877,18 +938,20 @@ export function GameServerContentPanel({
                   }}
                 />
               </div>
-              {kind === 'mod' ? (
+              {kind === 'mod' || kind === 'plugin' ? (
                 <div className="game-server-content-upload-wrapper">
-                  <Select
-                    size="small"
-                    value={uploadSide}
-                    options={sideSelectOptions}
-                    aria-label={t('gameServerDetail.content.uploadSideAria')}
-                    onChange={(value) => setUploadSide(value as ModSyncSide)}
-                    className="launcher-resource-side-select"
-                  />
+                  {kind === 'mod' ? (
+                    <Select
+                      size="small"
+                      value={uploadSide}
+                      options={sideSelectOptions}
+                      aria-label={t('gameServerDetail.content.uploadSideAria')}
+                      onChange={(value) => setUploadSide(value as ModSyncSide)}
+                      className="launcher-resource-side-select"
+                    />
+                  ) : null}
                   <Upload
-                    accept=".jar,.zip,.mrpack"
+                    accept={kind === 'plugin' ? '.jar,.zip' : '.jar,.zip,.mrpack'}
                     showUploadList={false}
                     disabled={uploading}
                     beforeUpload={(file) => {
@@ -900,6 +963,18 @@ export function GameServerContentPanel({
                       {t('gameServerDetail.content.upload')}
                     </Button>
                   </Upload>
+                  {kind === 'plugin' ? (
+                    <Button
+                      icon={<LinkOutlined />}
+                      onClick={() => {
+                        setPluginUrl('');
+                        setPluginUrlFilename('');
+                        setUrlModalOpen(true);
+                      }}
+                    >
+                      {t('gameServerDetail.content.installFromUrl')}
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -1185,6 +1260,46 @@ export function GameServerContentPanel({
             )}
           </>
         )}
+
+        <Modal
+          {...modalMotionProps}
+          title={t('gameServerDetail.content.installFromUrlTitle')}
+          open={urlModalOpen}
+          onCancel={() => {
+            if (!installingFromUrl) {
+              setUrlModalOpen(false);
+            }
+          }}
+          onOk={() => void handleInstallFromUrl()}
+          confirmLoading={installingFromUrl}
+          okText={t('gameServerDetail.content.installFromUrlSubmit')}
+          cancelText={t('common.cancel')}
+          destroyOnHidden
+        >
+          <Paragraph type="secondary">{t('gameServerDetail.content.installFromUrlHint')}</Paragraph>
+          <Input
+            value={pluginUrl}
+            placeholder={t('gameServerDetail.content.installFromUrlPlaceholder')}
+            onChange={(e) => {
+              const value = e.target.value;
+              setPluginUrl(value);
+              if (!pluginUrlFilename.trim()) {
+                const derived = pluginFilenameFromURL(value);
+                if (derived) {
+                  setPluginUrlFilename(derived);
+                }
+              }
+            }}
+            aria-label={t('gameServerDetail.content.installFromUrl')}
+          />
+          <Input
+            className="game-server-content-url-filename"
+            value={pluginUrlFilename}
+            placeholder={t('gameServerDetail.content.installFromUrlFilename')}
+            onChange={(e) => setPluginUrlFilename(e.target.value)}
+            aria-label={t('gameServerDetail.content.installFromUrlFilename')}
+          />
+        </Modal>
 
         <Modal
           {...modalMotionProps}

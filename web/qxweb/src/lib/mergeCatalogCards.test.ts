@@ -3,6 +3,7 @@ import type { ModCatalogItem } from '@/api/client';
 import {
   catalogCardItem,
   catalogItemNameKey,
+  catalogPartnerSources,
   mergeCatalogCardsByName,
   preferredCatalogItem,
 } from './mergeCatalogCards';
@@ -99,5 +100,11 @@ describe('mergeCatalogCardsByName', () => {
     );
     expect(cards).toHaveLength(1);
     expect(cards[0].items.map((row) => row.source)).toEqual(['hangar', 'spigot', 'bukkit', 'modrinth']);
+  });
+
+  it('does not pair velocity plugins with spigot or bukkit catalogs', () => {
+    expect(catalogPartnerSources('modrinth', 'plugin', 'velocity')).toEqual(['hangar']);
+    expect(catalogPartnerSources('hangar', 'plugin', 'velocity')).toEqual(['modrinth']);
+    expect(catalogPartnerSources('modrinth', 'plugin', 'paper')).toEqual(['hangar', 'spigot', 'bukkit']);
   });
 });

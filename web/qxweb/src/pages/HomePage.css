@@ -229,6 +229,34 @@ html[data-theme='dark'] .home-hero-tag {
   background: rgba(235, 47, 150, 0.08);
 }
 
+.home-hero-tag--mysql {
+  color: #00758f;
+  border-color: rgba(0, 117, 143, 0.24);
+  background: rgba(0, 117, 143, 0.08);
+}
+
+.home-hero-tag--ollama {
+  color: #5b4bff;
+  border-color: rgba(91, 75, 255, 0.24);
+  background: rgba(91, 75, 255, 0.08);
+}
+
+.home-hero-tag--fresh {
+  gap: 8px;
+}
+
+.home-hero-tag-new {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #eb2f96, #722ed1);
+}
+
 .home-cta-row {
   display: flex;
   flex-wrap: wrap;
@@ -551,6 +579,173 @@ html[data-theme='dark'] .home-benefit-card {
   line-height: 1.6;
 }
 
+/* Stack: MySQL & Ollama */
+
+.home-section--stack {
+  padding-top: 24px;
+}
+
+.home-stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.home-stack-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 100%;
+  padding: 28px 26px 24px;
+  border-radius: 22px;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+html[data-theme='dark'] .home-stack-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+}
+
+.home-stack-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 4px;
+}
+
+.home-stack-card--mysql::before {
+  background: linear-gradient(90deg, #00758f, #f29111);
+}
+
+.home-stack-card--ollama::before {
+  background: linear-gradient(90deg, #5b4bff, #111827);
+}
+
+.home-stack-card:hover {
+  transform: translateY(-5px);
+  color: inherit;
+}
+
+.home-stack-card--mysql:hover {
+  border-color: rgba(0, 117, 143, 0.35);
+  box-shadow: 0 22px 52px rgba(0, 117, 143, 0.12);
+}
+
+.home-stack-card--ollama:hover {
+  border-color: rgba(91, 75, 255, 0.35);
+  box-shadow: 0 22px 52px rgba(91, 75, 255, 0.14);
+}
+
+.home-stack-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #eb2f96, #722ed1);
+}
+
+.home-stack-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 18px;
+  border-radius: 16px;
+  font-size: 26px;
+}
+
+.home-stack-card--mysql .home-stack-icon {
+  color: #00758f;
+  background: rgba(0, 117, 143, 0.12);
+}
+
+.home-stack-card--ollama .home-stack-icon {
+  color: #5b4bff;
+  background: rgba(91, 75, 255, 0.12);
+}
+
+.home-stack-title {
+  margin: 0 0 10px !important;
+  padding-right: 72px;
+}
+
+.home-stack-body {
+  margin: 0 0 18px !important;
+  font-size: 15px;
+  line-height: 1.65;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+html[data-theme='dark'] .home-stack-body {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.home-stack-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.home-stack-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+html[data-theme='dark'] .home-stack-pill {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.home-stack-card--mysql .home-stack-pill {
+  color: #00758f;
+  background: rgba(0, 117, 143, 0.1);
+}
+
+.home-stack-card--ollama .home-stack-pill {
+  color: #5b4bff;
+  background: rgba(91, 75, 255, 0.1);
+}
+
+.home-stack-link {
+  margin-top: auto;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1677ff;
+}
+
+.home-stack-card--mysql .home-stack-link {
+  color: #00758f;
+}
+
+.home-stack-card--ollama .home-stack-link {
+  color: #5b4bff;
+}
+
 /* Features */
 
 .home-section--features {
@@ -848,6 +1043,7 @@ html[data-theme='dark'] .home-cta-band-inner {
 
   .home-benefits,
   .home-features,
+  .home-stack,
   .home-steps {
     grid-template-columns: 1fr;
   }

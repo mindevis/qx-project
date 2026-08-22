@@ -25,6 +25,7 @@ const (
 	TypeCmdServerFilesList               = "cmd.server.files.list"
 	TypeCmdServerFilesRead               = "cmd.server.files.read"
 	TypeCmdServerFilesWrite              = "cmd.server.files.write"
+	TypeCmdServerFilesMkdir              = "cmd.server.files.mkdir"
 	TypeCmdServerFilesDelete             = "cmd.server.files.delete"
 	TypeCmdServerModsList                = "cmd.server.mods.list"
 	TypeCmdServerClientModsList          = "cmd.server.clientmods.list"
@@ -48,6 +49,15 @@ const (
 	TypeCmdOllamaModelList               = "cmd.ollama.model.list"
 	TypeCmdOllamaModelPull               = "cmd.ollama.model.pull"
 	TypeCmdOllamaModelDelete             = "cmd.ollama.model.delete"
+	TypeCmdMySQLInstall                  = "cmd.mysql.install"
+	TypeCmdMySQLStart                    = "cmd.mysql.start"
+	TypeCmdMySQLStop                     = "cmd.mysql.stop"
+	TypeCmdMySQLStatus                   = "cmd.mysql.status"
+	TypeCmdMySQLDatabaseCreate           = "cmd.mysql.database.create"
+	TypeCmdMySQLDatabaseDrop             = "cmd.mysql.database.drop"
+	TypeCmdMySQLUserCreate               = "cmd.mysql.user.create"
+	TypeCmdMySQLUserDrop                 = "cmd.mysql.user.drop"
+	TypeCmdMySQLUserGrant                = "cmd.mysql.user.grant"
 
 	TypeEvtAgentHeartbeat = "evt.agent.heartbeat"
 	TypeEvtConsoleOutput  = "evt.console.output"
@@ -64,6 +74,7 @@ const (
 	TypeResServerFilesList               = "res.server.files.list"
 	TypeResServerFilesRead               = "res.server.files.read"
 	TypeResServerFilesWrite              = "res.server.files.write"
+	TypeResServerFilesMkdir              = "res.server.files.mkdir"
 	TypeResServerFilesDelete             = "res.server.files.delete"
 	TypeResServerModsList                = "res.server.mods.list"
 	TypeResServerClientModsList          = "res.server.clientmods.list"
@@ -87,6 +98,15 @@ const (
 	TypeResOllamaModelList               = "res.ollama.model.list"
 	TypeResOllamaModelPull               = "res.ollama.model.pull"
 	TypeResOllamaModelDelete             = "res.ollama.model.delete"
+	TypeResMySQLInstall                  = "res.mysql.install"
+	TypeResMySQLStart                    = "res.mysql.start"
+	TypeResMySQLStop                     = "res.mysql.stop"
+	TypeResMySQLStatus                   = "res.mysql.status"
+	TypeResMySQLDatabaseCreate           = "res.mysql.database.create"
+	TypeResMySQLDatabaseDrop             = "res.mysql.database.drop"
+	TypeResMySQLUserCreate               = "res.mysql.user.create"
+	TypeResMySQLUserDrop                 = "res.mysql.user.drop"
+	TypeResMySQLUserGrant                = "res.mysql.user.grant"
 )
 
 type Envelope struct {
@@ -138,6 +158,7 @@ type ServerStartPayload struct {
 	JVMArgs      []string `json:"jvm_args"`
 	ExtraArgs    []string `json:"extra_args"`
 	JavaBin      string   `json:"java_bin,omitempty"`
+	MCVersion    string   `json:"mc_version,omitempty"`
 }
 
 type ServerStopPayload struct {
@@ -228,7 +249,8 @@ type ServerFilesWritePayload struct {
 	GameServerID string `json:"game_server_id"`
 	WorkDir      string `json:"work_dir"`
 	Path         string `json:"path"`
-	Content      string `json:"content"`
+	Content      string `json:"content,omitempty"`
+	ContentB64   string `json:"content_b64,omitempty"`
 }
 
 type ServerModsListPayload struct {
@@ -259,13 +281,14 @@ type ServerModsListResult struct {
 }
 
 type ServerContentInstallPayload struct {
-	GameServerID string `json:"game_server_id"`
-	WorkDir      string `json:"work_dir"`
-	ServerType   string `json:"server_type,omitempty"`
-	ContentKind  string `json:"content_kind"`
-	ModTarget    string `json:"mod_target,omitempty"`
-	Filename     string `json:"filename"`
-	DownloadURL  string `json:"download_url"`
+	GameServerID    string `json:"game_server_id"`
+	WorkDir         string `json:"work_dir"`
+	ServerType      string `json:"server_type,omitempty"`
+	ContentKind     string `json:"content_kind"`
+	ModTarget       string `json:"mod_target,omitempty"`
+	Filename        string `json:"filename"`
+	DownloadURL     string `json:"download_url"`
+	AllowCustomHost bool   `json:"allow_custom_host,omitempty"`
 }
 
 type ServerContentInstallResult struct {
@@ -382,4 +405,50 @@ type OllamaModel struct {
 
 type OllamaModelListResult struct {
 	Models []OllamaModel `json:"models"`
+}
+
+type MySQLInstallPayload struct {
+	Engine       string `json:"engine"`
+	Version      string `json:"version"`
+	Method       string `json:"method"`
+	BindAddr     string `json:"bind_addr"`
+	Port         int    `json:"port"`
+	RootPassword string `json:"root_password"`
+}
+
+type MySQLInstallResult struct {
+	Engine   string `json:"engine"`
+	Version  string `json:"version"`
+	Method   string `json:"method"`
+	BindAddr string `json:"bind_addr"`
+	Port     int    `json:"port"`
+	Image    string `json:"image,omitempty"`
+}
+
+type MySQLStatusResult struct {
+	Installed bool   `json:"installed"`
+	Running   bool   `json:"running"`
+	Engine    string `json:"engine,omitempty"`
+	Version   string `json:"version,omitempty"`
+	Method    string `json:"method,omitempty"`
+	BindAddr  string `json:"bind_addr,omitempty"`
+	Port      int    `json:"port,omitempty"`
+	Image     string `json:"image,omitempty"`
+}
+
+type MySQLIdentPayload struct {
+	Name string `json:"name"`
+}
+
+type MySQLUserPayload struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Host     string `json:"host,omitempty"`
+}
+
+type MySQLGrantPayload struct {
+	Username   string   `json:"username"`
+	Host       string   `json:"host,omitempty"`
+	Database   string   `json:"database"`
+	Privileges []string `json:"privileges"`
 }

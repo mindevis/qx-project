@@ -374,6 +374,54 @@ describe('gameServerVersions', () => {
     expect(builds[0]?.value).toBe('550');
   });
 
+  it('loads waterfall versions from papermc', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/projects/waterfall') && !url.includes('/versions/')) {
+          return Promise.resolve(new Response(JSON.stringify({ versions: ['1.21', '1.20'] }), { status: 200 }));
+        }
+        if (url.includes('/projects/waterfall/versions/1.21/builds')) {
+          return Promise.resolve(new Response(JSON.stringify([{ id: 589, channel: 'default' }]), { status: 200 }));
+        }
+        return Promise.reject(new Error(`unexpected ${url}`));
+      }),
+    );
+    const versions = await listGameServerMcVersions('waterfall', mcFallback);
+    expect(versions[0]).toEqual({ value: '1.21', label: '1.21' });
+    const builds = await listGameServerLoaderVersions('waterfall', '1.21');
+    expect(builds[0]?.value).toBe('589');
+  });
+
+  it('loads bungeecord jenkins builds', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/job/BungeeCord/api/json')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                builds: [
+                  { number: 2248, result: 'SUCCESS' },
+                  { number: 2247, result: 'FAILURE' },
+                  { number: 2246, result: 'SUCCESS' },
+                ],
+              }),
+              { status: 200 },
+            ),
+          );
+        }
+        return Promise.reject(new Error(`unexpected ${url}`));
+      }),
+    );
+    const versions = await listGameServerMcVersions('bungeecord', mcFallback);
+    expect(versions[0]).toEqual({ value: 'latest', label: 'BungeeCord' });
+    const builds = await listGameServerLoaderVersions('bungeecord', 'latest');
+    expect(builds.map((item) => item.value)).toEqual(['2248', '2246']);
+  });
+
   it('returns empty loader list for vanilla', async () => {
     expect(await listGameServerLoaderVersions('vanilla', '1.21')).toEqual([]);
     expect(await listGameServerLoaderVersions('forge', '')).toEqual([]);

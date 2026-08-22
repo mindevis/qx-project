@@ -76,6 +76,12 @@ func (s *Service) Search(ctx context.Context, query, projectType, loader, mcVers
 }
 
 func (s *Service) searchUncached(ctx context.Context, query, projectType, loader, mcVersion, source string, limit int) ([]SearchItem, bool, error) {
+	if skipBukkitPluginSources(projectType, loader) {
+		switch source {
+		case SourceCurseForge, SourceSpigot, SourceBukkit:
+			return nil, true, nil
+		}
+	}
 	switch source {
 	case SourceCurseForge:
 		if !s.curseforge.enabled() {
@@ -104,7 +110,11 @@ func (s *Service) searchUpstream(ctx context.Context, query, projectType, loader
 	mrCh := runCatalogHalf(func() ([]SearchItem, error) {
 		return s.modrinth.search(ctx, query, projectType, loader, mcVersion, limit)
 	})
+	allowBukkit := !skipBukkitPluginSources(projectType, loader)
 	cfCh := runCatalogHalf(func() ([]SearchItem, error) {
+		if !allowBukkit {
+			return nil, nil
+		}
 		items, err := s.curseforge.search(ctx, query, projectType, loader, mcVersion, limit)
 		if projectType == ProjectTypePlugin {
 			return tagBukkitPlugins(items), err
@@ -117,9 +127,11 @@ func (s *Service) searchUpstream(ctx context.Context, query, projectType, loader
 			runCatalogHalf(func() ([]SearchItem, error) {
 				return s.hangar.search(ctx, query, projectType, loader, mcVersion, limit)
 			}),
-			runCatalogHalf(func() ([]SearchItem, error) {
+		}
+		if allowBukkit {
+			extraChans = append(extraChans, runCatalogHalf(func() ([]SearchItem, error) {
 				return s.spiget.search(ctx, query, projectType, loader, mcVersion, limit)
-			}),
+			}))
 		}
 	}
 	mr, cf, cfOK := waitPrimaryThenPartner(ctx, mrCh, cfCh, catalogPartnerGrace)
@@ -164,6 +176,12 @@ func (s *Service) Browse(ctx context.Context, projectType, loader, mcVersion, so
 }
 
 func (s *Service) browseUncached(ctx context.Context, projectType, loader, mcVersion, source, sort string, limit, offset int) ([]SearchItem, bool, error) {
+	if skipBukkitPluginSources(projectType, loader) {
+		switch source {
+		case SourceCurseForge, SourceSpigot, SourceBukkit:
+			return nil, true, nil
+		}
+	}
 	switch source {
 	case SourceCurseForge:
 		if !s.curseforge.enabled() {
@@ -197,7 +215,11 @@ func (s *Service) browseBoth(ctx context.Context, projectType, loader, mcVersion
 	mrCh := runCatalogHalf(func() ([]SearchItem, error) {
 		return s.modrinth.browse(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
 	})
+	allowBukkit := !skipBukkitPluginSources(projectType, loader)
 	cfCh := runCatalogHalf(func() ([]SearchItem, error) {
+		if !allowBukkit {
+			return nil, nil
+		}
 		items, err := s.curseforge.browseStrict(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
 		if projectType == ProjectTypePlugin {
 			return tagBukkitPlugins(items), err
@@ -210,9 +232,11 @@ func (s *Service) browseBoth(ctx context.Context, projectType, loader, mcVersion
 			runCatalogHalf(func() ([]SearchItem, error) {
 				return s.hangar.browse(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
 			}),
-			runCatalogHalf(func() ([]SearchItem, error) {
+		}
+		if allowBukkit {
+			extraChans = append(extraChans, runCatalogHalf(func() ([]SearchItem, error) {
 				return s.spiget.browse(ctx, projectType, loader, mcVersion, sort, pageSize, offset)
-			}),
+			}))
 		}
 	}
 	mr, cf, cfOK := waitPrimaryThenPartner(ctx, mrCh, cfCh, catalogPartnerGrace)
@@ -327,7 +351,7 @@ func (s *Service) GetVersion(ctx context.Context, source, projectID, versionID, 
 }
 
 func (s *Service) searchBukkit(ctx context.Context, query, projectType, loader, mcVersion string, limit int) ([]SearchItem, error) {
-	if projectType != ProjectTypePlugin {
+	if projectType != ProjectTypePlugin || skipBukkitPluginSources(projectType, loader) {
 		return nil, nil
 	}
 	if !s.curseforge.enabled() {
@@ -338,7 +362,7 @@ func (s *Service) searchBukkit(ctx context.Context, query, projectType, loader, 
 }
 
 func (s *Service) browseBukkit(ctx context.Context, projectType, loader, mcVersion, sort string, limit, offset int) ([]SearchItem, error) {
-	if projectType != ProjectTypePlugin {
+	if projectType != ProjectTypePlugin || skipBukkitPluginSources(projectType, loader) {
 		return nil, nil
 	}
 	if !s.curseforge.enabled() {

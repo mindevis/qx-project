@@ -83,6 +83,7 @@ import { AddGameServerModal } from '@/components/servers/AddGameServerModal';
 import { EditGameServerModal } from '@/components/servers/EditGameServerModal';
 import { GameServerNetworksPanel } from '@/components/servers/GameServerNetworksPanel';
 import { OllamaPanel } from '@/components/servers/OllamaPanel';
+import { MysqlPanel } from '@/components/servers/MysqlPanel';
 import './ServersPage.css';
 import { GameServerDetailPage } from './GameServerDetailPage';
 
@@ -1020,6 +1021,7 @@ function VpsGameServersSection({
     </div>
     <GameServerNetworksPanel vpsId={vpsId} games={games} agentOnline={agentOnline} />
     <OllamaPanel vpsId={vpsId} agentOnline={agentOnline} />
+    <MysqlPanel vpsId={vpsId} agentOnline={agentOnline} />
     </div>
   );
 }

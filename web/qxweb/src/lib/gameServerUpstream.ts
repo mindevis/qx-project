@@ -8,7 +8,8 @@ export type GameServerUpstreamHost =
   | 'quilt'
   | 'mohist'
   | 'magma'
-  | 'arclight';
+  | 'arclight'
+  | 'bungeecord';
 
 /** Same-origin path proxied by Vite (dev) and edge nginx (prod); see vite.proxy.ts / upstream-proxies.conf */
 export function gameServerUpstreamUrl(host: GameServerUpstreamHost, path: string): string {

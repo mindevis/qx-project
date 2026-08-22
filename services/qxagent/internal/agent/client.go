@@ -24,6 +24,7 @@ import (
 	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxagent/internal/fs"
 	"github.com/qxproject/qx/services/qxagent/internal/installer"
+	"github.com/qxproject/qx/services/qxagent/internal/mysql"
 	"github.com/qxproject/qx/services/qxagent/internal/ollama"
 )
 
@@ -40,6 +41,7 @@ type Client struct {
 	cfg     Config
 	runner  *ProcessRunner
 	ollama  *ollama.Manager
+	mysql   *mysql.Manager
 	dialer  *websocket.Dialer
 	writeMu sync.Mutex
 }
@@ -52,6 +54,7 @@ func NewClient(cfg Config) *Client {
 		cfg:    cfg,
 		runner: &ProcessRunner{DryRun: cfg.DryRun},
 		ollama: ollama.NewManager(ollama.RootFromServerRoot(cfg.ServerRoot), cfg.DryRun),
+		mysql:  mysql.NewManager(mysql.RootFromServerRoot(cfg.ServerRoot), cfg.DryRun),
 		dialer: websocket.DefaultDialer,
 	}
 }
@@ -170,6 +173,10 @@ func (c *Client) readLoop(conn *websocket.Conn) error {
 		}
 		if env.Type == protocol.TypeCmdOllamaModelPull {
 			go c.runOllamaPullAsync(conn, cache, env)
+			continue
+		}
+		if env.Type == protocol.TypeCmdMySQLInstall {
+			go c.runMySQLInstallAsync(conn, cache, env)
 			continue
 		}
 		if env.RequestID != "" {
@@ -302,6 +309,23 @@ func forgeInstallTimeout() time.Duration {
 	return 25 * time.Minute
 }
 
+func (c *Client) ensureStartJava(payload *protocol.ServerStartPayload) error {
+	if !strings.EqualFold(strings.TrimSpace(payload.ServerType), "velocity") {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+	bin, err := installer.EnsureJavaMajor(ctx, installer.Options{
+		DryRun:   c.cfg.DryRun,
+		JavaRoot: installer.JavaRootFromServerRoot(c.cfg.ServerRoot),
+	}, installer.VelocityJavaMajor(payload.MCVersion))
+	if err != nil {
+		return err
+	}
+	payload.JavaBin = bin
+	return nil
+}
+
 func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, error) {
 	ts := time.Now().UTC().Format(time.RFC3339)
 	switch env.Type {
@@ -311,6 +335,16 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		var payload protocol.ServerStartPayload
 		if err := json.Unmarshal(env.Payload, &payload); err != nil {
 			return nil, err
+		}
+		if err := c.ensureStartJava(&payload); err != nil {
+			resPayload, _ := json.Marshal(map[string]string{"error": err.Error()})
+			return &protocol.Envelope{
+				V:         protocol.Version,
+				Type:      protocol.TypeResServerStart,
+				RequestID: env.RequestID,
+				TS:        ts,
+				Payload:   resPayload,
+			}, nil
 		}
 		pid, err := c.runner.Start(payload)
 		var resPayload []byte
@@ -516,7 +550,17 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		if err := json.Unmarshal(env.Payload, &payload); err != nil {
 			return nil, err
 		}
-		err := fs.WriteFile(payload.WorkDir, payload.Path, payload.Content)
+		var err error
+		if strings.TrimSpace(payload.ContentB64) != "" {
+			data, decErr := base64.StdEncoding.DecodeString(payload.ContentB64)
+			if decErr != nil {
+				err = decErr
+			} else {
+				err = fs.WriteFileBytes(payload.WorkDir, payload.Path, data)
+			}
+		} else {
+			err = fs.WriteFile(payload.WorkDir, payload.Path, payload.Content)
+		}
 		var resPayload []byte
 		if err != nil {
 			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
@@ -526,6 +570,25 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		return &protocol.Envelope{
 			V:         protocol.Version,
 			Type:      protocol.TypeResServerFilesWrite,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
+	case protocol.TypeCmdServerFilesMkdir:
+		var payload protocol.ServerFilesPathPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := fs.Mkdir(payload.WorkDir, payload.Path)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(map[string]string{"status": "ok"})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerFilesMkdir,
 			RequestID: env.RequestID,
 			TS:        ts,
 			Payload:   resPayload,
@@ -709,7 +772,7 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		relPath, pathErr := fs.ContentRelPath(payload.WorkDir, payload.ServerType, payload.ContentKind, payload.Filename, payload.ModTarget)
 		var err error
 		if pathErr == nil {
-			err = fs.InstallContentFile(context.Background(), payload.WorkDir, relPath, payload.DownloadURL)
+			err = fs.InstallContentFile(context.Background(), payload.WorkDir, relPath, payload.DownloadURL, payload.AllowCustomHost)
 		} else {
 			err = pathErr
 		}
@@ -833,6 +896,51 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		}
 		err := c.ollamaMgr().DeleteModel(context.Background(), payload.Name)
 		return c.ollamaEnvelope(env, protocol.TypeResOllamaModelDelete, map[string]string{"status": "ok"}, err), nil
+	case protocol.TypeCmdMySQLInstall:
+		return nil, nil
+	case protocol.TypeCmdMySQLStart:
+		err := c.mysqlMgr().Start(context.Background())
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLStart, c.mysqlStatusPayload(), err), nil
+	case protocol.TypeCmdMySQLStop:
+		err := c.mysqlMgr().Stop(context.Background())
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLStop, map[string]string{"status": "ok"}, err), nil
+	case protocol.TypeCmdMySQLStatus:
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLStatus, c.mysqlStatusPayload(), nil), nil
+	case protocol.TypeCmdMySQLDatabaseCreate:
+		var payload protocol.MySQLIdentPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := c.mysqlMgr().CreateDatabase(context.Background(), payload.Name)
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLDatabaseCreate, map[string]string{"status": "ok", "name": payload.Name}, err), nil
+	case protocol.TypeCmdMySQLDatabaseDrop:
+		var payload protocol.MySQLIdentPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := c.mysqlMgr().DropDatabase(context.Background(), payload.Name)
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLDatabaseDrop, map[string]string{"status": "ok", "name": payload.Name}, err), nil
+	case protocol.TypeCmdMySQLUserCreate:
+		var payload protocol.MySQLUserPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := c.mysqlMgr().CreateUser(context.Background(), payload.Username, payload.Host, payload.Password)
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLUserCreate, map[string]string{"status": "ok", "username": payload.Username}, err), nil
+	case protocol.TypeCmdMySQLUserDrop:
+		var payload protocol.MySQLUserPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := c.mysqlMgr().DropUser(context.Background(), payload.Username, payload.Host)
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLUserDrop, map[string]string{"status": "ok", "username": payload.Username}, err), nil
+	case protocol.TypeCmdMySQLUserGrant:
+		var payload protocol.MySQLGrantPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := c.mysqlMgr().Grant(context.Background(), payload.Username, payload.Host, payload.Database, payload.Privileges)
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLUserGrant, map[string]string{"status": "ok"}, err), nil
 	case protocol.TypeCmdAgentPing:
 		return &protocol.Envelope{
 			V:         protocol.Version,
@@ -975,6 +1083,71 @@ func toProtocolModels(items []ollama.Model) []protocol.OllamaModel {
 		})
 	}
 	return out
+}
+
+func (c *Client) mysqlMgr() *mysql.Manager {
+	if c.mysql == nil {
+		c.mysql = mysql.NewManager(mysql.RootFromServerRoot(c.cfg.ServerRoot), c.cfg.DryRun)
+	}
+	return c.mysql
+}
+
+func (c *Client) mysqlStatusPayload() protocol.MySQLStatusResult {
+	st := c.mysqlMgr().Status(context.Background())
+	return protocol.MySQLStatusResult{
+		Installed: st.Installed,
+		Running:   st.Running,
+		Engine:    st.Engine,
+		Version:   st.Version,
+		Method:    st.Method,
+		BindAddr:  st.BindAddr,
+		Port:      st.Port,
+		Image:     st.Image,
+	}
+}
+
+func (c *Client) mysqlEnvelope(env protocol.Envelope, resType string, payload any, err error) *protocol.Envelope {
+	return c.ollamaEnvelope(env, resType, payload, err)
+}
+
+func (c *Client) runMySQLInstallAsync(conn *websocket.Conn, cache *requestCache, env protocol.Envelope) {
+	res := c.buildMySQLInstallResponse(conn, env)
+	if env.RequestID != "" {
+		cache.Set(env.RequestID, *res)
+	}
+	if err := c.writeEnvelope(conn, *res); err != nil {
+		slog.Error("mysql install response write failed", "err", err)
+	}
+}
+
+func (c *Client) buildMySQLInstallResponse(conn *websocket.Conn, env protocol.Envelope) *protocol.Envelope {
+	var payload protocol.MySQLInstallPayload
+	if len(env.Payload) > 0 {
+		_ = json.Unmarshal(env.Payload, &payload)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	defer cancel()
+	spec, err := c.mysqlMgr().Install(ctx, mysql.InstallSpec{
+		Engine:       payload.Engine,
+		Version:      payload.Version,
+		Method:       payload.Method,
+		BindAddr:     payload.BindAddr,
+		Port:         payload.Port,
+		RootPassword: payload.RootPassword,
+	}, func(line string) {
+		c.emitConsoleStream(conn, "", "stdout", line)
+	})
+	if err != nil {
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLInstall, nil, err)
+	}
+	return c.mysqlEnvelope(env, protocol.TypeResMySQLInstall, protocol.MySQLInstallResult{
+		Engine:   spec.Engine,
+		Version:  spec.Version,
+		Method:   spec.Method,
+		BindAddr: spec.BindAddr,
+		Port:     spec.Port,
+		Image:    spec.Image,
+	}, nil)
 }
 
 type ProcessRunner struct {

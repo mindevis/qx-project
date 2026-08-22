@@ -8,6 +8,7 @@ import {
   gameServerTypeCapabilities,
   gameServerTypeLabelText,
   isKnownGameServerType,
+  pluginCatalogSources,
 } from './gameServerTypes';
 
 describe('gameServerTypes', () => {
@@ -15,8 +16,10 @@ describe('gameServerTypes', () => {
     expect(ALL_GAME_SERVER_TYPES).toContain('vanilla');
     expect(ALL_GAME_SERVER_TYPES).toContain('paper');
     expect(ALL_GAME_SERVER_TYPES).toContain('mohist');
-    expect(ALL_GAME_SERVER_TYPES).toHaveLength(12);
+    expect(ALL_GAME_SERVER_TYPES).toHaveLength(14);
     expect(ALL_GAME_SERVER_TYPES).toContain('velocity');
+    expect(ALL_GAME_SERVER_TYPES).toContain('waterfall');
+    expect(ALL_GAME_SERVER_TYPES).toContain('bungeecord');
   });
 
   it('recognizes known types', () => {
@@ -57,6 +60,13 @@ describe('gameServerTypes', () => {
       clientContent: false,
     });
     expect(gameServerCatalogTabs('velocity')).toEqual([]);
+    expect(gameServerSupportsPlugins('waterfall')).toBe(true);
+    expect(gameServerTypeCapabilities('bungeecord')).toEqual({
+      plugins: true,
+      mods: false,
+      datapacks: false,
+      clientContent: false,
+    });
   });
 
   it('formats labels for known and unknown types', () => {
@@ -64,5 +74,11 @@ describe('gameServerTypes', () => {
     expect(gameServerTypeLabelText(t, undefined)).toBe('—');
     expect(gameServerTypeLabelText(t, 'paper')).toBe('Paper');
     expect(gameServerTypeLabelText(t, 'custom-core')).toBe('custom-core');
+  });
+
+  it('limits velocity plugin catalogs to hangar and modrinth', () => {
+    expect(pluginCatalogSources('velocity')).toEqual(['hangar', 'modrinth']);
+    expect(pluginCatalogSources('paper')).toEqual(['hangar', 'spigot', 'bukkit', 'modrinth']);
+    expect(pluginCatalogSources('waterfall')).toEqual(['hangar', 'spigot', 'bukkit', 'modrinth']);
   });
 });

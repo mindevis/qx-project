@@ -72,6 +72,22 @@ func TestInstallPaperDryRun(t *testing.T) {
 	}
 }
 
+func TestVelocityJavaMajor(t *testing.T) {
+	cases := map[string]int{
+		"4.1.0-SNAPSHOT": 25,
+		"4.0.0":          25,
+		"3.4.0-SNAPSHOT": 21,
+		"3.3.0-SNAPSHOT": 21,
+		"":               21,
+		"velocity":       21,
+	}
+	for version, want := range cases {
+		if got := VelocityJavaMajor(version); got != want {
+			t.Fatalf("%q: got %d want %d", version, got, want)
+		}
+	}
+}
+
 func TestInstallVelocityDryRun(t *testing.T) {
 	workDir := t.TempDir()
 	spec, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
@@ -86,6 +102,60 @@ func TestInstallVelocityDryRun(t *testing.T) {
 	}
 	if spec.WorkDir != workDir {
 		t.Fatalf("work dir: %q", spec.WorkDir)
+	}
+	if !strings.HasSuffix(spec.JarPath, "server.jar") {
+		t.Fatalf("jar path: %q", spec.JarPath)
+	}
+}
+
+func TestInstallVelocity4DryRun(t *testing.T) {
+	workDir := t.TempDir()
+	spec, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
+		ServerType:    "velocity",
+		WorkDir:       workDir,
+		MCVersion:     "4.1.0-SNAPSHOT",
+		LoaderVersion: "21",
+		Port:          25565,
+	})
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if spec.WorkDir != workDir {
+		t.Fatalf("work dir: %q", spec.WorkDir)
+	}
+	if !strings.HasSuffix(spec.JarPath, "server.jar") {
+		t.Fatalf("jar path: %q", spec.JarPath)
+	}
+}
+
+func TestInstallWaterfallDryRun(t *testing.T) {
+	workDir := t.TempDir()
+	spec, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
+		ServerType:    "waterfall",
+		WorkDir:       workDir,
+		MCVersion:     "1.21",
+		LoaderVersion: "589",
+		Port:          25565,
+	})
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if !strings.HasSuffix(spec.JarPath, "server.jar") {
+		t.Fatalf("jar path: %q", spec.JarPath)
+	}
+}
+
+func TestInstallBungeeCordDryRun(t *testing.T) {
+	workDir := t.TempDir()
+	spec, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
+		ServerType:    "bungeecord",
+		WorkDir:       workDir,
+		MCVersion:     "latest",
+		LoaderVersion: "2248",
+		Port:          25565,
+	})
+	if err != nil {
+		t.Fatalf("install: %v", err)
 	}
 	if !strings.HasSuffix(spec.JarPath, "server.jar") {
 		t.Fatalf("jar path: %q", spec.JarPath)

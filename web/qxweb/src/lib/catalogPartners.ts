@@ -66,13 +66,13 @@ export async function attachCatalogPartners(
   const unpaired = mergeCatalogCardsByName(items, 'all')
     .filter((card) => card.items.length === 1)
     .map((card) => card.items[0])
-    .filter((item) => catalogPartnerSources(item.source as ModSource, params.type).length > 0)
+    .filter((item) => catalogPartnerSources(item.source as ModSource, params.type, params.loader).length > 0)
     .slice(0, MAX_PARTNER_LOOKUPS);
 
   const extras: ModCatalogItem[] = [];
   await mapPool(unpaired, PARTNER_CONCURRENCY, async (item) => {
     try {
-      const sources = catalogPartnerSources(item.source as ModSource, params.type);
+      const sources = catalogPartnerSources(item.source as ModSource, params.type, params.loader);
       const partners = await Promise.all(sources.map((source) => lookupCatalogPartner(item, source, params)));
       for (const partner of partners) {
         if (partner && !known.has(itemKey(partner))) {

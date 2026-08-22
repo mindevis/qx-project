@@ -11,6 +11,8 @@ import {
   startVpsGameServer,
   stopVpsGameServer,
   suggestDefaultGamePort,
+  defaultExtraJvmArgsForGameServer,
+  DEFAULT_AIKAR_JVM_ARGS,
   updateVpsGameServer,
 } from './vpsGameServers';
 
@@ -47,6 +49,16 @@ describe('vpsGameServers', () => {
   it('suggests next free game port', () => {
     expect(suggestDefaultGamePort([])).toBe(25565);
     expect(suggestDefaultGamePort([{ ...sampleItem, port: 25565 }])).toBe(25566);
+  });
+
+  it('defaults extra JVM args to Aikar flags', () => {
+    expect(defaultExtraJvmArgsForGameServer({ server_type: 'paper' })).toEqual(DEFAULT_AIKAR_JVM_ARGS);
+    expect(defaultExtraJvmArgsForGameServer({ server_type: 'velocity' })).toEqual([]);
+    expect(defaultExtraJvmArgsForGameServer({ server_type: 'waterfall' })).toEqual([]);
+    expect(defaultExtraJvmArgsForGameServer({ server_type: 'bungeecord' })).toEqual([]);
+    expect(
+      defaultExtraJvmArgsForGameServer({ server_type: 'paper', extra_jvm_args: ['-XX:+UseZGC'] }),
+    ).toEqual(['-XX:+UseZGC']);
   });
 
   it('detects provisioning statuses', () => {

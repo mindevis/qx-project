@@ -2,8 +2,12 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -26,6 +30,11 @@ type patchContentResourceBody struct {
 	Filename     string `json:"filename" binding:"required"`
 	ResourceType string `json:"resource_type"`
 	SideOverride string `json:"side_override" binding:"required"`
+}
+
+type installContentURLBody struct {
+	URL      string `json:"url" binding:"required"`
+	Filename string `json:"filename"`
 }
 
 func (h *GameServersHandler) ListContentResources(c *gin.Context) {
@@ -311,6 +320,7 @@ func (h *GameServersHandler) syncGameServerContent(
 		modTarget,
 		body.Filename,
 		body.DownloadURL,
+		false,
 	)
 	if err != nil {
 		gameServerError(c, err)
@@ -454,6 +464,141 @@ func (h *GameServersHandler) UploadMod(c *gin.Context) {
 	h.uploadGameServerContent(c, "mod", gameServerSupportsMods, c.PostForm("mod_target"))
 }
 
+func (h *GameServersHandler) UploadPlugin(c *gin.Context) {
+	h.uploadGameServerContent(c, "plugin", gameServerSupportsPlugins, "")
+}
+
+func (h *GameServersHandler) InstallPluginFromURL(c *gin.Context) {
+	h.installGameServerContentFromURL(c, "plugin", gameServerSupportsPlugins)
+}
+
+func (h *GameServersHandler) installGameServerContentFromURL(
+	c *gin.Context,
+	contentKind string,
+	supports func(string) bool,
+) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var body installContentURLBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	downloadURL, filename, err := parseUserContentDownload(body.URL, body.Filename)
+	if err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+
+	gs, err := h.Service.GetGameServer(c.Request.Context(), userID.(string), c.Param("id"), c.Param("gameServerId"))
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	if !supports(gs.ServerType) {
+		JSONError(c, http.StatusForbidden, "CONTENT_NOT_ALLOWED", "this server type does not support "+contentKind)
+		return
+	}
+
+	installed, err := contentAlreadyInstalled(
+		c.Request.Context(),
+		h,
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		contentKind,
+		"",
+		filename,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	if installed {
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "already_installed",
+			"message": contentKind + " file already exists on server",
+		})
+		return
+	}
+
+	result, err := h.Service.InstallGameServerContent(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		contentKind,
+		"",
+		filename,
+		downloadURL,
+		true,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	_ = h.Service.RecordGameServerUpload(
+		c.Request.Context(),
+		gs.ID,
+		contentKind,
+		result.Filename,
+		"",
+		"",
+		0,
+	)
+	c.JSON(http.StatusOK, gin.H{
+		"status":   "installed",
+		"message":  contentKind + " installed on server",
+		"filename": result.Filename,
+		"path":     result.RelPath,
+	})
+}
+
+func parseUserContentDownload(raw, filenameOverride string) (string, string, error) {
+	raw = strings.TrimSpace(raw)
+	parsed, err := url.ParseRequestURI(raw)
+	if err != nil || parsed.Host == "" {
+		return "", "", fmt.Errorf("invalid download url")
+	}
+	if parsed.User != nil {
+		return "", "", fmt.Errorf("invalid download url")
+	}
+	if strings.ToLower(parsed.Scheme) != "https" {
+		return "", "", fmt.Errorf("download url must be https")
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "" || net.ParseIP(host) != nil {
+		return "", "", fmt.Errorf("download host not allowed")
+	}
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") ||
+		strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") ||
+		strings.HasSuffix(host, ".lan") {
+		return "", "", fmt.Errorf("download host not allowed")
+	}
+	filename := strings.TrimSpace(filenameOverride)
+	if filename == "" {
+		filename = path.Base(parsed.Path)
+		if decoded, unescapeErr := url.PathUnescape(filename); unescapeErr == nil {
+			filename = decoded
+		}
+	}
+	filename = filepath.Base(filename)
+	if filename == "" || filename == "." || filename == string(filepath.Separator) {
+		return "", "", fmt.Errorf("filename required")
+	}
+	if strings.ContainsAny(filename, `/\`) {
+		return "", "", fmt.Errorf("invalid filename")
+	}
+	ext := strings.ToLower(filepath.Ext(filename))
+	if ext != ".jar" && ext != ".zip" {
+		return "", "", fmt.Errorf("invalid file extension")
+	}
+	return raw, filename, nil
+}
+
 func (h *GameServersHandler) uploadGameServerContent(
 	c *gin.Context,
 	contentKind string,
@@ -499,7 +644,12 @@ func (h *GameServersHandler) uploadGameServerContent(
 		return
 	}
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if ext != ".jar" && ext != ".zip" && ext != ".mrpack" {
+	if contentKind == "plugin" {
+		if ext != ".jar" && ext != ".zip" {
+			JSONValidation(c, "invalid file extension")
+			return
+		}
+	} else if ext != ".jar" && ext != ".zip" && ext != ".mrpack" {
 		JSONValidation(c, "invalid file extension")
 		return
 	}
@@ -544,7 +694,7 @@ func gameServerSupportsMods(serverType string) bool {
 
 func gameServerSupportsPlugins(serverType string) bool {
 	switch strings.ToLower(serverType) {
-	case "paper", "spigot", "purpur", "mohist", "magma", "arclight", "velocity":
+	case "paper", "spigot", "purpur", "mohist", "magma", "arclight", "velocity", "waterfall", "bungeecord":
 		return true
 	default:
 		return false
@@ -560,5 +710,10 @@ func gameServerSupportsClientContent(serverType string) bool {
 }
 
 func gameServerIsProxy(serverType string) bool {
-	return strings.EqualFold(strings.TrimSpace(serverType), "velocity")
+	switch strings.ToLower(strings.TrimSpace(serverType)) {
+	case "velocity", "waterfall", "bungeecord":
+		return true
+	default:
+		return false
+	}
 }

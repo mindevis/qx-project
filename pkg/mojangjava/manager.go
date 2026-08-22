@@ -16,6 +16,7 @@ type Manager struct {
 	SkipDownload bool
 	HTTPClient   *http.Client
 	CatalogURL   string
+	TemurinURL   string
 }
 
 func (m *Manager) EnsureForMcVersion(ctx context.Context, mcVersion string) (string, error) {
@@ -72,15 +73,18 @@ func (m *Manager) EnsureForRuntime(ctx context.Context, component string, major 
 	if m.SkipDownload {
 		return ResolveSystemJava(""), nil
 	}
+	if strings.TrimSpace(m.RootDir) == "" {
+		return "", fmt.Errorf("java root dir is required")
+	}
+	if major > 21 {
+		return m.ensureTemurin(ctx, major)
+	}
 	component = strings.TrimSpace(component)
 	if component == "" {
 		component = ComponentForMajor(major)
 	}
 	if component == "" {
 		return "", fmt.Errorf("unknown java component for major %d", major)
-	}
-	if strings.TrimSpace(m.RootDir) == "" {
-		return "", fmt.Errorf("java root dir is required")
 	}
 
 	platform := PlatformKey()
