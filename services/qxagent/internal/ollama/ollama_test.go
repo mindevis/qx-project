@@ -246,3 +246,32 @@ func TestEnvSetsLibraryPath(t *testing.T) {
 		t.Fatalf("missing LD_LIBRARY_PATH in %v", m.env())
 	}
 }
+
+func TestEnvAndUnitSetHome(t *testing.T) {
+	m := NewManager(t.TempDir(), true)
+	found := false
+	for _, item := range m.env() {
+		if item == "HOME="+m.HomeDir() {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("missing HOME in %v", m.env())
+	}
+
+	prevWrite := writeFileFn
+	t.Cleanup(func() { writeFileFn = prevWrite })
+	var body string
+	writeFileFn = func(_ string, data []byte, _ os.FileMode) error {
+		body = string(data)
+		return nil
+	}
+	if err := m.writeUnit(); err != nil {
+		t.Fatal(err)
+	}
+	want := "Environment=HOME=" + m.HomeDir()
+	if !strings.Contains(body, want) {
+		t.Fatalf("unit missing %q:\n%s", want, body)
+	}
+}

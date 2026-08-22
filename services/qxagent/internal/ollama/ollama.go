@@ -116,6 +116,10 @@ func (m *Manager) LibDir() string {
 	return filepath.Join(m.RootDir, "lib", "ollama")
 }
 
+func (m *Manager) HomeDir() string {
+	return m.RootDir
+}
+
 func LinuxArch() (string, error) {
 	switch runtimeGOARCH {
 	case "amd64":
@@ -215,7 +219,9 @@ func (m *Manager) Start(ctx context.Context) error {
 	if hasSystemdFn() {
 		if err := m.writeUnit(); err == nil {
 			_ = m.run(ctx, "systemctl", "daemon-reload")
-			if err := m.run(ctx, "systemctl", "enable", "--now", systemdUnitName); err == nil {
+			_ = m.run(ctx, "systemctl", "reset-failed", systemdUnitName)
+			_ = m.run(ctx, "systemctl", "enable", systemdUnitName)
+			if err := m.run(ctx, "systemctl", "restart", systemdUnitName); err == nil {
 				if err := m.waitReady(ctx, readyWait); err != nil {
 					return m.notReadyError(ctx, err)
 				}
@@ -454,6 +460,7 @@ func (m *Manager) env() []string {
 		ld = libDir + string(os.PathListSeparator) + cur
 	}
 	return append(os.Environ(),
+		"HOME="+m.HomeDir(),
 		"OLLAMA_MODELS="+m.ModelsDir(),
 		"OLLAMA_HOST="+m.listenAddr(),
 		"LD_LIBRARY_PATH="+ld,
@@ -469,6 +476,7 @@ After=network-online.target
 Type=exec
 ExecStart=%s serve
 WorkingDirectory=%s
+Environment=HOME=%s
 Environment=OLLAMA_MODELS=%s
 Environment=OLLAMA_HOST=%s
 Environment=LD_LIBRARY_PATH=%s
@@ -477,7 +485,7 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-`, m.BinPath(), m.RootDir, m.ModelsDir(), m.listenAddr(), m.LibDir())
+`, m.BinPath(), m.RootDir, m.HomeDir(), m.ModelsDir(), m.listenAddr(), m.LibDir())
 	return writeFileFn(systemdUnitPath, []byte(body), 0o644)
 }
 
