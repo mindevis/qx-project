@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/qxproject/qx/pkg/mcproxy"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 )
 
@@ -88,5 +89,36 @@ func TestNetworkBackendAddress(t *testing.T) {
 	got := networkBackendAddress(GameServerNetworkMemberView{Address: "", Port: 25566})
 	if got != "127.0.0.1:25566" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestOverlayNetworkMembersFromProxy(t *testing.T) {
+	members := []GameServerNetworkMemberView{
+		{ID: "m-proxy", GameServerID: "gs-v", Role: "proxy", Alias: "proxy", ServerType: "velocity", Port: 25565},
+		{ID: "m-lobby", GameServerID: "gs-l", Role: "backend", Alias: "paper-lobby", ServerType: "paper", Port: 25566},
+		{ID: "m-surv", GameServerID: "gs-s", Role: "lobby", Alias: "survival", ServerType: "paper", Port: 25567},
+	}
+	changed, extra := overlayNetworkMembersFromProxy(members, mcproxy.ProxyConfig{
+		Backends: []mcproxy.Backend{
+			{Alias: "lobby", Address: "127.0.0.1:25566"},
+			{Alias: "survival", Address: "127.0.0.1:25567"},
+			{Alias: "orphan", Address: "127.0.0.1:25570"},
+		},
+		Try: []string{"lobby"},
+	})
+	if !changed {
+		t.Fatal("expected alias/role updates from proxy config")
+	}
+	if members[1].Alias != "lobby" || members[1].Role != "lobby" {
+		t.Fatalf("lobby member: %+v", members[1])
+	}
+	if members[2].Alias != "survival" || members[2].Role != "backend" {
+		t.Fatalf("survival member: %+v", members[2])
+	}
+	if members[1].InProxy == nil || !*members[1].InProxy {
+		t.Fatal("lobby should be in proxy")
+	}
+	if len(extra) != 1 || extra[0].Alias != "orphan" {
+		t.Fatalf("extra: %+v", extra)
 	}
 }

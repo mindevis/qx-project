@@ -201,6 +201,7 @@ export type GameServerNetworkMember = {
   port: number;
   address?: string;
   status: string;
+  in_proxy?: boolean;
 };
 
 export type GameServerNetwork = {
@@ -209,6 +210,8 @@ export type GameServerNetwork = {
   members: GameServerNetworkMember[];
   applied?: boolean;
   apply_error?: string;
+  proxy_synced?: boolean;
+  proxy_extra?: Array<{ alias: string; address: string }>;
   created_at: string;
   updated_at: string;
 };

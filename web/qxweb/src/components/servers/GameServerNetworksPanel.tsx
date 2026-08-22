@@ -53,7 +53,7 @@ export function GameServerNetworksPanel({
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, agentOnline]);
 
   const assignedIds = useMemo(() => {
     const ids = new Set<string>();
@@ -314,6 +314,16 @@ function NetworkCard({
       {hasProxy && !hasLobby ? (
         <Paragraph type="secondary">{t('servers.networkNeedLobby')}</Paragraph>
       ) : null}
+      {network.proxy_synced ? (
+        <Paragraph type="secondary">{t('servers.networkFromProxy')}</Paragraph>
+      ) : null}
+      {network.proxy_extra && network.proxy_extra.length > 0 ? (
+        <Paragraph type="secondary">
+          {t('servers.networkProxyExtra', {
+            servers: network.proxy_extra.map((item) => `${item.alias} (${item.address})`).join(', '),
+          })}
+        </Paragraph>
+      ) : null}
 
       <div className="network-member-list">
         {members.map((member) => {
@@ -326,6 +336,11 @@ function NetworkCard({
                   {' '}
                   · {gameServerTypeLabelText(t, game?.server_type)}
                 </Text>
+                {network.proxy_synced &&
+                network.members.find((item) => item.game_server_id === member.game_server_id)?.in_proxy ===
+                  false ? (
+                  <Text type="warning"> · {t('servers.networkMissingInProxy')}</Text>
+                ) : null}
               </Text>
               <Select
                 value={member.role}

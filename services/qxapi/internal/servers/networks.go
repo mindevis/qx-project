@@ -36,16 +36,24 @@ type GameServerNetworkMemberView struct {
 	Port         int    `json:"port"`
 	Address      string `json:"address,omitempty"`
 	Status       string `json:"status"`
+	InProxy      *bool  `json:"in_proxy,omitempty"`
 }
 
 type GameServerNetworkView struct {
-	ID         string                        `json:"id"`
-	Name       string                        `json:"name"`
-	Members    []GameServerNetworkMemberView `json:"members"`
-	Applied    bool                          `json:"applied"`
-	ApplyError string                        `json:"apply_error,omitempty"`
-	CreatedAt  time.Time                     `json:"created_at"`
-	UpdatedAt  time.Time                     `json:"updated_at"`
+	ID          string                        `json:"id"`
+	Name        string                        `json:"name"`
+	Members     []GameServerNetworkMemberView `json:"members"`
+	Applied     bool                          `json:"applied"`
+	ApplyError  string                        `json:"apply_error,omitempty"`
+	ProxySynced bool                          `json:"proxy_synced,omitempty"`
+	ProxyExtra  []GameServerNetworkProxyExtra `json:"proxy_extra,omitempty"`
+	CreatedAt   time.Time                     `json:"created_at"`
+	UpdatedAt   time.Time                     `json:"updated_at"`
+}
+
+type GameServerNetworkProxyExtra struct {
+	Alias   string `json:"alias"`
+	Address string `json:"address"`
 }
 
 func isProxyGameServerType(serverType string) bool {
@@ -80,6 +88,7 @@ func (s *Service) ListGameServerNetworks(ctx context.Context, ownerID, vpsID str
 		if err != nil {
 			return nil, err
 		}
+		s.hydrateNetworkFromProxy(ctx, vpsID, &view)
 		out = append(out, view)
 	}
 	return out, nil
@@ -284,6 +293,130 @@ func (s *Service) networkView(ctx context.Context, network *models.GameServerNet
 		CreatedAt: network.CreatedAt,
 		UpdatedAt: network.UpdatedAt,
 	}, nil
+}
+
+func (s *Service) hydrateNetworkFromProxy(ctx context.Context, vpsID string, view *GameServerNetworkView) {
+	if view == nil || s.hub == nil || !s.hub.IsOnline(vpsID) {
+		return
+	}
+	var proxyMember *GameServerNetworkMemberView
+	for i := range view.Members {
+		if view.Members[i].Role == models.GameServerNetworkRoleProxy || isProxyGameServerType(view.Members[i].ServerType) {
+			proxyMember = &view.Members[i]
+			break
+		}
+	}
+	if proxyMember == nil {
+		return
+	}
+	var proxyRow models.GameServer
+	if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", proxyMember.GameServerID, vpsID).First(&proxyRow).Error; err != nil {
+		return
+	}
+	if !gameServerIsInstalled(&proxyRow) {
+		return
+	}
+	path := "velocity.toml"
+	parse := mcproxy.ParseVelocityToml
+	if isBungeeFamilyProxy(proxyRow.ServerType) {
+		path = "config.yml"
+		parse = mcproxy.ParseBungeeConfig
+	}
+	content, err := s.readInstalledGameServerFile(ctx, vpsID, &proxyRow, path)
+	if err != nil || strings.TrimSpace(content) == "" {
+		return
+	}
+	cfg := parse(content)
+	changed, extra := overlayNetworkMembersFromProxy(view.Members, cfg)
+	view.ProxySynced = true
+	if len(extra) > 0 {
+		view.ProxyExtra = make([]GameServerNetworkProxyExtra, 0, len(extra))
+		for _, b := range extra {
+			view.ProxyExtra = append(view.ProxyExtra, GameServerNetworkProxyExtra{Alias: b.Alias, Address: b.Address})
+		}
+	}
+	if !changed {
+		return
+	}
+	now := time.Now().UTC()
+	for _, member := range view.Members {
+		if member.ID == "" || member.Role == models.GameServerNetworkRoleProxy {
+			continue
+		}
+		_ = s.db.WithContext(ctx).Model(&models.GameServerNetworkMember{}).Where("id = ?", member.ID).Updates(map[string]any{
+			"alias":      member.Alias,
+			"role":       member.Role,
+			"updated_at": now,
+		}).Error
+	}
+}
+
+func overlayNetworkMembersFromProxy(members []GameServerNetworkMemberView, cfg mcproxy.ProxyConfig) (bool, []mcproxy.Backend) {
+	used := map[int]struct{}{}
+	tryFirst := ""
+	if len(cfg.Try) > 0 {
+		tryFirst = strings.TrimSpace(cfg.Try[0])
+	}
+	changed := false
+	for i := range members {
+		if members[i].Role == models.GameServerNetworkRoleProxy || isProxyGameServerType(members[i].ServerType) {
+			continue
+		}
+		idx := matchProxyBackend(members[i], cfg.Backends, used)
+		inProxy := idx >= 0
+		members[i].InProxy = &inProxy
+		if !inProxy {
+			continue
+		}
+		used[idx] = struct{}{}
+		backend := cfg.Backends[idx]
+		if members[i].Alias != backend.Alias {
+			members[i].Alias = backend.Alias
+			changed = true
+		}
+		wantLobby := tryFirst != "" && members[i].Alias == tryFirst
+		switch {
+		case wantLobby && members[i].Role != models.GameServerNetworkRoleLobby:
+			members[i].Role = models.GameServerNetworkRoleLobby
+			changed = true
+		case !wantLobby && members[i].Role == models.GameServerNetworkRoleLobby:
+			members[i].Role = models.GameServerNetworkRoleBackend
+			changed = true
+		}
+	}
+	var extra []mcproxy.Backend
+	for i, backend := range cfg.Backends {
+		if _, ok := used[i]; ok {
+			continue
+		}
+		extra = append(extra, backend)
+	}
+	return changed, extra
+}
+
+func matchProxyBackend(member GameServerNetworkMemberView, backends []mcproxy.Backend, used map[int]struct{}) int {
+	alias := strings.TrimSpace(member.Alias)
+	for i, backend := range backends {
+		if _, ok := used[i]; ok {
+			continue
+		}
+		if alias != "" && strings.EqualFold(strings.TrimSpace(backend.Alias), alias) {
+			return i
+		}
+	}
+	port := member.Port
+	if port <= 0 {
+		port = 25565
+	}
+	for i, backend := range backends {
+		if _, ok := used[i]; ok {
+			continue
+		}
+		if mcproxy.ProxyAddrPort(backend.Address) == port {
+			return i
+		}
+	}
+	return -1
 }
 
 func (s *Service) normalizeNetworkMembers(

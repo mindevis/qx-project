@@ -87,3 +87,50 @@ func TestPatchSpigotBungeeCord(t *testing.T) {
 		t.Fatalf("empty:\n%s", empty)
 	}
 }
+
+func TestParseVelocityTomlRoundTrip(t *testing.T) {
+	toml := VelocityToml("0.0.0.0:25565", "QX", []Backend{
+		{Alias: "lobby", Address: "127.0.0.1:25566"},
+		{Alias: "survival", Address: "127.0.0.1:25567"},
+	}, []string{"lobby"})
+	cfg := ParseVelocityToml(toml)
+	if cfg.Bind != "0.0.0.0:25565" || len(cfg.Backends) != 2 || cfg.Backends[0].Alias != "lobby" {
+		t.Fatalf("cfg: %+v", cfg)
+	}
+	if cfg.Backends[1].Address != "127.0.0.1:25567" {
+		t.Fatalf("survival: %+v", cfg.Backends[1])
+	}
+	if len(cfg.Try) != 1 || cfg.Try[0] != "lobby" {
+		t.Fatalf("try: %+v", cfg.Try)
+	}
+}
+
+func TestParseBungeeConfigRoundTrip(t *testing.T) {
+	yaml := BungeeConfigYAML("0.0.0.0:25565", "QX", []Backend{
+		{Alias: "lobby", Address: "127.0.0.1:25566"},
+		{Alias: "sky", Address: "127.0.0.1:25568"},
+	}, []string{"lobby"})
+	cfg := ParseBungeeConfig(yaml)
+	if cfg.Bind != "0.0.0.0:25565" {
+		t.Fatalf("bind: %q", cfg.Bind)
+	}
+	if len(cfg.Try) != 1 || cfg.Try[0] != "lobby" {
+		t.Fatalf("try: %+v", cfg.Try)
+	}
+	byAlias := map[string]string{}
+	for _, b := range cfg.Backends {
+		byAlias[b.Alias] = b.Address
+	}
+	if byAlias["lobby"] != "127.0.0.1:25566" || byAlias["sky"] != "127.0.0.1:25568" {
+		t.Fatalf("backends: %+v", cfg.Backends)
+	}
+}
+
+func TestProxyAddrPort(t *testing.T) {
+	if got := ProxyAddrPort("127.0.0.1:25566"); got != 25566 {
+		t.Fatalf("got %d", got)
+	}
+	if got := ProxyAddrPort("[::1]:25565"); got != 25565 {
+		t.Fatalf("v6: %d", got)
+	}
+}
