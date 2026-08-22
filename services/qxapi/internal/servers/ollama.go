@@ -16,6 +16,7 @@ import (
 )
 
 const defaultOllamaListenAddr = "127.0.0.1:11434"
+const ollamaStartTimeout = 3 * time.Minute
 
 type OllamaView struct {
 	Status       string                 `json:"status"`
@@ -120,7 +121,7 @@ func (s *Service) StartOllama(ctx context.Context, ownerID, vpsID string) (*Olla
 		"last_error": "",
 		"updated_at": now,
 	}).Error
-	_, err = s.agentRPC(ctx, vpsID, protocol.TypeCmdOllamaStart, protocol.TypeResOllamaStart, ollamaRootPayload(row))
+	_, err = s.agentRPCWait(ctx, vpsID, protocol.TypeCmdOllamaStart, protocol.TypeResOllamaStart, ollamaRootPayload(row), ollamaStartTimeout)
 	if err != nil {
 		_ = s.setOllamaError(ctx, vpsID, err.Error())
 		return nil, err

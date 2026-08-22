@@ -105,6 +105,22 @@ func TestExtractTGZAndListPull(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	linkRoot := t.TempDir()
+	linkArchive := filepath.Join(root, "ollama-link.tar.zst")
+	if err := writeTestTarZSTWithSymlink(linkArchive); err != nil {
+		t.Fatal(err)
+	}
+	if err := extractArchive(linkArchive, linkRoot); err != nil {
+		t.Skipf("symlink extract unsupported: %v", err)
+	}
+	got, err := os.Readlink(filepath.Join(linkRoot, "lib", "ollama", "lib.so"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "lib.so.1" {
+		t.Fatalf("symlink: %q", got)
+	}
+
 	prevGet := httpGet
 	t.Cleanup(func() { httpGet = prevGet })
 	httpGet = func(req *http.Request) (*http.Response, error) {
@@ -192,4 +208,41 @@ func writeTestTarZST(path string, files map[string]string) error {
 		}
 	}
 	return nil
+}
+
+func writeTestTarZSTWithSymlink(path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	zw, err := zstd.NewWriter(f)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+	tw := tar.NewWriter(zw)
+	defer tw.Close()
+	body := "so"
+	if err := tw.WriteHeader(&tar.Header{Name: "lib/ollama/lib.so.1", Mode: 0644, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(tw, body); err != nil {
+		return err
+	}
+	return tw.WriteHeader(&tar.Header{Name: "lib/ollama/lib.so", Mode: 0777, Typeflag: tar.TypeSymlink, Linkname: "lib.so.1"})
+}
+
+func TestEnvSetsLibraryPath(t *testing.T) {
+	m := NewManager(t.TempDir(), true)
+	found := false
+	for _, item := range m.env() {
+		if strings.HasPrefix(item, "LD_LIBRARY_PATH=") && strings.Contains(item, m.LibDir()) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("missing LD_LIBRARY_PATH in %v", m.env())
+	}
 }

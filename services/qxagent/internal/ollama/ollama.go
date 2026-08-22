@@ -30,6 +30,7 @@ const (
 	systemdUnitPath   = "/etc/systemd/system/qx-ollama.service"
 	githubDownload    = "https://github.com/ollama/ollama/releases/latest/download/"
 	ollamaDownload    = "https://ollama.com/download/"
+	readyWait         = 2 * time.Minute
 )
 
 var (
@@ -109,6 +110,10 @@ func (m *Manager) BinPath() string {
 
 func (m *Manager) ModelsDir() string {
 	return filepath.Join(m.RootDir, "models")
+}
+
+func (m *Manager) LibDir() string {
+	return filepath.Join(m.RootDir, "lib", "ollama")
 }
 
 func LinuxArch() (string, error) {
@@ -211,7 +216,10 @@ func (m *Manager) Start(ctx context.Context) error {
 		if err := m.writeUnit(); err == nil {
 			_ = m.run(ctx, "systemctl", "daemon-reload")
 			if err := m.run(ctx, "systemctl", "enable", "--now", systemdUnitName); err == nil {
-				return m.waitReady(ctx, 30*time.Second)
+				if err := m.waitReady(ctx, readyWait); err != nil {
+					return m.notReadyError(ctx, err)
+				}
+				return nil
 			}
 		}
 	}
@@ -390,7 +398,9 @@ func (m *Manager) apiURL(path string) string {
 }
 
 func (m *Manager) apiAlive(ctx context.Context) bool {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, m.apiURL("/api/version"), nil)
+	aliveCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(aliveCtx, http.MethodGet, m.apiURL("/api/version"), nil)
 	if err != nil {
 		return false
 	}
@@ -438,9 +448,15 @@ func (m *Manager) readCLIVersion(ctx context.Context) string {
 }
 
 func (m *Manager) env() []string {
+	libDir := m.LibDir()
+	ld := libDir
+	if cur := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH")); cur != "" {
+		ld = libDir + string(os.PathListSeparator) + cur
+	}
 	return append(os.Environ(),
 		"OLLAMA_MODELS="+m.ModelsDir(),
 		"OLLAMA_HOST="+m.listenAddr(),
+		"LD_LIBRARY_PATH="+ld,
 	)
 }
 
@@ -455,30 +471,86 @@ ExecStart=%s serve
 WorkingDirectory=%s
 Environment=OLLAMA_MODELS=%s
 Environment=OLLAMA_HOST=%s
+Environment=LD_LIBRARY_PATH=%s
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-`, m.BinPath(), m.RootDir, m.ModelsDir(), m.listenAddr())
+`, m.BinPath(), m.RootDir, m.ModelsDir(), m.listenAddr(), m.LibDir())
 	return writeFileFn(systemdUnitPath, []byte(body), 0o644)
 }
 
 func (m *Manager) startProcess(ctx context.Context) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if m.proc != nil && m.proc.Process != nil {
-		return nil
+		m.mu.Unlock()
+		return m.waitReady(ctx, readyWait)
 	}
+	logs := &limitedBuffer{max: 8 << 10}
 	cmd := commandContext(context.Background(), m.BinPath(), "serve")
 	cmd.Dir = m.RootDir
 	cmd.Env = m.env()
+	cmd.Stdout = logs
+	cmd.Stderr = logs
 	if err := cmd.Start(); err != nil {
+		m.mu.Unlock()
 		return fmt.Errorf("start ollama: %w", err)
 	}
 	m.proc = cmd
+	m.mu.Unlock()
 	go func() { _ = cmd.Wait() }()
-	return m.waitReady(ctx, 30*time.Second)
+	if err := m.waitReady(ctx, readyWait); err != nil {
+		detail := strings.TrimSpace(logs.String())
+		if detail != "" {
+			return fmt.Errorf("%w: %s", err, detail)
+		}
+		return m.notReadyError(ctx, err)
+	}
+	return nil
+}
+
+func (m *Manager) waitReady(ctx context.Context, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		m.mu.Lock()
+		proc := m.proc
+		m.mu.Unlock()
+		if proc != nil && proc.ProcessState != nil && proc.ProcessState.Exited() {
+			return fmt.Errorf("ollama exited: %s", proc.ProcessState.String())
+		}
+		if m.apiAlive(ctx) {
+			return nil
+		}
+		time.Sleep(400 * time.Millisecond)
+	}
+	return errors.New("ollama did not become ready")
+}
+
+func (m *Manager) notReadyError(ctx context.Context, err error) error {
+	detail := strings.TrimSpace(m.diagnose(ctx))
+	if detail == "" {
+		return err
+	}
+	return fmt.Errorf("%w: %s", err, detail)
+}
+
+func (m *Manager) diagnose(ctx context.Context) string {
+	if hasSystemdFn() {
+		out, runErr := commandContext(ctx, "journalctl", "-u", systemdUnitName, "-n", "40", "--no-pager").CombinedOutput()
+		if runErr == nil && strings.TrimSpace(string(out)) != "" {
+			return strings.TrimSpace(string(out))
+		}
+		out, runErr = commandContext(ctx, "systemctl", "status", "--no-pager", systemdUnitName).CombinedOutput()
+		if strings.TrimSpace(string(out)) != "" {
+			return strings.TrimSpace(string(out))
+		}
+		_ = runErr
+	}
+	return ""
 }
 
 func (m *Manager) killProcess() {
@@ -488,20 +560,6 @@ func (m *Manager) killProcess() {
 		_ = m.proc.Process.Kill()
 	}
 	m.proc = nil
-}
-
-func (m *Manager) waitReady(ctx context.Context, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if m.apiAlive(ctx) {
-			return nil
-		}
-		time.Sleep(400 * time.Millisecond)
-	}
-	return errors.New("ollama did not become ready")
 }
 
 func (m *Manager) run(ctx context.Context, name string, args ...string) error {
@@ -626,6 +684,51 @@ func extractTar(r io.Reader, dest string) error {
 			if closeErr != nil {
 				return closeErr
 			}
+		case tar.TypeSymlink:
+			if hdr.Linkname == "" || strings.Contains(filepath.ToSlash(hdr.Linkname), "..") {
+				continue
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			_ = os.Remove(target)
+			if err := os.Symlink(hdr.Linkname, target); err != nil {
+				return err
+			}
+		case tar.TypeLink:
+			if hdr.Linkname == "" || strings.Contains(filepath.ToSlash(hdr.Linkname), "..") {
+				continue
+			}
+			linkTarget := filepath.Join(dest, filepath.FromSlash(hdr.Linkname))
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			_ = os.Remove(target)
+			if err := os.Link(linkTarget, target); err != nil {
+				return err
+			}
 		}
 	}
+}
+
+type limitedBuffer struct {
+	mu  sync.Mutex
+	buf []byte
+	max int
+}
+
+func (b *limitedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.buf = append(b.buf, p...)
+	if b.max > 0 && len(b.buf) > b.max {
+		b.buf = append([]byte(nil), b.buf[len(b.buf)-b.max:]...)
+	}
+	return len(p), nil
+}
+
+func (b *limitedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return string(b.buf)
 }
