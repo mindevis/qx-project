@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Card, Popconfirm, Segmented, Space, Spin, Tag, Typography, Upload } from 'antd';
-import { CheckCircleFilled, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, DeleteOutlined, LinkOutlined, UploadOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import { SkinViewer } from 'skinview3d';
-import { api, type ProfileModel, type UserCosmetics } from '@/api/client';
+import { api, type MojangLinkStatus, type ProfileModel, type UserCosmetics } from '@/api/client';
 import { ProfileModelPicker } from '@/components/ProfileModelPicker';
 import { useMessage } from '@/hooks/useMessage';
 import { useI18n } from '@/i18n/I18nContext';
 import { logger } from '@/lib/logger';
+import { officialAccountBodyUrl, officialAccountSkinUrl } from '@/lib/mojangSkin';
 import './CosmeticsPanel.css';
+
+const { Paragraph, Text } = Typography;
 
 const MODEL_TYPE = {
   steve: 'default',
@@ -20,18 +23,27 @@ const DEFAULT_SKIN: Record<ProfileModel, string> = {
   alex: '/profiles/alex-skin.png',
 };
 
+const PREVIEW_WIDTH = 180;
+const PREVIEW_HEIGHT = 240;
+
 type CapeType = 'none' | 'qx' | 'custom';
+type SkinSource = 'custom' | 'official' | 'default';
 
 type CosmeticsPreviewProps = {
   model: ProfileModel;
   skinUrl?: string;
   capeUrl?: string;
+  fallbackBodyUrl?: string;
 };
 
-function CosmeticsPreview({ model, skinUrl, capeUrl }: CosmeticsPreviewProps) {
+function CosmeticsPreview({ model, skinUrl, capeUrl, fallbackBodyUrl }: CosmeticsPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewerRef = useRef<SkinViewer | null>(null);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [skinUrl, model, fallbackBodyUrl]);
 
   useEffect(() => {
     if (failed) return;
@@ -42,8 +54,8 @@ function CosmeticsPreview({ model, skinUrl, capeUrl }: CosmeticsPreviewProps) {
     try {
       viewer = new SkinViewer({
         canvas,
-        width: 140,
-        height: 180,
+        width: PREVIEW_WIDTH,
+        height: PREVIEW_HEIGHT,
         skin: skinUrl ?? DEFAULT_SKIN[model],
         model: MODEL_TYPE[model],
       });
@@ -67,9 +79,15 @@ function CosmeticsPreview({ model, skinUrl, capeUrl }: CosmeticsPreviewProps) {
     const viewer = viewerRef.current;
     if (!viewer || viewer.disposed || failed) return;
     const src = skinUrl ?? DEFAULT_SKIN[model];
-    void viewer.loadSkin(src, { model: MODEL_TYPE[model] }).then(() => {
-      if (!viewer.disposed) viewer.resetCameraPose();
-    });
+    void viewer.loadSkin(src, { model: MODEL_TYPE[model] }).then(
+      () => {
+        if (!viewer.disposed) viewer.resetCameraPose();
+      },
+      (error: unknown) => {
+        logger.warn('cosmetics skin load failed', { error: String(error) });
+        setFailed(true);
+      },
+    );
   }, [failed, model, skinUrl]);
 
   useEffect(() => {
@@ -82,8 +100,27 @@ function CosmeticsPreview({ model, skinUrl, capeUrl }: CosmeticsPreviewProps) {
     }
   }, [capeUrl, failed]);
 
+  if (failed && fallbackBodyUrl) {
+    return (
+      <img
+        src={fallbackBodyUrl}
+        alt=""
+        className="cosmetics-preview-body"
+        width={PREVIEW_WIDTH}
+        height={PREVIEW_HEIGHT}
+      />
+    );
+  }
   if (failed) return null;
-  return <canvas ref={canvasRef} className="cosmetics-preview-canvas" width={140} height={180} aria-hidden />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="cosmetics-preview-canvas"
+      width={PREVIEW_WIDTH}
+      height={PREVIEW_HEIGHT}
+      aria-hidden
+    />
+  );
 }
 
 type CosmeticsPanelProps = {
@@ -96,14 +133,19 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [cosmetics, setCosmetics] = useState<UserCosmetics | null>(null);
+  const [mojang, setMojang] = useState<MojangLinkStatus | null>(null);
   const [model, setModel] = useState<ProfileModel>('steve');
   const [capeType, setCapeType] = useState<CapeType>('none');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.getCosmetics();
+      const [data, status] = await Promise.all([
+        api.getCosmetics(),
+        api.mojangStatus().catch(() => null),
+      ]);
       setCosmetics(data);
+      setMojang(status);
       setModel(data.skin_model ?? 'steve');
       setCapeType((data.cape_type as CapeType) ?? (data.has_cape ? 'custom' : 'none'));
     } catch (e) {
@@ -174,12 +216,40 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
   };
 
   const cacheBust = cosmetics?.updated_at ? `?v=${encodeURIComponent(cosmetics.updated_at)}` : '';
-  const previewSkinUrl = cosmetics?.has_skin && cosmetics.skin_url
-    ? `${cosmetics.skin_url}${cacheBust}`
-    : undefined;
-  const previewCapeUrl = cosmetics?.has_cape && cosmetics.cape_url
-    ? `${cosmetics.cape_url}${cacheBust}`
-    : undefined;
+  const officialSkinUrl = officialAccountSkinUrl(mojang?.minecraft_uuid, mojang?.username);
+  const officialBodyUrl = officialAccountBodyUrl(mojang?.minecraft_uuid, mojang?.username);
+  const customSkinUrl =
+    cosmetics?.has_skin && cosmetics.skin_url ? `${cosmetics.skin_url}${cacheBust}` : undefined;
+  const previewSkinUrl = customSkinUrl ?? officialSkinUrl;
+  const previewCapeUrl =
+    cosmetics?.has_cape && cosmetics.cape_url ? `${cosmetics.cape_url}${cacheBust}` : undefined;
+  const skinSource: SkinSource = cosmetics?.has_skin
+    ? 'custom'
+    : mojang?.linked && officialSkinUrl
+      ? 'official'
+      : 'default';
+  const statusLabel =
+    skinSource === 'custom'
+      ? t('cosmetics.skinApplied')
+      : skinSource === 'official'
+        ? t('cosmetics.skinOfficial')
+        : t('cosmetics.skinDefault');
+
+  const importOfficialSkin = async () => {
+    const username = mojang?.username?.trim();
+    if (!username) return;
+    setSaving(true);
+    try {
+      const data = await api.applyCosmeticsSkin({ username });
+      setCosmetics(data);
+      if (data.skin_model) setModel(data.skin_model);
+      message.success(t('cosmetics.skinImported'));
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('cosmetics.importFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const content = loading ? (
     <Spin />
@@ -188,18 +258,41 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
       {!embedded ? <p className="cosmetics-hint">{t('cosmetics.hint')}</p> : null}
       <div className="cosmetics-preview-row">
         <div
-          className={`cosmetics-preview${cosmetics?.has_skin ? ' cosmetics-preview--applied' : ''}`}
+          className={`cosmetics-preview${skinSource !== 'default' ? ' cosmetics-preview--applied' : ''}`}
         >
-          <CosmeticsPreview model={model} skinUrl={previewSkinUrl} capeUrl={previewCapeUrl} />
+          <CosmeticsPreview
+            model={model}
+            skinUrl={previewSkinUrl}
+            capeUrl={previewCapeUrl}
+            fallbackBodyUrl={officialBodyUrl}
+          />
           <Tag
             className="cosmetics-preview-status"
-            color={cosmetics?.has_skin ? 'success' : 'default'}
-            icon={cosmetics?.has_skin ? <CheckCircleFilled /> : undefined}
+            color={skinSource === 'custom' ? 'success' : skinSource === 'official' ? 'processing' : 'default'}
+            icon={skinSource !== 'default' ? <CheckCircleFilled /> : undefined}
           >
-            {cosmetics?.has_skin ? t('cosmetics.skinApplied') : t('cosmetics.skinDefault')}
+            {statusLabel}
           </Tag>
+          {mojang?.linked && mojang.username ? (
+            <Text type="secondary" className="cosmetics-preview-account">
+              {mojang.username}
+            </Text>
+          ) : null}
         </div>
         <div className="cosmetics-controls">
+          {skinSource === 'official' ? (
+            <Paragraph type="secondary" className="cosmetics-official-hint">
+              {t('cosmetics.skinOfficialHint')}
+            </Paragraph>
+          ) : null}
+          {!mojang?.linked ? (
+            <Paragraph type="secondary" className="cosmetics-official-hint">
+              {t('cosmetics.mojangNotLinked')}{' '}
+              <Typography.Link href="/profile">
+                <LinkOutlined /> {t('cosmetics.goToProfile')}
+              </Typography.Link>
+            </Paragraph>
+          ) : null}
           <div className="cosmetics-field">
             <span className="cosmetics-label">{t('cosmetics.skinModel')}</span>
             <ProfileModelPicker
@@ -216,9 +309,16 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
                 {t('cosmetics.uploadSkin')}
               </Button>
             </Upload>
+            {skinSource === 'official' && mojang?.username ? (
+              <Button loading={saving} onClick={() => void importOfficialSkin()}>
+                {t('cosmetics.importOfficialSkin')}
+              </Button>
+            ) : null}
             {cosmetics?.has_skin ? (
               <Popconfirm
-                title={t('cosmetics.resetSkinConfirm')}
+                title={
+                  mojang?.linked ? t('cosmetics.resetSkinConfirmOfficial') : t('cosmetics.resetSkinConfirm')
+                }
                 okText={t('cosmetics.resetSkin')}
                 cancelText={t('common.cancel')}
                 okButtonProps={{ danger: true }}
@@ -280,7 +380,7 @@ export function CosmeticsPanel({ embedded = false }: CosmeticsPanelProps) {
   }
 
   return (
-    <Card title={t('cosmetics.title')} style={{ maxWidth: 560 }} className="cosmetics-panel">
+    <Card title={t('cosmetics.title')} style={{ maxWidth: 720 }} className="cosmetics-panel">
       {content}
     </Card>
   );

@@ -79,6 +79,10 @@ html[data-theme='dark'] .skins-hero-grid-pattern {
 .skins-hero-inner {
   position: relative;
   z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(200px, 0.7fr);
+  align-items: center;
+  gap: 40px;
   max-width: 1120px;
   margin: 0 auto;
 }
@@ -214,8 +218,12 @@ html[data-theme='dark'] .skins-hero-subtitle {
   margin-bottom: 0;
 }
 
+.skins-section--equip {
+  padding-bottom: 8px;
+}
+
 .skins-section--catalog {
-  padding-bottom: 40px;
+  padding-bottom: 8px;
 }
 
 .skins-section-divider {
@@ -241,7 +249,7 @@ html[data-theme='dark'] .skins-hero-subtitle {
 }
 
 .skins-section--equip .skins-section-title {
-  margin-bottom: 12px !important;
+  margin-bottom: 4px !important;
 }
 
 .skins-equip-card {

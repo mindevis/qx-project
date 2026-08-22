@@ -7,7 +7,7 @@
 
 .cosmetics-preview-row {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
   align-items: flex-start;
 }
 
@@ -17,9 +17,11 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  padding: 8px 8px 10px;
-  border-radius: 12px;
+  min-width: 196px;
+  padding: 12px 12px 14px;
+  border-radius: 16px;
   border: 1px solid var(--ant-color-border-secondary);
+  background: color-mix(in srgb, var(--ant-color-fill-tertiary) 65%, transparent);
 }
 
 .cosmetics-preview--applied {
@@ -48,7 +50,31 @@
   font-weight: 500;
 }
 
-.cosmetics-preview-canvas {
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(120, 170, 255, 0.15), rgba(0, 0, 0, 0.04));
+.cosmetics-preview-canvas,
+.cosmetics-preview-body {
+  display: block;
+  width: 180px;
+  height: 240px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(120, 170, 255, 0.18), rgba(0, 0, 0, 0.04));
+}
+
+.cosmetics-preview-account {
+  font-size: 0.85rem;
+}
+
+.cosmetics-official-hint {
+  margin: 0 !important;
+}
+
+@media (max-width: 720px) {
+  .cosmetics-preview-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .cosmetics-controls {
+    width: 100%;
+  }
 }

@@ -227,6 +227,9 @@ describe('AppLayout', () => {
           new Response(JSON.stringify({ items: [] }), { status: 200 }),
         );
       }
+      if (url.includes('/users/me/mojang')) {
+        return Promise.resolve(new Response(JSON.stringify({ linked: false }), { status: 200 }));
+      }
       if (url.includes('/users/me/cosmetics')) {
         return Promise.resolve(
           new Response(

@@ -48,6 +48,9 @@ function mockSkinsFetch() {
         new Response(JSON.stringify({ items: [] }), { status: 200 }),
       );
     }
+    if (url.includes('/users/me/mojang')) {
+      return Promise.resolve(new Response(JSON.stringify({ linked: false }), { status: 200 }));
+    }
     if (url.includes('/users/me')) {
       return Promise.resolve(
         new Response(
@@ -89,7 +92,8 @@ describe('SkinsPage', () => {
       expect(screen.getByRole('heading', { name: 'Скины' })).toBeInTheDocument(),
     );
     expect(screen.getByText('Новинка')).toBeInTheDocument();
-    expect(screen.getByText(/популярных источников/i)).toBeInTheDocument();
+    expect(screen.getByText('Текущий скин')).toBeInTheDocument();
+    expect(screen.getByText(/скин вашего аккаунта Microsoft/i)).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Загрузить скин/i })).toBeInTheDocument(),
     );

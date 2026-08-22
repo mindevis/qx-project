@@ -136,12 +136,15 @@ export function SkinCatalogPanel({ onApplied }: Props) {
           {filtered.map((entry) => (
             <article key={entry.id} className="skins-catalog-card">
               <img
-                src={entry.preview_url}
+                src={`https://mc-heads.net/body/${encodeURIComponent(entry.username)}`}
                 alt={entry.name}
                 className="skins-catalog-avatar"
                 loading="lazy"
-                width={80}
-                height={80}
+                width={96}
+                height={216}
+                onError={(event) => {
+                  event.currentTarget.src = entry.preview_url;
+                }}
               />
               <div className="skins-catalog-card-body">
                 <Text strong className="skins-catalog-name">

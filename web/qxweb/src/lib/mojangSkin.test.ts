@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { officialAccountBodyUrl } from './mojangSkin';
+import { officialAccountBodyUrl, officialAccountSkinUrl } from './mojangSkin';
 
 describe('officialAccountBodyUrl', () => {
   it('prefers uuid over username', () => {
@@ -15,5 +15,13 @@ describe('officialAccountBodyUrl', () => {
   it('returns undefined when both are empty', () => {
     expect(officialAccountBodyUrl('  ', '')).toBeUndefined();
     expect(officialAccountBodyUrl()).toBeUndefined();
+  });
+});
+
+describe('officialAccountSkinUrl', () => {
+  it('builds a CORS-friendly PNG url for the 3D viewer', () => {
+    expect(officialAccountSkinUrl('abc-def', 'Steve')).toBe('https://mc-heads.net/skin/abc-def');
+    expect(officialAccountSkinUrl(undefined, 'Steve')).toBe('https://mc-heads.net/skin/Steve');
+    expect(officialAccountSkinUrl('  ')).toBeUndefined();
   });
 });

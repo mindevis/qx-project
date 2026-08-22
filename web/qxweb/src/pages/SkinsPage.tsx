@@ -67,6 +67,20 @@ export function SkinsPage() {
       </section>
 
       <div className="skins-body">
+        <section className="skins-section skins-section--equip">
+          <Title level={3} className="skins-section-title">
+            {t('skins.equip.sectionTitle')}
+          </Title>
+          <Paragraph type="secondary" className="skins-section-lead">
+            {t('skins.equip.sectionLead')}
+          </Paragraph>
+          <div className="skins-equip-card">
+            <CosmeticsPanel key={panelKey} embedded />
+          </div>
+        </section>
+
+        <hr className="skins-section-divider" aria-hidden />
+
         <section className="skins-section skins-section--catalog">
           <Title level={3} className="skins-section-title">
             {t('skins.catalog.sectionTitle')}
@@ -75,17 +89,6 @@ export function SkinsPage() {
             {t('skins.catalog.sectionLead')}
           </Paragraph>
           <SkinCatalogPanel onApplied={() => setPanelKey((k) => k + 1)} />
-        </section>
-
-        <hr className="skins-section-divider" aria-hidden />
-
-        <section className="skins-section skins-section--equip">
-          <Title level={3} className="skins-section-title">
-            {t('skins.equip.sectionTitle')}
-          </Title>
-          <div className="skins-equip-card">
-            <CosmeticsPanel key={panelKey} embedded />
-          </div>
         </section>
       </div>
     </div>

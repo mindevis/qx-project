@@ -167,6 +167,9 @@ describe('App', () => {
           ),
         );
       }
+      if (url.includes('/users/me/mojang')) {
+        return Promise.resolve(new Response(JSON.stringify({ linked: false }), { status: 200 }));
+      }
       if (url.includes('/users/me')) {
         return Promise.resolve(
           new Response(
