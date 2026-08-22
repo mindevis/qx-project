@@ -156,7 +156,8 @@ func sanitizeContentDownloadURL(raw string) (string, error) {
 	safe := &url.URL{
 		Scheme:   scheme,
 		Host:     parsed.Host,
-		Path:     parsed.EscapedPath(),
+		Path:     parsed.Path,
+		RawPath:  parsed.RawPath,
 		RawQuery: parsed.RawQuery,
 	}
 	if safe.Path == "" {

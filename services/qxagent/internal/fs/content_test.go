@@ -137,6 +137,13 @@ func TestSanitizeContentDownloadURL(t *testing.T) {
 	if got != "https://cdn.modrinth.com/data/AANobbMI/versions/foo/sodium.jar" {
 		t.Fatalf("url: %s", got)
 	}
+	spaced, err := sanitizeContentDownloadURL("https://cdn.modrinth.com/data/gG7VFbG0/versions/Za7G9fdJ/TAB%20v6.1.2.jar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spaced != "https://cdn.modrinth.com/data/gG7VFbG0/versions/Za7G9fdJ/TAB%20v6.1.2.jar" {
+		t.Fatalf("spaced url: %s", spaced)
+	}
 	hangarURL, err := sanitizeContentDownloadURL("https://hangarcdn.papermc.io/plugins/dmulloy2/ProtocolLib/versions/5.1.0/PAPER/ProtocolLib.jar")
 	if err != nil {
 		t.Fatal(err)
