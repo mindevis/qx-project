@@ -153,11 +153,18 @@ func sanitizeContentDownloadURL(raw string) (string, error) {
 	if !isAllowedContentDownloadHost(host) {
 		return "", fmt.Errorf("download host not allowed")
 	}
+	// Parse decodes once; a second unescape fixes already-double-encoded
+	// names like TAB%2520v6.1.2.jar. Do not copy RawPath — it preserves %2520.
+	path := parsed.Path
+	if strings.Contains(path, "%") {
+		if decoded, err := url.PathUnescape(path); err == nil {
+			path = decoded
+		}
+	}
 	safe := &url.URL{
 		Scheme:   scheme,
 		Host:     parsed.Host,
-		Path:     parsed.Path,
-		RawPath:  parsed.RawPath,
+		Path:     path,
 		RawQuery: parsed.RawQuery,
 	}
 	if safe.Path == "" {
