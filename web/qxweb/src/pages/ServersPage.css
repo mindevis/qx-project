@@ -1385,6 +1385,7 @@ html[data-theme='dark'] .game-server-detail-summary-item--agent-offline .game-se
 }
 
 .game-server-launch-settings,
+.game-server-version-settings,
 .game-server-properties-section {
   max-width: 640px;
 }

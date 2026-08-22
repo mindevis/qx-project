@@ -4,6 +4,7 @@ import {
   addVpsGameServer,
   isVpsGameServerProvisioning,
   listVpsGameServers,
+  changeVpsGameServerVersion,
   reinstallVpsGameServer,
   removeVpsGameServer,
   restartVpsGameServer,
@@ -95,6 +96,7 @@ describe('vpsGameServers', () => {
       .mockResolvedValueOnce(responding('starting'))
       .mockResolvedValueOnce(responding('stopped'))
       .mockResolvedValueOnce(responding('starting'))
+      .mockResolvedValueOnce(responding('installing'))
       .mockResolvedValueOnce(responding('installing'));
 
     await expect(startVpsGameServer('srv-1', 'gs-1')).resolves.toMatchObject({ status: 'starting' });
@@ -103,5 +105,8 @@ describe('vpsGameServers', () => {
     await expect(reinstallVpsGameServer('srv-1', 'gs-1')).resolves.toMatchObject({
       status: 'installing',
     });
+    await expect(
+      changeVpsGameServerVersion('srv-1', 'gs-1', { mc_version: '1.21.1', loader_version: '20' }),
+    ).resolves.toMatchObject({ status: 'installing' });
   });
 });

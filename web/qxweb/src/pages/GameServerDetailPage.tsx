@@ -28,6 +28,7 @@ import {
 import { api, type GameServer } from '@/api/client';
 import { ServerConsolePanel, shouldShowGameServerConsole } from '@/components/ServerConsolePanel';
 import { GameServerLaunchSettingsPanel } from '@/components/GameServerLaunchSettingsPanel';
+import { GameServerVersionSettingsPanel } from '@/components/GameServerVersionSettingsPanel';
 import { GameServerPropertiesPanel } from '@/components/GameServerPropertiesPanel';
 import { GameServerContentPanel } from '@/components/GameServerContentPanel';
 import { GameServerModsPanel } from '@/components/GameServerModsPanel';
@@ -255,6 +256,12 @@ export function GameServerDetailPage() {
       label: tabLabel(<SettingOutlined aria-hidden />, t('gameServerDetail.tabSettings')),
       children: (
         <div className="game-server-settings-tab">
+          <GameServerVersionSettingsPanel
+            vpsId={vpsId}
+            game={game}
+            disabled={rowBusy}
+            onUpdated={setGame}
+          />
           <GameServerLaunchSettingsPanel
             vpsId={vpsId}
             game={game}

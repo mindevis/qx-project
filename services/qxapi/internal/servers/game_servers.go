@@ -71,6 +71,11 @@ type UpdateGameServerInput struct {
 	ExtraArgs             *[]string
 }
 
+type ChangeGameServerVersionInput struct {
+	MCVersion     string
+	LoaderVersion string
+}
+
 const (
 	gameServerProvisionTimeout = 25 * time.Minute
 	gameServerRemoveTimeout    = 2 * time.Minute
@@ -329,6 +334,101 @@ func (s *Service) copyGameServerWorkDir(ctx context.Context, vpsID string, src, 
 		return fmt.Errorf("copy work dir: %s", res.Error)
 	}
 	return nil
+}
+
+func normalizeGameServerVersions(serverType, mcVersion, loaderVersion string) (string, string, error) {
+	mcVersion = strings.TrimSpace(mcVersion)
+	loaderVersion = strings.TrimSpace(loaderVersion)
+	if mcVersion == "" {
+		return "", "", ErrValidation
+	}
+	if serverType != models.ServerTypeVanilla && loaderVersion == "" {
+		return "", "", ErrValidation
+	}
+	if serverType == models.ServerTypeVanilla {
+		loaderVersion = ""
+	}
+	return mcVersion, loaderVersion, nil
+}
+
+func (s *Service) ChangeGameServerVersion(ctx context.Context, ownerID, vpsID, gameServerID string, in ChangeGameServerVersionInput) (*GameServerView, error) {
+	server, err := s.getOwned(ctx, ownerID, vpsID)
+	if err != nil {
+		return nil, err
+	}
+	if server.AgentTokenHash == nil {
+		return nil, ErrNotDeployed
+	}
+	if s.hub == nil || !s.hub.IsOnline(vpsID) {
+		return nil, ErrAgentOffline
+	}
+
+	var item models.GameServer
+	if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", gameServerID, vpsID).First(&item).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if item.Status == models.GameServerStatusInstalling || item.Status == models.GameServerStatusStarting {
+		return nil, ErrGameServerBusy
+	}
+
+	mcVersion, loaderVersion, err := normalizeGameServerVersions(item.ServerType, in.MCVersion, in.LoaderVersion)
+	if err != nil {
+		return nil, err
+	}
+	currentLoader := ""
+	if item.LoaderVersion != nil {
+		currentLoader = strings.TrimSpace(*item.LoaderVersion)
+	}
+	if item.MCVersion == mcVersion && currentLoader == loaderVersion {
+		view := gameServerViewFromModel(&item)
+		return &view, nil
+	}
+
+	wasRunning := item.Status == models.GameServerStatusRunning
+	now := time.Now().UTC()
+	updates := map[string]any{
+		"mc_version": mcVersion,
+		"status":     models.GameServerStatusInstalling,
+		"updated_at": now,
+	}
+	if loaderVersion == "" {
+		updates["loader_version"] = nil
+	} else {
+		updates["loader_version"] = loaderVersion
+	}
+	if err := s.db.WithContext(ctx).Model(&item).Updates(updates).Error; err != nil {
+		return nil, err
+	}
+	item.MCVersion = mcVersion
+	if loaderVersion == "" {
+		item.LoaderVersion = nil
+	} else {
+		item.LoaderVersion = &loaderVersion
+	}
+	item.Status = models.GameServerStatusInstalling
+	item.UpdatedAt = now
+
+	if wasRunning {
+		if err := s.sendGameServerStop(ctx, vpsID, &item, "version"); err != nil {
+			_ = s.db.WithContext(ctx).Model(&item).Updates(map[string]any{
+				"status":     models.GameServerStatusError,
+				"updated_at": time.Now().UTC(),
+			}).Error
+			return nil, err
+		}
+	} else if err := s.beginGameServerInstall(ctx, vpsID, &item); err != nil {
+		_ = s.db.WithContext(ctx).Model(&item).Updates(map[string]any{
+			"status":     models.GameServerStatusError,
+			"updated_at": time.Now().UTC(),
+		}).Error
+		return nil, err
+	}
+
+	view := gameServerViewFromModel(&item)
+	return &view, nil
 }
 
 func (s *Service) ReinstallGameServer(ctx context.Context, ownerID, vpsID, gameServerID string) (*GameServerView, error) {
@@ -899,6 +999,26 @@ func (s *Service) applyServerStopResult(ctx context.Context, serverID, requestID
 		go func() {
 			bg := context.Background()
 			if err := s.wipeAndBeginGameServerInstall(bg, vpsID, &item); err != nil {
+				s.setGameServerStatus(bg, gameServerID, models.GameServerStatusError, "")
+			}
+		}()
+	case "version":
+		var item models.GameServer
+		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
+			return
+		}
+		gameServerID := op.gameServerID
+		vpsID := serverID
+		go func() {
+			bg := context.Background()
+			now := time.Now().UTC()
+			_ = s.db.WithContext(bg).Model(&item).Updates(map[string]any{
+				"status":     models.GameServerStatusInstalling,
+				"updated_at": now,
+			}).Error
+			item.Status = models.GameServerStatusInstalling
+			item.UpdatedAt = now
+			if err := s.beginGameServerInstall(bg, vpsID, &item); err != nil {
 				s.setGameServerStatus(bg, gameServerID, models.GameServerStatusError, "")
 			}
 		}()

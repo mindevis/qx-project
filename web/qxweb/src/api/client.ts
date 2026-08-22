@@ -1078,6 +1078,16 @@ export const api = {
       { method: 'POST' },
     ),
 
+  changeVpsGameServerVersion: (
+    vpsId: string,
+    gameServerId: string,
+    body: { mc_version: string; loader_version?: string },
+  ) =>
+    request<VpsGameServerInstance>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/version`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
   reinstallVpsGameServer: (vpsId: string, gameServerId: string) =>
     request<VpsGameServerInstance>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/reinstall`,

@@ -42,6 +42,11 @@ type updateGameServerRequest struct {
 	ExtraArgs             *[]string `json:"extra_args"`
 }
 
+type changeGameServerVersionRequest struct {
+	MCVersion     string `json:"mc_version" binding:"required"`
+	LoaderVersion string `json:"loader_version"`
+}
+
 func (h *GameServersHandler) List(c *gin.Context) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {
@@ -149,6 +154,34 @@ func (h *GameServersHandler) Delete(c *gin.Context) {
 		return
 	}
 	c.AbortWithStatus(http.StatusNoContent)
+}
+
+func (h *GameServersHandler) ChangeVersion(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var req changeGameServerVersionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	view, err := h.Service.ChangeGameServerVersion(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		servers.ChangeGameServerVersionInput{
+			MCVersion:     req.MCVersion,
+			LoaderVersion: req.LoaderVersion,
+		},
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
 }
 
 func (h *GameServersHandler) Reinstall(c *gin.Context) {

@@ -164,6 +164,15 @@ export async function cloneVpsGameServer(vpsId: string, id: string): Promise<Vps
   return mapGameServer(created);
 }
 
+export async function changeVpsGameServerVersion(
+  vpsId: string,
+  id: string,
+  input: { mc_version: string; loader_version?: string },
+): Promise<VpsGameServer> {
+  const updated = await api.changeVpsGameServerVersion(vpsId, id, input);
+  return mapGameServer(updated);
+}
+
 export async function reinstallVpsGameServer(vpsId: string, id: string): Promise<VpsGameServer> {
   const updated = await api.reinstallVpsGameServer(vpsId, id);
   return mapGameServer(updated);

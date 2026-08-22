@@ -780,6 +780,13 @@ export const ru = {
     extraArgsHint: 'По одному аргументу на строку, после jar или аргументов Forge/Paper (например nogui).',
     launchSaved: 'Параметры запуска сохранены',
     launchSaveFailed: 'Не удалось сохранить параметры запуска',
+    versionTitle: 'Версия Minecraft и ядра',
+    versionHint:
+      'Можно повысить или понизить версию Minecraft и ядра сервера. Мир, плагины и моды сохраняются, но могут быть несовместимы с новой версией. Запущенный сервер будет остановлен, ядро переустановлено, затем сервер запустится снова.',
+    versionApply: 'Сменить версию',
+    versionStarted: 'Смена версии запущена — ядро будет переустановлено',
+    versionFailed: 'Не удалось сменить версию',
+    versionUnchanged: 'Выберите другую версию Minecraft или ядра',
     propertiesTitle: 'server.properties',
     propertiesLoadFailed: 'Не удалось загрузить server.properties',
     propertiesEmpty: 'Файл server.properties пуст или недоступен.',

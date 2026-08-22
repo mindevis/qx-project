@@ -213,6 +213,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.DELETE("/servers/:id/game-servers/:gameServerId/files", gameServersH.DeleteFile)
 			authed.GET("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.ReadFile)
 			authed.PUT("/servers/:id/game-servers/:gameServerId/files/content", gameServersH.WriteFile)
+			authed.POST("/servers/:id/game-servers/:gameServerId/version", gameServersH.ChangeVersion)
 			authed.POST("/servers/:id/game-servers/:gameServerId/reinstall", gameServersH.Reinstall)
 			authed.POST("/servers/:id/game-servers/:gameServerId/start", gameServersH.Start)
 			authed.POST("/servers/:id/game-servers/:gameServerId/stop", gameServersH.Stop)

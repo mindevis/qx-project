@@ -184,6 +184,7 @@ Modpacks и загрузка mods/shaders/RP из панели — v2+. См. [s
 | GET | `/servers/{id}/game-servers/{gameServerId}` | Detail |
 | PATCH | `/servers/{id}/game-servers/{gameServerId}` | Update name/address/port |
 | DELETE | `/servers/{id}/game-servers/{gameServerId}` | Delete |
+| POST | `…/version` | Change Minecraft/core version `{ mc_version, loader_version? }` (keeps world) |
 | POST | `…/reinstall` | Reinstall core |
 | POST | `…/start` \| `…/stop` \| `…/restart` | Power |
 | GET | `…/properties` | Read `server.properties` (agent RPC) |

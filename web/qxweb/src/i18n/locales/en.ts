@@ -781,6 +781,13 @@ export const en: Messages = {
     extraArgsHint: 'One argument per line, appended after the jar or Forge/Paper start args (for example nogui).',
     launchSaved: 'Launch settings saved',
     launchSaveFailed: 'Failed to save launch settings',
+    versionTitle: 'Minecraft and core version',
+    versionHint:
+      'Upgrade or downgrade Minecraft and the server core. The world, plugins, and mods are kept, but they may be incompatible with the new version. A running server is stopped, the core is reinstalled, then the server starts again.',
+    versionApply: 'Change version',
+    versionStarted: 'Version change started — the core will be reinstalled',
+    versionFailed: 'Failed to change version',
+    versionUnchanged: 'Select a different Minecraft or core version',
     propertiesTitle: 'server.properties',
     propertiesLoadFailed: 'Failed to load server.properties',
     propertiesEmpty: 'server.properties is empty or unavailable.',
