@@ -79,9 +79,22 @@ export const DEFAULT_AIKAR_JVM_ARGS = [
   '-Daikars.new.flags=true',
 ];
 
+/** Keep in sync with pkg/mcmanifest/velocity.go — applied on Velocity start. */
+export const DEFAULT_VELOCITY_JVM_ARGS = [
+  '-XX:+AlwaysPreTouch',
+  '-XX:+ParallelRefProcEnabled',
+  '-XX:+UnlockExperimentalVMOptions',
+  '-XX:+UseG1GC',
+  '-XX:G1HeapRegionSize=4M',
+  '-XX:MaxInlineLevel=15',
+];
+
 export function defaultExtraJvmArgsForGameServer(game: Pick<VpsGameServer, 'server_type' | 'extra_jvm_args'>): string[] {
   if (game.extra_jvm_args && game.extra_jvm_args.length > 0) {
     return game.extra_jvm_args;
+  }
+  if (game.server_type === 'velocity') {
+    return [...DEFAULT_VELOCITY_JVM_ARGS];
   }
   if (game.server_type && isKnownGameServerType(game.server_type) && isProxyGameServerType(game.server_type)) {
     return [];

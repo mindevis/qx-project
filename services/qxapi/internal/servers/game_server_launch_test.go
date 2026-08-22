@@ -55,9 +55,31 @@ func TestGameServerStartArgSetsForgeCommand(t *testing.T) {
 	}
 }
 
-func TestGameServerJVMArgsSkipAikarForVelocity(t *testing.T) {
+func TestGameServerJVMArgsApplyVelocityDefaults(t *testing.T) {
 	t.Parallel()
-	for _, serverType := range []string{"velocity", "waterfall", "bungeecord"} {
+	item := &models.GameServer{ServerType: "velocity"}
+	jvm := gameServerJVMArgs(item)
+	if len(jvm) < 2 || jvm[0] != "-Xms2G" || jvm[1] != "-Xmx2G" {
+		t.Fatalf("memory: %+v", jvm)
+	}
+	want := map[string]struct{}{}
+	for _, arg := range mcmanifest.VelocityJVMFlags() {
+		want[mcmanifest.JVMArgKey(arg)] = struct{}{}
+	}
+	for _, arg := range jvm[2:] {
+		delete(want, mcmanifest.JVMArgKey(arg))
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing velocity flags: %+v jvm: %+v", want, jvm)
+	}
+	if countJVMArgKey(jvm, "-XX:G1HeapRegionSize") != 1 {
+		t.Fatalf("region size: %+v", jvm)
+	}
+}
+
+func TestGameServerJVMArgsSkipAikarForWaterfallAndBungee(t *testing.T) {
+	t.Parallel()
+	for _, serverType := range []string{"waterfall", "bungeecord"} {
 		item := &models.GameServer{ServerType: serverType}
 		jvm := gameServerJVMArgs(item)
 		if !reflect.DeepEqual(jvm, []string{"-Xms2G", "-Xmx2G"}) {

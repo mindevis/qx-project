@@ -13,6 +13,7 @@ import {
   suggestDefaultGamePort,
   defaultExtraJvmArgsForGameServer,
   DEFAULT_AIKAR_JVM_ARGS,
+  DEFAULT_VELOCITY_JVM_ARGS,
   updateVpsGameServer,
 } from './vpsGameServers';
 
@@ -53,7 +54,7 @@ describe('vpsGameServers', () => {
 
   it('defaults extra JVM args to Aikar flags', () => {
     expect(defaultExtraJvmArgsForGameServer({ server_type: 'paper' })).toEqual(DEFAULT_AIKAR_JVM_ARGS);
-    expect(defaultExtraJvmArgsForGameServer({ server_type: 'velocity' })).toEqual([]);
+    expect(defaultExtraJvmArgsForGameServer({ server_type: 'velocity' })).toEqual(DEFAULT_VELOCITY_JVM_ARGS);
     expect(defaultExtraJvmArgsForGameServer({ server_type: 'waterfall' })).toEqual([]);
     expect(defaultExtraJvmArgsForGameServer({ server_type: 'bungeecord' })).toEqual([]);
     expect(

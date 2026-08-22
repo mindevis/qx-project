@@ -98,7 +98,10 @@ func gameServerJVMArgs(item *models.GameServer) []string {
 	mcmanifest.ApplyMaxMemoryMB(manifest, maxMB)
 	mcmanifest.ApplyMinMemoryMB(manifest, minMB)
 	base := manifest.JVMArguments
-	if !isProxyGameServerType(item.ServerType) {
+	switch {
+	case strings.EqualFold(strings.TrimSpace(item.ServerType), "velocity"):
+		base = mcmanifest.MergeJVMArgs(base, mcmanifest.VelocityJVMFlags())
+	case !isProxyGameServerType(item.ServerType):
 		base = mcmanifest.MergeJVMArgs(base, mcmanifest.AikarJVMFlags())
 	}
 	extras := stripMemoryJVMArgs(mcmanifest.SanitizeJVMArgs([]string(item.ExtraJVMArgs)))

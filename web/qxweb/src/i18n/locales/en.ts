@@ -941,6 +941,8 @@ export const en: Messages = {
     launchHint: 'RAM and extra arguments apply the next time this game server starts.',
     extraJvmArgsHint:
       'One argument per line. Aikar G1GC flags are applied by default; extra lines override or append.',
+    extraJvmArgsHintVelocity:
+      'One argument per line. Recommended Velocity flags (G1GC, 4M regions) are applied by default; extra lines override or append.',
     extraArgs: 'Extra server arguments',
     extraArgsHint: 'One argument per line, appended after the jar or Forge/Paper start args (for example nogui).',
     launchSaved: 'Launch settings saved',

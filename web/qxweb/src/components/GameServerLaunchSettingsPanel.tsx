@@ -123,7 +123,11 @@ export function GameServerLaunchSettingsPanel({
         <Form.Item
           name="extra_jvm_args"
           label={t('launcher.extraJvmArgs')}
-          extra={t('gameServerDetail.extraJvmArgsHint')}
+          extra={t(
+            game.server_type === 'velocity'
+              ? 'gameServerDetail.extraJvmArgsHintVelocity'
+              : 'gameServerDetail.extraJvmArgsHint',
+          )}
         >
           <Input.TextArea rows={10} placeholder="-XX:+UseG1GC" />
         </Form.Item>

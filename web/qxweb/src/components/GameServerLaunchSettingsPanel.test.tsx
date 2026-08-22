@@ -77,4 +77,16 @@ describe('GameServerLaunchSettingsPanel', () => {
     );
     expect(screen.getByDisplayValue(/AlwaysPreTouch/)).toBeInTheDocument();
   });
+
+  it('prefills Velocity flags when extra JVM args are empty', () => {
+    renderWithTheme(
+      <GameServerLaunchSettingsPanel
+        vpsId="srv-1"
+        game={{ ...game, name: 'Velocity', server_type: 'velocity', extra_jvm_args: [] }}
+        onUpdated={vi.fn()}
+      />,
+    );
+    expect(screen.getByDisplayValue(/G1HeapRegionSize=4M/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/MaxInlineLevel=15/)).toBeInTheDocument();
+  });
 });

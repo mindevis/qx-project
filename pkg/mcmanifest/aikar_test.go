@@ -5,6 +5,26 @@ import (
 	"testing"
 )
 
+func TestVelocityJVMFlags(t *testing.T) {
+	t.Parallel()
+	got := VelocityJVMFlags()
+	want := []string{
+		"-XX:+AlwaysPreTouch",
+		"-XX:+ParallelRefProcEnabled",
+		"-XX:+UnlockExperimentalVMOptions",
+		"-XX:+UseG1GC",
+		"-XX:G1HeapRegionSize=4M",
+		"-XX:MaxInlineLevel=15",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("flags: %+v", got)
+	}
+	got[0] = "mutated"
+	if VelocityJVMFlags()[0] != "-XX:+AlwaysPreTouch" {
+		t.Fatal("VelocityJVMFlags should return a copy")
+	}
+}
+
 func TestAikarJVMFlags(t *testing.T) {
 	t.Parallel()
 	got := AikarJVMFlags()
