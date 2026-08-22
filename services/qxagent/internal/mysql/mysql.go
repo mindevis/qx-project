@@ -322,16 +322,16 @@ func (m *Manager) installDocker(ctx context.Context, spec InstallResult, passwor
 
 func (m *Manager) installNative(ctx context.Context, spec InstallResult, password string, onLog func(string)) error {
 	logLine(onLog, "[QX] Installing native packages")
-	if err := m.run(ctx, "apt-get", "update"); err != nil {
+	if err := m.runApt(ctx, "update"); err != nil {
 		return fmt.Errorf("apt-get update: %w", err)
 	}
 	switch spec.Engine {
 	case mysqlutil.EngineMariaDB:
-		if err := m.run(ctx, "apt-get", "install", "-y", "mariadb-server", "mariadb-client"); err != nil {
+		if err := m.runApt(ctx, "install", "-y", "mariadb-server", "mariadb-client"); err != nil {
 			return err
 		}
 	case mysqlutil.EnginePercona:
-		if err := m.installPerconaRepo(ctx, spec.Version, onLog); err != nil {
+		if err := m.installPerconaRepo(ctx, spec.Version, password, onLog); err != nil {
 			return err
 		}
 	default:
@@ -351,29 +351,82 @@ func (m *Manager) installNative(ctx context.Context, spec InstallResult, passwor
 	return m.waitReady(ctx, 2*time.Minute)
 }
 
-func (m *Manager) installPerconaRepo(ctx context.Context, version string, onLog func(string)) error {
-	_ = m.run(ctx, "apt-get", "install", "-y", "wget", "gnupg", "lsb-release", "curl")
+func perconaNativeRepos(version string) []string {
+	if version == mysqlutil.Version57 {
+		return []string{"ps-57"}
+	}
+	// 8.0 community packages ended June 2026. ps-80 indexes are empty on
+	// Ubuntu 26.04 and Debian 13; 8.4 LTS still ships percona-server-server.
+	return []string{"ps-84-lts", "ps80"}
+}
+
+func perconaNativePackage(version string) string {
+	if version == mysqlutil.Version57 {
+		return "percona-server-server-5.7"
+	}
+	return "percona-server-server"
+}
+
+func (m *Manager) installPerconaRepo(ctx context.Context, version, password string, onLog func(string)) error {
+	if err := m.runApt(ctx, "install", "-y", "wget", "gnupg2", "lsb-release", "curl", "ca-certificates"); err != nil {
+		_ = m.runApt(ctx, "install", "-y", "wget", "gnupg", "lsb-release", "curl")
+	}
 	deb := filepath.Join(m.RootDir, "percona-release.deb")
 	if err := m.run(ctx, "wget", "-O", deb, "https://repo.percona.com/apt/percona-release_latest.generic_all.deb"); err != nil {
-		return err
+		if err := m.run(ctx, "curl", "-fsSL", "-o", deb, "https://repo.percona.com/apt/percona-release_latest.generic_all.deb"); err != nil {
+			return err
+		}
 	}
-	if err := m.run(ctx, "dpkg", "-i", deb); err != nil {
-		_ = m.run(ctx, "apt-get", "install", "-y", "-f")
+	if err := m.runApt(ctx, "install", "-y", deb); err != nil {
+		if err := m.run(ctx, "dpkg", "-i", deb); err != nil {
+			_ = m.runApt(ctx, "install", "-y", "-f")
+		}
 	}
-	repo := "ps-80"
-	pkg := "percona-server-server"
-	if version == mysqlutil.Version57 {
-		repo = "ps-57"
-		pkg = "percona-server-server-5.7"
+	pkg := perconaNativePackage(version)
+	_ = m.preseedPerconaRoot(ctx, password)
+	var last error
+	for _, repo := range perconaNativeRepos(version) {
+		logLine(onLog, "[QX] Enabling Percona "+repo)
+		if err := m.enablePerconaRepo(ctx, repo); err != nil {
+			last = err
+			continue
+		}
+		if err := m.runApt(ctx, "install", "-y", pkg); err != nil {
+			last = err
+			continue
+		}
+		return nil
 	}
-	logLine(onLog, "[QX] Enabling Percona "+repo)
+	if last == nil {
+		last = fmt.Errorf("package %s has no installation candidate", pkg)
+	}
+	return fmt.Errorf("%w; this distro may not publish Percona %s — use Docker instead", last, version)
+}
+
+func (m *Manager) enablePerconaRepo(ctx context.Context, repo string) error {
 	if err := m.run(ctx, "percona-release", "setup", "-y", repo); err != nil {
+		if err := m.run(ctx, "percona-release", "enable", repo, "release"); err != nil {
+			return err
+		}
+	} else {
+		_ = m.run(ctx, "percona-release", "enable", repo, "release")
+	}
+	_ = m.run(ctx, "percona-release", "disable", "tools")
+	return m.runApt(ctx, "update")
+}
+
+func (m *Manager) preseedPerconaRoot(ctx context.Context, password string) error {
+	body := "percona-server-server percona-server-server/root-pass password " + password + "\n" +
+		"percona-server-server percona-server-server/re-root-pass password " + password + "\n"
+	path := filepath.Join(m.RootDir, "percona.debconf")
+	if err := writeFileFn(path, []byte(body), 0o600); err != nil {
 		return err
 	}
-	if err := m.run(ctx, "apt-get", "update"); err != nil {
-		return err
-	}
-	return m.run(ctx, "apt-get", "install", "-y", pkg)
+	return m.run(ctx, "debconf-set-selections", path)
+}
+
+func (m *Manager) runApt(ctx context.Context, args ...string) error {
+	return m.runEnv(ctx, []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a"}, "apt-get", args...)
 }
 
 func (m *Manager) writeNativeCNF(spec InstallResult) error {
@@ -425,10 +478,10 @@ func (m *Manager) ensureDocker(ctx context.Context, onLog func(string)) error {
 		return nil
 	}
 	logLine(onLog, "[QX] Installing Docker")
-	if err := m.run(ctx, "apt-get", "update"); err != nil {
+	if err := m.runApt(ctx, "update"); err != nil {
 		return err
 	}
-	if err := m.run(ctx, "apt-get", "install", "-y", "docker.io"); err != nil {
+	if err := m.runApt(ctx, "install", "-y", "docker.io"); err != nil {
 		return err
 	}
 	_ = m.run(ctx, "systemctl", "enable", "--now", "docker")
@@ -579,7 +632,14 @@ func (m *Manager) readPassword() (string, error) {
 }
 
 func (m *Manager) run(ctx context.Context, name string, args ...string) error {
+	return m.runEnv(ctx, nil, name, args...)
+}
+
+func (m *Manager) runEnv(ctx context.Context, env []string, name string, args ...string) error {
 	cmd := commandContext(ctx, name, args...)
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		msg := strings.TrimSpace(string(out))

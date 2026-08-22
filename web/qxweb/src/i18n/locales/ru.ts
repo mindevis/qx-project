@@ -866,7 +866,7 @@ export const ru = {
     mysqlMaria57Hint: 'MariaDB 10.11 (совместима с MySQL 5.7)',
     mysqlMaria80Hint: 'MariaDB 11.4 (совместима с MySQL 8)',
     mysqlPercona57Hint: 'Percona Server 5.7',
-    mysqlPercona80Hint: 'Percona Server 8.0',
+    mysqlPercona80Hint: 'Percona Server 8 (при нативной установке — 8.4 LTS, если пакетов 8.0 нет)',
     mysqlHostLocal: 'Хост (локальный)',
     mysqlHostPublic: 'Хост (VPS)',
     mysqlPort: 'Порт',

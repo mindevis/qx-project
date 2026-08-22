@@ -77,6 +77,22 @@ func TestInstallDryRunAndSQL(t *testing.T) {
 	}
 }
 
+func TestPerconaNativeReposPrefer84LTS(t *testing.T) {
+	got := perconaNativeRepos("8.0")
+	if len(got) < 2 || got[0] != "ps-84-lts" || got[1] != "ps80" {
+		t.Fatalf("8.0 repos: %+v", got)
+	}
+	if perconaNativePackage("8.0") != "percona-server-server" {
+		t.Fatalf("8.0 pkg: %s", perconaNativePackage("8.0"))
+	}
+	if got := perconaNativeRepos("5.7"); len(got) != 1 || got[0] != "ps-57" {
+		t.Fatalf("5.7 repos: %+v", got)
+	}
+	if perconaNativePackage("5.7") != "percona-server-server-5.7" {
+		t.Fatalf("5.7 pkg: %s", perconaNativePackage("5.7"))
+	}
+}
+
 func TestInstallNativeDryRun(t *testing.T) {
 	m := NewManager(t.TempDir(), true)
 	res, err := m.Install(context.Background(), InstallSpec{

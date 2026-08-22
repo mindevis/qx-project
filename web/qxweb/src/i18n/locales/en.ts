@@ -867,7 +867,7 @@ export const en: Messages = {
     mysqlMaria57Hint: 'MariaDB 10.11 (MySQL 5.7 compatible)',
     mysqlMaria80Hint: 'MariaDB 11.4 (MySQL 8 compatible)',
     mysqlPercona57Hint: 'Percona Server 5.7',
-    mysqlPercona80Hint: 'Percona Server 8.0',
+    mysqlPercona80Hint: 'Percona Server 8 (native install uses 8.4 LTS when 8.0 packages are unavailable)',
     mysqlHostLocal: 'Host (local)',
     mysqlHostPublic: 'Host (VPS)',
     mysqlPort: 'Port',
