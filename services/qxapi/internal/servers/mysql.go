@@ -172,7 +172,11 @@ func (s *Service) InstallMySQL(ctx context.Context, ownerID, vpsID string, in My
 		_ = s.setMySQLError(ctx, vpsID, err.Error())
 		return nil, err
 	}
-	return s.GetMySQL(ctx, ownerID, vpsID)
+	row, err = s.getMySQLRow(ctx, vpsID)
+	if err != nil {
+		return nil, err
+	}
+	return s.mysqlView(ctx, vpsID, row)
 }
 
 func (s *Service) StartMySQL(ctx context.Context, ownerID, vpsID string) (*MySQLView, error) {
@@ -492,6 +496,9 @@ func (s *Service) mergeMySQLStatus(ctx context.Context, vpsID string, raw []byte
 	}
 	row, err := s.getMySQLRow(ctx, vpsID)
 	if err != nil || mysqlBusy(row.Status) {
+		return
+	}
+	if row.Status == models.MySQLStatusRunning && !st.Running {
 		return
 	}
 	status := models.MySQLStatusNotInstalled

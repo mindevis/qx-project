@@ -21,7 +21,8 @@ test.describe('launcher registered flow (Flow A web)', () => {
     ).toBeVisible();
     await page.getByRole('link', { name: 'Перейти к инстансам' }).click();
 
-    await expect(page.getByText('Аккаунт e2e@test.com')).toBeVisible();
+    await expect(page.getByLabel('Аккаунт e2e@test.com')).toBeVisible();
+    await expect(page.getByText('e2e@test.com')).toBeVisible();
     await expect(page.getByText('QXLauncher связан (flowa-dev)')).toBeVisible();
     await page.getByRole('button', { name: /Создать/ }).click();
     await page.getByLabel('Название').fill('FlowA Survival');
