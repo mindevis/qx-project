@@ -32,6 +32,8 @@ import {
   DEFAULT_GAME_SERVER_TYPE,
   GAME_SERVER_TYPE_GROUPS,
   gameServerTypeCapabilities,
+  gameServerPrimaryVersionI18nKey,
+  gameServerPrimaryVersionRequiredI18nKey,
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
 import {
@@ -437,14 +439,14 @@ export function AddGameServerModal({
           <div className="servers-game-modal-type-row">
             <Form.Item
               name="mc_version"
-              label={t('servers.gameServerMcVersion')}
-              rules={[{ required: true, message: t('servers.gameServerMcVersionRequired') }]}
+              label={t(gameServerPrimaryVersionI18nKey(serverType))}
+              rules={[{ required: true, message: t(gameServerPrimaryVersionRequiredI18nKey(serverType)) }]}
               className="servers-game-modal-type-col"
             >
               <McVersionSelect
                 options={mcVersionOptions}
                 loading={mcOptionsLoading || mcVersionsLoading}
-                placeholder={t('servers.gameServerMcVersionRequired')}
+                placeholder={t(gameServerPrimaryVersionRequiredI18nKey(serverType))}
                 onMcVersionChange={handleMcVersionChange}
               />
             </Form.Item>
@@ -534,7 +536,8 @@ export function AddGameServerModal({
           ) : null}
         </div>
 
-        {serverType && serverType !== 'vanilla' ? (
+        {serverType &&
+        (gameServerTypeCapabilities(serverType).plugins || gameServerTypeCapabilities(serverType).mods) ? (
           <Alert
             type="info"
             showIcon

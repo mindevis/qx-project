@@ -16,6 +16,7 @@ require (
 	github.com/qxproject/qx/pkg/protocol v0.0.0
 	github.com/qxproject/qx/pkg/reporoot v0.0.0
 	github.com/qxproject/qx/pkg/safepath v0.0.0
+	github.com/qxproject/qx/pkg/mcproxy v0.0.0
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
@@ -100,3 +101,5 @@ replace github.com/qxproject/qx/pkg/protocol => ../../pkg/protocol
 replace github.com/qxproject/qx/pkg/msauth => ../../pkg/msauth
 
 replace github.com/qxproject/qx/pkg/safepath => ../../pkg/safepath
+
+replace github.com/qxproject/qx/pkg/mcproxy => ../../pkg/mcproxy

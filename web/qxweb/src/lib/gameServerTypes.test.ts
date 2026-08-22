@@ -15,7 +15,8 @@ describe('gameServerTypes', () => {
     expect(ALL_GAME_SERVER_TYPES).toContain('vanilla');
     expect(ALL_GAME_SERVER_TYPES).toContain('paper');
     expect(ALL_GAME_SERVER_TYPES).toContain('mohist');
-    expect(ALL_GAME_SERVER_TYPES).toHaveLength(11);
+    expect(ALL_GAME_SERVER_TYPES).toHaveLength(12);
+    expect(ALL_GAME_SERVER_TYPES).toContain('velocity');
   });
 
   it('recognizes known types', () => {
@@ -47,6 +48,15 @@ describe('gameServerTypes', () => {
     });
     expect(gameServerCatalogTabs('forge')).toEqual(['mod', 'resourcepack', 'shader', 'datapack']);
     expect(gameServerCatalogTabs('vanilla')).toEqual(['resourcepack', 'shader', 'datapack']);
+    expect(gameServerSupportsPlugins('velocity')).toBe(true);
+    expect(gameServerSupportsMods('velocity')).toBe(false);
+    expect(gameServerTypeCapabilities('velocity')).toEqual({
+      plugins: true,
+      mods: false,
+      datapacks: false,
+      clientContent: false,
+    });
+    expect(gameServerCatalogTabs('velocity')).toEqual([]);
   });
 
   it('formats labels for known and unknown types', () => {

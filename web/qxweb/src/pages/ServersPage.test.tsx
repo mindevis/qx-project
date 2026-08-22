@@ -55,6 +55,9 @@ function mockAuthedFetch(handler: (url: string, init?: RequestInit) => Response 
     if (custom) {
       return Promise.resolve(custom);
     }
+    if (url.includes('/networks')) {
+      return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+    }
     if (url.includes('/auth/refresh')) {
       return Promise.resolve(
         new Response(
@@ -932,7 +935,7 @@ describe('ServersPage', () => {
     let detailCalls = 0;
     vi.mocked(fetch).mockImplementation(
       mockAuthedFetch((url) => {
-        if (url.includes('/servers/srv-1/game-servers')) {
+        if (url.includes('/servers/srv-1/game-servers') || url.includes('/networks')) {
           return new Response(JSON.stringify({ items: [] }), { status: 200 });
         }
         if (url.includes('/servers/srv-1')) {

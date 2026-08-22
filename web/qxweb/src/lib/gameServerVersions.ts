@@ -153,11 +153,16 @@ async function fetchPaperFamilyMcVersions(project: 'paper' | 'purpur'): Promise<
       .sort(compareMcVersionsDesc)
       .map((version) => ({ value: version, label: version }));
   }
-  const data = await cachedFetchJson<unknown>(`${PAPER_API}/paper`);
-  return parsePaperMcVersions(data)
-    .filter(isPaperReleaseVersion)
-    .sort(compareMcVersionsDesc)
-    .map((version) => ({ value: version, label: version }));
+  return fetchPaperMCVersions('paper');
+}
+
+async function fetchPaperMCVersions(project: 'paper' | 'velocity'): Promise<VersionOption[]> {
+  const data = await cachedFetchJson<unknown>(`${PAPER_API}/${project}`);
+  let versions = parsePaperMcVersions(data);
+  if (project === 'paper') {
+    versions = versions.filter(isPaperReleaseVersion);
+  }
+  return versions.sort(compareMcVersionsDesc).map((version) => ({ value: version, label: version }));
 }
 
 function isPaperReleaseVersion(version: string): boolean {
@@ -222,12 +227,12 @@ function paperBuildLabel(build: PaperBuild): string {
 }
 
 async function fetchPaperFamilyBuilds(
-  project: 'paper' | 'purpur',
+  project: 'paper' | 'purpur' | 'velocity',
   mcVersion: string,
 ): Promise<VersionOption[]> {
   if (project === 'purpur') {
     const data = await cachedFetchJson<{ builds: { build: number }[] }>(
-      `${PURPUR_API}/versions/${mcVersion}/builds`,
+      `${PURPUR_API}/versions/${encodeURIComponent(mcVersion)}/builds`,
     );
     return [...data.builds]
       .sort((a, b) => b.build - a.build)
@@ -236,7 +241,9 @@ async function fetchPaperFamilyBuilds(
         label: `#${item.build}`,
       }));
   }
-  const data = await cachedFetchJson<unknown>(`${PAPER_API}/paper/versions/${mcVersion}/builds`);
+  const data = await cachedFetchJson<unknown>(
+    `${PAPER_API}/${project}/versions/${encodeURIComponent(mcVersion)}/builds`,
+  );
   return parsePaperBuilds(data)
     .sort((a, b) => b.id - a.id)
     .map((item) => ({
@@ -521,6 +528,8 @@ export async function listGameServerMcVersions(
       case 'paper':
       case 'spigot':
         return await fetchPaperFamilyMcVersions('paper');
+      case 'velocity':
+        return await fetchPaperMCVersions('velocity');
       case 'purpur':
         return await fetchPaperFamilyMcVersions('purpur');
       case 'forge':
@@ -560,6 +569,8 @@ export async function listGameServerLoaderVersions(
         return await fetchPaperFamilyBuilds('purpur', mcVersion);
       case 'spigot':
         return await fetchPaperFamilyBuilds('paper', mcVersion);
+      case 'velocity':
+        return await fetchPaperFamilyBuilds('velocity', mcVersion);
       case 'forge':
         return await fetchForgeLoaderVersions(mcVersion);
       case 'neoforge':

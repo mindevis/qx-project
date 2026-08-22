@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -94,7 +95,7 @@ func installPaper(ctx context.Context, opts Options, cfg InstallConfig) (StartSp
 
 func resolvePaperDownloadURL(ctx context.Context, apiBase, mcVersion, build string) (string, error) {
 	apiBase = strings.TrimRight(strings.TrimSpace(apiBase), "/")
-	reqURL := apiBase + "/versions/" + mcVersion + "/builds"
+	reqURL := apiBase + "/versions/" + url.PathEscape(mcVersion) + "/builds"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return "", err

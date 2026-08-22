@@ -15,7 +15,12 @@ import {
   listGameServerMcVersions,
   type VersionOption,
 } from '@/lib/gameServerVersions';
-import type { VpsGameServerType } from '@/lib/gameServerTypes';
+import {
+  gameServerPrimaryVersionI18nKey,
+  gameServerPrimaryVersionRequiredI18nKey,
+  isProxyGameServerType,
+  type VpsGameServerType,
+} from '@/lib/gameServerTypes';
 
 const { Paragraph, Title } = Typography;
 
@@ -189,21 +194,23 @@ export function GameServerVersionSettingsPanel({
   return (
     <section className="game-server-version-settings">
       <Title level={4} className="game-server-launch-title">
-        {t('gameServerDetail.versionTitle')}
+        {t(isProxyGameServerType(serverType) ? 'gameServerDetail.versionTitleProxy' : 'gameServerDetail.versionTitle')}
       </Title>
-      <Paragraph type="secondary">{t('gameServerDetail.versionHint')}</Paragraph>
+      <Paragraph type="secondary">
+        {t(isProxyGameServerType(serverType) ? 'gameServerDetail.versionHintProxy' : 'gameServerDetail.versionHint')}
+      </Paragraph>
       <Form form={form} layout="vertical" disabled={disabled}>
         <Form.Item
           name="mc_version"
-          label={t('servers.gameServerMcVersion')}
-          rules={[{ required: true, message: t('servers.gameServerMcVersionRequired') }]}
+          label={t(gameServerPrimaryVersionI18nKey(serverType))}
+          rules={[{ required: true, message: t(gameServerPrimaryVersionRequiredI18nKey(serverType)) }]}
         >
           <Select
             showSearch
             optionFilterProp="label"
             options={mcOptions}
             loading={mcLoading}
-            placeholder={t('servers.gameServerMcVersionRequired')}
+            placeholder={t(gameServerPrimaryVersionRequiredI18nKey(serverType))}
             onChange={onMcChange}
           />
         </Form.Item>

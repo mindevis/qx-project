@@ -544,17 +544,21 @@ func gameServerSupportsMods(serverType string) bool {
 
 func gameServerSupportsPlugins(serverType string) bool {
 	switch strings.ToLower(serverType) {
-	case "paper", "spigot", "purpur", "mohist", "magma", "arclight":
+	case "paper", "spigot", "purpur", "mohist", "magma", "arclight", "velocity":
 		return true
 	default:
 		return false
 	}
 }
 
-func gameServerSupportsDatapacks(_ string) bool {
-	return true
+func gameServerSupportsDatapacks(serverType string) bool {
+	return !gameServerIsProxy(serverType)
 }
 
-func gameServerSupportsClientContent(_ string) bool {
-	return true
+func gameServerSupportsClientContent(serverType string) bool {
+	return !gameServerIsProxy(serverType)
+}
+
+func gameServerIsProxy(serverType string) bool {
+	return strings.EqualFold(strings.TrimSpace(serverType), "velocity")
 }

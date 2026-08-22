@@ -347,6 +347,33 @@ describe('gameServerVersions', () => {
     expect(loaderOptions[0]?.value).toBe('forge:1.0');
   });
 
+  it('loads velocity versions and builds from papermc', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/projects/velocity') && !url.includes('/versions/')) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ versions: { '3.4.0-SNAPSHOT': ['3.4.0-SNAPSHOT'] } }), {
+              status: 200,
+            }),
+          );
+        }
+        if (url.includes('/projects/velocity/versions/3.4.0-SNAPSHOT/builds')) {
+          return Promise.resolve(
+            new Response(JSON.stringify([{ id: 550, channel: 'default' }]), { status: 200 }),
+          );
+        }
+        return Promise.reject(new Error(`unexpected ${url}`));
+      }),
+    );
+
+    const versions = await listGameServerMcVersions('velocity', mcFallback);
+    expect(versions[0]).toEqual({ value: '3.4.0-SNAPSHOT', label: '3.4.0-SNAPSHOT' });
+    const builds = await listGameServerLoaderVersions('velocity', '3.4.0-SNAPSHOT');
+    expect(builds[0]?.value).toBe('550');
+  });
+
   it('returns empty loader list for vanilla', async () => {
     expect(await listGameServerLoaderVersions('vanilla', '1.21')).toEqual([]);
     expect(await listGameServerLoaderVersions('forge', '')).toEqual([]);

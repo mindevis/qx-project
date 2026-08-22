@@ -105,6 +105,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	mcVersionsH := &McVersionsHandler{}
 	serversH := &ServersHandler{Service: serversSvc}
 	gameServersH := &GameServersHandler{Service: serversSvc}
+	gameServerNetworksH := &GameServerNetworksHandler{Service: serversSvc}
 	monitoringH := &MonitoringHandler{Service: serversSvc, LauncherService: launcherSvc}
 	consoleH := &ServerConsoleHandler{Servers: serversSvc, Tokens: tokens}
 	mojangH := &MojangHandler{Service: mojangSvc}
@@ -219,6 +220,12 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.POST("/servers/:id/game-servers/:gameServerId/stop", gameServersH.Stop)
 			authed.POST("/servers/:id/game-servers/:gameServerId/restart", gameServersH.Restart)
 			authed.DELETE("/servers/:id/game-servers/:gameServerId", gameServersH.Delete)
+
+			authed.GET("/servers/:id/networks", gameServerNetworksH.List)
+			authed.POST("/servers/:id/networks", gameServerNetworksH.Create)
+			authed.PATCH("/servers/:id/networks/:networkId", gameServerNetworksH.Update)
+			authed.POST("/servers/:id/networks/:networkId/apply", gameServerNetworksH.Apply)
+			authed.DELETE("/servers/:id/networks/:networkId", gameServerNetworksH.Delete)
 
 			authed.POST("/monitoring/servers/:id/like", monitoringH.Like)
 			authed.POST("/monitoring/servers/:id/rate", monitoringH.Rate)

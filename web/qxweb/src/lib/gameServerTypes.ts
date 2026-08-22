@@ -1,4 +1,4 @@
-export type GameServerTypeGroupId = 'vanilla' | 'plugins' | 'mods' | 'hybrid';
+export type GameServerTypeGroupId = 'vanilla' | 'plugins' | 'mods' | 'hybrid' | 'proxy';
 
 export type VpsGameServerType =
   | 'vanilla'
@@ -11,7 +11,8 @@ export type VpsGameServerType =
   | 'quilt'
   | 'mohist'
   | 'magma'
-  | 'arclight';
+  | 'arclight'
+  | 'velocity';
 
 export const DEFAULT_GAME_SERVER_TYPE: VpsGameServerType = 'vanilla';
 
@@ -23,18 +24,32 @@ export const GAME_SERVER_TYPE_GROUPS: {
   { id: 'plugins', types: ['paper', 'spigot', 'purpur'] },
   { id: 'mods', types: ['forge', 'neoforge', 'fabric', 'quilt'] },
   { id: 'hybrid', types: ['mohist', 'magma', 'arclight'] },
+  { id: 'proxy', types: ['velocity'] },
 ];
 
 export const ALL_GAME_SERVER_TYPES: VpsGameServerType[] = GAME_SERVER_TYPE_GROUPS.flatMap(
   (group) => group.types,
 );
 
-const PLUGIN_TYPES = new Set<VpsGameServerType>(['paper', 'spigot', 'purpur']);
+const PLUGIN_TYPES = new Set<VpsGameServerType>(['paper', 'spigot', 'purpur', 'velocity']);
 const MOD_TYPES = new Set<VpsGameServerType>(['forge', 'neoforge', 'fabric', 'quilt']);
 const HYBRID_TYPES = new Set<VpsGameServerType>(['mohist', 'magma', 'arclight']);
+const PROXY_TYPES = new Set<VpsGameServerType>(['velocity']);
 
 export function isKnownGameServerType(value: string): value is VpsGameServerType {
   return (ALL_GAME_SERVER_TYPES as string[]).includes(value);
+}
+
+export function isProxyGameServerType(type: VpsGameServerType): boolean {
+  return PROXY_TYPES.has(type);
+}
+
+function gameServerUsesMinecraftVersion(type: VpsGameServerType): boolean {
+  return !isProxyGameServerType(type);
+}
+
+export function gameServerHasProperties(type: VpsGameServerType): boolean {
+  return !isProxyGameServerType(type);
 }
 
 export function gameServerSupportsPlugins(type: VpsGameServerType): boolean {
@@ -45,12 +60,12 @@ export function gameServerSupportsMods(type: VpsGameServerType): boolean {
   return MOD_TYPES.has(type) || HYBRID_TYPES.has(type);
 }
 
-export function gameServerSupportsDatapacks(_type: VpsGameServerType): boolean {
-  return true;
+export function gameServerSupportsDatapacks(type: VpsGameServerType): boolean {
+  return !isProxyGameServerType(type);
 }
 
-export function gameServerSupportsClientContent(_type: VpsGameServerType): boolean {
-  return true;
+export function gameServerSupportsClientContent(type: VpsGameServerType): boolean {
+  return !isProxyGameServerType(type);
 }
 
 export function gameServerCatalogTabs(type: VpsGameServerType): Array<
@@ -74,6 +89,7 @@ export function pluginLoaderForServerType(type: VpsGameServerType): string {
     case 'paper':
     case 'spigot':
     case 'purpur':
+    case 'velocity':
       return type;
     case 'mohist':
     case 'magma':
@@ -102,4 +118,18 @@ export function gameServerTypeLabelText(t: (key: string) => string, type: string
   if (!type) return '—';
   if (!isKnownGameServerType(type)) return type;
   return t(`servers.gameServerType.${type}`);
+}
+
+export function gameServerPrimaryVersionI18nKey(type: VpsGameServerType | undefined): string {
+  if (type && !gameServerUsesMinecraftVersion(type)) {
+    return 'servers.gameServerProxyVersion';
+  }
+  return 'servers.gameServerMcVersion';
+}
+
+export function gameServerPrimaryVersionRequiredI18nKey(type: VpsGameServerType | undefined): string {
+  if (type && !gameServerUsesMinecraftVersion(type)) {
+    return 'servers.gameServerProxyVersionRequired';
+  }
+  return 'servers.gameServerMcVersionRequired';
 }

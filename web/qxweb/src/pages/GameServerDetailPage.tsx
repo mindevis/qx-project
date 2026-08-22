@@ -36,6 +36,8 @@ import { GameServerFilesPanel } from '@/components/GameServerFilesPanel';
 import { GameServerModConfigsPanel } from '@/components/GameServerModConfigsPanel';
 import { GameServerInstanceBinding } from '@/components/GameServerInstanceBinding';
 import {
+  gameServerHasProperties,
+  gameServerPrimaryVersionI18nKey,
   gameServerTypeCapabilities,
   gameServerTypeLabelText,
   type VpsGameServerType,
@@ -268,6 +270,7 @@ export function GameServerDetailPage() {
             disabled={rowBusy}
             onUpdated={setGame}
           />
+          {gameServerHasProperties(serverType) ? (
           <section className="game-server-properties-section">
             <Title level={4} className="game-server-launch-title">
               {t('gameServerDetail.propertiesTitle')}
@@ -278,6 +281,7 @@ export function GameServerDetailPage() {
               agentOnline={agentOnline}
             />
           </section>
+          ) : null}
         </div>
       ),
     },
@@ -407,7 +411,7 @@ export function GameServerDetailPage() {
               },
               {
                 key: 'mc',
-                label: t('servers.gameServerMcVersion'),
+                label: t(gameServerPrimaryVersionI18nKey(serverType)),
                 children: formatGameServerMcVersionLabel(game.mc_version),
               },
               {

@@ -506,14 +506,20 @@ func validateGameServerContentKind(serverType, contentKind string) error {
 		}
 	case "plugin":
 		switch strings.ToLower(strings.TrimSpace(serverType)) {
-		case "paper", "spigot", "purpur", "mohist", "magma", "arclight":
+		case "paper", "spigot", "purpur", "mohist", "magma", "arclight", "velocity":
 			return nil
 		default:
 			return ErrValidation
 		}
 	case "datapack":
+		if isProxyGameServerType(serverType) {
+			return ErrValidation
+		}
 		return nil
 	case "resourcepack", "shader":
+		if isProxyGameServerType(serverType) {
+			return ErrValidation
+		}
 		return nil
 	default:
 		return ErrValidation

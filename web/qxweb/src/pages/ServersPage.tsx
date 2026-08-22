@@ -72,6 +72,7 @@ import {
 } from '@/lib/gameServerVersions';
 import { AddGameServerModal } from '@/components/servers/AddGameServerModal';
 import { EditGameServerModal } from '@/components/servers/EditGameServerModal';
+import { GameServerNetworksPanel } from '@/components/servers/GameServerNetworksPanel';
 import './ServersPage.css';
 import { GameServerDetailPage } from './GameServerDetailPage';
 
@@ -785,6 +786,7 @@ function VpsGameServersSection({
   );
 
   return (
+    <div className="servers-game-and-networks">
     <div className="servers-panel">
       <div className="servers-panel-header">
         <Title level={4} className="servers-panel-title">
@@ -861,6 +863,8 @@ function VpsGameServersSection({
           setGames((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
         }}
       />
+    </div>
+    <GameServerNetworksPanel vpsId={vpsId} games={games} agentOnline={agentOnline} />
     </div>
   );
 }

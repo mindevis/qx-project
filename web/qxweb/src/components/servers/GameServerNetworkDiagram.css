@@ -1,0 +1,130 @@
+.network-diagram {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  margin: 8px 0 16px;
+}
+
+.network-diagram-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.network-diagram-edge {
+  fill: none;
+  stroke: rgba(22, 119, 255, 0.55);
+  stroke-width: 2;
+}
+
+.network-diagram-edge--try {
+  stroke: rgba(82, 196, 26, 0.75);
+  stroke-width: 2.4;
+}
+
+.network-diagram-edge--transfer {
+  stroke: rgba(114, 46, 209, 0.55);
+  stroke-dasharray: 6 5;
+}
+
+.network-diagram-arrowhead {
+  fill: rgba(22, 119, 255, 0.75);
+}
+
+.network-diagram-edge--try + .network-diagram-edge-label,
+.network-diagram-edge--try ~ .network-diagram-edge-label {
+  fill: rgba(82, 196, 26, 0.95);
+}
+
+.network-diagram-edge-label {
+  fill: rgba(0, 0, 0, 0.45);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+html[data-theme='dark'] .network-diagram-edge-label {
+  fill: rgba(255, 255, 255, 0.55);
+}
+
+html[data-theme='dark'] .network-diagram-edge {
+  stroke: rgba(64, 169, 255, 0.55);
+}
+
+html[data-theme='dark'] .network-diagram-edge--try {
+  stroke: rgba(115, 209, 61, 0.8);
+}
+
+html[data-theme='dark'] .network-diagram-edge--transfer {
+  stroke: rgba(179, 127, 235, 0.65);
+}
+
+html[data-theme='dark'] .network-diagram-arrowhead {
+  fill: rgba(64, 169, 255, 0.8);
+}
+
+.network-diagram-node {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+html[data-theme='dark'] .network-diagram-node {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.network-diagram-node--players {
+  align-items: center;
+  background: linear-gradient(180deg, rgba(22, 119, 255, 0.12), rgba(22, 119, 255, 0.04));
+  font-weight: 600;
+}
+
+.network-diagram-node--proxy {
+  border-color: rgba(22, 119, 255, 0.35);
+  background: linear-gradient(180deg, rgba(22, 119, 255, 0.1), #fff);
+}
+
+.network-diagram-node--lobby {
+  border-color: rgba(82, 196, 26, 0.4);
+}
+
+.network-diagram-node-title {
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-diagram-node-sub,
+.network-diagram-node-role {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-theme='dark'] .network-diagram-node--proxy {
+  background: linear-gradient(180deg, rgba(22, 119, 255, 0.18), rgba(255, 255, 255, 0.03));
+}
+
+html[data-theme='dark'] .network-diagram-node-sub,
+html[data-theme='dark'] .network-diagram-node-role {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.network-diagram-node--server:hover {
+  border-color: #1677ff;
+}

@@ -192,6 +192,12 @@ func TestGameServerSupportsContent(t *testing.T) {
 	if !gameServerSupportsDatapacks("vanilla") {
 		t.Fatal("vanilla should support datapacks")
 	}
+	if gameServerSupportsDatapacks("velocity") {
+		t.Fatal("velocity should not support datapacks")
+	}
+	if !gameServerSupportsPlugins("velocity") {
+		t.Fatal("velocity should support plugins")
+	}
 }
 
 func TestSyncModValidation(t *testing.T) {

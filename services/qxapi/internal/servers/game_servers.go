@@ -913,6 +913,7 @@ func (s *Service) applyServerInstallResult(ctx context.Context, vpsID, requestID
 	}
 	args, jvmArgs, extraArgs := gameServerStartArgSets(&gameServer)
 	_ = s.beginGameServerStart(ctx, vpsID, op.gameServerID, result.JarPath, result.WorkDir, result.Command, args, jvmArgs, extraArgs, result.JavaBin, gameServer.ServerType, gameServer.MCVersion)
+	s.syncNetworksForGameServer(ctx, vpsID, op.gameServerID)
 }
 
 func (s *Service) beginGameServerStart(

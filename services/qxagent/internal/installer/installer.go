@@ -47,25 +47,45 @@ func JavaRootFromServerRoot(serverRoot string) string {
 }
 
 func ensureJava(ctx context.Context, opts Options, mcVersion string) (string, error) {
-	javaRoot := strings.TrimSpace(opts.JavaRoot)
-	if javaRoot == "" {
-		javaRoot = "/opt/qxsystem/java"
+	mgr := ensureJavaManager(opts)
+	if !(opts.DryRun || opts.SkipJavaDownload) {
+		logLine(opts, "[QX] Installing Mojang Java for Minecraft "+mcVersion+"…")
 	}
-	mgr := &mojangjava.Manager{
-		RootDir:      javaRoot,
-		JavaPath:     opts.JavaPath,
-		SkipDownload: opts.DryRun || opts.SkipJavaDownload,
-	}
-	if opts.DryRun || opts.SkipJavaDownload {
-		return mgr.EnsureForMcVersion(ctx, mcVersion)
-	}
-	logLine(opts, "[QX] Installing Mojang Java for Minecraft "+mcVersion+"…")
 	bin, err := mgr.EnsureForMcVersion(ctx, mcVersion)
 	if err != nil {
 		return "", fmt.Errorf("mojang java: %w", err)
 	}
-	logLine(opts, "[QX] Java ready: "+bin)
+	if !(opts.DryRun || opts.SkipJavaDownload) {
+		logLine(opts, "[QX] Java ready: "+bin)
+	}
 	return bin, nil
+}
+
+func ensureJavaMajor(ctx context.Context, opts Options, major int) (string, error) {
+	mgr := ensureJavaManager(opts)
+	if !(opts.DryRun || opts.SkipJavaDownload) {
+		logLine(opts, fmt.Sprintf("[QX] Installing Mojang Java %d…", major))
+	}
+	bin, err := mgr.EnsureForRuntime(ctx, mojangjava.ComponentForMajor(major), major)
+	if err != nil {
+		return "", fmt.Errorf("mojang java: %w", err)
+	}
+	if !(opts.DryRun || opts.SkipJavaDownload) {
+		logLine(opts, "[QX] Java ready: "+bin)
+	}
+	return bin, nil
+}
+
+func ensureJavaManager(opts Options) *mojangjava.Manager {
+	javaRoot := strings.TrimSpace(opts.JavaRoot)
+	if javaRoot == "" {
+		javaRoot = "/opt/qxsystem/java"
+	}
+	return &mojangjava.Manager{
+		RootDir:      javaRoot,
+		JavaPath:     opts.JavaPath,
+		SkipDownload: opts.DryRun || opts.SkipJavaDownload,
+	}
 }
 
 type InstallConfig struct {
@@ -87,6 +107,8 @@ func Install(ctx context.Context, opts Options, cfg InstallConfig) (StartSpec, e
 		return installNeoForge(ctx, opts, cfg)
 	case "paper":
 		return installPaper(ctx, opts, cfg)
+	case "velocity":
+		return installVelocity(ctx, opts, cfg)
 	default:
 		return StartSpec{}, fmt.Errorf("%w: %s", ErrUnsupportedServerType, cfg.ServerType)
 	}

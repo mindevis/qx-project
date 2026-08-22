@@ -72,6 +72,38 @@ func TestInstallPaperDryRun(t *testing.T) {
 	}
 }
 
+func TestInstallVelocityDryRun(t *testing.T) {
+	workDir := t.TempDir()
+	spec, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
+		ServerType:    "velocity",
+		WorkDir:       workDir,
+		MCVersion:     "3.4.0-SNAPSHOT",
+		LoaderVersion: "550",
+		Port:          25565,
+	})
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if spec.WorkDir != workDir {
+		t.Fatalf("work dir: %q", spec.WorkDir)
+	}
+	if !strings.HasSuffix(spec.JarPath, "server.jar") {
+		t.Fatalf("jar path: %q", spec.JarPath)
+	}
+}
+
+func TestInstallVelocityValidation(t *testing.T) {
+	_, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
+		ServerType: "velocity",
+		WorkDir:    t.TempDir(),
+		MCVersion:  "3.4.0-SNAPSHOT",
+		Port:       25565,
+	})
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
 func TestInstallPaperValidation(t *testing.T) {
 	_, err := Install(context.Background(), Options{DryRun: true}, InstallConfig{
 		ServerType: "paper",

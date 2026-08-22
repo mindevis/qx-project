@@ -188,6 +188,31 @@ export type VpsGameServerInstance = {
   created_at: string;
 };
 
+export type GameServerNetworkRole = 'proxy' | 'lobby' | 'backend';
+
+export type GameServerNetworkMember = {
+  id: string;
+  game_server_id: string;
+  role: GameServerNetworkRole;
+  alias: string;
+  sort_order: number;
+  name: string;
+  server_type: string;
+  port: number;
+  address?: string;
+  status: string;
+};
+
+export type GameServerNetwork = {
+  id: string;
+  name: string;
+  members: GameServerNetworkMember[];
+  applied?: boolean;
+  apply_error?: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type MonitoringServer = {
   id: string;
   name: string;
@@ -1076,6 +1101,46 @@ export const api = {
     request<VpsGameServerInstance>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/clone`,
       { method: 'POST' },
+    ),
+
+  listVpsGameServerNetworks: (vpsId: string) =>
+    request<{ items: GameServerNetwork[] }>(`/servers/${encodeURIComponent(vpsId)}/networks`),
+
+  createVpsGameServerNetwork: (vpsId: string, body: { name: string }) =>
+    request<GameServerNetwork>(`/servers/${encodeURIComponent(vpsId)}/networks`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateVpsGameServerNetwork: (
+    vpsId: string,
+    networkId: string,
+    body: {
+      name?: string;
+      members: Array<{
+        game_server_id: string;
+        role: GameServerNetworkRole;
+        alias: string;
+        sort_order?: number;
+      }>;
+      apply?: boolean;
+    },
+  ) =>
+    request<GameServerNetwork>(
+      `/servers/${encodeURIComponent(vpsId)}/networks/${encodeURIComponent(networkId)}`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+    ),
+
+  applyVpsGameServerNetwork: (vpsId: string, networkId: string) =>
+    request<GameServerNetwork>(
+      `/servers/${encodeURIComponent(vpsId)}/networks/${encodeURIComponent(networkId)}/apply`,
+      { method: 'POST' },
+    ),
+
+  deleteVpsGameServerNetwork: (vpsId: string, networkId: string) =>
+    request<void>(
+      `/servers/${encodeURIComponent(vpsId)}/networks/${encodeURIComponent(networkId)}`,
+      { method: 'DELETE' },
     ),
 
   changeVpsGameServerVersion: (

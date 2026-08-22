@@ -1473,7 +1473,72 @@ html[data-theme='dark'] .game-server-property-desc {
   margin-top: 12px;
 }
 
-.game-server-files-toolbar {
+.servers-game-and-networks {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.network-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.network-card {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+html[data-theme='dark'] .network-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.network-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.network-card-name {
+  flex: 1;
+}
+
+.network-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.network-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .network-member-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.network-member-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-add-select {
+  width: 100%;
+  max-width: 360px;
   margin-bottom: 8px;
 }
 
