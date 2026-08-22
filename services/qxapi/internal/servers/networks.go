@@ -323,16 +323,13 @@ func (s *Service) hydrateNetworkFromProxy(ctx context.Context, vpsID string, vie
 	}
 	cfg := parse(content)
 	scrubProxyConfig(&cfg, proxyMember)
-	changed, extra := overlayNetworkMembersFromProxy(view.Members, cfg)
+	_, extra := overlayNetworkMembersFromProxy(view.Members, cfg)
 	view.ProxySynced = true
 	if len(extra) > 0 {
 		view.ProxyExtra = make([]GameServerNetworkProxyExtra, 0, len(extra))
 		for _, b := range extra {
 			view.ProxyExtra = append(view.ProxyExtra, GameServerNetworkProxyExtra{Alias: b.Alias, Address: b.Address})
 		}
-	}
-	if !changed {
-		return
 	}
 }
 
