@@ -28,6 +28,7 @@ describe('gameServerNetworkLayout', () => {
     expect(suggestedRoleForServer('bungeecord', [])).toBe('proxy');
     expect(suggestedRoleForServer('paper', [])).toBe('lobby');
     expect(suggestedRoleForServer('paper', [{ role: 'lobby' }])).toBe('backend');
+    expect(suggestedRoleForServer(undefined, [])).toBe('lobby');
   });
 
   it('lays out players -> velocity -> lobby and worlds', () => {

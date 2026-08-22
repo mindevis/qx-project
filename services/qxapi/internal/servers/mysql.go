@@ -494,13 +494,11 @@ func (s *Service) mergeMySQLStatus(ctx context.Context, vpsID string, raw []byte
 	if err != nil || mysqlBusy(row.Status) {
 		return
 	}
-	status := row.Status
+	status := models.MySQLStatusNotInstalled
 	if st.Running {
 		status = models.MySQLStatusRunning
 	} else if st.Installed {
 		status = models.MySQLStatusInstalled
-	} else {
-		status = models.MySQLStatusNotInstalled
 	}
 	updates := map[string]any{
 		"status":     status,

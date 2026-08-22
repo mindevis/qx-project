@@ -51,7 +51,13 @@ export function suggestedRoleForServer(
   serverType: string | undefined,
   existing: Array<{ role: GameServerNetworkRole }>,
 ): GameServerNetworkRole {
-  if (isKnownGameServerType(serverType) && isProxyGameServerType(serverType)) return 'proxy';
+  if (
+    serverType &&
+    isKnownGameServerType(serverType) &&
+    isProxyGameServerType(serverType)
+  ) {
+    return 'proxy';
+  }
   if (!existing.some((item) => item.role === 'lobby')) return 'lobby';
   return 'backend';
 }
