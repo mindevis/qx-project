@@ -8,6 +8,7 @@ COPY pkg/log pkg/log
 COPY pkg/mcmanifest pkg/mcmanifest
 COPY pkg/mcproxy pkg/mcproxy
 COPY pkg/msauth pkg/msauth
+COPY pkg/mysqlutil pkg/mysqlutil
 COPY pkg/protocol pkg/protocol
 COPY pkg/reporoot pkg/reporoot
 COPY pkg/safepath pkg/safepath
