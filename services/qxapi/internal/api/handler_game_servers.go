@@ -29,13 +29,17 @@ type createGameServerRequest struct {
 }
 
 type updateGameServerRequest struct {
-	Name                  *string  `json:"name"`
-	Address               *string  `json:"address"`
-	Port                  *int     `json:"port"`
-	ShowInMonitoring      *bool    `json:"show_in_monitoring"`
-	MonitoringDescription *string  `json:"monitoring_description"`
-	BannerURL             *string  `json:"banner_url"`
-	MonitoringTags        []string `json:"monitoring_tags"`
+	Name                  *string   `json:"name"`
+	Address               *string   `json:"address"`
+	Port                  *int      `json:"port"`
+	ShowInMonitoring      *bool     `json:"show_in_monitoring"`
+	MonitoringDescription *string   `json:"monitoring_description"`
+	BannerURL             *string   `json:"banner_url"`
+	MonitoringTags        []string  `json:"monitoring_tags"`
+	MinMemoryMB           *int      `json:"min_memory_mb"`
+	MaxMemoryMB           *int      `json:"max_memory_mb"`
+	ExtraJVMArgs          *[]string `json:"extra_jvm_args"`
+	ExtraArgs             *[]string `json:"extra_args"`
 }
 
 func (h *GameServersHandler) List(c *gin.Context) {
@@ -120,6 +124,10 @@ func (h *GameServersHandler) Update(c *gin.Context) {
 			MonitoringDescription: req.MonitoringDescription,
 			BannerURL:             req.BannerURL,
 			MonitoringTags:        req.MonitoringTags,
+			MinMemoryMB:           req.MinMemoryMB,
+			MaxMemoryMB:           req.MaxMemoryMB,
+			ExtraJVMArgs:          req.ExtraJVMArgs,
+			ExtraArgs:             req.ExtraArgs,
 		},
 	)
 	if err != nil {

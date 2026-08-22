@@ -97,6 +97,57 @@ func TestUpdateGameServer(t *testing.T) {
 	}
 }
 
+func TestUpdateGameServerLaunchArgs(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+	gameServerID := "gs-launch-1"
+	if err := svc.db.WithContext(ctx).Create(&models.GameServer{
+		ID:         gameServerID,
+		ServerID:   view.ID,
+		Name:       "Launch",
+		ServerType: "paper",
+		MCVersion:  "1.21",
+		Port:       25565,
+		Status:     models.GameServerStatusStopped,
+		WorkDir:    "/opt/qxsystem/server/instances/gs-launch-1",
+		JarPath:    "/opt/qxsystem/server/instances/gs-launch-1/server.jar",
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	minRAM, maxRAM := 1024, 3072
+	jvm := []string{"-XX:+UseG1GC"}
+	extra := []string{"--forceUpgrade"}
+	updated, err := svc.UpdateGameServer(ctx, "owner-1", view.ID, gameServerID, UpdateGameServerInput{
+		MinMemoryMB:  &minRAM,
+		MaxMemoryMB:  &maxRAM,
+		ExtraJVMArgs: &jvm,
+		ExtraArgs:    &extra,
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.MinMemoryMB == nil || *updated.MinMemoryMB != 1024 {
+		t.Fatalf("min: %+v", updated.MinMemoryMB)
+	}
+	if updated.MaxMemoryMB == nil || *updated.MaxMemoryMB != 3072 {
+		t.Fatalf("max: %+v", updated.MaxMemoryMB)
+	}
+	if len(updated.ExtraJVMArgs) != 1 || updated.ExtraJVMArgs[0] != "-XX:+UseG1GC" {
+		t.Fatalf("jvm: %+v", updated.ExtraJVMArgs)
+	}
+	if len(updated.ExtraArgs) != 1 || updated.ExtraArgs[0] != "--forceUpgrade" {
+		t.Fatalf("extra: %+v", updated.ExtraArgs)
+	}
+
+	bad := 128
+	if _, err := svc.UpdateGameServer(ctx, "owner-1", view.ID, gameServerID, UpdateGameServerInput{
+		MinMemoryMB: &bad,
+	}); !errors.Is(err, ErrValidation) {
+		t.Fatalf("expected validation: %v", err)
+	}
+}
+
 func TestUpdateGameServerBusy(t *testing.T) {
 	svc, _, _ := newServersService(t)
 	ctx := context.Background()

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -70,5 +71,38 @@ func TestValidateStartPayloadAllowsMojangJavaOutsideWorkDir(t *testing.T) {
 	}
 	if start.Command != javaBin || start.JavaBin != javaBin {
 		t.Fatalf("java paths: command=%q java_bin=%q", start.Command, start.JavaBin)
+	}
+}
+
+func TestMergeCommandArgsDropsUserJVMFileWhenInline(t *testing.T) {
+	t.Parallel()
+	got := mergeCommandArgs(ValidatedStart{
+		JVMArgs:   []string{"-Xms2G", "-Xmx2G"},
+		Args:      []string{"@user_jvm_args.txt", "@libraries/unix_args.txt", "nogui"},
+		ExtraArgs: []string{"--forceUpgrade"},
+	})
+	want := []string{"-Xms2G", "-Xmx2G", "@libraries/unix_args.txt", "nogui", "--forceUpgrade"}
+	if len(got) != len(want) {
+		t.Fatalf("args: %+v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("args: %+v", got)
+		}
+	}
+}
+
+func TestWriteUserJVMArgsFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := writeUserJVMArgsFile(dir, []string{"-Xms1G", "-Xmx2G"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "user_jvm_args.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "-Xms1G\n-Xmx2G\n" {
+		t.Fatalf("file: %q", got)
 	}
 }

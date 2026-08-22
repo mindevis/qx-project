@@ -62,6 +62,12 @@ func TestEnsureSchemaAdditionsAddsSQLiteColumns(t *testing.T) {
 	if !columnExists(db, "launcher_instances", "managed_by_game_server_id") {
 		t.Fatal("expected managed_by_game_server_id on launcher_instances")
 	}
+	if !columnExists(db, "game_servers", "min_memory_mb") {
+		t.Fatal("expected min_memory_mb on game_servers")
+	}
+	if !columnExists(db, "game_servers", "extra_jvm_args") {
+		t.Fatal("expected extra_jvm_args on game_servers")
+	}
 }
 
 func TestDropResourceBlobColumnsSkipsSQLite(t *testing.T) {

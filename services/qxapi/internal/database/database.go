@@ -111,6 +111,30 @@ var schemaAdditions = []schemaAddition{
 		sqlite: "content_resources TEXT",
 	},
 	{
+		table:  "game_servers",
+		column: "min_memory_mb",
+		mysql:  "`min_memory_mb` INT NULL",
+		sqlite: "min_memory_mb INTEGER",
+	},
+	{
+		table:  "game_servers",
+		column: "max_memory_mb",
+		mysql:  "`max_memory_mb` INT NULL",
+		sqlite: "max_memory_mb INTEGER",
+	},
+	{
+		table:  "game_servers",
+		column: "extra_jvm_args",
+		mysql:  "`extra_jvm_args` TEXT NULL",
+		sqlite: "extra_jvm_args TEXT",
+	},
+	{
+		table:  "game_servers",
+		column: "extra_args",
+		mysql:  "`extra_args` TEXT NULL",
+		sqlite: "extra_args TEXT",
+	},
+	{
 		table:  "prepare_requests",
 		column: "progress_message",
 		mysql:  "`progress_message` VARCHAR(256) NOT NULL DEFAULT ''",

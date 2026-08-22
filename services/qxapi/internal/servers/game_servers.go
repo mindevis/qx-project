@@ -37,6 +37,10 @@ type GameServerView struct {
 	BannerURL             string    `json:"banner_url,omitempty"`
 	MonitoringTags        []string  `json:"monitoring_tags"`
 	LastError             string    `json:"last_error,omitempty"`
+	MinMemoryMB           *int      `json:"min_memory_mb,omitempty"`
+	MaxMemoryMB           *int      `json:"max_memory_mb,omitempty"`
+	ExtraJVMArgs          []string  `json:"extra_jvm_args,omitempty"`
+	ExtraArgs             []string  `json:"extra_args,omitempty"`
 	CreatedAt             time.Time `json:"created_at"`
 }
 
@@ -61,6 +65,10 @@ type UpdateGameServerInput struct {
 	MonitoringDescription *string
 	BannerURL             *string
 	MonitoringTags        []string
+	MinMemoryMB           *int
+	MaxMemoryMB           *int
+	ExtraJVMArgs          *[]string
+	ExtraArgs             *[]string
 }
 
 const (
@@ -147,6 +155,10 @@ func (s *Service) CreateGameServer(ctx context.Context, ownerID, vpsID string, i
 		CreatedAt:             now,
 		UpdatedAt:             now,
 	}
+	minRAM := defaultGameServerMemoryMB
+	maxRAM := defaultGameServerMemoryMB
+	item.MinMemoryMB = &minRAM
+	item.MaxMemoryMB = &maxRAM
 	if err := s.db.WithContext(ctx).Create(&item).Error; err != nil {
 		return nil, err
 	}
@@ -266,6 +278,10 @@ func (s *Service) CloneGameServer(ctx context.Context, ownerID, vpsID, gameServe
 		BannerURL:             src.BannerURL,
 		MonitoringTagsJSON:    src.MonitoringTagsJSON,
 		ContentResources:      src.ContentResources,
+		MinMemoryMB:           cloneIntPtr(src.MinMemoryMB),
+		MaxMemoryMB:           cloneIntPtr(src.MaxMemoryMB),
+		ExtraJVMArgs:          append(models.StringList{}, src.ExtraJVMArgs...),
+		ExtraArgs:             append(models.StringList{}, src.ExtraArgs...),
 		CreatedAt:             now,
 		UpdatedAt:             now,
 	}
@@ -472,16 +488,13 @@ func (s *Service) requireAgentOnline(ctx context.Context, vpsID string) error {
 }
 
 func (s *Service) startGameServerProcess(ctx context.Context, vpsID string, item *models.GameServer) error {
-	var args []string
-	if item.StartArgsJSON != "" {
-		_ = json.Unmarshal([]byte(item.StartArgsJSON), &args)
-	}
+	args, jvmArgs, extraArgs := gameServerStartArgSets(item)
 	javaBin := ""
 	server, err := s.getByID(ctx, vpsID)
 	if err == nil {
 		if cfg, err := parseConfig(server.ConfigJSON); err == nil {
 			javaBin = cfg.JavaBin
-			if len(args) == 0 {
+			if len(args) == 0 && strings.TrimSpace(item.StartCommand) != "" {
 				args = cfg.Args
 			}
 		}
@@ -494,7 +507,7 @@ func (s *Service) startGameServerProcess(ctx context.Context, vpsID string, item
 		return err
 	}
 	item.Status = models.GameServerStatusStarting
-	return s.beginGameServerStart(ctx, vpsID, item.ID, item.JarPath, item.WorkDir, item.StartCommand, args, nil, nil, javaBin, item.ServerType, item.MCVersion)
+	return s.beginGameServerStart(ctx, vpsID, item.ID, item.JarPath, item.WorkDir, item.StartCommand, args, jvmArgs, extraArgs, javaBin, item.ServerType, item.MCVersion)
 }
 
 func (s *Service) sendGameServerStop(ctx context.Context, vpsID string, item *models.GameServer, phase string) error {
@@ -561,7 +574,7 @@ func (s *Service) UpdateGameServer(ctx context.Context, ownerID, vpsID, gameServ
 	if item.Status == models.GameServerStatusInstalling || item.Status == models.GameServerStatusStarting {
 		return nil, ErrGameServerBusy
 	}
-	if in.Name == nil && in.Address == nil && in.Port == nil && !in.hasMonitoringUpdate() {
+	if in.Name == nil && in.Address == nil && in.Port == nil && !in.hasMonitoringUpdate() && !in.hasLaunchUpdate() {
 		return nil, ErrValidation
 	}
 
@@ -611,6 +624,39 @@ func (s *Service) UpdateGameServer(ctx context.Context, ownerID, vpsID, gameServ
 		tagsJSON := encodeStringListJSON(in.MonitoringTags)
 		updates["monitoring_tags_json"] = tagsJSON
 		item.MonitoringTagsJSON = tagsJSON
+	}
+	if in.MinMemoryMB != nil {
+		if err := validateGameServerMemoryMB(*in.MinMemoryMB); err != nil {
+			return nil, err
+		}
+		updates["min_memory_mb"] = *in.MinMemoryMB
+		item.MinMemoryMB = in.MinMemoryMB
+	}
+	if in.MaxMemoryMB != nil {
+		if err := validateGameServerMemoryMB(*in.MaxMemoryMB); err != nil {
+			return nil, err
+		}
+		updates["max_memory_mb"] = *in.MaxMemoryMB
+		item.MaxMemoryMB = in.MaxMemoryMB
+	}
+	if item.MinMemoryMB != nil && item.MaxMemoryMB != nil && *item.MinMemoryMB > *item.MaxMemoryMB {
+		return nil, ErrValidation
+	}
+	if in.ExtraJVMArgs != nil {
+		clean, err := sanitizeGameServerExecArgs(*in.ExtraJVMArgs)
+		if err != nil {
+			return nil, err
+		}
+		item.ExtraJVMArgs = models.StringList(clean)
+		updates["extra_jvm_args"] = item.ExtraJVMArgs
+	}
+	if in.ExtraArgs != nil {
+		clean, err := sanitizeGameServerExecArgs(*in.ExtraArgs)
+		if err != nil {
+			return nil, err
+		}
+		item.ExtraArgs = models.StringList(clean)
+		updates["extra_args"] = item.ExtraArgs
 	}
 
 	if err := s.db.WithContext(ctx).Model(&item).Updates(updates).Error; err != nil {
@@ -765,7 +811,8 @@ func (s *Service) applyServerInstallResult(ctx context.Context, vpsID, requestID
 	if err := s.db.WithContext(ctx).Where("id = ?", op.gameServerID).First(&gameServer).Error; err != nil {
 		return
 	}
-	_ = s.beginGameServerStart(ctx, vpsID, op.gameServerID, result.JarPath, result.WorkDir, result.Command, result.Args, result.JVMArgs, result.ExtraArgs, result.JavaBin, gameServer.ServerType, gameServer.MCVersion)
+	args, jvmArgs, extraArgs := gameServerStartArgSets(&gameServer)
+	_ = s.beginGameServerStart(ctx, vpsID, op.gameServerID, result.JarPath, result.WorkDir, result.Command, args, jvmArgs, extraArgs, result.JavaBin, gameServer.ServerType, gameServer.MCVersion)
 }
 
 func (s *Service) beginGameServerStart(
@@ -932,6 +979,10 @@ func gameServerViewFromModel(item *models.GameServer) GameServerView {
 		BannerURL:             strings.TrimSpace(item.BannerURL),
 		MonitoringTags:        decodeStringListJSON(item.MonitoringTagsJSON),
 		LastError:             strings.TrimSpace(item.LastError),
+		MinMemoryMB:           item.MinMemoryMB,
+		MaxMemoryMB:           item.MaxMemoryMB,
+		ExtraJVMArgs:          append([]string{}, item.ExtraJVMArgs...),
+		ExtraArgs:             append([]string{}, item.ExtraArgs...),
 		CreatedAt:             item.CreatedAt,
 	}
 }
@@ -941,6 +992,13 @@ func (in UpdateGameServerInput) hasMonitoringUpdate() bool {
 		in.MonitoringDescription != nil ||
 		in.BannerURL != nil ||
 		in.MonitoringTags != nil
+}
+
+func (in UpdateGameServerInput) hasLaunchUpdate() bool {
+	return in.MinMemoryMB != nil ||
+		in.MaxMemoryMB != nil ||
+		in.ExtraJVMArgs != nil ||
+		in.ExtraArgs != nil
 }
 
 func gameServerIsInstalled(item *models.GameServer) bool {

@@ -27,6 +27,7 @@ import {
 } from '@ant-design/icons';
 import { api, type GameServer } from '@/api/client';
 import { ServerConsolePanel, shouldShowGameServerConsole } from '@/components/ServerConsolePanel';
+import { GameServerLaunchSettingsPanel } from '@/components/GameServerLaunchSettingsPanel';
 import { GameServerPropertiesPanel } from '@/components/GameServerPropertiesPanel';
 import { GameServerContentPanel } from '@/components/GameServerContentPanel';
 import { GameServerModsPanel } from '@/components/GameServerModsPanel';
@@ -253,11 +254,24 @@ export function GameServerDetailPage() {
       key: 'settings',
       label: tabLabel(<SettingOutlined aria-hidden />, t('gameServerDetail.tabSettings')),
       children: (
-        <GameServerPropertiesPanel
-          vpsId={vpsId}
-          gameServerId={game.id}
-          agentOnline={agentOnline}
-        />
+        <div className="game-server-settings-tab">
+          <GameServerLaunchSettingsPanel
+            vpsId={vpsId}
+            game={game}
+            disabled={rowBusy}
+            onUpdated={setGame}
+          />
+          <section className="game-server-properties-section">
+            <Title level={4} className="game-server-launch-title">
+              {t('gameServerDetail.propertiesTitle')}
+            </Title>
+            <GameServerPropertiesPanel
+              vpsId={vpsId}
+              gameServerId={game.id}
+              agentOnline={agentOnline}
+            />
+          </section>
+        </div>
       ),
     },
     ...(caps.mods

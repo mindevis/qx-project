@@ -774,6 +774,13 @@ export const ru = {
     bindingNeedsAddress: 'Укажите IP-адрес и порт сервера в настройках, чтобы игроки могли подключиться.',
     bindingNoInstances:
       'Нет инстансов для MC {{mc}} / {{loader}}. Создайте подходящий инстанс в лаунчере.',
+    launchTitle: 'Параметры запуска',
+    launchHint: 'ОЗУ и дополнительные аргументы применятся при следующем запуске игрового сервера.',
+    extraArgs: 'Дополнительные аргументы сервера',
+    extraArgsHint: 'По одному аргументу на строку, после jar или аргументов Forge/Paper (например nogui).',
+    launchSaved: 'Параметры запуска сохранены',
+    launchSaveFailed: 'Не удалось сохранить параметры запуска',
+    propertiesTitle: 'server.properties',
     propertiesLoadFailed: 'Не удалось загрузить server.properties',
     propertiesEmpty: 'Файл server.properties пуст или недоступен.',
     propertySaved: 'Настройка сохранена',

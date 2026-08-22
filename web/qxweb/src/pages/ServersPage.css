@@ -1378,6 +1378,21 @@ html[data-theme='dark'] .game-server-detail-summary-item--agent-offline .game-se
   overflow: auto;
 }
 
+.game-server-settings-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.game-server-launch-settings,
+.game-server-properties-section {
+  max-width: 640px;
+}
+
+.game-server-launch-title {
+  margin-bottom: 4px !important;
+}
+
 .game-server-properties {
   display: flex;
   flex-direction: column;

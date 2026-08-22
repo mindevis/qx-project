@@ -775,6 +775,13 @@ export const en: Messages = {
     bindingNeedsAddress: 'Set the server IP address and port in settings before players can connect.',
     bindingNoInstances:
       'No instances for MC {{mc}} / {{loader}}. Create a matching instance in the launcher.',
+    launchTitle: 'Launch parameters',
+    launchHint: 'RAM and extra arguments apply the next time this game server starts.',
+    extraArgs: 'Extra server arguments',
+    extraArgsHint: 'One argument per line, appended after the jar or Forge/Paper start args (for example nogui).',
+    launchSaved: 'Launch settings saved',
+    launchSaveFailed: 'Failed to save launch settings',
+    propertiesTitle: 'server.properties',
     propertiesLoadFailed: 'Failed to load server.properties',
     propertiesEmpty: 'server.properties is empty or unavailable.',
     propertySaved: 'Setting saved',

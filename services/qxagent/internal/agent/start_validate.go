@@ -200,6 +200,35 @@ func resolveJavaBin(bin, root string) (string, error) {
 	return safepath.ResolveUnder(root, bin)
 }
 
+const userJVMArgsFile = "user_jvm_args.txt"
+
+func mergeCommandArgs(start ValidatedStart) []string {
+	args := append([]string{}, start.JVMArgs...)
+	for _, arg := range start.Args {
+		if len(start.JVMArgs) > 0 && arg == "@"+userJVMArgsFile {
+			continue
+		}
+		args = append(args, arg)
+	}
+	return append(args, start.ExtraArgs...)
+}
+
+func writeUserJVMArgsFile(workDir string, jvmArgs []string) error {
+	if strings.TrimSpace(workDir) == "" || len(jvmArgs) == 0 {
+		return nil
+	}
+	path, err := safepath.Join(workDir, userJVMArgsFile)
+	if err != nil {
+		return err
+	}
+	var b strings.Builder
+	for _, arg := range jvmArgs {
+		b.WriteString(arg)
+		b.WriteByte('\n')
+	}
+	return safepath.WriteFileBytes(path, []byte(b.String()), 0o644)
+}
+
 func sanitizeArgs(args []string) ([]string, error) {
 	if len(args) == 0 {
 		return args, nil

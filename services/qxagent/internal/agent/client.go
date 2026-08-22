@@ -891,6 +891,11 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 		return r.cmd.Process.Pid, nil
 	}
 	r.gameServerID = strings.TrimSpace(payload.GameServerID)
+	if !r.DryRun {
+		if err := writeUserJVMArgsFile(start.WorkDir, start.JVMArgs); err != nil {
+			return 0, err
+		}
+	}
 	if r.DryRun {
 		if r.dryPID == 0 {
 			r.dryPID = os.Getpid()
@@ -963,8 +968,7 @@ func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	args := append([]string{}, start.Args...)
-	args = append(args, start.ExtraArgs...)
+	args := mergeCommandArgs(start)
 	stdinR, stdinW := io.Pipe()
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()

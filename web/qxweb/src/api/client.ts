@@ -181,6 +181,10 @@ export type VpsGameServerInstance = {
   banner_url?: string;
   monitoring_tags?: string[];
   last_error?: string;
+  min_memory_mb?: number;
+  max_memory_mb?: number;
+  extra_jvm_args?: string[];
+  extra_args?: string[];
   created_at: string;
 };
 
@@ -1051,6 +1055,10 @@ export const api = {
       monitoring_description?: string;
       banner_url?: string;
       monitoring_tags?: string[];
+      min_memory_mb?: number;
+      max_memory_mb?: number;
+      extra_jvm_args?: string[];
+      extra_args?: string[];
     },
   ) =>
     request<VpsGameServerInstance>(

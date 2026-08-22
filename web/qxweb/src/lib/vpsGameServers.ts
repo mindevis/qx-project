@@ -31,6 +31,10 @@ export type VpsGameServer = {
   banner_url?: string;
   monitoring_tags?: string[];
   last_error?: string;
+  min_memory_mb?: number;
+  max_memory_mb?: number;
+  extra_jvm_args?: string[];
+  extra_args?: string[];
   created_at: string;
 };
 
@@ -47,6 +51,8 @@ export type CreateVpsGameServerInput = {
   monitoring_tags?: string[];
 };
 
+export const DEFAULT_GAME_SERVER_MEMORY_MB = 2048;
+
 export type UpdateVpsGameServerInput = {
   name?: string;
   address?: string;
@@ -55,6 +61,10 @@ export type UpdateVpsGameServerInput = {
   monitoring_description?: string;
   banner_url?: string;
   monitoring_tags?: string[];
+  min_memory_mb?: number;
+  max_memory_mb?: number;
+  extra_jvm_args?: string[];
+  extra_args?: string[];
 };
 
 function mapGameServer(item: {
@@ -73,6 +83,10 @@ function mapGameServer(item: {
   banner_url?: string;
   monitoring_tags?: string[];
   last_error?: string;
+  min_memory_mb?: number;
+  max_memory_mb?: number;
+  extra_jvm_args?: string[];
+  extra_args?: string[];
   created_at: string;
 }): VpsGameServer {
   return {
@@ -91,6 +105,10 @@ function mapGameServer(item: {
     banner_url: item.banner_url,
     monitoring_tags: item.monitoring_tags,
     last_error: item.last_error,
+    min_memory_mb: item.min_memory_mb,
+    max_memory_mb: item.max_memory_mb,
+    extra_jvm_args: item.extra_jvm_args,
+    extra_args: item.extra_args,
     created_at: item.created_at,
   };
 }

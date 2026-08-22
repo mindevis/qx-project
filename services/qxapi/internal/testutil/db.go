@@ -82,6 +82,10 @@ var autoMigrateUsers = func(db *gorm.DB) error {
 	// (MySQL ADD MEDIUMTEXT/VARCHAR NOT NULL on live tables takes the API down).
 	for _, stmt := range []string{
 		"ALTER TABLE game_servers ADD COLUMN content_resources TEXT",
+		"ALTER TABLE game_servers ADD COLUMN min_memory_mb INTEGER",
+		"ALTER TABLE game_servers ADD COLUMN max_memory_mb INTEGER",
+		"ALTER TABLE game_servers ADD COLUMN extra_jvm_args TEXT",
+		"ALTER TABLE game_servers ADD COLUMN extra_args TEXT",
 		"ALTER TABLE prepare_requests ADD COLUMN progress_message TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE launch_requests ADD COLUMN progress_message TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE launcher_instances ADD COLUMN managed_by_game_server_id TEXT",
