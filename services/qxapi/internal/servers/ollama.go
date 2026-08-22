@@ -39,6 +39,9 @@ func (s *Service) GetOllama(ctx context.Context, ownerID, vpsID string) (*Ollama
 	if s.hub == nil || !s.hub.IsOnline(vpsID) {
 		return view, nil
 	}
+	if ollamaBusy(view.Status) {
+		return view, nil
+	}
 	if raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdOllamaStatus, protocol.TypeResOllamaStatus, ollamaRootPayload(row)); err == nil {
 		s.mergeOllamaStatus(ctx, vpsID, raw)
 		if row, err = s.getOllamaRow(ctx, vpsID); err == nil {
