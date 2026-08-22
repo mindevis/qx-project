@@ -14,15 +14,13 @@ func TestProcessRunnerDetectsDeadProcess(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start sleep: %v", err)
 	}
-	r.mu.Lock()
-	r.cmd = cmd
-	r.mu.Unlock()
+	r.adoptCmdForTest(cmd, "", "")
 	_ = cmd.Process.Kill()
 	_ = cmd.Wait()
 
 	r.mu.Lock()
 	r.cleanupDeadProcessLocked()
-	alive := r.cmd != nil
+	alive := r.hasManagedCmdLocked()
 	r.mu.Unlock()
 	if alive {
 		t.Fatal("expected dead managed process to be cleared")
@@ -35,9 +33,7 @@ func TestProcessRunnerStopKillsManagedProcess(t *testing.T) {
 		t.Fatalf("start: %v", err)
 	}
 	r := &ProcessRunner{}
-	r.mu.Lock()
-	r.cmd = cmd
-	r.mu.Unlock()
+	r.adoptCmdForTest(cmd, "", "")
 	go r.watchManagedProcess(cmd, "")
 
 	if _, err := r.Stop(false, 2*time.Second); err != nil {

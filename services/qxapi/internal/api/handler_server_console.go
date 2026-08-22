@@ -23,8 +23,9 @@ type ServerConsoleHandler struct {
 }
 
 type consolePanelIn struct {
-	Type string `json:"type"`
-	Line string `json:"line"`
+	Type         string `json:"type"`
+	Line         string `json:"line"`
+	GameServerID string `json:"game_server_id"`
 }
 
 func (h *ServerConsoleHandler) Connect(c *gin.Context) {
@@ -65,10 +66,10 @@ func (h *ServerConsoleHandler) Connect(c *gin.Context) {
 		return
 	}
 
-	hub.SubscribeConsole(serverID, conn)
+	gameServerID := strings.TrimSpace(c.Query("game_server_id"))
+	hub.SubscribeConsole(serverID, conn, gameServerID)
 	defer hub.UnsubscribeConsole(serverID, conn)
 
-	gameServerID := strings.TrimSpace(c.Query("game_server_id"))
 	if err := h.Servers.AttachConsole(c.Request.Context(), claims.UserID, serverID, gameServerID); err != nil {
 		detail := "attach failed"
 		if errors.Is(err, servers.ErrAgentOffline) {
@@ -91,7 +92,11 @@ func (h *ServerConsoleHandler) Connect(c *gin.Context) {
 		if msg.Type != "input" || strings.TrimSpace(msg.Line) == "" {
 			continue
 		}
-		if err := h.Servers.SendConsoleInput(c.Request.Context(), claims.UserID, serverID, msg.Line); err != nil {
+		inputGameServerID := strings.TrimSpace(msg.GameServerID)
+		if inputGameServerID == "" {
+			inputGameServerID = gameServerID
+		}
+		if err := h.Servers.SendConsoleInput(c.Request.Context(), claims.UserID, serverID, msg.Line, inputGameServerID); err != nil {
 			detail := "command failed"
 			if errors.Is(err, servers.ErrAgentOffline) {
 				detail = "agent offline"

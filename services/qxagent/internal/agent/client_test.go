@@ -49,6 +49,41 @@ func TestProcessRunnerDryRun(t *testing.T) {
 	}
 }
 
+func TestProcessRunnerStartsIndependentWorkDirs(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	jar1 := filepath.Join(dir1, "server.jar")
+	jar2 := filepath.Join(dir2, "server.jar")
+	if err := os.WriteFile(jar1, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(jar2, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := &ProcessRunner{DryRun: true}
+	pid1, err := r.Start(protocol.ServerStartPayload{WorkDir: dir1, JarPath: jar1, GameServerID: "gs-1"})
+	if err != nil || pid1 == 0 {
+		t.Fatalf("start 1: pid=%d err=%v", pid1, err)
+	}
+	pid2, err := r.Start(protocol.ServerStartPayload{WorkDir: dir2, JarPath: jar2, GameServerID: "gs-2"})
+	if err != nil || pid2 == 0 {
+		t.Fatalf("start 2: pid=%d err=%v", pid2, err)
+	}
+	if pid1 == pid2 {
+		t.Fatal("second start reused the first process pid")
+	}
+	if _, err := r.StopTarget(true, 0, dir1); err != nil {
+		t.Fatalf("stop 1: %v", err)
+	}
+	st := r.CurrentStatus()
+	if st.Status != protocol.ServerStatusRunning {
+		t.Fatalf("second instance should keep running: %+v", st)
+	}
+	if st.GameServerID != "gs-2" {
+		t.Fatalf("expected remaining game server gs-2, got %s", st.GameServerID)
+	}
+}
+
 func TestProcessRunnerStartRequiresJar(t *testing.T) {
 	r := &ProcessRunner{DryRun: false}
 	_, err := r.Start(protocol.ServerStartPayload{})

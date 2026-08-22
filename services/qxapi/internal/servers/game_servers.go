@@ -972,59 +972,61 @@ func (s *Service) beginGameServerStart(
 }
 
 func (s *Service) applyServerStopResult(ctx context.Context, serverID, requestID string, _ []byte) {
-	_ = s.markMinecraftStopped(ctx, serverID)
-
 	raw, ok := s.pending.LoadAndDelete(requestID)
-	if !ok {
-		return
-	}
-	op := raw.(pendingProvision)
-	if op.gameServerID != "" {
-		s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusStopped, "")
-	}
-	switch op.phase {
-	case "restart":
-		var item models.GameServer
-		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
-			return
-		}
-		if err := s.startGameServerProcess(ctx, serverID, &item); err != nil {
-			s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, "")
-		}
-	case "reinstall":
-		var item models.GameServer
-		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
-			return
-		}
-		gameServerID := op.gameServerID
-		vpsID := serverID
-		go func() {
-			bg := context.Background()
-			if err := s.wipeAndBeginGameServerInstall(bg, vpsID, &item); err != nil {
-				s.setGameServerStatus(bg, gameServerID, models.GameServerStatusError, "")
+	if ok {
+		op := raw.(pendingProvision)
+		if op.gameServerID != "" {
+			s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusStopped, "")
+			if !s.hasRunningGameServers(ctx, serverID) {
+				_ = s.clearHostMinecraft(ctx, serverID)
 			}
-		}()
-	case "version":
-		var item models.GameServer
-		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
+			switch op.phase {
+			case "restart":
+				var item models.GameServer
+				if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
+					return
+				}
+				if err := s.startGameServerProcess(ctx, serverID, &item); err != nil {
+					s.setGameServerStatus(ctx, op.gameServerID, models.GameServerStatusError, "")
+				}
+			case "reinstall":
+				var item models.GameServer
+				if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
+					return
+				}
+				gameServerID := op.gameServerID
+				vpsID := serverID
+				go func() {
+					bg := context.Background()
+					if err := s.wipeAndBeginGameServerInstall(bg, vpsID, &item); err != nil {
+						s.setGameServerStatus(bg, gameServerID, models.GameServerStatusError, "")
+					}
+				}()
+			case "version":
+				var item models.GameServer
+				if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", op.gameServerID, serverID).First(&item).Error; err != nil {
+					return
+				}
+				gameServerID := op.gameServerID
+				vpsID := serverID
+				go func() {
+					bg := context.Background()
+					now := time.Now().UTC()
+					_ = s.db.WithContext(bg).Model(&item).Updates(map[string]any{
+						"status":     models.GameServerStatusInstalling,
+						"updated_at": now,
+					}).Error
+					item.Status = models.GameServerStatusInstalling
+					item.UpdatedAt = now
+					if err := s.beginGameServerInstall(bg, vpsID, &item); err != nil {
+						s.setGameServerStatus(bg, gameServerID, models.GameServerStatusError, "")
+					}
+				}()
+			}
 			return
 		}
-		gameServerID := op.gameServerID
-		vpsID := serverID
-		go func() {
-			bg := context.Background()
-			now := time.Now().UTC()
-			_ = s.db.WithContext(bg).Model(&item).Updates(map[string]any{
-				"status":     models.GameServerStatusInstalling,
-				"updated_at": now,
-			}).Error
-			item.Status = models.GameServerStatusInstalling
-			item.UpdatedAt = now
-			if err := s.beginGameServerInstall(bg, vpsID, &item); err != nil {
-				s.setGameServerStatus(bg, gameServerID, models.GameServerStatusError, "")
-			}
-		}()
 	}
+	_ = s.markMinecraftStopped(ctx, serverID)
 }
 
 func (s *Service) markPendingGameServerRunning(ctx context.Context, requestID string) {

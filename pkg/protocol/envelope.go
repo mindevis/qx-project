@@ -204,7 +204,8 @@ type ConsoleOutputPayload struct {
 }
 
 type ConsoleInputPayload struct {
-	Line string `json:"line"`
+	Line         string `json:"line"`
+	GameServerID string `json:"game_server_id,omitempty"`
 }
 
 type ConsoleAttachPayload struct {

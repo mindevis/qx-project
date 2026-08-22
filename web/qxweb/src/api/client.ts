@@ -1854,7 +1854,13 @@ export function openServerConsole(
   return {
     send(line: string) {
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', line }));
+        ws.send(
+          JSON.stringify({
+            type: 'input',
+            line,
+            ...(gameServerId ? { game_server_id: gameServerId } : {}),
+          }),
+        );
       }
     },
     close,

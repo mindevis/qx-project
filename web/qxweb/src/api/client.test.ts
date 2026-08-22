@@ -539,6 +539,7 @@ describe('api client', () => {
     const session = openServerConsole('s1', { onMessage, onClose });
     session.send('list');
     expect(sent[0]).toContain('list');
+    expect(sent[0]).not.toContain('game_server_id');
 
     instances[0]?.onmessage?.({ data: '{bad json' });
     instances[0]?.onmessage?.({ data: JSON.stringify({ type: 'output', line: 'ok' }) });
@@ -547,6 +548,25 @@ describe('api client', () => {
 
     session.close();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('sends console input with game server id', () => {
+    saveTokens(tokens);
+    const sent: string[] = [];
+    class MockWS {
+      static OPEN = 1;
+      readyState = MockWS.OPEN;
+      close = vi.fn();
+      constructor(_url: string) {}
+      send(data: string) {
+        sent.push(data);
+      }
+    }
+    vi.stubGlobal('WebSocket', MockWS);
+    const session = openServerConsole('s1', { onMessage: vi.fn() }, 'gs-9');
+    session.send('list');
+    expect(sent[0]).toContain('list');
+    expect(sent[0]).toContain('gs-9');
   });
 
   it('closes open websocket on client disconnect', () => {

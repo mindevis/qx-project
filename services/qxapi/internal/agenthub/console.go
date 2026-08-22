@@ -3,6 +3,7 @@ package agenthub
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -11,8 +12,9 @@ import (
 )
 
 type consoleSubscriber struct {
-	conn   *websocket.Conn
-	sendMu sync.Mutex
+	conn         *websocket.Conn
+	sendMu       sync.Mutex
+	gameServerID string
 }
 
 // ConsolePanelMessage is the JSON shape sent to web console clients.
@@ -23,7 +25,7 @@ type ConsolePanelMessage struct {
 	GameServerID string `json:"game_server_id,omitempty"`
 }
 
-func (h *Hub) SubscribeConsole(serverID string, conn *websocket.Conn) {
+func (h *Hub) SubscribeConsole(serverID string, conn *websocket.Conn, gameServerID string) {
 	h.mu.Lock()
 	if h.consoleSubs == nil {
 		h.consoleSubs = make(map[string]map[*websocket.Conn]*consoleSubscriber)
@@ -31,7 +33,7 @@ func (h *Hub) SubscribeConsole(serverID string, conn *websocket.Conn) {
 	if h.consoleSubs[serverID] == nil {
 		h.consoleSubs[serverID] = make(map[*websocket.Conn]*consoleSubscriber)
 	}
-	h.consoleSubs[serverID][conn] = &consoleSubscriber{conn: conn}
+	h.consoleSubs[serverID][conn] = &consoleSubscriber{conn: conn, gameServerID: strings.TrimSpace(gameServerID)}
 	h.mu.Unlock()
 	h.replayConsoleHistory(serverID, conn)
 }
@@ -69,6 +71,9 @@ func (h *Hub) BroadcastConsole(serverID string, payload protocol.ConsoleOutputPa
 	h.mu.RUnlock()
 
 	for _, sub := range clients {
+		if !consoleLineMatches(sub.gameServerID, payload.GameServerID) {
+			continue
+		}
 		_ = h.writeConsoleLocked(sub, data)
 	}
 }
@@ -99,6 +104,9 @@ func (h *Hub) replayConsoleHistory(serverID string, conn *websocket.Conn) {
 	h.mu.RUnlock()
 
 	for _, msg := range history {
+		if sub != nil && !consoleLineMatches(sub.gameServerID, msg.GameServerID) {
+			continue
+		}
 		data, err := json.Marshal(msg)
 		if err != nil {
 			continue
@@ -136,8 +144,11 @@ func (h *Hub) writeConsoleLocked(sub *consoleSubscriber, data []byte) error {
 	return sub.conn.WriteMessage(websocket.TextMessage, data)
 }
 
-func (h *Hub) SendConsoleInput(ctx context.Context, serverID, line string) error {
-	payload, err := json.Marshal(protocol.ConsoleInputPayload{Line: line})
+func (h *Hub) SendConsoleInput(ctx context.Context, serverID, line, gameServerID string) error {
+	payload, err := json.Marshal(protocol.ConsoleInputPayload{
+		Line:         line,
+		GameServerID: strings.TrimSpace(gameServerID),
+	})
 	if err != nil {
 		return err
 	}
@@ -145,4 +156,11 @@ func (h *Hub) SendConsoleInput(ctx context.Context, serverID, line string) error
 		Type:    protocol.TypeCmdConsoleInput,
 		Payload: payload,
 	})
+}
+
+func consoleLineMatches(filterGameServerID, lineGameServerID string) bool {
+	if filterGameServerID == "" {
+		return true
+	}
+	return lineGameServerID == filterGameServerID
 }

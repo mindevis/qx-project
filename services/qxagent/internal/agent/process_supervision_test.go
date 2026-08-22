@@ -18,15 +18,13 @@ func TestProcessRunnerDetectsDeadProcess(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start sleep: %v", err)
 	}
-	r.mu.Lock()
-	r.cmd = cmd
-	r.mu.Unlock()
+	r.adoptCmdForTest(cmd, "", "")
 	_ = cmd.Process.Kill()
 	_ = cmd.Wait()
 
 	r.mu.Lock()
 	r.cleanupDeadProcessLocked()
-	alive := r.cmd != nil
+	alive := r.hasManagedCmdLocked()
 	r.mu.Unlock()
 	if alive {
 		t.Fatal("expected dead managed process to be cleared")
@@ -54,11 +52,7 @@ func TestProcessRunnerEmitsCrashedStatus(t *testing.T) {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start: %v", err)
 	}
-	r.mu.Lock()
-	r.cmd = cmd
-	r.gameServerID = "gs-crash"
-	r.managedWorkDir = dir
-	r.mu.Unlock()
+	r.adoptCmdForTest(cmd, dir, "gs-crash")
 
 	go r.watchManagedProcess(cmd, dir)
 
@@ -87,10 +81,7 @@ func TestProcessRunnerStopKillsShellChild(t *testing.T) {
 		t.Fatalf("start: %v", err)
 	}
 	r := &ProcessRunner{}
-	r.mu.Lock()
-	r.cmd = cmd
-	r.managedWorkDir = dir
-	r.mu.Unlock()
+	r.adoptCmdForTest(cmd, dir, "")
 	go r.watchManagedProcess(cmd, dir)
 
 	if _, err := r.Stop(false, 2*time.Second); err != nil {

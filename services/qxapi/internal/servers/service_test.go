@@ -396,7 +396,7 @@ func TestSendConsoleInput(t *testing.T) {
 	agentConn := hub.Register(view.ID, wsConn)
 	go hub.ReadLoop(agentConn)
 
-	if err := svc.SendConsoleInput(ctx, "owner-1", view.ID, "say hi"); err != nil {
+	if err := svc.SendConsoleInput(ctx, "owner-1", view.ID, "say hi", ""); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 }

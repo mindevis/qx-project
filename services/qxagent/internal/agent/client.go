@@ -118,8 +118,8 @@ func (c *Client) connectOnce(ctx context.Context) error {
 	defer conn.Close()
 	slog.Info("agent connected", "url", c.cfg.WSURL)
 
-	c.runner.SetOutputHandler(func(stream, line string) {
-		c.emitConsoleStream(conn, c.runner.ConsoleGameServerID(), stream, line)
+	c.runner.SetOutputHandler(func(stream, line, gameServerID string) {
+		c.emitConsoleStream(conn, gameServerID, stream, line)
 	})
 	c.runner.SetStatusHandler(func(payload protocol.ServerStatusPayload) {
 		c.emitServerStatus(conn, payload)
@@ -238,7 +238,9 @@ func (c *Client) emitServerStatus(conn *websocket.Conn, status protocol.ServerSt
 }
 
 func (c *Client) reportServerStatus(conn *websocket.Conn) {
-	c.emitServerStatus(conn, c.runner.CurrentStatus())
+	for _, status := range c.runner.CurrentStatuses() {
+		c.emitServerStatus(conn, status)
+	}
 }
 
 func (c *Client) runInstallAsync(conn *websocket.Conn, cache *requestCache, env protocol.Envelope) {
@@ -454,7 +456,7 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		if err := json.Unmarshal(env.Payload, &payload); err != nil {
 			return nil, err
 		}
-		if err := c.runner.WriteInput(payload.Line); err != nil {
+		if err := c.runner.WriteInput(payload.Line, payload.GameServerID); err != nil {
 			return nil, err
 		}
 		return nil, nil
@@ -1153,72 +1155,88 @@ func (c *Client) buildMySQLInstallResponse(conn *websocket.Conn, env protocol.En
 	}, nil)
 }
 
-type ProcessRunner struct {
-	DryRun             bool
-	mu                 sync.Mutex
+type managedInstance struct {
 	cmd                *exec.Cmd
-	dryPID             int
 	stdin              io.WriteCloser
 	pipeClosers        []io.Closer
-	onOutput           func(stream, line string)
-	onStatus           func(protocol.ServerStatusPayload)
 	gameServerID       string
 	logFollowCancel    context.CancelFunc
 	stoppingGracefully bool
-	managedWorkDir     string
+	workDir            string
+	dryPID             int
 }
 
-func (r *ProcessRunner) ConsoleGameServerID() string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.gameServerID
+type ProcessRunner struct {
+	DryRun    bool
+	mu        sync.Mutex
+	instances map[string]*managedInstance
+	drySeq    int
+	onOutput  func(stream, line, gameServerID string)
+	onStatus  func(protocol.ServerStatusPayload)
 }
 
-func (r *ProcessRunner) emit(stream, line string) {
+func (r *ProcessRunner) emit(stream, line, gameServerID string) {
 	r.mu.Lock()
 	fn := r.onOutput
 	r.mu.Unlock()
 	if fn != nil {
-		fn(stream, line)
+		fn(stream, line, gameServerID)
 	}
 }
 
-func (r *ProcessRunner) emitLocked(stream, line string) {
+func (r *ProcessRunner) emitLocked(stream, line, gameServerID string) {
 	if r.onOutput != nil {
-		r.onOutput(stream, line)
+		r.onOutput(stream, line, gameServerID)
 	}
 }
 
-func (r *ProcessRunner) stopLogFollowLocked() {
-	if r.logFollowCancel != nil {
-		r.logFollowCancel()
-		r.logFollowCancel = nil
+func (r *ProcessRunner) emitFromKey(key, stream, line string) {
+	r.mu.Lock()
+	gsID := ""
+	if inst := r.instances[key]; inst != nil {
+		gsID = inst.gameServerID
+	}
+	fn := r.onOutput
+	r.mu.Unlock()
+	if fn != nil {
+		fn(stream, line, gsID)
 	}
 }
 
-func (r *ProcessRunner) startLogFollowLocked(workDir string) {
-	r.stopLogFollowLocked()
-	if workDir == "" {
+func (inst *managedInstance) stopLogFollowLocked() {
+	if inst == nil || inst.logFollowCancel == nil {
+		return
+	}
+	inst.logFollowCancel()
+	inst.logFollowCancel = nil
+}
+
+func (r *ProcessRunner) startLogFollowLocked(inst *managedInstance) {
+	if inst == nil {
+		return
+	}
+	inst.stopLogFollowLocked()
+	if inst.workDir == "" {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	r.logFollowCancel = cancel
-	go followServerLog(ctx, workDir, func(line string) {
-		r.emit("log", line)
+	inst.logFollowCancel = cancel
+	key := inst.workDir
+	go followServerLog(ctx, key, func(line string) {
+		r.emitFromKey(key, "log", line)
 	})
 }
 
 func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) {
+	key := instanceKey(payload.WorkDir)
 	r.mu.Lock()
 	r.cleanupDeadProcessLocked()
-	if r.cmd != nil && r.cmd.Process != nil {
-		if payload.WorkDir != "" {
-			r.startLogFollowLocked(payload.WorkDir)
-		}
+	if inst := r.aliveInstanceLocked(key); inst != nil {
 		if id := strings.TrimSpace(payload.GameServerID); id != "" {
-			r.gameServerID = id
+			inst.gameServerID = id
 		}
-		pid := r.cmd.Process.Pid
+		r.startLogFollowLocked(inst)
+		pid := inst.pid()
 		r.mu.Unlock()
 		return pid, nil
 	}
@@ -1235,31 +1253,35 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.cleanupDeadProcessLocked()
-	if r.cmd != nil && r.cmd.Process != nil {
-		return r.cmd.Process.Pid, nil
+	key = instanceKey(start.WorkDir)
+	if inst := r.aliveInstanceLocked(key); inst != nil {
+		if id := strings.TrimSpace(payload.GameServerID); id != "" {
+			inst.gameServerID = id
+		}
+		return inst.pid(), nil
 	}
-	r.gameServerID = strings.TrimSpace(payload.GameServerID)
+	inst := r.getOrCreateInstanceLocked(key)
+	inst.gameServerID = strings.TrimSpace(payload.GameServerID)
 	if !r.DryRun {
 		if err := writeUserJVMArgsFile(start.WorkDir, start.JVMArgs); err != nil {
 			return 0, err
 		}
 	}
 	if r.DryRun {
-		if r.dryPID == 0 {
-			r.dryPID = os.Getpid()
-		}
+		r.drySeq++
+		inst.dryPID = os.Getpid() + r.drySeq
 		target := start.JarPath
 		if target == "" {
 			target = start.Command
 		}
-		slog.Info("dry-run start server", "target", target, "work_dir", start.WorkDir, "pid", r.dryPID)
-		r.emitLocked("stdout", "[QX Agent dry-run] Starting "+target)
-		r.emitLocked("stdout", "Done ("+fmt.Sprintf("%d", r.dryPID)+"ms)")
-		r.emitLocked("stdout", "For help, type \"help\"")
-		return r.dryPID, nil
+		slog.Info("dry-run start server", "target", target, "work_dir", start.WorkDir, "pid", inst.dryPID)
+		r.emitLocked("stdout", "[QX Agent dry-run] Starting "+target, inst.gameServerID)
+		r.emitLocked("stdout", "Done ("+fmt.Sprintf("%d", inst.dryPID)+"ms)", inst.gameServerID)
+		r.emitLocked("stdout", "For help, type \"help\"", inst.gameServerID)
+		return inst.dryPID, nil
 	}
 	if start.Command != "" {
-		return r.startCommandLocked(start)
+		return r.startCommandLocked(inst, start)
 	}
 	if start.JarPath == "" {
 		return 0, errors.New("jar_path required")
@@ -1298,20 +1320,10 @@ func (r *ProcessRunner) Start(payload protocol.ServerStartPayload) (int, error) 
 		_ = stderrW.Close()
 		return 0, err
 	}
-	r.cmd = cmd
-	r.stdin = stdinW
-	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
-	r.stoppingGracefully = false
-	r.managedWorkDir = start.WorkDir
-	writePidFile(start.WorkDir, cmd.Process.Pid)
-	go streamLines("stdout", stdoutR, r.emit)
-	go streamLines("stderr", stderrR, r.emit)
-	r.startLogFollowLocked(start.WorkDir)
-	go r.watchManagedProcess(cmd, start.WorkDir)
-	return cmd.Process.Pid, nil
+	return r.bindStartedCmdLocked(inst, cmd, stdinW, stdinR, stdoutW, stderrW, stdoutR, stderrR, start.WorkDir)
 }
 
-func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
+func (r *ProcessRunner) startCommandLocked(inst *managedInstance, start ValidatedStart) (int, error) {
 	cmdName, err := ResolvedExecCommand(start)
 	if err != nil {
 		return 0, err
@@ -1339,17 +1351,37 @@ func (r *ProcessRunner) startCommandLocked(start ValidatedStart) (int, error) {
 		_ = stderrW.Close()
 		return 0, err
 	}
-	r.cmd = cmd
-	r.stdin = stdinW
-	r.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
-	r.stoppingGracefully = false
-	r.managedWorkDir = start.WorkDir
-	writePidFile(start.WorkDir, cmd.Process.Pid)
-	go streamLines("stdout", stdoutR, r.emit)
-	go streamLines("stderr", stderrR, r.emit)
-	r.startLogFollowLocked(start.WorkDir)
-	go r.watchManagedProcess(cmd, start.WorkDir)
+	return r.bindStartedCmdLocked(inst, cmd, stdinW, stdinR, stdoutW, stderrW, stdoutR, stderrR, start.WorkDir)
+}
+
+func (r *ProcessRunner) bindStartedCmdLocked(inst *managedInstance, cmd *exec.Cmd, stdinW io.WriteCloser, stdinR, stdoutW, stderrW io.Closer, stdoutR, stderrR io.Reader, workDir string) (int, error) {
+	inst.cmd = cmd
+	inst.stdin = stdinW
+	inst.pipeClosers = []io.Closer{stdinR, stdoutW, stderrW}
+	inst.stoppingGracefully = false
+	inst.dryPID = 0
+	writePidFile(workDir, cmd.Process.Pid)
+	key := inst.workDir
+	go streamLines("stdout", stdoutR, func(stream, line string) {
+		r.emitFromKey(key, stream, line)
+	})
+	go streamLines("stderr", stderrR, func(stream, line string) {
+		r.emitFromKey(key, stream, line)
+	})
+	r.startLogFollowLocked(inst)
+	go r.watchManagedProcess(cmd, workDir)
 	return cmd.Process.Pid, nil
+}
+
+func instanceKey(workDir string) string {
+	workDir = strings.TrimSpace(workDir)
+	if workDir == "" {
+		return ""
+	}
+	if resolved, err := safepath.ResolveRoot(workDir); err == nil {
+		return resolved
+	}
+	return filepath.Clean(workDir)
 }
 
 func workDirsMatch(a, b string) bool {

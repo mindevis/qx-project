@@ -373,6 +373,9 @@ func (s *Service) applyServerStartResult(ctx context.Context, serverID, requestI
 			})
 		}
 		s.markPendingGameServerError(ctx, requestID, errPayload.Error)
+		if s.hasRunningGameServers(ctx, serverID) {
+			return
+		}
 	} else {
 		var result protocol.ServerStartResult
 		if json.Unmarshal(payload, &result) == nil && result.PID > 0 {
@@ -380,6 +383,8 @@ func (s *Service) applyServerStartResult(ctx context.Context, serverID, requestI
 			pid := result.PID
 			mcPID = &pid
 			s.markPendingGameServerRunning(ctx, requestID)
+		} else if s.hasRunningGameServers(ctx, serverID) {
+			return
 		}
 	}
 	_ = s.setMcPID(ctx, serverID, mcPID)
@@ -401,6 +406,13 @@ func (s *Service) markMinecraftStopped(ctx context.Context, serverID string) err
 	}
 	if activeGameServerID != "" {
 		s.setGameServerStatus(ctx, activeGameServerID, models.GameServerStatusStopped, "")
+	}
+	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
+}
+
+func (s *Service) clearHostMinecraft(ctx context.Context, serverID string) error {
+	if err := s.setMcPID(ctx, serverID, nil); err != nil {
+		return err
 	}
 	return s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
 }
@@ -459,6 +471,9 @@ func (s *Service) applyServerStatusEvent(ctx context.Context, serverID string, p
 	case protocol.ServerStatusStopped:
 		if id := strings.TrimSpace(status.GameServerID); id != "" {
 			s.setGameServerStatus(ctx, id, models.GameServerStatusStopped, "")
+			if s.hasRunningGameServers(ctx, serverID) {
+				return
+			}
 		}
 		_ = s.setMcPID(ctx, serverID, nil)
 		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
@@ -466,6 +481,16 @@ func (s *Service) applyServerStatusEvent(ctx context.Context, serverID string, p
 		message := strings.TrimSpace(status.Message)
 		if id := strings.TrimSpace(status.GameServerID); id != "" {
 			s.setGameServerStatus(ctx, id, models.GameServerStatusError, message)
+			if s.hasRunningGameServers(ctx, serverID) {
+				if s.hub != nil && message != "" {
+					s.hub.BroadcastConsole(serverID, protocol.ConsoleOutputPayload{
+						Stream:       "stderr",
+						Line:         message,
+						GameServerID: status.GameServerID,
+					})
+				}
+				return
+			}
 		}
 		_ = s.setMcPID(ctx, serverID, nil)
 		_ = s.db.WithContext(ctx).Model(&models.Server{}).Where("id = ?", serverID).Update("status", models.ServerStatusOffline).Error
@@ -477,6 +502,14 @@ func (s *Service) applyServerStatusEvent(ctx context.Context, serverID string, p
 			})
 		}
 	}
+}
+
+func (s *Service) hasRunningGameServers(ctx context.Context, vpsID string) bool {
+	var n int64
+	_ = s.db.WithContext(ctx).Model(&models.GameServer{}).
+		Where("server_id = ? AND status = ?", vpsID, models.GameServerStatusRunning).
+		Count(&n).Error
+	return n > 0
 }
 
 func (s *Service) AgentDisconnected(ctx context.Context, serverID string) error {
@@ -546,7 +579,7 @@ func (s *Service) Restart(ctx context.Context, ownerID, serverID string) error {
 	return s.Start(ctx, ownerID, serverID)
 }
 
-func (s *Service) SendConsoleInput(ctx context.Context, ownerID, serverID, line string) error {
+func (s *Service) SendConsoleInput(ctx context.Context, ownerID, serverID, line, gameServerID string) error {
 	if strings.TrimSpace(line) == "" {
 		return ErrValidation
 	}
@@ -556,7 +589,7 @@ func (s *Service) SendConsoleInput(ctx context.Context, ownerID, serverID, line 
 	if s.hub == nil || !s.hub.IsOnline(serverID) {
 		return ErrAgentOffline
 	}
-	return s.hub.SendConsoleInput(ctx, serverID, line)
+	return s.hub.SendConsoleInput(ctx, serverID, line, gameServerID)
 }
 
 func (s *Service) AttachConsole(ctx context.Context, ownerID, serverID, gameServerID string) error {

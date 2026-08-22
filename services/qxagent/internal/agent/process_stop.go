@@ -27,45 +27,101 @@ func (r *ProcessRunner) StopTarget(graceful bool, timeout time.Duration, workDir
 		timeout = 30 * time.Second
 	}
 
-	r.mu.Lock()
-	if r.DryRun {
-		slog.Info("dry-run stop server")
-		r.dryPID = 0
-		r.gameServerID = ""
-		r.stopLogFollowLocked()
-		r.mu.Unlock()
-		return 0, nil
-	}
-
-	if strings.TrimSpace(workDir) != "" {
+	workDir = strings.TrimSpace(workDir)
+	if workDir != "" {
 		if resolved, err := safepath.ResolveRoot(workDir); err == nil {
 			workDir = resolved
 		}
-	} else {
-		workDir = r.managedWorkDir
 	}
 
-	cmd := r.cmd
-	stdin := r.stdin
-	same := cmd != nil && cmd.Process != nil &&
-		(workDir == "" || r.managedWorkDir == "" || workDirsMatch(r.managedWorkDir, workDir))
+	r.mu.Lock()
+	if r.DryRun {
+		r.stopDryRunLocked(workDir)
+		r.mu.Unlock()
+		return 0, nil
+	}
+	targets := r.instancesToStopLocked(workDir)
+	r.mu.Unlock()
+
+	if len(targets) == 0 {
+		r.stopWorkDirProcesses(workDir, graceful, timeout)
+		return 0, nil
+	}
+	for _, inst := range targets {
+		r.stopInstance(inst, graceful, timeout)
+	}
+	return 0, nil
+}
+
+func (r *ProcessRunner) stopDryRunLocked(workDir string) {
+	slog.Info("dry-run stop server", "work_dir", workDir)
+	if workDir == "" {
+		for _, inst := range r.instances {
+			if inst != nil {
+				inst.stopLogFollowLocked()
+				inst.dryPID = 0
+				inst.gameServerID = ""
+			}
+		}
+		r.instances = nil
+		return
+	}
+	if inst := r.instances[workDir]; inst != nil {
+		inst.stopLogFollowLocked()
+		inst.dryPID = 0
+		inst.gameServerID = ""
+		delete(r.instances, workDir)
+	}
+}
+
+func (r *ProcessRunner) instancesToStopLocked(workDir string) []*managedInstance {
+	r.ensureInstancesLocked()
+	if workDir != "" {
+		if inst := r.instances[workDir]; inst != nil {
+			return []*managedInstance{inst}
+		}
+		for key, inst := range r.instances {
+			if inst != nil && workDirsMatch(key, workDir) {
+				return []*managedInstance{inst}
+			}
+		}
+		return nil
+	}
+	out := make([]*managedInstance, 0, len(r.instances))
+	for _, inst := range r.instances {
+		if inst != nil {
+			out = append(out, inst)
+		}
+	}
+	return out
+}
+
+func (r *ProcessRunner) stopInstance(inst *managedInstance, graceful bool, timeout time.Duration) {
+	if inst == nil {
+		return
+	}
+	r.mu.Lock()
+	cmd := inst.cmd
+	stdin := inst.stdin
+	workDir := inst.workDir
+	same := cmd != nil && cmd.Process != nil
 	if same {
-		r.stoppingGracefully = true
+		inst.stoppingGracefully = true
 	}
 	r.mu.Unlock()
 
 	pids := collectStopPIDs(cmd, same, workDir)
 	if len(pids) == 0 {
-		r.finishStop(cmd, same, workDir)
-		return 0, nil
+		r.finishStop(inst, cmd, same, workDir)
+		return
 	}
 
 	if graceful {
 		if same && stdin != nil {
 			_, _ = fmt.Fprintln(stdin, "stop")
 			if waitUntilWorkDirIdle(pids, workDir, 2*time.Second) {
-				r.finishStop(cmd, same, workDir)
-				return 0, nil
+				r.finishStop(inst, cmd, same, workDir)
+				return
 			}
 		}
 		for _, pid := range collectStopPIDs(cmd, same, workDir) {
@@ -84,15 +140,38 @@ func (r *ProcessRunner) StopTarget(graceful bool, timeout time.Duration, workDir
 	}
 	_ = waitUntilWorkDirIdle(pids, workDir, 3*time.Second)
 
-	r.finishStop(cmd, same, workDir)
-	return 0, nil
+	r.finishStop(inst, cmd, same, workDir)
 }
 
-func (r *ProcessRunner) finishStop(cmd *exec.Cmd, same bool, workDir string) {
-	if same {
+func (r *ProcessRunner) stopWorkDirProcesses(workDir string, graceful bool, timeout time.Duration) {
+	pids := collectStopPIDs(nil, false, workDir)
+	if len(pids) == 0 {
+		removePidFile(workDir)
+		return
+	}
+	if graceful {
+		for _, pid := range collectStopPIDs(nil, false, workDir) {
+			signalProcessTree(pid, false)
+		}
+		remain := timeout
+		if remain < time.Second {
+			remain = time.Second
+		}
+		_ = waitUntilWorkDirIdle(pids, workDir, remain)
+	}
+	pids = collectStopPIDs(nil, false, workDir)
+	for _, pid := range pids {
+		signalProcessTree(pid, true)
+	}
+	_ = waitUntilWorkDirIdle(pids, workDir, 3*time.Second)
+	removePidFile(workDir)
+}
+
+func (r *ProcessRunner) finishStop(inst *managedInstance, cmd *exec.Cmd, same bool, workDir string) {
+	if same && inst != nil {
 		r.mu.Lock()
-		if r.cmd == cmd {
-			r.clearManagedProcessLocked()
+		if inst.cmd == cmd {
+			r.clearInstanceLocked(inst)
 		}
 		r.mu.Unlock()
 	}

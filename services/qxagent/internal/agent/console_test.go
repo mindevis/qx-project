@@ -12,10 +12,10 @@ import (
 func TestWriteInputWhenServerNotRunning(t *testing.T) {
 	r := &ProcessRunner{}
 	var lines []string
-	r.SetOutputHandler(func(stream, line string) {
+	r.SetOutputHandler(func(stream, line, _ string) {
 		lines = append(lines, stream+":"+line)
 	})
-	err := r.WriteInput("list")
+	err := r.WriteInput("list", "")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -27,10 +27,10 @@ func TestWriteInputWhenServerNotRunning(t *testing.T) {
 func TestWriteInputDryRun(t *testing.T) {
 	r := &ProcessRunner{DryRun: true}
 	var lines []string
-	r.SetOutputHandler(func(stream, line string) {
+	r.SetOutputHandler(func(stream, line, _ string) {
 		lines = append(lines, stream+":"+line)
 	})
-	if err := r.WriteInput("list"); err != nil {
+	if err := r.WriteInput("list", ""); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	if len(lines) < 2 {
@@ -56,7 +56,7 @@ func TestDryRunStartEmitsOutput(t *testing.T) {
 	}
 	r := &ProcessRunner{DryRun: true}
 	var lines []string
-	r.SetOutputHandler(func(stream, line string) {
+	r.SetOutputHandler(func(stream, line, _ string) {
 		lines = append(lines, line)
 	})
 	if _, err := r.Start(protocol.ServerStartPayload{WorkDir: dir, JarPath: jar}); err != nil {

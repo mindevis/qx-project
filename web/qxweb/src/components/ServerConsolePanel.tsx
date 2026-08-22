@@ -31,11 +31,7 @@ export function ServerConsolePanel({
 
   const handleMessage = useCallback(
     (msg: ConsoleMessage) => {
-      if (
-        gameServerId &&
-        msg.game_server_id &&
-        msg.game_server_id !== gameServerId
-      ) {
+      if (gameServerId && msg.type === 'output' && msg.game_server_id !== gameServerId) {
         return;
       }
       if (msg.type === 'output' && msg.line != null && msg.line !== '') {
@@ -53,13 +49,17 @@ export function ServerConsolePanel({
     [appendLine, gameServerId, t],
   );
 
+  const handleMessageRef = useRef(handleMessage);
+  handleMessageRef.current = handleMessage;
+
   useEffect(() => {
+    setLines([]);
     let session: ReturnType<typeof openServerConsole> | null = null;
     const timer = window.setTimeout(() => {
       session = openServerConsole(
         serverId,
         {
-          onMessage: handleMessage,
+          onMessage: (msg) => handleMessageRef.current(msg),
           onClose: () => setConnected(false),
         },
         gameServerId,
@@ -73,7 +73,7 @@ export function ServerConsolePanel({
       sessionRef.current = null;
       setConnected(false);
     };
-  }, [serverId, gameServerId, handleMessage]);
+  }, [serverId, gameServerId]);
 
   useEffect(() => {
     const el = preRef.current;

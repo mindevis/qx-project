@@ -24,7 +24,7 @@ func streamLines(stream string, r io.Reader, onOutput func(string, string)) {
 	}
 }
 
-func (r *ProcessRunner) SetOutputHandler(fn func(stream, line string)) {
+func (r *ProcessRunner) SetOutputHandler(fn func(stream, line, gameServerID string)) {
 	r.mu.Lock()
 	r.onOutput = fn
 	r.mu.Unlock()
@@ -37,62 +37,90 @@ func (r *ProcessRunner) AttachConsole(payload protocol.ConsoleAttachPayload) {
 	}
 	resolved, err := safepath.ResolveRoot(workDir)
 	if err != nil {
-		r.emit("stderr", "invalid work dir: "+err.Error())
+		r.emit("stderr", "invalid work dir: "+err.Error(), strings.TrimSpace(payload.GameServerID))
 		return
 	}
 	workDir = resolved
+	gsID := strings.TrimSpace(payload.GameServerID)
 	r.mu.Lock()
-	if id := strings.TrimSpace(payload.GameServerID); id != "" {
-		r.gameServerID = id
+	inst := r.getOrCreateInstanceLocked(workDir)
+	if gsID != "" {
+		inst.gameServerID = gsID
+	} else {
+		gsID = inst.gameServerID
 	}
 	r.mu.Unlock()
 
 	logPath, err := safepath.Join(workDir, "logs", "latest.log")
 	if err != nil {
-		r.emit("stderr", "invalid log path: "+err.Error())
+		r.emit("stderr", "invalid log path: "+err.Error(), gsID)
 		return
 	}
 	if lines, err := readRecentLogLines(logPath, 500); err == nil {
 		for _, line := range lines {
-			r.emit("log", line)
+			r.emit("log", line, gsID)
 		}
 	} else {
-		r.emit("stderr", "log file not ready: "+logPath)
+		r.emit("stderr", "log file not ready: "+logPath, gsID)
 	}
 
 	r.mu.Lock()
-	r.startLogFollowLocked(workDir)
+	r.startLogFollowLocked(inst)
 	r.mu.Unlock()
 }
 
-func (r *ProcessRunner) WriteInput(line string) error {
+func (r *ProcessRunner) WriteInput(line, gameServerID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	gameServerID = strings.TrimSpace(gameServerID)
 	if r.DryRun {
-		if r.onOutput != nil {
-			r.onOutput("stdin", "> "+line)
-			r.onOutput("stdout", "[dry-run] command accepted")
-		}
+		r.emitLocked("stdin", "> "+line, gameServerID)
+		r.emitLocked("stdout", "[dry-run] command accepted", gameServerID)
 		return nil
 	}
-	if r.stdin == nil {
+	inst := r.inputInstanceLocked(gameServerID)
+	if inst == nil || inst.stdin == nil {
 		err := fmt.Errorf("server process not running")
-		if r.onOutput != nil {
-			r.onOutput("stderr", err.Error())
-		}
+		r.emitLocked("stderr", err.Error(), gameServerID)
 		return err
 	}
-	_, err := fmt.Fprintln(r.stdin, line)
+	_, err := fmt.Fprintln(inst.stdin, line)
 	return err
 }
 
-func (r *ProcessRunner) closePipesLocked() {
-	if r.stdin != nil {
-		_ = r.stdin.Close()
-		r.stdin = nil
+func (r *ProcessRunner) inputInstanceLocked(gameServerID string) *managedInstance {
+	if gameServerID != "" {
+		for _, inst := range r.instances {
+			if inst != nil && inst.gameServerID == gameServerID {
+				return inst
+			}
+		}
+		return nil
 	}
-	for _, c := range r.pipeClosers {
+	var found *managedInstance
+	n := 0
+	for _, inst := range r.instances {
+		if inst != nil && inst.stdin != nil {
+			found = inst
+			n++
+		}
+	}
+	if n == 1 {
+		return found
+	}
+	return nil
+}
+
+func (inst *managedInstance) closePipesLocked() {
+	if inst == nil {
+		return
+	}
+	if inst.stdin != nil {
+		_ = inst.stdin.Close()
+		inst.stdin = nil
+	}
+	for _, c := range inst.pipeClosers {
 		_ = c.Close()
 	}
-	r.pipeClosers = nil
+	inst.pipeClosers = nil
 }

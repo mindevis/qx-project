@@ -16,43 +16,121 @@ func (r *ProcessRunner) SetStatusHandler(fn func(protocol.ServerStatusPayload)) 
 }
 
 func (r *ProcessRunner) CurrentStatus() protocol.ServerStatusPayload {
+	statuses := r.CurrentStatuses()
+	return statuses[0]
+}
+
+func (r *ProcessRunner) CurrentStatuses() []protocol.ServerStatusPayload {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.currentStatusLocked()
+	r.cleanupDeadProcessLocked()
+	var out []protocol.ServerStatusPayload
+	for _, inst := range r.instances {
+		if inst.isAlive(r.DryRun) {
+			out = append(out, protocol.ServerStatusPayload{
+				Status:       protocol.ServerStatusRunning,
+				PID:          inst.pid(),
+				GameServerID: inst.gameServerID,
+			})
+		}
+	}
+	if len(out) == 0 {
+		return []protocol.ServerStatusPayload{{Status: protocol.ServerStatusStopped}}
+	}
+	return out
 }
 
-func (r *ProcessRunner) currentStatusLocked() protocol.ServerStatusPayload {
-	if r.cmd == nil || r.cmd.Process == nil {
-		return protocol.ServerStatusPayload{Status: protocol.ServerStatusStopped}
-	}
-	pid := r.cmd.Process.Pid
-	if !processAlive(pid) {
-		return protocol.ServerStatusPayload{Status: protocol.ServerStatusStopped}
-	}
-	return protocol.ServerStatusPayload{
-		Status:       protocol.ServerStatusRunning,
-		PID:          pid,
-		GameServerID: r.gameServerID,
+func (r *ProcessRunner) ensureInstancesLocked() {
+	if r.instances == nil {
+		r.instances = make(map[string]*managedInstance)
 	}
 }
 
-func (r *ProcessRunner) clearManagedProcessLocked() {
-	r.cmd = nil
-	r.gameServerID = ""
-	r.stoppingGracefully = false
-	r.managedWorkDir = ""
-	r.closePipesLocked()
-	r.stopLogFollowLocked()
+func (r *ProcessRunner) getOrCreateInstanceLocked(key string) *managedInstance {
+	r.ensureInstancesLocked()
+	if inst := r.instances[key]; inst != nil {
+		return inst
+	}
+	inst := &managedInstance{workDir: key}
+	r.instances[key] = inst
+	return inst
+}
+
+func (r *ProcessRunner) aliveInstanceLocked(key string) *managedInstance {
+	if r.instances == nil {
+		return nil
+	}
+	inst := r.instances[key]
+	if inst.isAlive(r.DryRun) {
+		return inst
+	}
+	return nil
+}
+
+func (inst *managedInstance) isAlive(dryRun bool) bool {
+	if inst == nil {
+		return false
+	}
+	if dryRun {
+		return inst.dryPID != 0
+	}
+	return inst.cmd != nil && inst.cmd.Process != nil && processAlive(inst.cmd.Process.Pid)
+}
+
+func (inst *managedInstance) pid() int {
+	if inst == nil {
+		return 0
+	}
+	if inst.cmd != nil && inst.cmd.Process != nil {
+		return inst.cmd.Process.Pid
+	}
+	return inst.dryPID
+}
+
+func (r *ProcessRunner) instanceByCmdLocked(cmd *exec.Cmd) *managedInstance {
+	if cmd == nil {
+		return nil
+	}
+	for _, inst := range r.instances {
+		if inst != nil && inst.cmd == cmd {
+			return inst
+		}
+	}
+	return nil
+}
+
+func (r *ProcessRunner) clearInstanceLocked(inst *managedInstance) {
+	if inst == nil {
+		return
+	}
+	inst.closePipesLocked()
+	inst.stopLogFollowLocked()
+	inst.cmd = nil
+	inst.stoppingGracefully = false
+	inst.dryPID = 0
+	inst.gameServerID = ""
+	if r.instances != nil {
+		delete(r.instances, inst.workDir)
+	}
 }
 
 func (r *ProcessRunner) cleanupDeadProcessLocked() {
-	if r.cmd == nil || r.cmd.Process == nil {
+	if r.DryRun || r.instances == nil {
 		return
 	}
-	if processAlive(r.cmd.Process.Pid) {
-		return
+	for key, inst := range r.instances {
+		if inst == nil {
+			delete(r.instances, key)
+			continue
+		}
+		if inst.cmd == nil || inst.cmd.Process == nil {
+			continue
+		}
+		if processAlive(inst.cmd.Process.Pid) {
+			continue
+		}
+		r.clearInstanceLocked(inst)
 	}
-	r.clearManagedProcessLocked()
 }
 
 func (r *ProcessRunner) watchManagedProcess(cmd *exec.Cmd, workDir string) {
@@ -69,11 +147,16 @@ func (r *ProcessRunner) watchManagedProcess(cmd *exec.Cmd, workDir string) {
 	}
 
 	r.mu.Lock()
-	stopping := r.stoppingGracefully
-	gameServerID := r.gameServerID
+	inst := r.instanceByCmdLocked(cmd)
+	if inst == nil {
+		r.mu.Unlock()
+		return
+	}
+	stopping := inst.stoppingGracefully
+	gameServerID := inst.gameServerID
 	onStatus := r.onStatus
-	if r.cmd == cmd {
-		r.clearManagedProcessLocked()
+	if inst.cmd == cmd {
+		r.clearInstanceLocked(inst)
 	}
 	r.mu.Unlock()
 
@@ -95,6 +178,25 @@ func (r *ProcessRunner) watchManagedProcess(cmd *exec.Cmd, workDir string) {
 		ExitCode:     &exitCode,
 		Message:      message,
 	})
+}
+
+func (r *ProcessRunner) adoptCmdForTest(cmd *exec.Cmd, workDir, gameServerID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := instanceKey(workDir)
+	inst := r.getOrCreateInstanceLocked(key)
+	inst.cmd = cmd
+	inst.gameServerID = gameServerID
+	inst.workDir = key
+}
+
+func (r *ProcessRunner) hasManagedCmdLocked() bool {
+	for _, inst := range r.instances {
+		if inst != nil && inst.cmd != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func crashMessage(workDir string, exitCode int) string {

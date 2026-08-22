@@ -20,7 +20,7 @@ func TestAttachConsoleReadsRecentLog(t *testing.T) {
 
 	var lines []string
 	r := &ProcessRunner{}
-	r.SetOutputHandler(func(stream, line string) {
+	r.SetOutputHandler(func(stream, line, _ string) {
 		lines = append(lines, stream+":"+line)
 	})
 	r.AttachConsole(protocol.ConsoleAttachPayload{

@@ -130,6 +130,24 @@ describe('ServerConsolePanel', () => {
     expect(screen.getByText('> list')).toBeInTheDocument();
   });
 
+  it('sends console input with game server id', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderWithTheme(<ServerConsolePanel serverId="srv-1" gameServerId="gs-1" agentOnline />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Консоль подключена')).toBeInTheDocument(),
+    );
+
+    await user.type(screen.getByPlaceholderText('Команда сервера (Enter)'), 'list');
+    await user.click(screen.getByRole('button', { name: 'Отправить' }));
+
+    await waitFor(() => {
+      expect(MockWebSocket.instances[0]?.sent.length).toBeGreaterThan(0);
+    });
+    expect(MockWebSocket.instances[0]?.sent[0]).toContain('list');
+    expect(MockWebSocket.instances[0]?.sent[0]).toContain('gs-1');
+  });
+
   it('renders streamed console output', async () => {
     renderWithTheme(<ServerConsolePanel serverId="srv-1" agentOnline />);
 
@@ -177,11 +195,15 @@ describe('ServerConsolePanel', () => {
       data: JSON.stringify({ type: 'output', stream: 'out', line: 'other', game_server_id: 'gs-2' }),
     });
     ws?.onmessage?.({
+      data: JSON.stringify({ type: 'output', stream: 'out', line: 'untagged' }),
+    });
+    ws?.onmessage?.({
       data: JSON.stringify({ type: 'output', stream: 'out', line: 'mine', game_server_id: 'gs-1' }),
     });
 
     await waitFor(() => expect(screen.getByText(/\[out\] mine/)).toBeInTheDocument());
     expect(screen.queryByText(/\[out\] other/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\[out\] untagged/)).not.toBeInTheDocument();
   });
 
   it('renders output without stream as out', async () => {
