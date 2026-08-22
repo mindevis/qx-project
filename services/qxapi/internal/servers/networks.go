@@ -547,6 +547,10 @@ func (s *Service) normalizeNetworkMembers(
 			out[i].Alias = uniqueAlias("proxy", seenAliases, out[i].Alias)
 			continue
 		}
+		if out[i].Role == models.GameServerNetworkRoleLobby {
+			out[i].Alias = uniqueAlias("lobby", seenAliases, out[i].Alias)
+			continue
+		}
 		if out[i].Alias == mcproxy.AliasFromName(out[i].GameServerID) {
 			out[i].Alias = uniqueAlias(mcproxy.AliasFromName(game.Name), seenAliases, out[i].Alias)
 		}

@@ -812,6 +812,7 @@ export const en: Messages = {
     networkRoleBackend: 'Game world',
     networkAlias: 'Proxy name',
     networkAliasHint: 'Used in /server — for example lobby, survival.',
+    networkDiagramLobbyHint: 'Click a game world on the diagram to make it the lobby players join from the proxy.',
     networkFromProxy: 'Names and lobby are taken from the proxy config on the server.',
     networkMissingInProxy: 'not in config',
     networkProxyExtra: 'The proxy config has servers outside this project: {{servers}}.',

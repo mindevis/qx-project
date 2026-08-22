@@ -49,6 +49,7 @@ export function aliasFromServerName(name: string): string {
 
 export function suggestedAliasForServer(name: string, role: GameServerNetworkRole): string {
   if (role === 'proxy') return 'proxy';
+  if (role === 'lobby') return 'lobby';
   return aliasFromServerName(name);
 }
 
@@ -74,75 +75,84 @@ export function layoutGameServerNetwork(
   const proxy = members.find((item) => item.role === 'proxy');
   const lobby = members.find((item) => item.role === 'lobby');
   const worlds = members
-    .filter((item) => item.role === 'backend' || (item.role === 'lobby' && proxy))
+    .filter((item) => item.role === 'backend')
     .sort((a, b) => a.sort_order - b.sort_order);
 
-  const bottom = worlds.length > 0 ? worlds : members.filter((item) => item.role !== 'proxy');
-  const cols = Math.max(bottom.length, 1);
+  const cols = Math.max(worlds.length, 1);
   const contentW = cols * NODE_W + (cols - 1) * COL_GAP;
   const width = Math.max(contentW, NODE_W) + PAD_X * 2;
-
-  const playersX = (width - PLAYERS_W) / 2;
-  const playersY = PAD_Y;
-  const proxyY = playersY + PLAYERS_H + ROW_GAP;
-  const worldsY = proxy ? proxyY + NODE_H + ROW_GAP : playersY + PLAYERS_H + ROW_GAP;
-  const worldsStartX = (width - (bottom.length * NODE_W + Math.max(bottom.length - 1, 0) * COL_GAP)) / 2;
+  const centerX = (width - NODE_W) / 2;
+  const worldsStartX =
+    (width - (worlds.length * NODE_W + Math.max(worlds.length - 1, 0) * COL_GAP)) / 2;
 
   const nodes: NetworkDiagramNode[] = [
     {
       id: 'players',
       kind: 'players',
-      x: playersX,
-      y: playersY,
+      x: (width - PLAYERS_W) / 2,
+      y: PAD_Y,
       width: PLAYERS_W,
       height: PLAYERS_H,
       label: labels.players,
     },
   ];
   const edges: NetworkDiagramEdge[] = [];
+  let y = PAD_Y + PLAYERS_H + ROW_GAP;
+  let bottom = PAD_Y + PLAYERS_H;
 
   if (proxy) {
-    const proxyX = (width - NODE_W) / 2;
-    nodes.push(serverNode(proxy, proxyX, proxyY));
+    nodes.push(serverNode(proxy, centerX, y));
     edges.push({ id: 'e-players-proxy', from: 'players', to: proxy.game_server_id, kind: 'connect' });
-    bottom.forEach((member, index) => {
-      const x = worldsStartX + index * (NODE_W + COL_GAP);
-      if (!nodes.some((node) => node.id === member.game_server_id)) {
-        nodes.push(serverNode(member, x, worldsY));
-      }
+    bottom = y + NODE_H;
+    y = bottom + ROW_GAP;
+  }
+
+  if (lobby) {
+    nodes.push(serverNode(lobby, centerX, y));
+    if (proxy) {
       edges.push({
-        id: `e-proxy-${member.game_server_id}`,
+        id: 'e-proxy-lobby',
         from: proxy.game_server_id,
-        to: member.game_server_id,
-        kind: member.role === 'lobby' ? 'try' : 'connect',
+        to: lobby.game_server_id,
+        kind: 'try',
       });
-    });
-    if (lobby) {
-      for (const member of bottom) {
-        if (member.game_server_id === lobby.game_server_id) continue;
-        edges.push({
-          id: `e-lobby-${member.game_server_id}`,
-          from: lobby.game_server_id,
-          to: member.game_server_id,
-          kind: 'transfer',
-        });
-      }
+    } else {
+      edges.push({
+        id: 'e-players-lobby',
+        from: 'players',
+        to: lobby.game_server_id,
+        kind: 'connect',
+      });
     }
-  } else {
+    bottom = y + NODE_H;
+    y = bottom + ROW_GAP;
+  }
+
+  worlds.forEach((member, index) => {
+    nodes.push(serverNode(member, worldsStartX + index * (NODE_W + COL_GAP), y));
+    bottom = y + NODE_H;
+  });
+
+  const parent = lobby ?? proxy;
+  if (parent) {
+    for (const member of worlds) {
+      edges.push({
+        id: `e-${parent.role}-${member.game_server_id}`,
+        from: parent.game_server_id,
+        to: member.game_server_id,
+        kind: lobby ? 'transfer' : 'connect',
+      });
+    }
+  } else if (worlds.length > 0 || members.length > 0) {
     edges.push({
       id: 'e-players-first',
       from: 'players',
-      to: bottom[0]?.game_server_id ?? members[0]?.game_server_id ?? 'players',
+      to: worlds[0]?.game_server_id ?? members[0]?.game_server_id ?? 'players',
       kind: 'connect',
-    });
-    bottom.forEach((member, index) => {
-      nodes.push(serverNode(member, worldsStartX + index * (NODE_W + COL_GAP), worldsY));
     });
   }
 
-  const height =
-    (proxy && bottom.length > 0 ? worldsY : proxy ? proxyY : worldsY) + NODE_H + PAD_Y;
-  return { width, height, nodes, edges };
+  return { width, height: bottom + PAD_Y, nodes, edges };
 }
 
 function serverNode(member: GameServerNetworkMember, x: number, y: number): NetworkDiagramNode {
@@ -154,7 +164,7 @@ function serverNode(member: GameServerNetworkMember, x: number, y: number): Netw
     width: NODE_W,
     height: NODE_H,
     label: member.name || member.alias,
-    subtitle: `${member.alias} · :${member.port}`,
+    subtitle: `:${member.port}`,
     role: member.role,
     gameServerId: member.game_server_id,
   };

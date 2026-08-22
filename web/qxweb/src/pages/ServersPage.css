@@ -1558,7 +1558,7 @@ html[data-theme='dark'] .network-card {
 
 .network-member-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.7fr) minmax(120px, 0.7fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 180px) auto;
   gap: 8px;
   align-items: center;
 }

@@ -128,3 +128,11 @@ html[data-theme='dark'] .network-diagram-node-role {
 .network-diagram-node--server:hover {
   border-color: #1677ff;
 }
+
+.network-diagram-node--selectable {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  appearance: none;
+}

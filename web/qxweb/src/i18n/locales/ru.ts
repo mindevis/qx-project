@@ -811,6 +811,7 @@ export const ru = {
     networkRoleBackend: 'Игровой мир',
     networkAlias: 'Имя в прокси',
     networkAliasHint: 'Так сервер называется в /server — например lobby, survival.',
+    networkDiagramLobbyHint: 'Нажми игровой мир на схеме, чтобы сделать его lobby — туда заходят с прокси.',
     networkFromProxy: 'Имена и lobby подтянуты из конфига прокси на сервере.',
     networkMissingInProxy: 'нет в конфиге',
     networkProxyExtra: 'В конфиге прокси есть серверы вне проекта: {{servers}}.',

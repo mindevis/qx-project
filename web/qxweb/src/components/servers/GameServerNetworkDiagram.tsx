@@ -12,9 +12,11 @@ import './GameServerNetworkDiagram.css';
 export function GameServerNetworkDiagram({
   vpsId,
   members,
+  onSelectLobby,
 }: {
   vpsId: string;
   members: GameServerNetworkMember[];
+  onSelectLobby?: (gameServerId: string) => void;
 }) {
   const { t } = useI18n();
   const layout = layoutGameServerNetwork(members, {
@@ -80,6 +82,20 @@ export function GameServerNetworkDiagram({
         );
         const style = { left: node.x, top: node.y, width: node.width, height: node.height };
         if (node.kind === 'server' && node.gameServerId) {
+          const selectable = Boolean(onSelectLobby) && node.role && node.role !== 'proxy';
+          if (selectable) {
+            return (
+              <button
+                key={node.id}
+                type="button"
+                className={`${className} network-diagram-node--selectable`}
+                style={style}
+                onClick={() => onSelectLobby?.(node.gameServerId!)}
+              >
+                {inner}
+              </button>
+            );
+          }
           return (
             <Link
               key={node.id}
@@ -122,15 +138,16 @@ function edgePath(
   kind: NetworkDiagramEdge['kind'],
 ): { d: string; labelX: number; labelY: number } | null {
   if (!from || !to) return null;
-  if (kind === 'transfer') {
+  const stacked = from.y + from.height <= to.y + 4 || to.y + to.height <= from.y + 4;
+  if (kind === 'transfer' && !stacked) {
     const start = nodeAnchor(from, from.x < to.x ? 'right' : 'left');
     const end = nodeAnchor(to, from.x < to.x ? 'left' : 'right');
     const midY = start.y - 18;
     const d = `M ${start.x} ${start.y} C ${start.x} ${midY}, ${end.x} ${midY}, ${end.x} ${end.y}`;
     return { d, labelX: (start.x + end.x) / 2, labelY: midY - 4 };
   }
-  const start = nodeAnchor(from, 'bottom');
-  const end = nodeAnchor(to, 'top');
+  const start = nodeAnchor(from, from.y <= to.y ? 'bottom' : 'top');
+  const end = nodeAnchor(to, from.y <= to.y ? 'top' : 'bottom');
   const midY = (start.y + end.y) / 2;
   const d = `M ${start.x} ${start.y} C ${start.x} ${midY}, ${end.x} ${midY}, ${end.x} ${end.y}`;
   return { d, labelX: (start.x + end.x) / 2, labelY: midY - 2 };

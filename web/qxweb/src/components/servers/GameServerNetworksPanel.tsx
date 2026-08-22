@@ -7,7 +7,6 @@ import { useMessage } from '@/hooks/useMessage';
 import { logger } from '@/lib/logger';
 import { modalMotionProps } from '@/lib/modal';
 import {
-  aliasFromServerName,
   suggestedAliasForServer,
   suggestedRoleForServer,
 } from '@/lib/gameServerNetworkLayout';
@@ -234,7 +233,7 @@ function NetworkCard({
             alias:
               role === 'proxy'
                 ? 'proxy'
-                : member.alias.trim() || aliasFromServerName(game?.name ?? member.game_server_id),
+                : suggestedAliasForServer(game?.name ?? member.game_server_id, role),
             sort_order: index,
           };
         }),
@@ -348,7 +347,13 @@ function NetworkCard({
       </div>
 
       {diagramMembers.length > 0 ? (
-        <GameServerNetworkDiagram vpsId={vpsId} members={diagramMembers} />
+        <GameServerNetworkDiagram
+          vpsId={vpsId}
+          members={diagramMembers}
+          onSelectLobby={(gameServerId) => {
+            setMembers((prev) => assignNetworkRole(prev, gameServerId, 'lobby', games));
+          }}
+        />
       ) : null}
 
       {!hasProxy ? (
@@ -390,40 +395,9 @@ function NetworkCard({
                 className="network-member-role"
                 options={roleOptions(t, game?.server_type)}
                 onChange={(role: GameServerNetworkRole) =>
-                  setMembers((prev) =>
-                    prev.map((item) =>
-                      item.game_server_id === member.game_server_id
-                        ? {
-                            ...item,
-                            role,
-                            alias:
-                              role === 'proxy'
-                                ? 'proxy'
-                                : item.role === 'proxy'
-                                  ? suggestedAliasForServer(game?.name ?? item.alias, role)
-                                  : item.alias,
-                          }
-                        : item,
-                    ),
-                  )
+                  setMembers((prev) => assignNetworkRole(prev, member.game_server_id, role, games))
                 }
               />
-              {member.role === 'proxy' ? null : (
-                <Input
-                  value={member.alias}
-                  className="network-member-alias"
-                  placeholder={t('servers.networkAlias')}
-                  onChange={(e) =>
-                    setMembers((prev) =>
-                      prev.map((item) =>
-                        item.game_server_id === member.game_server_id
-                          ? { ...item, alias: e.target.value }
-                          : item,
-                      ),
-                    )
-                  }
-                />
-              )}
               <Button
                 type="text"
                 danger
@@ -457,7 +431,7 @@ function NetworkCard({
       ) : null}
 
       <Paragraph type="secondary" className="servers-hint">
-        {t('servers.networkAliasHint')}
+        {t('servers.networkDiagramLobbyHint')}
       </Paragraph>
 
       <Space wrap>
@@ -489,6 +463,34 @@ function NetworkCard({
       </Modal>
     </article>
   );
+}
+
+function assignNetworkRole(
+  members: DraftMember[],
+  gameServerId: string,
+  role: GameServerNetworkRole,
+  games: VpsGameServer[],
+): DraftMember[] {
+  return members.map((item) => {
+    if (item.game_server_id === gameServerId) {
+      if (item.role === 'proxy') return item;
+      const game = games.find((row) => row.id === item.game_server_id);
+      return {
+        ...item,
+        role,
+        alias: suggestedAliasForServer(game?.name ?? item.alias, role),
+      };
+    }
+    if (role === 'lobby' && item.role === 'lobby') {
+      const game = games.find((row) => row.id === item.game_server_id);
+      return {
+        ...item,
+        role: 'backend',
+        alias: suggestedAliasForServer(game?.name ?? item.alias, 'backend'),
+      };
+    }
+    return item;
+  });
 }
 
 function roleOptions(

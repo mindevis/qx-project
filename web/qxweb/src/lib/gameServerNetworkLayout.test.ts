@@ -31,7 +31,8 @@ describe('gameServerNetworkLayout', () => {
     expect(suggestedRoleForServer('paper', [{ role: 'lobby' }])).toBe('backend');
     expect(suggestedRoleForServer(undefined, [])).toBe('lobby');
     expect(suggestedAliasForServer('qrpg-world-proxy', 'proxy')).toBe('proxy');
-    expect(suggestedAliasForServer('Lobby #1', 'lobby')).toBe('lobby-1');
+    expect(suggestedAliasForServer('Lobby #1', 'lobby')).toBe('lobby');
+    expect(suggestedAliasForServer('qrpg-world-survival', 'backend')).toBe('qrpg-world-survival');
   });
 
   it('lays out players -> velocity -> lobby and worlds', () => {
@@ -66,13 +67,18 @@ describe('gameServerNetworkLayout', () => {
     );
 
     expect(layout.nodes.map((node) => node.id)).toEqual(['players', 'v', 'l', 's']);
+    const lobbyNode = layout.nodes.find((node) => node.id === 'l');
+    const survivalNode = layout.nodes.find((node) => node.id === 's');
+    expect(lobbyNode).toBeDefined();
+    expect(survivalNode).toBeDefined();
+    expect(lobbyNode!.y).toBeLessThan(survivalNode!.y);
     expect(layout.edges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ from: 'players', to: 'v', kind: 'connect' }),
         expect.objectContaining({ from: 'v', to: 'l', kind: 'try' }),
-        expect.objectContaining({ from: 'v', to: 's', kind: 'connect' }),
         expect.objectContaining({ from: 'l', to: 's', kind: 'transfer' }),
       ]),
     );
+    expect(layout.edges.some((edge) => edge.from === 'v' && edge.to === 's')).toBe(false);
   });
 });
