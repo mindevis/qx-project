@@ -12,6 +12,12 @@ func TestAliasFromName(t *testing.T) {
 	if got := AliasFromName("  "); got != "server" {
 		t.Fatalf("empty: %q", got)
 	}
+	if KeepMOTD("qrpg-world-proxy", "qrpg-world-proxy", "Velocity") != "Velocity" {
+		t.Fatal("instance name should not stay as motd")
+	}
+	if KeepMOTD("A Velocity Server", "qrpg-world-proxy", "Velocity") != "A Velocity Server" {
+		t.Fatal("custom motd should stay")
+	}
 	if !ValidAlias("lobby") || ValidAlias("Lobby") || ValidAlias("") {
 		t.Fatal("valid alias checks")
 	}
@@ -102,6 +108,66 @@ func TestParseVelocityTomlRoundTrip(t *testing.T) {
 	}
 	if len(cfg.Try) != 1 || cfg.Try[0] != "lobby" {
 		t.Fatalf("try: %+v", cfg.Try)
+	}
+}
+
+func TestDiffProxyApplyAndMergeKeepsExisting(t *testing.T) {
+	existing := VelocityToml("0.0.0.0:25577", "Custom MOTD", []Backend{
+		{Alias: "hub", Address: "127.0.0.1:25566"},
+		{Alias: "sky", Address: "127.0.0.1:25570"},
+	}, []string{"hub"})
+	cfg := ParseVelocityToml(existing)
+	changes := DiffProxyApply(cfg, "0.0.0.0:25565", []Backend{
+		{Alias: "hub", Address: "127.0.0.1:25567"},
+		{Alias: "lobby", Address: "127.0.0.1:25566"},
+	}, []string{"lobby"})
+	if len(changes) < 3 {
+		t.Fatalf("changes: %+v", changes)
+	}
+	merged := MergeVelocityToml(existing, []Backend{
+		{Alias: "hub", Address: "127.0.0.1:25567"},
+		{Alias: "lobby", Address: "127.0.0.1:25566"},
+	}, []string{"lobby"})
+	got := ParseVelocityToml(merged)
+	if got.Motd != "Custom MOTD" || got.Bind != "0.0.0.0:25577" {
+		t.Fatalf("kept settings: %+v", got)
+	}
+	if len(got.Try) != 1 || got.Try[0] != "hub" {
+		t.Fatalf("try should stay hub: %+v", got.Try)
+	}
+	byAlias := map[string]string{}
+	for _, b := range got.Backends {
+		byAlias[b.Alias] = b.Address
+	}
+	if byAlias["hub"] != "127.0.0.1:25566" {
+		t.Fatalf("hub address should stay: %+v", byAlias)
+	}
+	if byAlias["sky"] != "127.0.0.1:25570" {
+		t.Fatalf("extra sky should stay: %+v", byAlias)
+	}
+	if byAlias["lobby"] != "127.0.0.1:25566" {
+		t.Fatalf("lobby should be added: %+v", byAlias)
+	}
+}
+
+func TestPatchVelocityTomlKeepsAdvancedDropsInstanceBackend(t *testing.T) {
+	existing := VelocityToml("0.0.0.0:25565", "My Network", []Backend{
+		{Alias: "qrpg-world-proxy", Address: "127.0.0.1:25565"},
+	}, []string{"qrpg-world-proxy"})
+	got := PatchVelocityToml(existing, "0.0.0.0:25565", "Velocity", []Backend{
+		{Alias: "lobby", Address: "127.0.0.1:25566"},
+	}, []string{"lobby"})
+	if !strings.Contains(got, `motd = "Velocity"`) {
+		t.Fatalf("motd:\n%s", got)
+	}
+	if strings.Contains(got, "qrpg-world-proxy") {
+		t.Fatalf("left proxy instance in servers:\n%s", got)
+	}
+	if !strings.Contains(got, `lobby = "127.0.0.1:25566"`) || !strings.Contains(got, `try = ["lobby"]`) {
+		t.Fatalf("servers:\n%s", got)
+	}
+	if !strings.Contains(got, "[advanced]") {
+		t.Fatalf("lost advanced:\n%s", got)
 	}
 }
 

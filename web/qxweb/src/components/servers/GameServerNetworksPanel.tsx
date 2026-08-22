@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Empty, Form, Input, Modal, Popconfirm, Select, Space, Typography } from 'antd';
 import { ApartmentOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { api, type GameServerNetwork, type GameServerNetworkRole } from '@/api/client';
+import { api, type GameServerNetwork, type GameServerNetworkChange, type GameServerNetworkRole } from '@/api/client';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { logger } from '@/lib/logger';
 import { modalMotionProps } from '@/lib/modal';
 import {
   aliasFromServerName,
+  suggestedAliasForServer,
   suggestedRoleForServer,
 } from '@/lib/gameServerNetworkLayout';
 import { gameServerTypeLabelText, isProxyGameServerType, type VpsGameServerType } from '@/lib/gameServerTypes';
@@ -170,11 +171,14 @@ function NetworkCard({
     (network.members ?? []).map((item) => ({
       game_server_id: item.game_server_id,
       role: item.role,
-      alias: item.alias,
+      alias: item.role === 'proxy' ? 'proxy' : item.alias,
     })),
   );
   const [saving, setSaving] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [overwriteOpen, setOverwriteOpen] = useState(false);
+  const [overwriteChanges, setOverwriteChanges] = useState<GameServerNetworkChange[]>([]);
+  const [overwriteKind, setOverwriteKind] = useState<'save' | 'apply'>('apply');
 
   useEffect(() => {
     setName(network.name);
@@ -182,7 +186,7 @@ function NetworkCard({
       (network.members ?? []).map((item) => ({
         game_server_id: item.game_server_id,
         role: item.role,
-        alias: item.alias,
+        alias: item.role === 'proxy' ? 'proxy' : item.alias,
       })),
     );
   }, [network]);
@@ -216,21 +220,39 @@ function NetworkCard({
     });
   }
 
-  const save = async (apply: boolean) => {
+  const save = async (apply: boolean, overwrite = false) => {
     setSaving(true);
     try {
       const updated = await api.updateVpsGameServerNetwork(vpsId, network.id, {
         name: name.trim() || network.name,
-        members: members.map((member, index) => ({
-          game_server_id: member.game_server_id,
-          role: member.role,
-          alias: member.alias.trim() || aliasFromServerName(
-            games.find((game) => game.id === member.game_server_id)?.name ?? member.game_server_id,
-          ),
-          sort_order: index,
-        })),
+        members: members.map((member, index) => {
+          const game = games.find((item) => item.id === member.game_server_id);
+          const role = member.role;
+          return {
+            game_server_id: member.game_server_id,
+            role,
+            alias:
+              role === 'proxy'
+                ? 'proxy'
+                : member.alias.trim() || aliasFromServerName(game?.name ?? member.game_server_id),
+            sort_order: index,
+          };
+        }),
         apply,
+        overwrite,
       });
+      if (apply && updated.needs_confirm && (updated.proxy_changes?.length ?? 0) > 0) {
+        if (updated.applied) {
+          message.success(t('servers.networkOverwriteMerged'));
+        } else {
+          message.success(t('servers.networkUpdated'));
+        }
+        setOverwriteKind('save');
+        setOverwriteChanges(updated.proxy_changes ?? []);
+        setOverwriteOpen(true);
+        await onChanged();
+        return;
+      }
       if (apply && updated.applied) {
         message.success(t('servers.networkApplied'));
       } else if (apply && updated.apply_error) {
@@ -248,10 +270,19 @@ function NetworkCard({
     }
   };
 
-  const applyOnly = async () => {
+  const applyOnly = async (overwrite = false) => {
     setApplying(true);
     try {
-      const updated = await api.applyVpsGameServerNetwork(vpsId, network.id);
+      const updated = await api.applyVpsGameServerNetwork(vpsId, network.id, { overwrite });
+      if (updated.needs_confirm && (updated.proxy_changes?.length ?? 0) > 0) {
+        if (updated.applied) {
+          message.success(t('servers.networkOverwriteMerged'));
+        }
+        setOverwriteKind('apply');
+        setOverwriteChanges(updated.proxy_changes ?? []);
+        setOverwriteOpen(true);
+        return;
+      }
       if (updated.applied) {
         message.success(t('servers.networkApplied'));
       } else if (updated.apply_error) {
@@ -266,17 +297,29 @@ function NetworkCard({
     }
   };
 
+  const confirmOverwrite = async () => {
+    setOverwriteOpen(false);
+    if (overwriteKind === 'save') {
+      await save(true, true);
+      return;
+    }
+    await applyOnly(true);
+  };
+
   const addServer = (gameId: string) => {
     const game = games.find((item) => item.id === gameId);
     if (!game) return;
-    setMembers((prev) => [
-      ...prev,
-      {
-        game_server_id: game.id,
-        role: suggestedRoleForServer(game.server_type, prev),
-        alias: aliasFromServerName(game.name),
-      },
-    ]);
+    setMembers((prev) => {
+      const role = suggestedRoleForServer(game.server_type, prev);
+      return [
+        ...prev,
+        {
+          game_server_id: game.id,
+          role,
+          alias: suggestedAliasForServer(game.name, role),
+        },
+      ];
+    });
   };
 
   const hasProxy = members.some((member) => member.role === 'proxy');
@@ -349,25 +392,38 @@ function NetworkCard({
                 onChange={(role: GameServerNetworkRole) =>
                   setMembers((prev) =>
                     prev.map((item) =>
-                      item.game_server_id === member.game_server_id ? { ...item, role } : item,
-                    ),
-                  )
-                }
-              />
-              <Input
-                value={member.alias}
-                className="network-member-alias"
-                placeholder={t('servers.networkAlias')}
-                onChange={(e) =>
-                  setMembers((prev) =>
-                    prev.map((item) =>
                       item.game_server_id === member.game_server_id
-                        ? { ...item, alias: e.target.value }
+                        ? {
+                            ...item,
+                            role,
+                            alias:
+                              role === 'proxy'
+                                ? 'proxy'
+                                : item.role === 'proxy'
+                                  ? suggestedAliasForServer(game?.name ?? item.alias, role)
+                                  : item.alias,
+                          }
                         : item,
                     ),
                   )
                 }
               />
+              {member.role === 'proxy' ? null : (
+                <Input
+                  value={member.alias}
+                  className="network-member-alias"
+                  placeholder={t('servers.networkAlias')}
+                  onChange={(e) =>
+                    setMembers((prev) =>
+                      prev.map((item) =>
+                        item.game_server_id === member.game_server_id
+                          ? { ...item, alias: e.target.value }
+                          : item,
+                      ),
+                    )
+                  }
+                />
+              )}
               <Button
                 type="text"
                 danger
@@ -412,6 +468,25 @@ function NetworkCard({
           {t('servers.networkApply')}
         </Button>
       </Space>
+      <Modal
+        title={t('servers.networkOverwriteTitle')}
+        open={overwriteOpen}
+        onCancel={() => setOverwriteOpen(false)}
+        onOk={() => void confirmOverwrite()}
+        okText={t('servers.networkOverwriteConfirm')}
+        cancelText={t('servers.networkOverwriteKeep')}
+        confirmLoading={saving || applying}
+        {...modalMotionProps}
+      >
+        <Paragraph>{t('servers.networkOverwriteHint')}</Paragraph>
+        <ul className="network-overwrite-list">
+          {overwriteChanges.map((change, index) => (
+            <li key={`${change.field}-${change.name ?? ''}-${index}`}>
+              {formatProxyChange(t, change)}
+            </li>
+          ))}
+        </ul>
+      </Modal>
     </article>
   );
 }
@@ -428,4 +503,37 @@ function roleOptions(
     { value: 'lobby', label: t('servers.networkRoleLobby') },
     { value: 'backend', label: t('servers.networkRoleBackend') },
   ];
+}
+
+function formatProxyChange(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  change: GameServerNetworkChange,
+): string {
+  let field = change.field;
+  switch (change.field) {
+    case 'bind':
+      field = t('servers.networkChangeBind');
+      break;
+    case 'motd':
+      field = t('servers.networkChangeMotd');
+      break;
+    case 'try':
+      field = t('servers.networkChangeTry');
+      break;
+    case 'forwarding.secret':
+      field = t('servers.networkChangeSecret');
+      break;
+    case 'server':
+      field = t('servers.networkChangeServer', { name: change.name ?? '' });
+      break;
+    case 'remove':
+      field = t('servers.networkChangeRemove', { name: change.name ?? '' });
+      break;
+    default:
+      break;
+  }
+  if (change.field === 'remove' || !change.to) {
+    return t('servers.networkChangeLineRemove', { field, from: change.from ?? '' });
+  }
+  return t('servers.networkChangeLine', { field, from: change.from ?? '', to: change.to ?? '' });
 }

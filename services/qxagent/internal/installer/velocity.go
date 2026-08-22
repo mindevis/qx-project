@@ -110,10 +110,9 @@ func writeVelocityConfig(workDir string, cfg InstallConfig) error {
 		port = 25565
 	}
 	bind := bindHost + ":" + strconv.Itoa(port)
-	motd := strings.TrimSpace(cfg.Name)
 	tomlPath, err := safepath.Join(workDir, "velocity.toml")
 	if err != nil {
 		return err
 	}
-	return safepath.WriteFileBytes(tomlPath, []byte(mcproxy.VelocityToml(bind, motd, nil, nil)), 0o644)
+	return safepath.WriteFileBytes(tomlPath, []byte(mcproxy.VelocityToml(bind, "Velocity", nil, nil)), 0o644)
 }

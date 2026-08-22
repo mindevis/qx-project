@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
+
 	"github.com/qxproject/qx/pkg/safepath"
 )
 
@@ -27,6 +29,7 @@ const (
 	systemdUnitName   = "qx-ollama.service"
 	systemdUnitPath   = "/etc/systemd/system/qx-ollama.service"
 	githubDownload    = "https://github.com/ollama/ollama/releases/latest/download/"
+	ollamaDownload    = "https://ollama.com/download/"
 )
 
 var (
@@ -37,14 +40,14 @@ var (
 )
 
 var (
-	runtimeGOARCH  = runtime.GOARCH
-	downloadFileFn = downloadFile
-	extractTGZFn   = extractTGZ
-	hasSystemdFn   = hasSystemd
-	commandContext = exec.CommandContext
-	httpGet        = http.DefaultClient.Do
-	osStat         = os.Stat
-	writeFileFn    = os.WriteFile
+	runtimeGOARCH    = runtime.GOARCH
+	downloadFileFn   = downloadFile
+	extractArchiveFn = extractArchive
+	hasSystemdFn     = hasSystemd
+	commandContext   = exec.CommandContext
+	httpGet          = http.DefaultClient.Do
+	osStat           = os.Stat
+	writeFileFn      = os.WriteFile
 )
 
 type Manager struct {
@@ -120,7 +123,11 @@ func LinuxArch() (string, error) {
 }
 
 func DownloadURL(arch string) string {
-	return githubDownload + "ollama-linux-" + arch + ".tgz"
+	return ollamaDownload + "ollama-linux-" + arch + ".tar.zst"
+}
+
+func githubDownloadURL(arch string) string {
+	return githubDownload + "ollama-linux-" + arch + ".tar.zst"
 }
 
 func (m *Manager) Install(ctx context.Context, onLog func(string)) (InstallResult, error) {
@@ -150,14 +157,21 @@ func (m *Manager) Install(ctx context.Context, onLog func(string)) (InstallResul
 		return InstallResult{}, fmt.Errorf("mkdir models: %w", err)
 	}
 
-	archive := filepath.Join(m.RootDir, "ollama-linux-"+arch+".tgz")
+	archive := filepath.Join(m.RootDir, "ollama-linux-"+arch+".tar.zst")
 	url := DownloadURL(arch)
 	logLine(onLog, "[QX] Downloading Ollama…")
 	if err := downloadFileFn(ctx, url, archive); err != nil {
-		return InstallResult{}, err
+		fallback := githubDownloadURL(arch)
+		if fallback != url {
+			logLine(onLog, "[QX] Retrying Ollama download from GitHub…")
+			err = downloadFileFn(ctx, fallback, archive)
+		}
+		if err != nil {
+			return InstallResult{}, err
+		}
 	}
 	logLine(onLog, "[QX] Extracting Ollama archive…")
-	if err := extractTGZFn(archive, m.RootDir); err != nil {
+	if err := extractArchiveFn(archive, m.RootDir); err != nil {
 		return InstallResult{}, err
 	}
 	_ = os.Remove(archive)
@@ -541,6 +555,13 @@ func downloadFile(ctx context.Context, url, dest string) error {
 	return safepath.WriteStreamAtomic(dest, res.Body)
 }
 
+func extractArchive(archive, dest string) error {
+	if strings.HasSuffix(strings.ToLower(archive), ".tar.zst") {
+		return extractTarZST(archive, dest)
+	}
+	return extractTGZ(archive, dest)
+}
+
 func extractTGZ(archive, dest string) error {
 	f, err := os.Open(archive)
 	if err != nil {
@@ -552,7 +573,25 @@ func extractTGZ(archive, dest string) error {
 		return err
 	}
 	defer gz.Close()
-	tr := tar.NewReader(gz)
+	return extractTar(gz, dest)
+}
+
+func extractTarZST(archive, dest string) error {
+	f, err := os.Open(archive)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	zr, err := zstd.NewReader(f)
+	if err != nil {
+		return err
+	}
+	defer zr.Close()
+	return extractTar(zr, dest)
+}
+
+func extractTar(r io.Reader, dest string) error {
+	tr := tar.NewReader(r)
 	for {
 		hdr, err := tr.Next()
 		if errors.Is(err, io.EOF) {

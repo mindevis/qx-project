@@ -124,5 +124,9 @@ func writeBungeeConfig(workDir string, cfg InstallConfig) error {
 	if err != nil {
 		return err
 	}
-	return safepath.WriteFileBytes(path, []byte(mcproxy.BungeeConfigYAML(bind, strings.TrimSpace(cfg.Name), nil, nil)), 0o644)
+	motd := "BungeeCord"
+	if strings.EqualFold(strings.TrimSpace(cfg.ServerType), "waterfall") {
+		motd = "Waterfall"
+	}
+	return safepath.WriteFileBytes(path, []byte(mcproxy.BungeeConfigYAML(bind, motd, nil, nil)), 0o644)
 }

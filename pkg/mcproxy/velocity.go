@@ -56,6 +56,25 @@ func AliasFromName(name string) string {
 	return out
 }
 
+func KeepMOTD(existing, instanceName, fallback string) string {
+	existing = strings.TrimSpace(existing)
+	fallback = strings.TrimSpace(fallback)
+	if fallback == "" {
+		fallback = "Velocity"
+	}
+	if existing == "" {
+		return fallback
+	}
+	instanceName = strings.TrimSpace(instanceName)
+	if instanceName == "" {
+		return existing
+	}
+	if strings.EqualFold(existing, instanceName) || existing == AliasFromName(instanceName) {
+		return fallback
+	}
+	return existing
+}
+
 func VelocityToml(bind, motd string, backends []Backend, try []string) string {
 	bind = strings.TrimSpace(bind)
 	if bind == "" {
@@ -80,6 +99,33 @@ func VelocityToml(bind, motd string, backends []Backend, try []string) string {
 	b.WriteString("kick-existing-players = false\n")
 	b.WriteString("ping-passthrough = \"DISABLED\"\n")
 	b.WriteString("enable-player-address-logging = true\n\n")
+	b.WriteString(velocityServersBlock(backends, try))
+	b.WriteString("[forced-hosts]\n\n")
+	b.WriteString("[advanced]\n")
+	b.WriteString("compression-threshold = 256\n")
+	b.WriteString("compression-level = -1\n")
+	b.WriteString("login-ratelimit = 3000\n")
+	b.WriteString("connection-timeout = 5000\n")
+	b.WriteString("read-timeout = 30000\n")
+	b.WriteString("haproxy-protocol = false\n")
+	b.WriteString("tcp-fast-open = false\n")
+	b.WriteString("bungee-plugin-message-channel = true\n")
+	b.WriteString("show-ping-requests = false\n")
+	b.WriteString("failover-on-unexpected-server-disconnect = true\n")
+	b.WriteString("announce-proxy-commands = true\n")
+	b.WriteString("log-command-executions = false\n")
+	b.WriteString("log-player-connections = true\n")
+	b.WriteString("accepts-transfers = false\n\n")
+	b.WriteString("[query]\n")
+	b.WriteString("enabled = false\n")
+	b.WriteString("port = 25577\n")
+	b.WriteString("map = \"Velocity\"\n")
+	b.WriteString("show-plugins = false\n")
+	return b.String()
+}
+
+func velocityServersBlock(backends []Backend, try []string) string {
+	var b strings.Builder
 	b.WriteString("[servers]\n")
 	for _, backend := range backends {
 		alias := strings.TrimSpace(backend.Alias)
@@ -103,28 +149,32 @@ func VelocityToml(bind, motd string, backends []Backend, try []string) string {
 		b.WriteString("\"" + escapeTOML(alias) + "\"")
 	}
 	b.WriteString("]\n\n")
-	b.WriteString("[forced-hosts]\n\n")
-	b.WriteString("[advanced]\n")
-	b.WriteString("compression-threshold = 256\n")
-	b.WriteString("compression-level = -1\n")
-	b.WriteString("login-ratelimit = 3000\n")
-	b.WriteString("connection-timeout = 5000\n")
-	b.WriteString("read-timeout = 30000\n")
-	b.WriteString("haproxy-protocol = false\n")
-	b.WriteString("tcp-fast-open = false\n")
-	b.WriteString("bungee-plugin-message-channel = true\n")
-	b.WriteString("show-ping-requests = false\n")
-	b.WriteString("failover-on-unexpected-server-disconnect = true\n")
-	b.WriteString("announce-proxy-commands = true\n")
-	b.WriteString("log-command-executions = false\n")
-	b.WriteString("log-player-connections = true\n")
-	b.WriteString("accepts-transfers = false\n\n")
-	b.WriteString("[query]\n")
-	b.WriteString("enabled = false\n")
-	b.WriteString("port = 25577\n")
-	b.WriteString("map = \"Velocity\"\n")
-	b.WriteString("show-plugins = false\n")
 	return b.String()
+}
+
+func PatchVelocityToml(existing, bind, motd string, backends []Backend, try []string) string {
+	existing = strings.ReplaceAll(existing, "\r\n", "\n")
+	if strings.TrimSpace(existing) == "" {
+		return VelocityToml(bind, motd, backends, try)
+	}
+	out := existing
+	if bind = strings.TrimSpace(bind); bind != "" && tomlBindRe.MatchString(out) {
+		out = tomlBindRe.ReplaceAllString(out, `bind = "`+escapeTOML(bind)+`"`)
+	}
+	if motd = strings.TrimSpace(motd); motd != "" && tomlMotdRe.MatchString(out) {
+		out = tomlMotdRe.ReplaceAllString(out, `motd = "`+escapeTOML(motd)+`"`)
+	}
+	block := strings.TrimRight(velocityServersBlock(backends, try), "\n")
+	idx := strings.Index(out, "[servers]")
+	if idx < 0 {
+		return strings.TrimRight(out, "\n") + "\n\n" + block + "\n"
+	}
+	rest := out[idx:]
+	endRel := len(rest)
+	if next := strings.Index(rest, "\n["); next >= 0 {
+		endRel = next
+	}
+	return out[:idx] + block + out[idx+endRel:]
 }
 
 func PaperVelocityYAML(secret string) string {

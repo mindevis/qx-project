@@ -40,15 +40,17 @@ type GameServerNetworkMemberView struct {
 }
 
 type GameServerNetworkView struct {
-	ID          string                        `json:"id"`
-	Name        string                        `json:"name"`
-	Members     []GameServerNetworkMemberView `json:"members"`
-	Applied     bool                          `json:"applied"`
-	ApplyError  string                        `json:"apply_error,omitempty"`
-	ProxySynced bool                          `json:"proxy_synced,omitempty"`
-	ProxyExtra  []GameServerNetworkProxyExtra `json:"proxy_extra,omitempty"`
-	CreatedAt   time.Time                     `json:"created_at"`
-	UpdatedAt   time.Time                     `json:"updated_at"`
+	ID           string                        `json:"id"`
+	Name         string                        `json:"name"`
+	Members      []GameServerNetworkMemberView `json:"members"`
+	Applied      bool                          `json:"applied"`
+	ApplyError   string                        `json:"apply_error,omitempty"`
+	NeedsConfirm bool                          `json:"needs_confirm,omitempty"`
+	ProxyChanges []mcproxy.ApplyChange         `json:"proxy_changes,omitempty"`
+	ProxySynced  bool                          `json:"proxy_synced,omitempty"`
+	ProxyExtra   []GameServerNetworkProxyExtra `json:"proxy_extra,omitempty"`
+	CreatedAt    time.Time                     `json:"created_at"`
+	UpdatedAt    time.Time                     `json:"updated_at"`
 }
 
 type GameServerNetworkProxyExtra struct {
@@ -133,6 +135,7 @@ func (s *Service) UpdateGameServerNetwork(
 	ownerID, vpsID, networkID, name string,
 	members []GameServerNetworkMemberInput,
 	apply bool,
+	overwrite bool,
 ) (*GameServerNetworkView, error) {
 	if _, err := s.getOwned(ctx, ownerID, vpsID); err != nil {
 		return nil, err
@@ -175,16 +178,12 @@ func (s *Service) UpdateGameServerNetwork(
 		return nil, err
 	}
 	if apply {
-		if applyErr := s.applyGameServerNetwork(ctx, ownerID, vpsID, network, view.Members); applyErr != nil {
-			view.ApplyError = applyErr.Error()
-		} else {
-			view.Applied = true
-		}
+		s.finishNetworkApply(ctx, ownerID, vpsID, network, &view, overwrite)
 	}
 	return &view, nil
 }
 
-func (s *Service) ApplyGameServerNetwork(ctx context.Context, ownerID, vpsID, networkID string) (*GameServerNetworkView, error) {
+func (s *Service) ApplyGameServerNetwork(ctx context.Context, ownerID, vpsID, networkID string, overwrite bool) (*GameServerNetworkView, error) {
 	if _, err := s.getOwned(ctx, ownerID, vpsID); err != nil {
 		return nil, err
 	}
@@ -196,11 +195,7 @@ func (s *Service) ApplyGameServerNetwork(ctx context.Context, ownerID, vpsID, ne
 	if err != nil {
 		return nil, err
 	}
-	if err := s.applyGameServerNetwork(ctx, ownerID, vpsID, network, view.Members); err != nil {
-		view.ApplyError = err.Error()
-		return &view, nil
-	}
-	view.Applied = true
+	s.finishNetworkApply(ctx, ownerID, vpsID, network, &view, overwrite)
 	return &view, nil
 }
 
@@ -233,7 +228,7 @@ func (s *Service) syncNetworksForGameServer(ctx context.Context, vpsID, gameServ
 	if err != nil {
 		return
 	}
-	_ = s.applyGameServerNetwork(ctx, "", vpsID, &network, view.Members)
+	_ = s.applyGameServerNetwork(ctx, "", vpsID, &network, view.Members, false)
 }
 
 func (s *Service) getOwnedNetwork(ctx context.Context, vpsID, networkID string) (*models.GameServerNetwork, error) {
@@ -327,6 +322,7 @@ func (s *Service) hydrateNetworkFromProxy(ctx context.Context, vpsID string, vie
 		return
 	}
 	cfg := parse(content)
+	scrubProxyConfig(&cfg, proxyMember)
 	changed, extra := overlayNetworkMembersFromProxy(view.Members, cfg)
 	view.ProxySynced = true
 	if len(extra) > 0 {
@@ -337,17 +333,6 @@ func (s *Service) hydrateNetworkFromProxy(ctx context.Context, vpsID string, vie
 	}
 	if !changed {
 		return
-	}
-	now := time.Now().UTC()
-	for _, member := range view.Members {
-		if member.ID == "" || member.Role == models.GameServerNetworkRoleProxy {
-			continue
-		}
-		_ = s.db.WithContext(ctx).Model(&models.GameServerNetworkMember{}).Where("id = ?", member.ID).Updates(map[string]any{
-			"alias":      member.Alias,
-			"role":       member.Role,
-			"updated_at": now,
-		}).Error
 	}
 }
 
@@ -392,6 +377,58 @@ func overlayNetworkMembersFromProxy(members []GameServerNetworkMemberView, cfg m
 		extra = append(extra, backend)
 	}
 	return changed, extra
+}
+
+func proxySelfAliases(proxy *GameServerNetworkMemberView) map[string]struct{} {
+	skip := map[string]struct{}{}
+	if proxy == nil {
+		return skip
+	}
+	if alias := strings.ToLower(strings.TrimSpace(proxy.Alias)); alias != "" && alias != "proxy" {
+		skip[alias] = struct{}{}
+	}
+	if slug := mcproxy.AliasFromName(proxy.Name); slug != "" && slug != "server" && slug != "proxy" {
+		skip[slug] = struct{}{}
+	}
+	return skip
+}
+
+func scrubProxyConfig(cfg *mcproxy.ProxyConfig, proxy *GameServerNetworkMemberView) {
+	if cfg == nil {
+		return
+	}
+	skip := proxySelfAliases(proxy)
+	proxyPort := 0
+	if proxy != nil {
+		proxyPort = proxy.Port
+		if proxyPort <= 0 {
+			proxyPort = 25565
+		}
+	}
+	backends := make([]mcproxy.Backend, 0, len(cfg.Backends))
+	for _, backend := range cfg.Backends {
+		if _, ok := skip[strings.ToLower(strings.TrimSpace(backend.Alias))]; ok {
+			continue
+		}
+		if proxyPort > 0 {
+			if p := mcproxy.ProxyAddrPort(backend.Address); p > 0 && p == proxyPort {
+				continue
+			}
+		}
+		backends = append(backends, backend)
+	}
+	cfg.Backends = backends
+	if len(skip) == 0 {
+		return
+	}
+	try := make([]string, 0, len(cfg.Try))
+	for _, alias := range cfg.Try {
+		if _, ok := skip[strings.ToLower(strings.TrimSpace(alias))]; ok {
+			continue
+		}
+		try = append(try, alias)
+	}
+	cfg.Try = try
 }
 
 func matchProxyBackend(member GameServerNetworkMemberView, backends []mcproxy.Backend, used map[int]struct{}) int {
@@ -509,6 +546,10 @@ func (s *Service) normalizeNetworkMembers(
 		if out[i].Role != models.GameServerNetworkRoleProxy && isProxyGameServerType(game.ServerType) {
 			out[i].Role = models.GameServerNetworkRoleProxy
 		}
+		if out[i].Role == models.GameServerNetworkRoleProxy {
+			out[i].Alias = uniqueAlias("proxy", seenAliases, out[i].Alias)
+			continue
+		}
 		if out[i].Alias == mcproxy.AliasFromName(out[i].GameServerID) {
 			out[i].Alias = uniqueAlias(mcproxy.AliasFromName(game.Name), seenAliases, out[i].Alias)
 		}
@@ -546,22 +587,50 @@ func uniqueAlias(base string, seen map[string]struct{}, previous string) string 
 	return alias
 }
 
+func (s *Service) finishNetworkApply(
+	ctx context.Context,
+	ownerID, vpsID string,
+	network *models.GameServerNetwork,
+	view *GameServerNetworkView,
+	overwrite bool,
+) {
+	result := s.applyGameServerNetwork(ctx, ownerID, vpsID, network, view.Members, overwrite)
+	view.NeedsConfirm = result.NeedsConfirm
+	view.ProxyChanges = result.Changes
+	if result.Err != nil {
+		view.ApplyError = result.Err.Error()
+		return
+	}
+	view.Applied = result.Wrote
+}
+
+type networkApplyResult struct {
+	Wrote        bool
+	NeedsConfirm bool
+	Changes      []mcproxy.ApplyChange
+	Err          error
+}
+
 func (s *Service) applyGameServerNetwork(
 	ctx context.Context,
 	ownerID, vpsID string,
 	network *models.GameServerNetwork,
 	members []GameServerNetworkMemberView,
-) error {
+	overwrite bool,
+) networkApplyResult {
+	_ = ownerID
 	if s.hub == nil || !s.hub.IsOnline(vpsID) {
-		return ErrAgentOffline
+		return networkApplyResult{Err: ErrAgentOffline}
 	}
 	var proxy *GameServerNetworkMemberView
 	var backends []GameServerNetworkMemberView
 	var tryList []string
 	for i := range members {
 		member := members[i]
-		if member.Role == models.GameServerNetworkRoleProxy {
-			proxy = &members[i]
+		if member.Role == models.GameServerNetworkRoleProxy || isProxyGameServerType(member.ServerType) {
+			if proxy == nil {
+				proxy = &members[i]
+			}
 			continue
 		}
 		backends = append(backends, member)
@@ -570,7 +639,7 @@ func (s *Service) applyGameServerNetwork(
 		}
 	}
 	if proxy == nil {
-		return nil
+		return networkApplyResult{}
 	}
 	if len(tryList) == 0 && len(backends) > 0 {
 		sorted := append([]GameServerNetworkMemberView{}, backends...)
@@ -579,10 +648,10 @@ func (s *Service) applyGameServerNetwork(
 	}
 	var proxyRow models.GameServer
 	if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", proxy.GameServerID, vpsID).First(&proxyRow).Error; err != nil {
-		return err
+		return networkApplyResult{Err: err}
 	}
 	if !gameServerIsInstalled(&proxyRow) {
-		return ErrGameServerNotInstalled
+		return networkApplyResult{Err: ErrGameServerNotInstalled}
 	}
 	tomlBackends := make([]mcproxy.Backend, 0, len(backends))
 	for _, backend := range backends {
@@ -600,23 +669,107 @@ func (s *Service) applyGameServerNetwork(
 		port = 25565
 	}
 	bind := bindHost + ":" + strconv.Itoa(port)
+	path := "velocity.toml"
+	parse := mcproxy.ParseVelocityToml
 	if isBungeeFamilyProxy(proxyRow.ServerType) {
-		yaml := mcproxy.BungeeConfigYAML(bind, strings.TrimSpace(proxy.Name), tomlBackends, tryList)
-		if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "config.yml", yaml); err != nil {
-			return err
-		}
-	} else {
-		toml := mcproxy.VelocityToml(bind, strings.TrimSpace(proxy.Name), tomlBackends, tryList)
-		if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "velocity.toml", toml); err != nil {
-			return err
-		}
-		if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "forwarding.secret", network.ForwardingSecret+"\n"); err != nil {
-			return err
+		path = "config.yml"
+		parse = mcproxy.ParseBungeeConfig
+	}
+	existing, _ := s.readInstalledGameServerFile(ctx, vpsID, &proxyRow, path)
+	cfg := parse(existing)
+	changes := mcproxy.DiffProxyApply(cfg, bind, tomlBackends, tryList)
+	fallbackMOTD := "Velocity"
+	if isBungeeFamilyProxy(proxyRow.ServerType) {
+		fallbackMOTD = "BungeeCord"
+		if strings.EqualFold(proxyRow.ServerType, "waterfall") {
+			fallbackMOTD = "Waterfall"
 		}
 	}
+	motd := mcproxy.KeepMOTD(cfg.Motd, proxy.Name, fallbackMOTD)
+	if strings.TrimSpace(cfg.Motd) != "" && !strings.EqualFold(strings.TrimSpace(cfg.Motd), motd) {
+		changes = append(changes, mcproxy.ApplyChange{Field: "motd", From: strings.TrimSpace(cfg.Motd), To: motd})
+	}
+	existingSecret, _ := s.readInstalledGameServerFile(ctx, vpsID, &proxyRow, "forwarding.secret")
+	if !isBungeeFamilyProxy(proxyRow.ServerType) {
+		wantSecret := strings.TrimSpace(network.ForwardingSecret)
+		gotSecret := strings.TrimSpace(existingSecret)
+		if gotSecret != "" && wantSecret != "" && gotSecret != wantSecret {
+			changes = append(changes, mcproxy.ApplyChange{Field: "forwarding.secret", From: "(set)", To: "(replace)"})
+		}
+	}
+	if !overwrite {
+		wrote := false
+		if isBungeeFamilyProxy(proxyRow.ServerType) {
+			if len(changes) > 0 {
+				return networkApplyResult{NeedsConfirm: true, Changes: changes}
+			}
+			yaml := mcproxy.BungeeConfigYAML(bind, motd, tomlBackends, tryList)
+			if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "config.yml", yaml); err != nil {
+				return networkApplyResult{Err: err}
+			}
+			wrote = true
+		} else {
+			merged := mcproxy.MergeVelocityToml(existing, tomlBackends, tryList)
+			if merged != existing {
+				if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, path, merged); err != nil {
+					return networkApplyResult{Err: err, Changes: changes, NeedsConfirm: len(changes) > 0}
+				}
+				wrote = true
+			}
+			wantSecret := strings.TrimSpace(network.ForwardingSecret)
+			if wantSecret != "" && strings.TrimSpace(existingSecret) == "" {
+				if err := s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "forwarding.secret", wantSecret+"\n"); err != nil {
+					return networkApplyResult{Err: err, Changes: changes, NeedsConfirm: len(changes) > 0}
+				}
+				wrote = true
+			}
+		}
+		applyErr := s.patchNetworkBackendForwarding(ctx, vpsID, network, backends, isBungeeFamilyProxy(proxyRow.ServerType))
+		return networkApplyResult{Wrote: wrote, NeedsConfirm: len(changes) > 0, Changes: changes, Err: applyErr}
+	}
+
+	var writeErr error
+	if isBungeeFamilyProxy(proxyRow.ServerType) {
+		yaml := mcproxy.BungeeConfigYAML(bind, motd, tomlBackends, tryList)
+		writeErr = s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "config.yml", yaml)
+	} else {
+		patchMotd := ""
+		if strings.TrimSpace(existing) == "" {
+			patchMotd = motd
+		} else {
+			for _, change := range changes {
+				if change.Field == "motd" {
+					patchMotd = motd
+					break
+				}
+			}
+		}
+		toml := mcproxy.PatchVelocityToml(existing, bind, patchMotd, tomlBackends, tryList)
+		writeErr = s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "velocity.toml", toml)
+		if writeErr == nil {
+			wantSecret := strings.TrimSpace(network.ForwardingSecret)
+			gotSecret := strings.TrimSpace(existingSecret)
+			if wantSecret != "" && (gotSecret == "" || overwrite) {
+				writeErr = s.writeInstalledGameServerFile(ctx, vpsID, &proxyRow, "forwarding.secret", wantSecret+"\n")
+			}
+		}
+	}
+	if writeErr != nil {
+		return networkApplyResult{Err: writeErr}
+	}
 	_ = ownerID
+	applyErr := s.patchNetworkBackendForwarding(ctx, vpsID, network, backends, isBungeeFamilyProxy(proxyRow.ServerType))
+	return networkApplyResult{Wrote: true, Err: applyErr}
+}
+
+func (s *Service) patchNetworkBackendForwarding(
+	ctx context.Context,
+	vpsID string,
+	network *models.GameServerNetwork,
+	backends []GameServerNetworkMemberView,
+	bungeeProxy bool,
+) error {
 	var applyErr error
-	bungeeProxy := isBungeeFamilyProxy(proxyRow.ServerType)
 	for _, backend := range backends {
 		var row models.GameServer
 		if err := s.db.WithContext(ctx).Where("id = ? AND server_id = ?", backend.GameServerID, vpsID).First(&row).Error; err != nil {
@@ -640,11 +793,11 @@ func (s *Service) applyGameServerNetwork(
 				applyErr = err
 			}
 			if supportsPaperVelocityForwarding(row.ServerType) {
-				existing := ""
+				paper := ""
 				if file, err := s.readInstalledGameServerFile(ctx, vpsID, &row, "config/paper-global.yml"); err == nil {
-					existing = file
+					paper = file
 				}
-				if err := s.writeInstalledGameServerFile(ctx, vpsID, &row, "config/paper-global.yml", mcproxy.PatchPaperBungeeForwarding(existing)); err != nil {
+				if err := s.writeInstalledGameServerFile(ctx, vpsID, &row, "config/paper-global.yml", mcproxy.PatchPaperBungeeForwarding(paper)); err != nil {
 					applyErr = err
 				}
 			}
@@ -653,11 +806,11 @@ func (s *Service) applyGameServerNetwork(
 		if !supportsPaperVelocityForwarding(row.ServerType) {
 			continue
 		}
-		existing := ""
+		paper := ""
 		if file, err := s.readInstalledGameServerFile(ctx, vpsID, &row, "config/paper-global.yml"); err == nil {
-			existing = file
+			paper = file
 		}
-		yaml := mcproxy.PatchPaperVelocityForwarding(existing, network.ForwardingSecret)
+		yaml := mcproxy.PatchPaperVelocityForwarding(paper, network.ForwardingSecret)
 		if err := s.writeInstalledGameServerFile(ctx, vpsID, &row, "config/paper-global.yml", yaml); err != nil {
 			applyErr = err
 		}

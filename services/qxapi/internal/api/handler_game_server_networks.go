@@ -18,9 +18,14 @@ type createGameServerNetworkRequest struct {
 }
 
 type updateGameServerNetworkRequest struct {
-	Name    string                                 `json:"name"`
-	Members []servers.GameServerNetworkMemberInput `json:"members"`
-	Apply   *bool                                  `json:"apply"`
+	Name      string                                 `json:"name"`
+	Members   []servers.GameServerNetworkMemberInput `json:"members"`
+	Apply     *bool                                  `json:"apply"`
+	Overwrite bool                                   `json:"overwrite"`
+}
+
+type applyGameServerNetworkRequest struct {
+	Overwrite bool `json:"overwrite"`
 }
 
 func (h *GameServerNetworksHandler) List(c *gin.Context) {
@@ -79,6 +84,7 @@ func (h *GameServerNetworksHandler) Update(c *gin.Context) {
 		req.Name,
 		req.Members,
 		apply,
+		req.Overwrite,
 	)
 	if err != nil {
 		gameServerError(c, err)
@@ -93,11 +99,14 @@ func (h *GameServerNetworksHandler) Apply(c *gin.Context) {
 		JSONUnauthorized(c)
 		return
 	}
+	var req applyGameServerNetworkRequest
+	_ = c.ShouldBindJSON(&req)
 	view, err := h.Service.ApplyGameServerNetwork(
 		c.Request.Context(),
 		userID.(string),
 		c.Param("id"),
 		c.Param("networkId"),
+		req.Overwrite,
 	)
 	if err != nil {
 		gameServerError(c, err)

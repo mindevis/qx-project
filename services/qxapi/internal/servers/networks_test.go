@@ -51,7 +51,7 @@ func TestGameServerNetworkCRUD(t *testing.T) {
 		{GameServerID: velocityID, Role: models.GameServerNetworkRoleProxy, Alias: "proxy"},
 		{GameServerID: lobbyID, Role: models.GameServerNetworkRoleLobby, Alias: "lobby"},
 		{GameServerID: survivalID, Role: models.GameServerNetworkRoleBackend, Alias: "survival"},
-	}, false)
+	}, false, false)
 	if err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestGameServerNetworkCRUD(t *testing.T) {
 
 	if _, err := svc.UpdateGameServerNetwork(ctx, "owner-1", view.ID, created.ID, "Network", []GameServerNetworkMemberInput{
 		{GameServerID: lobbyID, Role: models.GameServerNetworkRoleProxy, Alias: "bad"},
-	}, false); err == nil {
+	}, false, false); err == nil {
 		t.Fatal("expected validation: paper cannot be proxy")
 	}
 
@@ -120,5 +120,37 @@ func TestOverlayNetworkMembersFromProxy(t *testing.T) {
 	}
 	if len(extra) != 1 || extra[0].Alias != "orphan" {
 		t.Fatalf("extra: %+v", extra)
+	}
+}
+
+func TestScrubProxyConfigDropsInstanceName(t *testing.T) {
+	cfg := mcproxy.ProxyConfig{
+		Backends: []mcproxy.Backend{
+			{Alias: "qrpg-world-proxy", Address: "127.0.0.1:25565"},
+			{Alias: "lobby", Address: "127.0.0.1:25566"},
+		},
+		Try: []string{"qrpg-world-proxy", "lobby"},
+	}
+	proxy := &GameServerNetworkMemberView{
+		Role: "proxy", Alias: "qrpg-world-proxy", Name: "qrpg-world-proxy", ServerType: "velocity", Port: 25565,
+	}
+	scrubProxyConfig(&cfg, proxy)
+	if len(cfg.Backends) != 1 || cfg.Backends[0].Alias != "lobby" {
+		t.Fatalf("backends: %+v", cfg.Backends)
+	}
+	if len(cfg.Try) != 1 || cfg.Try[0] != "lobby" {
+		t.Fatalf("try: %+v", cfg.Try)
+	}
+
+	members := []GameServerNetworkMemberView{
+		*proxy,
+		{ID: "m-lobby", GameServerID: "gs-l", Role: "lobby", Alias: "lobby", ServerType: "paper", Port: 25566},
+	}
+	changed, extra := overlayNetworkMembersFromProxy(members, cfg)
+	if changed {
+		t.Fatalf("lobby alias should stay, extra=%v members=%+v", extra, members)
+	}
+	if len(extra) != 0 {
+		t.Fatalf("proxy instance should not be extra: %+v", extra)
 	}
 }

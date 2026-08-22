@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 func TestRootFromServerRoot(t *testing.T) {
@@ -32,7 +34,7 @@ func TestLinuxArchAndDownloadURL(t *testing.T) {
 	if err != nil || arch != "amd64" {
 		t.Fatalf("amd64: %s %v", arch, err)
 	}
-	if !strings.Contains(DownloadURL(arch), "ollama-linux-amd64.tgz") {
+	if !strings.Contains(DownloadURL(arch), "ollama-linux-amd64.tar.zst") {
 		t.Fatalf("url: %s", DownloadURL(arch))
 	}
 
@@ -91,6 +93,18 @@ func TestExtractTGZAndListPull(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	zst := filepath.Join(root, "ollama.tar.zst")
+	if err := writeTestTarZST(zst, map[string]string{"bin/ollama": "#!/bin/sh\n"}); err != nil {
+		t.Fatal(err)
+	}
+	zstRoot := t.TempDir()
+	if err := extractArchive(zst, zstRoot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(zstRoot, "bin", "ollama")); err != nil {
+		t.Fatal(err)
+	}
+
 	prevGet := httpGet
 	t.Cleanup(func() { httpGet = prevGet })
 	httpGet = func(req *http.Request) (*http.Response, error) {
@@ -142,6 +156,31 @@ func writeTestTGZ(path string, files map[string]string) error {
 	gz := gzip.NewWriter(f)
 	defer gz.Close()
 	tw := tar.NewWriter(gz)
+	defer tw.Close()
+	for name, body := range files {
+		hdr := &tar.Header{Name: name, Mode: 0755, Size: int64(len(body))}
+		if err := tw.WriteHeader(hdr); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(tw, body); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeTestTarZST(path string, files map[string]string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	zw, err := zstd.NewWriter(f)
+	if err != nil {
+		return err
+	}
+	defer zw.Close()
+	tw := tar.NewWriter(zw)
 	defer tw.Close()
 	for name, body := range files {
 		hdr := &tar.Header{Name: name, Mode: 0755, Size: int64(len(body))}

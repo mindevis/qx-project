@@ -47,6 +47,11 @@ export function aliasFromServerName(name: string): string {
   return slug || 'server';
 }
 
+export function suggestedAliasForServer(name: string, role: GameServerNetworkRole): string {
+  if (role === 'proxy') return 'proxy';
+  return aliasFromServerName(name);
+}
+
 export function suggestedRoleForServer(
   serverType: string | undefined,
   existing: Array<{ role: GameServerNetworkRole }>,

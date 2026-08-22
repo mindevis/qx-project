@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aliasFromServerName,
   layoutGameServerNetwork,
+  suggestedAliasForServer,
   suggestedRoleForServer,
 } from './gameServerNetworkLayout';
 import type { GameServerNetworkMember } from '@/api/client';
@@ -29,6 +30,8 @@ describe('gameServerNetworkLayout', () => {
     expect(suggestedRoleForServer('paper', [])).toBe('lobby');
     expect(suggestedRoleForServer('paper', [{ role: 'lobby' }])).toBe('backend');
     expect(suggestedRoleForServer(undefined, [])).toBe('lobby');
+    expect(suggestedAliasForServer('qrpg-world-proxy', 'proxy')).toBe('proxy');
+    expect(suggestedAliasForServer('Lobby #1', 'lobby')).toBe('lobby-1');
   });
 
   it('lays out players -> velocity -> lobby and worlds', () => {

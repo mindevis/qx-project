@@ -204,12 +204,21 @@ export type GameServerNetworkMember = {
   in_proxy?: boolean;
 };
 
+export type GameServerNetworkChange = {
+  field: string;
+  name?: string;
+  from?: string;
+  to?: string;
+};
+
 export type GameServerNetwork = {
   id: string;
   name: string;
   members: GameServerNetworkMember[];
   applied?: boolean;
   apply_error?: string;
+  needs_confirm?: boolean;
+  proxy_changes?: GameServerNetworkChange[];
   proxy_synced?: boolean;
   proxy_extra?: Array<{ alias: string; address: string }>;
   created_at: string;
@@ -1240,6 +1249,7 @@ export const api = {
         sort_order?: number;
       }>;
       apply?: boolean;
+      overwrite?: boolean;
     },
   ) =>
     request<GameServerNetwork>(
@@ -1247,10 +1257,10 @@ export const api = {
       { method: 'PATCH', body: JSON.stringify(body) },
     ),
 
-  applyVpsGameServerNetwork: (vpsId: string, networkId: string) =>
+  applyVpsGameServerNetwork: (vpsId: string, networkId: string, body?: { overwrite?: boolean }) =>
     request<GameServerNetwork>(
       `/servers/${encodeURIComponent(vpsId)}/networks/${encodeURIComponent(networkId)}/apply`,
-      { method: 'POST' },
+      { method: 'POST', body: JSON.stringify(body ?? {}) },
     ),
 
   deleteVpsGameServerNetwork: (vpsId: string, networkId: string) =>
