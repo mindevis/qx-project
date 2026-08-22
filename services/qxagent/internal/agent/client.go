@@ -898,6 +898,9 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 		return c.ollamaEnvelope(env, protocol.TypeResOllamaModelDelete, map[string]string{"status": "ok"}, err), nil
 	case protocol.TypeCmdMySQLInstall:
 		return nil, nil
+	case protocol.TypeCmdMySQLUninstall:
+		err := c.mysqlMgr().Uninstall(context.Background())
+		return c.mysqlEnvelope(env, protocol.TypeResMySQLUninstall, map[string]string{"status": "ok"}, err), nil
 	case protocol.TypeCmdMySQLStart:
 		err := c.mysqlMgr().Start(context.Background())
 		return c.mysqlEnvelope(env, protocol.TypeResMySQLStart, c.mysqlStatusPayload(), err), nil

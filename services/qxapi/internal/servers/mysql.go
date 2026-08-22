@@ -179,6 +179,24 @@ func (s *Service) InstallMySQL(ctx context.Context, ownerID, vpsID string, in My
 	return s.mysqlView(ctx, vpsID, row)
 }
 
+func (s *Service) UninstallMySQL(ctx context.Context, ownerID, vpsID string) (*MySQLView, error) {
+	if _, err := s.getOwned(ctx, ownerID, vpsID); err != nil {
+		return nil, err
+	}
+	row, err := s.getMySQLRow(ctx, vpsID)
+	if err != nil {
+		return nil, err
+	}
+	if row.Status != models.MySQLStatusNotInstalled && s.hub != nil && s.hub.IsOnline(vpsID) {
+		raw, rpcErr := s.agentRPC(ctx, vpsID, protocol.TypeCmdMySQLUninstall, protocol.TypeResMySQLUninstall, nil)
+		if rpcErr == nil {
+			_ = agentPayloadError(raw)
+		}
+	}
+	s.deleteMySQLForVPS(ctx, vpsID)
+	return s.GetMySQL(ctx, ownerID, vpsID)
+}
+
 func (s *Service) StartMySQL(ctx context.Context, ownerID, vpsID string) (*MySQLView, error) {
 	if _, err := s.getOwned(ctx, ownerID, vpsID); err != nil {
 		return nil, err
@@ -208,11 +226,11 @@ func (s *Service) StartMySQL(ctx context.Context, ownerID, vpsID string) (*MySQL
 	raw, err := s.agentRPCWait(ctx, vpsID, protocol.TypeCmdMySQLStart, protocol.TypeResMySQLStart, nil, mysqlStartTimeout)
 	if err != nil {
 		_ = s.setMySQLError(ctx, vpsID, err.Error())
-		return nil, err
+		return nil, mysqlAgentErr(err)
 	}
 	if err := agentPayloadError(raw); err != nil {
 		_ = s.setMySQLError(ctx, vpsID, err.Error())
-		return nil, err
+		return nil, mysqlAgentErr(err)
 	}
 	_ = s.db.WithContext(ctx).Model(&models.ServerMySQL{}).Where("server_id = ?", vpsID).Updates(map[string]any{
 		"status":     models.MySQLStatusRunning,
@@ -495,7 +513,7 @@ func (s *Service) mergeMySQLStatus(ctx context.Context, vpsID string, raw []byte
 		return
 	}
 	row, err := s.getMySQLRow(ctx, vpsID)
-	if err != nil || mysqlBusy(row.Status) {
+	if err != nil || mysqlBusy(row.Status) || row.Status == models.MySQLStatusError {
 		return
 	}
 	if row.Status == models.MySQLStatusRunning && !st.Running {
@@ -818,4 +836,19 @@ func mysqlBusy(status string) bool {
 	default:
 		return false
 	}
+}
+
+type mysqlFailedError struct {
+	msg string
+}
+
+func (e mysqlFailedError) Error() string { return e.msg }
+
+func (e mysqlFailedError) Unwrap() error { return ErrMySQLFailed }
+
+func mysqlAgentErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	return mysqlFailedError{msg: err.Error()}
 }

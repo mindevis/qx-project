@@ -83,6 +83,20 @@ func (h *MySQLHandler) Install(c *gin.Context) {
 	c.JSON(http.StatusAccepted, view)
 }
 
+func (h *MySQLHandler) Uninstall(c *gin.Context) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	view, err := h.Service.UninstallMySQL(c.Request.Context(), userID.(string), c.Param("id"))
+	if err != nil {
+		mysqlError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
+}
+
 func (h *MySQLHandler) Start(c *gin.Context) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {
@@ -250,6 +264,8 @@ func mysqlError(c *gin.Context, err error) {
 		JSONValidation(c, "invalid mysql privilege")
 	case errors.Is(err, servers.ErrMySQLInvalidEngine):
 		JSONValidation(c, "invalid mysql engine, version, or install method")
+	case errors.Is(err, servers.ErrMySQLFailed):
+		JSONError(c, http.StatusConflict, "MYSQL_FAILED", err.Error())
 	case errors.Is(err, agenthub.ErrTimeout):
 		JSONError(c, http.StatusGatewayTimeout, "AGENT_TIMEOUT", "agent did not respond in time")
 	default:

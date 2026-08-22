@@ -151,19 +151,31 @@ export function MysqlPanel({ vpsId, agentOnline }: { vpsId: string; agentOnline:
           {installed ? (
             <>
               <Tag color={mysqlStatusColor(view.status)}>{t(`servers.mysqlStatus.${view.status}`)}</Tag>
-              <Button
-                icon={running ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                loading={busy || provisioning}
-                disabled={!agentOnline || busy || provisioning}
-                onClick={() =>
-                  void run(
-                    () => (running ? api.stopVpsMysql(vpsId) : api.startVpsMysql(vpsId)),
-                    running ? 'servers.mysqlStopped' : 'servers.mysqlStarted',
-                  )
+              {view.status !== 'error' ? (
+                <Button
+                  icon={running ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                  loading={busy || provisioning}
+                  disabled={!agentOnline || busy || provisioning}
+                  onClick={() =>
+                    void run(
+                      () => (running ? api.stopVpsMysql(vpsId) : api.startVpsMysql(vpsId)),
+                      running ? 'servers.mysqlStopped' : 'servers.mysqlStarted',
+                    )
+                  }
+                >
+                  {running ? t('servers.mysqlStop') : t('servers.mysqlStart')}
+                </Button>
+              ) : null}
+              <Popconfirm
+                title={t('servers.mysqlUninstallConfirm')}
+                onConfirm={() =>
+                  void run(() => api.uninstallVpsMysql(vpsId), 'servers.mysqlUninstalled')
                 }
               >
-                {running ? t('servers.mysqlStop') : t('servers.mysqlStart')}
-              </Button>
+                <Button danger icon={<DeleteOutlined />} loading={busy} disabled={busy}>
+                  {t('servers.mysqlUninstall')}
+                </Button>
+              </Popconfirm>
             </>
           ) : (
             <Button

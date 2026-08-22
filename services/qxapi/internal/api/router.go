@@ -242,6 +242,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 
 			authed.GET("/servers/:id/mysql", mysqlH.Get)
 			authed.POST("/servers/:id/mysql/install", mysqlH.Install)
+			authed.DELETE("/servers/:id/mysql", mysqlH.Uninstall)
 			authed.POST("/servers/:id/mysql/start", mysqlH.Start)
 			authed.POST("/servers/:id/mysql/stop", mysqlH.Stop)
 			authed.POST("/servers/:id/mysql/databases", mysqlH.CreateDatabase)

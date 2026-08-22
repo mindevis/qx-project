@@ -75,6 +75,12 @@ func TestInstallDryRunAndSQL(t *testing.T) {
 	if m.Status(context.Background()).Running {
 		t.Fatal("expected stopped")
 	}
+	if err := m.Uninstall(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if m.Status(context.Background()).Installed {
+		t.Fatal("expected uninstalled")
+	}
 }
 
 func TestPerconaNativeReposPrefer84LTS(t *testing.T) {

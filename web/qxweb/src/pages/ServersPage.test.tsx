@@ -1230,6 +1230,35 @@ describe('ServersPage', () => {
     await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('MySQL установлена и запускается'));
   });
 
+  it('removes a failed mysql install from the dedicated server page', async () => {
+    let mysql = {
+      status: 'error',
+      last_error: 'percona-server-server has no installation candidate',
+      databases: [] as unknown[],
+      users: [] as unknown[],
+      privilege_catalog: [] as string[],
+    };
+    mockOnlineDetail([], (url, init) => {
+      if (url.includes('/mysql') && init?.method === 'DELETE') {
+        mysql = { status: 'not_installed', last_error: '', databases: [], users: [], privilege_catalog: [] };
+        return new Response(JSON.stringify(mysql), { status: 200 });
+      }
+      if (url.includes('/mysql')) {
+        return new Response(JSON.stringify(mysql), { status: 200 });
+      }
+      return null;
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('MySQL')).toBeInTheDocument());
+    expect(screen.getByText(/percona-server-server/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Сбросить/ }));
+    await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('MySQL удалена'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Установить MySQL/i })).toBeInTheDocument());
+  });
+
   it('clones game server from the card list', async () => {
     mockOnlineDetail([stoppedGame], (url, init) => {
       if (url.includes('/game-servers/gs-1/clone') && init?.method === 'POST') {

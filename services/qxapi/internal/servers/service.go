@@ -42,6 +42,7 @@ var (
 	ErrMySQLInvalidIdent        = errors.New("invalid mysql identifier")
 	ErrMySQLInvalidPrivilege    = errors.New("invalid mysql privilege")
 	ErrMySQLInvalidEngine       = errors.New("invalid mysql engine or version")
+	ErrMySQLFailed              = errors.New("mysql operation failed")
 )
 
 const agentTokenTTL = 365 * 24 * time.Hour

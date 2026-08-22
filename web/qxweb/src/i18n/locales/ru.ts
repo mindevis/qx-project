@@ -852,6 +852,10 @@ export const ru = {
     mysqlAgentRequired: 'Сначала выполните Deploy и дождитесь подключения агента.',
     mysqlInstall: 'Установить MySQL',
     mysqlInstallDone: 'MySQL установлена и запускается',
+    mysqlUninstall: 'Сбросить',
+    mysqlUninstallConfirm:
+      'Удалить MySQL с этого сервера? Базы и пользователи в панели будут сброшены — можно установить заново.',
+    mysqlUninstalled: 'MySQL удалена',
     mysqlStart: 'Запустить',
     mysqlStop: 'Остановить',
     mysqlStarted: 'MySQL запускается',

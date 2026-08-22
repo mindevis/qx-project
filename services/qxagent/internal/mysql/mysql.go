@@ -159,10 +159,12 @@ func (m *Manager) Install(ctx context.Context, spec InstallSpec, onLog func(stri
 	switch method {
 	case mysqlutil.MethodDocker:
 		if err := m.installDocker(ctx, result, password, onLog); err != nil {
+			m.forgetInstallMarker()
 			return InstallResult{}, err
 		}
 	case mysqlutil.MethodNative:
 		if err := m.installNative(ctx, result, password, onLog); err != nil {
+			m.forgetInstallMarker()
 			return InstallResult{}, err
 		}
 	default:
@@ -220,6 +222,40 @@ func (m *Manager) Stop(ctx context.Context) error {
 	if cfg.Engine == mysqlutil.EngineMariaDB {
 		_ = m.run(ctx, "systemctl", "stop", systemdMySQL)
 	}
+	return nil
+}
+
+func (m *Manager) Uninstall(ctx context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.DryRun {
+		m.dryRunning = false
+		return m.clearLocalState()
+	}
+	cfg, ok := m.readInstance()
+	if ok && cfg.Method == mysqlutil.MethodDocker {
+		_ = m.run(ctx, "docker", "rm", "-f", ContainerName)
+	} else if ok {
+		_ = m.run(ctx, "systemctl", "stop", m.nativeUnit(cfg.Engine))
+		_ = m.run(ctx, "systemctl", "disable", m.nativeUnit(cfg.Engine))
+		if cfg.Engine == mysqlutil.EngineMariaDB {
+			_ = m.run(ctx, "systemctl", "stop", systemdMySQL)
+			_ = m.run(ctx, "systemctl", "disable", systemdMySQL)
+		}
+	} else {
+		_ = m.run(ctx, "docker", "rm", "-f", ContainerName)
+	}
+	return m.clearLocalState()
+}
+
+func (m *Manager) forgetInstallMarker() {
+	_ = os.Remove(m.instancePath())
+}
+
+func (m *Manager) clearLocalState() error {
+	_ = os.Remove(m.instancePath())
+	_ = os.Remove(m.passwordPath())
+	_ = os.RemoveAll(m.dataDir())
 	return nil
 }
 

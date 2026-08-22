@@ -1289,6 +1289,9 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  uninstallVpsMysql: (vpsId: string) =>
+    request<MysqlView>(`/servers/${encodeURIComponent(vpsId)}/mysql`, { method: 'DELETE' }),
+
   startVpsMysql: (vpsId: string) =>
     request<MysqlView>(`/servers/${encodeURIComponent(vpsId)}/mysql/start`, { method: 'POST' }),
 

@@ -113,6 +113,13 @@ func TestMySQLInstallStartDatabaseUser(t *testing.T) {
 				_ = conn.WriteJSON(protocol.Envelope{
 					V: protocol.Version, Type: protocol.TypeResMySQLStop, RequestID: env.RequestID, Payload: []byte(`{"status":"ok"}`),
 				})
+			case protocol.TypeCmdMySQLUninstall:
+				mu.Lock()
+				running = false
+				mu.Unlock()
+				_ = conn.WriteJSON(protocol.Envelope{
+					V: protocol.Version, Type: protocol.TypeResMySQLUninstall, RequestID: env.RequestID, Payload: []byte(`{"status":"ok"}`),
+				})
 			case protocol.TypeCmdMySQLDatabaseCreate, protocol.TypeCmdMySQLDatabaseDrop,
 				protocol.TypeCmdMySQLUserCreate, protocol.TypeCmdMySQLUserDrop, protocol.TypeCmdMySQLUserGrant:
 				_ = conn.WriteJSON(protocol.Envelope{
@@ -192,6 +199,45 @@ func TestMySQLInstallStartDatabaseUser(t *testing.T) {
 	}
 	if stopped.Status != models.MySQLStatusInstalled {
 		t.Fatalf("stop status: %s", stopped.Status)
+	}
+
+	removed, err := svc.UninstallMySQL(ctx, "owner-1", view.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if removed.Status != models.MySQLStatusNotInstalled {
+		t.Fatalf("uninstall status: %s", removed.Status)
+	}
+	if len(removed.Databases) != 0 || len(removed.Users) != 0 {
+		t.Fatalf("expected empty mysql after uninstall: %+v", removed)
+	}
+}
+
+func TestMergeMySQLStatusKeepsError(t *testing.T) {
+	svc, _, _ := newServersService(t)
+	ctx := context.Background()
+	view := createTestServer(t, svc, "owner-1")
+	now := time.Now().UTC()
+	if err := svc.db.WithContext(ctx).Create(&models.ServerMySQL{
+		ServerID:  view.ID,
+		Status:    models.MySQLStatusError,
+		LastError: "percona-server-server has no installation candidate",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}).Error; err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := json.Marshal(mysqlRunningStatus(false))
+	svc.mergeMySQLStatus(ctx, view.ID, payload)
+	got, err := svc.GetMySQL(ctx, "owner-1", view.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != models.MySQLStatusError {
+		t.Fatalf("status: %s", got.Status)
+	}
+	if got.LastError == "" {
+		t.Fatal("expected last_error to remain")
 	}
 }
 

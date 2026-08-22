@@ -687,6 +687,7 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResOllamaModelDelete,
 		protocol.TypeResMySQLStart,
 		protocol.TypeResMySQLStop,
+		protocol.TypeResMySQLUninstall,
 		protocol.TypeResMySQLStatus,
 		protocol.TypeResMySQLDatabaseCreate,
 		protocol.TypeResMySQLDatabaseDrop,
