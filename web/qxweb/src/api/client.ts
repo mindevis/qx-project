@@ -213,6 +213,32 @@ export type GameServerNetwork = {
   updated_at: string;
 };
 
+export type OllamaStatus =
+  | 'not_installed'
+  | 'installing'
+  | 'installed'
+  | 'starting'
+  | 'running'
+  | 'stopping'
+  | 'pulling'
+  | 'error';
+
+export type OllamaModel = {
+  name: string;
+  size?: number;
+  digest?: string;
+  modified_at?: string;
+};
+
+export type OllamaView = {
+  status: OllamaStatus;
+  version?: string;
+  listen_addr?: string;
+  pulling_model?: string;
+  last_error?: string;
+  models: OllamaModel[];
+};
+
 export type MonitoringServer = {
   id: string;
   name: string;
@@ -1140,6 +1166,30 @@ export const api = {
   deleteVpsGameServerNetwork: (vpsId: string, networkId: string) =>
     request<void>(
       `/servers/${encodeURIComponent(vpsId)}/networks/${encodeURIComponent(networkId)}`,
+      { method: 'DELETE' },
+    ),
+
+  getVpsOllama: (vpsId: string) =>
+    request<OllamaView>(`/servers/${encodeURIComponent(vpsId)}/ollama`),
+
+  installVpsOllama: (vpsId: string) =>
+    request<OllamaView>(`/servers/${encodeURIComponent(vpsId)}/ollama/install`, { method: 'POST' }),
+
+  startVpsOllama: (vpsId: string) =>
+    request<OllamaView>(`/servers/${encodeURIComponent(vpsId)}/ollama/start`, { method: 'POST' }),
+
+  stopVpsOllama: (vpsId: string) =>
+    request<OllamaView>(`/servers/${encodeURIComponent(vpsId)}/ollama/stop`, { method: 'POST' }),
+
+  pullVpsOllamaModel: (vpsId: string, name: string) =>
+    request<OllamaView>(`/servers/${encodeURIComponent(vpsId)}/ollama/models`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteVpsOllamaModel: (vpsId: string, name: string) =>
+    request<OllamaView>(
+      `/servers/${encodeURIComponent(vpsId)}/ollama/models?name=${encodeURIComponent(name)}`,
       { method: 'DELETE' },
     ),
 

@@ -21,7 +21,7 @@ import (
 
 func TestWSURLFromAPI(t *testing.T) {
 	cases := map[string]string{
-		"http://localhost:3000/api/v1":  "ws://localhost:3000/agent/v1/connect",
+		"http://localhost:3000/api/v1":   "ws://localhost:3000/agent/v1/connect",
 		"https://api.example.com/api/v1": "wss://api.example.com/agent/v1/connect",
 		"http://localhost:3000":          "ws://localhost:3000/agent/v1/connect",
 	}
@@ -139,5 +139,28 @@ func TestReadLoopReplaysCachedResult(t *testing.T) {
 	}
 	if first[0].RequestID != reqID || first[1].RequestID != reqID {
 		t.Fatalf("request_id mismatch")
+	}
+}
+
+func TestDispatchOllamaDryRun(t *testing.T) {
+	c := NewClient(Config{DryRun: true, ServerRoot: t.TempDir()})
+	res, err := c.dispatchCommand(protocol.Envelope{Type: protocol.TypeCmdOllamaStatus, RequestID: "ollama-1"})
+	if err != nil || res == nil {
+		t.Fatalf("status: %v %v", res, err)
+	}
+	if res.Type != protocol.TypeResOllamaStatus {
+		t.Fatalf("type: %s", res.Type)
+	}
+	start, err := c.dispatchCommand(protocol.Envelope{Type: protocol.TypeCmdOllamaStart, RequestID: "ollama-2"})
+	if err != nil || start == nil {
+		t.Fatalf("start: %v %v", start, err)
+	}
+	pull := c.buildOllamaPullResponse(nil, protocol.Envelope{
+		Type:      protocol.TypeCmdOllamaModelPull,
+		RequestID: "ollama-3",
+		Payload:   []byte(`{"name":"llama3.2"}`),
+	})
+	if pull == nil || pull.Type != protocol.TypeResOllamaModelPull {
+		t.Fatalf("pull: %+v", pull)
 	}
 }

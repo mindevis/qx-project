@@ -6,6 +6,7 @@ import { Routes, Route } from 'react-router-dom';
 import { saveTokens, clearTokens } from '@/api/client';
 import { renderWithProviders, waitForNoDialog } from '@/test/test-utils';
 import { ServersPage } from './ServersPage';
+import { GAME_SERVERS_LIST_VIEW_STORAGE_KEY } from '@/lib/installedResourcesView';
 
 function requestUrl(input: RequestInfo | URL): string {
   return typeof input === 'string'
@@ -58,6 +59,11 @@ function mockAuthedFetch(handler: (url: string, init?: RequestInit) => Response 
     if (url.includes('/networks')) {
       return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
     }
+    if (url.includes('/ollama')) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ status: 'not_installed', models: [] }), { status: 200 }),
+      );
+    }
     if (url.includes('/auth/refresh')) {
       return Promise.resolve(
         new Response(
@@ -100,6 +106,7 @@ async function clickAddDedicated(user: ReturnType<typeof userEvent.setup>) {
 describe('ServersPage', () => {
   beforeEach(() => {
     MockWebSocket.instances = [];
+    window.localStorage.removeItem(GAME_SERVERS_LIST_VIEW_STORAGE_KEY);
     vi.stubGlobal('fetch', vi.fn());
     vi.stubGlobal('WebSocket', MockWebSocket);
     clearTokens();
@@ -938,6 +945,9 @@ describe('ServersPage', () => {
         if (url.includes('/servers/srv-1/game-servers') || url.includes('/networks')) {
           return new Response(JSON.stringify({ items: [] }), { status: 200 });
         }
+        if (url.includes('/ollama')) {
+          return null;
+        }
         if (url.includes('/servers/srv-1')) {
           detailCalls += 1;
           return new Response(JSON.stringify({ ...sampleServer, agent_deployed: true, agent_online: true }), { status: 200 });
@@ -1067,6 +1077,9 @@ describe('ServersPage', () => {
         if (url.includes('/servers/srv-1/game-servers') && !url.includes('/gs-1')) {
           return new Response(JSON.stringify({ items: games }), { status: 200 });
         }
+        if (url.includes('/ollama')) {
+          return null;
+        }
         if (url.includes('/servers/srv-1')) {
           return new Response(JSON.stringify(onlineVps), { status: 200 });
         }
@@ -1144,6 +1157,43 @@ describe('ServersPage', () => {
     await user.click(vanillaOptions[vanillaOptions.length - 1]!);
     await user.click(within(dialog).getByRole('button', { name: /Добавить игровой сервер/i }));
     await waitFor(() => expect(screen.getByText('Vanilla World')).toBeInTheDocument());
+  });
+
+  it('shows game servers as cards by default and switches to a table list', async () => {
+    mockOnlineDetail();
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    renderServers('/servers/srv-1');
+
+    await waitFor(() => expect(screen.getByText('Stopped MC')).toBeInTheDocument());
+    expect(document.querySelector('.servers-game-list--cards')).toBeInTheDocument();
+    expect(document.querySelector('.servers-game-table')).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Карточки', checked: true })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Список' }));
+
+    expect(document.querySelector('.servers-game-table')).toBeInTheDocument();
+    expect(document.querySelector('.servers-game-list--cards')).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(GAME_SERVERS_LIST_VIEW_STORAGE_KEY)).toBe('list');
+  });
+
+  it('installs ollama from the dedicated server page', async () => {
+    let ollama = { status: 'not_installed', models: [] as unknown[] };
+    mockOnlineDetail([], (url, init) => {
+      if (url.includes('/ollama/install') && init?.method === 'POST') {
+        ollama = { status: 'installing', models: [] };
+        return new Response(JSON.stringify(ollama), { status: 202 });
+      }
+      if (url.includes('/ollama')) {
+        return new Response(JSON.stringify(ollama), { status: 200 });
+      }
+      return null;
+    });
+
+    const user = userEvent.setup({ delay: null });
+    renderServers('/servers/srv-1');
+    await waitFor(() => expect(screen.getByText('Ollama')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Установить Ollama/i }));
+    await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('Ollama установлена и запускается'));
   });
 
   it('clones game server from the card list', async () => {

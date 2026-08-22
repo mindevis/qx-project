@@ -30,6 +30,11 @@ var (
 	ErrGameServerNotRunning     = errors.New("game server is not running")
 	ErrGameServerAlreadyRunning = errors.New("game server already running")
 	ErrBindingLocked            = errors.New("game server instance binding is locked")
+	ErrOllamaBusy               = errors.New("ollama operation already in progress")
+	ErrOllamaNotInstalled       = errors.New("ollama is not installed")
+	ErrOllamaNotRunning         = errors.New("ollama is not running")
+	ErrOllamaAlreadyRunning     = errors.New("ollama is already running")
+	ErrOllamaInvalidModel       = errors.New("invalid ollama model name")
 )
 
 const agentTokenTTL = 365 * 24 * time.Hour
@@ -84,10 +89,17 @@ func (s *Service) OnAgentEvent(serverID string, env protocol.Envelope) {
 		s.applyServerStopResult(ctx, serverID, env.RequestID, env.Payload)
 	case protocol.TypeEvtServerStatus:
 		s.applyServerStatusEvent(ctx, serverID, env.Payload)
-	default:
-		if isRPCResponseType(env.Type) {
-			s.deliverRPCResponse(env.RequestID, env.Payload)
-		}
+	case protocol.TypeResOllamaInstall:
+		s.applyOllamaInstallResult(ctx, serverID, env.Payload)
+	case protocol.TypeResOllamaStart:
+		s.applyOllamaStartResult(ctx, serverID, env.Payload)
+	case protocol.TypeResOllamaStop:
+		s.applyOllamaStopResult(ctx, serverID, env.Payload)
+	case protocol.TypeResOllamaModelPull:
+		s.applyOllamaPullResult(ctx, serverID, env.Payload)
+	}
+	if isRPCResponseType(env.Type) {
+		s.deliverRPCResponse(env.RequestID, env.Payload)
 	}
 	if env.Type == protocol.TypeEvtConsoleOutput {
 		var payload protocol.ConsoleOutputPayload
@@ -253,6 +265,7 @@ func (s *Service) Delete(ctx context.Context, ownerID, serverID string) error {
 	if err := s.deleteGameServersForVPS(ctx, serverID); err != nil {
 		return err
 	}
+	_ = s.db.WithContext(ctx).Where("server_id = ?", serverID).Delete(&models.ServerOllama{}).Error
 	res := s.db.WithContext(ctx).Delete(server)
 	if res.Error != nil {
 		return res.Error

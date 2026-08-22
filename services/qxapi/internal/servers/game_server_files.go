@@ -630,7 +630,12 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerContentRead,
 		protocol.TypeResServerContentDelete,
 		protocol.TypeResServerWipe,
-		protocol.TypeResServerCopy:
+		protocol.TypeResServerCopy,
+		protocol.TypeResOllamaStart,
+		protocol.TypeResOllamaStop,
+		protocol.TypeResOllamaStatus,
+		protocol.TypeResOllamaModelList,
+		protocol.TypeResOllamaModelDelete:
 		return true
 	default:
 		return false

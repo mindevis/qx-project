@@ -24,6 +24,7 @@ import (
 	"github.com/qxproject/qx/pkg/safepath"
 	"github.com/qxproject/qx/services/qxagent/internal/fs"
 	"github.com/qxproject/qx/services/qxagent/internal/installer"
+	"github.com/qxproject/qx/services/qxagent/internal/ollama"
 )
 
 type Config struct {
@@ -38,6 +39,7 @@ type Config struct {
 type Client struct {
 	cfg     Config
 	runner  *ProcessRunner
+	ollama  *ollama.Manager
 	dialer  *websocket.Dialer
 	writeMu sync.Mutex
 }
@@ -49,6 +51,7 @@ func NewClient(cfg Config) *Client {
 	return &Client{
 		cfg:    cfg,
 		runner: &ProcessRunner{DryRun: cfg.DryRun},
+		ollama: ollama.NewManager(ollama.RootFromServerRoot(cfg.ServerRoot), cfg.DryRun),
 		dialer: websocket.DefaultDialer,
 	}
 }
@@ -161,6 +164,14 @@ func (c *Client) readLoop(conn *websocket.Conn) error {
 			go c.runInstallAsync(conn, cache, env)
 			continue
 		}
+		if env.Type == protocol.TypeCmdOllamaInstall {
+			go c.runOllamaInstallAsync(conn, cache, env)
+			continue
+		}
+		if env.Type == protocol.TypeCmdOllamaModelPull {
+			go c.runOllamaPullAsync(conn, cache, env)
+			continue
+		}
 		if env.RequestID != "" {
 			if cached, ok := cache.Get(env.RequestID); ok {
 				if err := c.writeEnvelope(conn, cached); err != nil {
@@ -193,6 +204,9 @@ func (c *Client) writeEnvelope(conn *websocket.Conn, env protocol.Envelope) erro
 }
 
 func (c *Client) emitConsoleStream(conn *websocket.Conn, gameServerID, stream, line string) {
+	if conn == nil {
+		return
+	}
 	payload, _ := json.Marshal(protocol.ConsoleOutputPayload{
 		Stream:       stream,
 		Line:         line,
@@ -793,6 +807,32 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 			TS:        ts,
 			Payload:   resPayload,
 		}, nil
+	case protocol.TypeCmdOllamaInstall:
+		return nil, nil
+	case protocol.TypeCmdOllamaStart:
+		c.applyOllamaControl(env.Payload)
+		err := c.ollamaMgr().Start(context.Background())
+		return c.ollamaEnvelope(env, protocol.TypeResOllamaStart, c.ollamaStatusPayload(), err), nil
+	case protocol.TypeCmdOllamaStop:
+		c.applyOllamaControl(env.Payload)
+		err := c.ollamaMgr().Stop(context.Background())
+		return c.ollamaEnvelope(env, protocol.TypeResOllamaStop, map[string]string{"status": "ok"}, err), nil
+	case protocol.TypeCmdOllamaStatus:
+		c.applyOllamaControl(env.Payload)
+		return c.ollamaEnvelope(env, protocol.TypeResOllamaStatus, c.ollamaStatusPayload(), nil), nil
+	case protocol.TypeCmdOllamaModelList:
+		c.applyOllamaControl(env.Payload)
+		models, err := c.ollamaMgr().ListModels(context.Background())
+		return c.ollamaEnvelope(env, protocol.TypeResOllamaModelList, protocol.OllamaModelListResult{Models: toProtocolModels(models)}, err), nil
+	case protocol.TypeCmdOllamaModelPull:
+		return nil, nil
+	case protocol.TypeCmdOllamaModelDelete:
+		var payload protocol.OllamaModelNamePayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		err := c.ollamaMgr().DeleteModel(context.Background(), payload.Name)
+		return c.ollamaEnvelope(env, protocol.TypeResOllamaModelDelete, map[string]string{"status": "ok"}, err), nil
 	case protocol.TypeCmdAgentPing:
 		return &protocol.Envelope{
 			V:         protocol.Version,
@@ -803,6 +843,138 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 	default:
 		return nil, nil
 	}
+}
+
+func (c *Client) ollamaMgr() *ollama.Manager {
+	if c.ollama == nil {
+		c.ollama = ollama.NewManager(ollama.RootFromServerRoot(c.cfg.ServerRoot), c.cfg.DryRun)
+	}
+	return c.ollama
+}
+
+func (c *Client) applyOllamaRoot(payload protocol.OllamaInstallPayload) {
+	c.applyOllamaControlRoot(payload.RootDir)
+}
+
+func (c *Client) applyOllamaControl(raw json.RawMessage) {
+	var payload protocol.OllamaControlPayload
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &payload)
+	}
+	c.applyOllamaControlRoot(payload.RootDir)
+}
+
+func (c *Client) applyOllamaControlRoot(root string) {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		root = ollama.RootFromServerRoot(c.cfg.ServerRoot)
+	}
+	mgr := c.ollamaMgr()
+	mgr.RootDir = root
+	if mgr.ListenAddr == "" {
+		mgr.ListenAddr = ollama.DefaultListenAddr
+	}
+}
+
+func (c *Client) ollamaStatusPayload() protocol.OllamaStatusResult {
+	st := c.ollamaMgr().Status(context.Background())
+	return protocol.OllamaStatusResult{
+		Installed:  st.Installed,
+		Running:    st.Running,
+		Version:    st.Version,
+		BinPath:    st.BinPath,
+		RootDir:    st.RootDir,
+		ModelsDir:  st.ModelsDir,
+		ListenAddr: st.ListenAddr,
+	}
+}
+
+func (c *Client) ollamaEnvelope(env protocol.Envelope, resType string, payload any, err error) *protocol.Envelope {
+	var raw []byte
+	if err != nil {
+		raw, _ = json.Marshal(map[string]string{"error": err.Error()})
+	} else {
+		raw, _ = json.Marshal(payload)
+	}
+	return &protocol.Envelope{
+		V:         protocol.Version,
+		Type:      resType,
+		RequestID: env.RequestID,
+		TS:        time.Now().UTC().Format(time.RFC3339),
+		Payload:   raw,
+	}
+}
+
+func (c *Client) runOllamaInstallAsync(conn *websocket.Conn, cache *requestCache, env protocol.Envelope) {
+	res := c.buildOllamaInstallResponse(conn, env)
+	if env.RequestID != "" {
+		cache.Set(env.RequestID, *res)
+	}
+	if err := c.writeEnvelope(conn, *res); err != nil {
+		slog.Error("ollama install response write failed", "err", err)
+	}
+}
+
+func (c *Client) buildOllamaInstallResponse(conn *websocket.Conn, env protocol.Envelope) *protocol.Envelope {
+	var payload protocol.OllamaInstallPayload
+	if len(env.Payload) > 0 {
+		_ = json.Unmarshal(env.Payload, &payload)
+	}
+	c.applyOllamaRoot(payload)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	defer cancel()
+	spec, err := c.ollamaMgr().Install(ctx, func(line string) {
+		c.emitConsoleStream(conn, "", "stdout", line)
+	})
+	if err != nil {
+		return c.ollamaEnvelope(env, protocol.TypeResOllamaInstall, nil, err)
+	}
+	return c.ollamaEnvelope(env, protocol.TypeResOllamaInstall, protocol.OllamaInstallResult{
+		Version:    spec.Version,
+		BinPath:    spec.BinPath,
+		RootDir:    spec.RootDir,
+		ModelsDir:  spec.ModelsDir,
+		ListenAddr: spec.ListenAddr,
+	}, nil)
+}
+
+func (c *Client) runOllamaPullAsync(conn *websocket.Conn, cache *requestCache, env protocol.Envelope) {
+	res := c.buildOllamaPullResponse(conn, env)
+	if env.RequestID != "" {
+		cache.Set(env.RequestID, *res)
+	}
+	if err := c.writeEnvelope(conn, *res); err != nil {
+		slog.Error("ollama pull response write failed", "err", err)
+	}
+}
+
+func (c *Client) buildOllamaPullResponse(conn *websocket.Conn, env protocol.Envelope) *protocol.Envelope {
+	var payload protocol.OllamaModelNamePayload
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		return c.ollamaEnvelope(env, protocol.TypeResOllamaModelPull, nil, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
+	defer cancel()
+	err := c.ollamaMgr().PullModel(ctx, payload.Name, func(line string) {
+		c.emitConsoleStream(conn, "", "stdout", line)
+	})
+	if err != nil {
+		return c.ollamaEnvelope(env, protocol.TypeResOllamaModelPull, nil, err)
+	}
+	return c.ollamaEnvelope(env, protocol.TypeResOllamaModelPull, map[string]string{"status": "ok", "name": payload.Name}, nil)
+}
+
+func toProtocolModels(items []ollama.Model) []protocol.OllamaModel {
+	out := make([]protocol.OllamaModel, 0, len(items))
+	for _, item := range items {
+		out = append(out, protocol.OllamaModel{
+			Name:       item.Name,
+			Size:       item.Size,
+			Digest:     item.Digest,
+			ModifiedAt: item.ModifiedAt,
+		})
+	}
+	return out
 }
 
 type ProcessRunner struct {

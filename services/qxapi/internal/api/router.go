@@ -106,6 +106,7 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 	serversH := &ServersHandler{Service: serversSvc}
 	gameServersH := &GameServersHandler{Service: serversSvc}
 	gameServerNetworksH := &GameServerNetworksHandler{Service: serversSvc}
+	ollamaH := &OllamaHandler{Service: serversSvc}
 	monitoringH := &MonitoringHandler{Service: serversSvc, LauncherService: launcherSvc}
 	consoleH := &ServerConsoleHandler{Servers: serversSvc, Tokens: tokens}
 	mojangH := &MojangHandler{Service: mojangSvc}
@@ -226,6 +227,13 @@ func NewRouter(db *gorm.DB, authSvc *auth.Service, corsOrigin, sshMasterKey stri
 			authed.PATCH("/servers/:id/networks/:networkId", gameServerNetworksH.Update)
 			authed.POST("/servers/:id/networks/:networkId/apply", gameServerNetworksH.Apply)
 			authed.DELETE("/servers/:id/networks/:networkId", gameServerNetworksH.Delete)
+
+			authed.GET("/servers/:id/ollama", ollamaH.Get)
+			authed.POST("/servers/:id/ollama/install", ollamaH.Install)
+			authed.POST("/servers/:id/ollama/start", ollamaH.Start)
+			authed.POST("/servers/:id/ollama/stop", ollamaH.Stop)
+			authed.POST("/servers/:id/ollama/models", ollamaH.PullModel)
+			authed.DELETE("/servers/:id/ollama/models", ollamaH.DeleteModel)
 
 			authed.POST("/monitoring/servers/:id/like", monitoringH.Like)
 			authed.POST("/monitoring/servers/:id/rate", monitoringH.Rate)

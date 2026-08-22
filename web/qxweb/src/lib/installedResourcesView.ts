@@ -4,6 +4,7 @@ export type InstalledResourcesViewMode = 'list' | 'cards';
 
 export const INSTALLED_RESOURCES_VIEW_STORAGE_KEY = 'qxweb-installed-resources-view';
 export const GAME_SERVER_CONTENT_VIEW_STORAGE_KEY = 'qxweb-game-server-content-view';
+export const GAME_SERVERS_LIST_VIEW_STORAGE_KEY = 'qxweb-game-servers-list-view';
 
 function readViewMode(
   storageKey: string,
@@ -48,4 +49,8 @@ export function useInstalledResourcesViewMode() {
 
 export function useGameServerContentViewMode() {
   return useStoredViewMode(GAME_SERVER_CONTENT_VIEW_STORAGE_KEY, 'cards');
+}
+
+export function useGameServersListViewMode() {
+  return useStoredViewMode(GAME_SERVERS_LIST_VIEW_STORAGE_KEY, 'cards');
 }

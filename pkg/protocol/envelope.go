@@ -41,6 +41,13 @@ const (
 	TypeCmdInstanceFilesList             = "cmd.instance.files.list"
 	TypeCmdInstanceFilesRead             = "cmd.instance.files.read"
 	TypeCmdInstanceFilesWrite            = "cmd.instance.files.write"
+	TypeCmdOllamaInstall                 = "cmd.ollama.install"
+	TypeCmdOllamaStart                   = "cmd.ollama.start"
+	TypeCmdOllamaStop                    = "cmd.ollama.stop"
+	TypeCmdOllamaStatus                  = "cmd.ollama.status"
+	TypeCmdOllamaModelList               = "cmd.ollama.model.list"
+	TypeCmdOllamaModelPull               = "cmd.ollama.model.pull"
+	TypeCmdOllamaModelDelete             = "cmd.ollama.model.delete"
 
 	TypeEvtAgentHeartbeat = "evt.agent.heartbeat"
 	TypeEvtConsoleOutput  = "evt.console.output"
@@ -73,6 +80,13 @@ const (
 	TypeResInstanceFilesList             = "res.instance.files.list"
 	TypeResInstanceFilesRead             = "res.instance.files.read"
 	TypeResInstanceFilesWrite            = "res.instance.files.write"
+	TypeResOllamaInstall                 = "res.ollama.install"
+	TypeResOllamaStart                   = "res.ollama.start"
+	TypeResOllamaStop                    = "res.ollama.stop"
+	TypeResOllamaStatus                  = "res.ollama.status"
+	TypeResOllamaModelList               = "res.ollama.model.list"
+	TypeResOllamaModelPull               = "res.ollama.model.pull"
+	TypeResOllamaModelDelete             = "res.ollama.model.delete"
 )
 
 type Envelope struct {
@@ -327,4 +341,45 @@ type ServerContentUploadResult struct {
 	Status   string `json:"status"`
 	RelPath  string `json:"rel_path,omitempty"`
 	Filename string `json:"filename,omitempty"`
+}
+
+type OllamaInstallPayload struct {
+	RootDir string `json:"root_dir,omitempty"`
+}
+
+type OllamaInstallResult struct {
+	Version    string `json:"version,omitempty"`
+	BinPath    string `json:"bin_path"`
+	RootDir    string `json:"root_dir"`
+	ModelsDir  string `json:"models_dir"`
+	ListenAddr string `json:"listen_addr"`
+}
+
+type OllamaControlPayload struct {
+	RootDir string `json:"root_dir,omitempty"`
+}
+
+type OllamaStatusResult struct {
+	Installed  bool   `json:"installed"`
+	Running    bool   `json:"running"`
+	Version    string `json:"version,omitempty"`
+	BinPath    string `json:"bin_path,omitempty"`
+	RootDir    string `json:"root_dir,omitempty"`
+	ModelsDir  string `json:"models_dir,omitempty"`
+	ListenAddr string `json:"listen_addr,omitempty"`
+}
+
+type OllamaModelNamePayload struct {
+	Name string `json:"name"`
+}
+
+type OllamaModel struct {
+	Name       string `json:"name"`
+	Size       int64  `json:"size,omitempty"`
+	Digest     string `json:"digest,omitempty"`
+	ModifiedAt string `json:"modified_at,omitempty"`
+}
+
+type OllamaModelListResult struct {
+	Models []OllamaModel `json:"models"`
 }

@@ -817,6 +817,14 @@ html[data-theme='dark'] .servers-panel {
   margin: 0 !important;
 }
 
+.servers-panel-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .servers-game-empty {
   margin: 20px 0 8px;
   padding: 28px 20px;
@@ -847,6 +855,25 @@ html[data-theme='dark'] .servers-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.servers-game-list--cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.servers-game-list--cards .servers-game-card-header {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.servers-game-list--cards .servers-game-card-header .servers-game-actions {
+  grid-column: 1;
+  justify-content: flex-start;
+}
+
+.servers-game-list--cards .servers-game-card-meta--grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .servers-game-card {
@@ -970,13 +997,16 @@ html[data-theme='dark'] .servers-game-card-meta-item dd {
   color: rgba(255, 255, 255, 0.88);
 }
 
-.servers-game-card-actions {
+.servers-game-actions {
   display: flex;
   align-items: flex-start;
   gap: 6px;
+  flex-wrap: wrap;
+}
+
+.servers-game-card-header .servers-game-actions {
   grid-column: 2;
   grid-row: 1;
-  flex-wrap: wrap;
   justify-content: flex-end;
 }
 
@@ -993,7 +1023,7 @@ html[data-theme='dark'] .servers-game-card-meta-item dd {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .servers-game-card-actions {
+  .servers-game-card-header .servers-game-actions {
     grid-column: 1;
     grid-row: auto;
     justify-content: flex-start;
@@ -1540,5 +1570,54 @@ html[data-theme='dark'] .network-card {
   width: 100%;
   max-width: 360px;
   margin-bottom: 8px;
+}
+
+.ollama-meta {
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.ollama-models-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 12px;
+}
+
+.ollama-pull {
+  max-width: 420px;
+}
+
+.ollama-model-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ollama-model-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+html[data-theme='dark'] .ollama-model-row {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ollama-model-size {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 12px;
 }
 

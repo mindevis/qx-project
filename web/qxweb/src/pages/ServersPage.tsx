@@ -10,12 +10,16 @@ import {
   Modal,
   Popconfirm,
   Result,
+  Segmented,
   Space,
   Spin,
+  Table,
   Tag,
   Typography,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
+  AppstoreOutlined,
   ArrowLeftOutlined,
   CloudServerOutlined,
   CopyOutlined,
@@ -28,6 +32,7 @@ import {
   ReloadOutlined,
   SyncOutlined,
   RocketOutlined,
+  UnorderedListOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import { api, type GameServer } from '@/api/client';
@@ -70,9 +75,14 @@ import {
   formatGameServerLoaderVersionLabel,
   formatGameServerMcVersionLabel,
 } from '@/lib/gameServerVersions';
+import {
+  type InstalledResourcesViewMode,
+  useGameServersListViewMode,
+} from '@/lib/installedResourcesView';
 import { AddGameServerModal } from '@/components/servers/AddGameServerModal';
 import { EditGameServerModal } from '@/components/servers/EditGameServerModal';
 import { GameServerNetworksPanel } from '@/components/servers/GameServerNetworksPanel';
+import { OllamaPanel } from '@/components/servers/OllamaPanel';
 import './ServersPage.css';
 import { GameServerDetailPage } from './GameServerDetailPage';
 
@@ -529,21 +539,7 @@ function useGameServerStatusLabel() {
   return (status: VpsGameServer['status']) => t(`servers.gameStatus.${status}`);
 }
 
-function GameServersCardList({
-  vpsId,
-  games,
-  agentOnline,
-  powerActionId,
-  cloneActionId,
-  onDelete,
-  onClone,
-  onEdit,
-  onStart,
-  onStop,
-  onRestart,
-  gameServerTypeLabel,
-  gameStatusLabel,
-}: {
+type GameServersViewProps = {
   vpsId: string;
   games: VpsGameServer[];
   agentOnline: boolean;
@@ -557,24 +553,112 @@ function GameServersCardList({
   onRestart: (id: string) => void;
   gameServerTypeLabel: (type: VpsGameServerType | undefined) => string;
   gameStatusLabel: (status: VpsGameServer['status']) => string;
-}) {
+};
+
+function getGameServerActionState(
+  game: VpsGameServer,
+  agentOnline: boolean,
+  powerActionId: string | null,
+  cloneActionId: string | null,
+) {
+  const rowBusy =
+    isVpsGameServerProvisioning(game.status) ||
+    powerActionId === game.id ||
+    cloneActionId === game.id;
+  const canClone = agentOnline && !isVpsGameServerProvisioning(game.status);
+  const canStart = game.status === 'stopped' || game.status === 'error';
+  const canStop = game.status === 'running' || game.status === 'starting';
+  const canRestart =
+    !isVpsGameServerProvisioning(game.status) &&
+    game.status !== 'installing' &&
+    (canStart || canStop);
+  return { rowBusy, canClone, canStart, canStop, canRestart };
+}
+
+function GameServerRowActions({
+  game,
+  agentOnline,
+  powerActionId,
+  cloneActionId,
+  onDelete,
+  onClone,
+  onEdit,
+  onStart,
+  onStop,
+  onRestart,
+}: Omit<
+  GameServersViewProps,
+  'vpsId' | 'games' | 'gameServerTypeLabel' | 'gameStatusLabel'
+> & { game: VpsGameServer }) {
+  const { t } = useI18n();
+  const { rowBusy, canClone, canStart, canStop, canRestart } = getGameServerActionState(
+    game,
+    agentOnline,
+    powerActionId,
+    cloneActionId,
+  );
+
+  return (
+    <div
+      className="servers-game-actions"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <Button
+        type="text"
+        size="small"
+        icon={canStop ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+        loading={powerActionId === game.id}
+        disabled={rowBusy || !agentOnline || (!canStart && !canStop)}
+        onClick={() => {
+          if (canStop) onStop(game.id);
+          else if (canStart) onStart(game.id);
+        }}
+      />
+      <Button
+        type="text"
+        size="small"
+        icon={<SyncOutlined />}
+        disabled={rowBusy || !agentOnline || !canRestart}
+        onClick={() => onRestart(game.id)}
+      />
+      <Button
+        type="text"
+        size="small"
+        icon={<EditOutlined />}
+        disabled={rowBusy}
+        onClick={() => onEdit(game)}
+      />
+      <Popconfirm title={t('servers.cloneGameServerConfirm')} onConfirm={() => onClone(game.id)}>
+        <Button
+          type="text"
+          size="small"
+          icon={<CopyOutlined />}
+          loading={cloneActionId === game.id}
+          disabled={!canClone || cloneActionId != null}
+          aria-label={t('servers.cloneGameServer')}
+        />
+      </Popconfirm>
+      <Popconfirm title={t('servers.deleteGameServerConfirm')} onConfirm={() => onDelete(game.id)}>
+        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+      </Popconfirm>
+    </div>
+  );
+}
+
+function GameServersCardList(props: GameServersViewProps) {
+  const {
+    vpsId,
+    games,
+    gameServerTypeLabel,
+    gameStatusLabel,
+  } = props;
   const { t } = useI18n();
   const navigate = useNavigate();
 
   return (
-    <div className="servers-game-list">
+    <div className="servers-game-list servers-game-list--cards">
       {games.map((game) => {
-        const rowBusy =
-          isVpsGameServerProvisioning(game.status) ||
-          powerActionId === game.id ||
-          cloneActionId === game.id;
-        const canClone = agentOnline && !isVpsGameServerProvisioning(game.status);
-        const canStart = game.status === 'stopped' || game.status === 'error';
-        const canStop = game.status === 'running' || game.status === 'starting';
-        const canRestart =
-          !isVpsGameServerProvisioning(game.status) &&
-          game.status !== 'installing' &&
-          (canStart || canStop);
         const serverType = game.server_type as VpsGameServerType | undefined;
 
         return (
@@ -606,56 +690,7 @@ function GameServersCardList({
                   {gameStatusLabel(game.status)}
                 </Tag>
               </div>
-              <div
-                className="servers-game-card-actions"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  icon={canStop ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-                  loading={powerActionId === game.id}
-                  disabled={rowBusy || !agentOnline || (!canStart && !canStop)}
-                  onClick={() => {
-                    if (canStop) onStop(game.id);
-                    else if (canStart) onStart(game.id);
-                  }}
-                />
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<SyncOutlined />}
-                  disabled={rowBusy || !agentOnline || !canRestart}
-                  onClick={() => onRestart(game.id)}
-                />
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EditOutlined />}
-                  disabled={rowBusy}
-                  onClick={() => onEdit(game)}
-                />
-                <Popconfirm
-                  title={t('servers.cloneGameServerConfirm')}
-                  onConfirm={() => onClone(game.id)}
-                >
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<CopyOutlined />}
-                    loading={cloneActionId === game.id}
-                    disabled={!canClone || cloneActionId != null}
-                    aria-label={t('servers.cloneGameServer')}
-                  />
-                </Popconfirm>
-                <Popconfirm
-                  title={t('servers.deleteGameServerConfirm')}
-                  onConfirm={() => onDelete(game.id)}
-                >
-                  <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                </Popconfirm>
-              </div>
+              <GameServerRowActions {...props} game={game} />
             </div>
 
             <dl className="servers-game-card-meta servers-game-card-meta--grid">
@@ -687,6 +722,94 @@ function GameServersCardList({
   );
 }
 
+function GameServersTableList(props: GameServersViewProps) {
+  const { vpsId, games, gameServerTypeLabel, gameStatusLabel } = props;
+  const { t } = useI18n();
+  const navigate = useNavigate();
+
+  const columns: ColumnsType<VpsGameServer> = useMemo(
+    () => [
+      {
+        title: t('servers.gameServerName'),
+        key: 'name',
+        ellipsis: true,
+        render: (_, game) => (
+          <Link
+            to={`/servers/${vpsId}/game-servers/${game.id}`}
+            className="servers-game-table-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {game.name}
+          </Link>
+        ),
+      },
+      {
+        title: t('servers.gameServerStatus'),
+        key: 'status',
+        width: 140,
+        render: (_, game) => (
+          <Tag color={gameServerStatusColor(game.status)}>{gameStatusLabel(game.status)}</Tag>
+        ),
+      },
+      {
+        title: t('servers.gameServerMcVersion'),
+        key: 'mc_version',
+        width: 140,
+        render: (_, game) => formatGameServerMcVersionLabel(game.mc_version),
+      },
+      {
+        title: t('servers.gameServerTypeLabel'),
+        key: 'server_type',
+        width: 140,
+        render: (_, game) => gameServerTypeLabel(game.server_type),
+      },
+      {
+        title: t('servers.gameServerCoreVersion'),
+        key: 'loader_version',
+        width: 140,
+        render: (_, game) =>
+          formatGameServerLoaderVersionLabel(game.loader_version, game.server_type),
+      },
+      {
+        title: t('servers.gameServerPort'),
+        key: 'port',
+        width: 180,
+        render: (_, game) => (
+          <span className="servers-game-card-port">
+            <span>{game.address ?? '—'}</span>
+            <span className="servers-game-card-port-sep">:</span>
+            <span>{game.port ?? '—'}</span>
+          </span>
+        ),
+      },
+      {
+        title: '',
+        key: 'actions',
+        width: 200,
+        render: (_, game) => <GameServerRowActions {...props} game={game} />,
+      },
+    ],
+    [gameServerTypeLabel, gameStatusLabel, props, t, vpsId],
+  );
+
+  return (
+    <Table
+      className="servers-game-table"
+      rowKey="id"
+      size="middle"
+      pagination={false}
+      dataSource={games}
+      columns={columns}
+      scroll={{ x: 960 }}
+      tableLayout="fixed"
+      onRow={(game) => ({
+        onClick: () => navigate(`/servers/${vpsId}/game-servers/${game.id}`),
+        className: 'servers-game-table-row',
+      })}
+    />
+  );
+}
+
 function VpsGameServersSection({
   vpsId,
   agentOnline,
@@ -705,6 +828,7 @@ function VpsGameServersSection({
   const [editingGame, setEditingGame] = useState<VpsGameServer | null>(null);
   const [powerActionId, setPowerActionId] = useState<string | null>(null);
   const [cloneActionId, setCloneActionId] = useState<string | null>(null);
+  const { viewMode, setViewMode } = useGameServersListViewMode();
 
   const gameServerTypeLabel = useCallback(
     (type: VpsGameServerType | undefined) => gameServerTypeLabelText(t, type),
@@ -785,6 +909,23 @@ function VpsGameServersSection({
     [message, refresh, t, vpsId],
   );
 
+  const listProps: GameServersViewProps = {
+    vpsId,
+    games,
+    agentOnline,
+    powerActionId,
+    cloneActionId,
+    onDelete: handleDelete,
+    onClone: handleClone,
+    onEdit: setEditingGame,
+    /* v8 ignore next 3 -- @preserve power actions covered in GameServerDetailPage tests */
+    onStart: (id) => void runPowerAction(id, 'start'),
+    onStop: (id) => void runPowerAction(id, 'stop'),
+    onRestart: (id) => void runPowerAction(id, 'restart'),
+    gameServerTypeLabel,
+    gameStatusLabel,
+  };
+
   return (
     <div className="servers-game-and-networks">
     <div className="servers-panel">
@@ -792,14 +933,42 @@ function VpsGameServersSection({
         <Title level={4} className="servers-panel-title">
           {t('servers.gameServersTitle')}
         </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          disabled={!agentOnline}
-          onClick={() => setAddOpen(true)}
-        >
-          {t('servers.addGameServer')}
-        </Button>
+        <div className="servers-panel-header-actions">
+          {agentOnline && !gamesLoading && games.length > 0 ? (
+            <Segmented
+              size="small"
+              value={viewMode}
+              aria-label={t('servers.gameServersViewModeAria')}
+              onChange={(value) => setViewMode(value as InstalledResourcesViewMode)}
+              options={[
+                {
+                  value: 'list',
+                  label: (
+                    <span aria-label={t('servers.gameServersViewList')}>
+                      <UnorderedListOutlined aria-hidden />
+                    </span>
+                  ),
+                },
+                {
+                  value: 'cards',
+                  label: (
+                    <span aria-label={t('servers.gameServersViewCards')}>
+                      <AppstoreOutlined aria-hidden />
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          ) : null}
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={!agentOnline}
+            onClick={() => setAddOpen(true)}
+          >
+            {t('servers.addGameServer')}
+          </Button>
+        </div>
       </div>
       {!agentOnline ? (
         <Paragraph type="secondary" className="servers-hint">
@@ -824,25 +993,10 @@ function VpsGameServersSection({
             </div>
           }
         />
+      ) : viewMode === 'list' ? (
+        <GameServersTableList {...listProps} />
       ) : (
-        <GameServersCardList
-          vpsId={vpsId}
-          games={games}
-          agentOnline={agentOnline}
-          powerActionId={powerActionId}
-          cloneActionId={cloneActionId}
-          onDelete={handleDelete}
-          onClone={handleClone}
-          onEdit={setEditingGame}
-          /* v8 ignore next -- @preserve power actions covered in GameServerDetailPage tests */
-          onStart={(id) => void runPowerAction(id, 'start')}
-          /* v8 ignore next -- @preserve */
-          onStop={(id) => void runPowerAction(id, 'stop')}
-          /* v8 ignore next -- @preserve */
-          onRestart={(id) => void runPowerAction(id, 'restart')}
-          gameServerTypeLabel={gameServerTypeLabel}
-          gameStatusLabel={gameStatusLabel}
-        />
+        <GameServersCardList {...listProps} />
       )}
 
       <AddGameServerModal
@@ -865,6 +1019,7 @@ function VpsGameServersSection({
       />
     </div>
     <GameServerNetworksPanel vpsId={vpsId} games={games} agentOnline={agentOnline} />
+    <OllamaPanel vpsId={vpsId} agentOnline={agentOnline} />
     </div>
   );
 }

@@ -436,7 +436,7 @@ export function GameServerDetailPage() {
             ]}
           />
 
-          <div className="servers-game-card-actions game-server-detail-actions">
+          <div className="servers-game-actions game-server-detail-actions">
             <Button
               type="default"
               icon={canStop ? <PauseCircleOutlined /> : <PlayCircleOutlined />}

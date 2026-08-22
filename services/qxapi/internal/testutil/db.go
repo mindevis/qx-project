@@ -77,6 +77,7 @@ var autoMigrateUsers = func(db *gorm.DB) error {
 		&models.GameServerInstanceBinding{},
 		&models.GameServerNetwork{},
 		&models.GameServerNetworkMember{},
+		&models.ServerOllama{},
 	); err != nil {
 		return err
 	}

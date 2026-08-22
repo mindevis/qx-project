@@ -2,9 +2,11 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
   GAME_SERVER_CONTENT_VIEW_STORAGE_KEY,
+  GAME_SERVERS_LIST_VIEW_STORAGE_KEY,
   INSTALLED_RESOURCES_VIEW_STORAGE_KEY,
   readInstalledResourcesViewMode,
   useGameServerContentViewMode,
+  useGameServersListViewMode,
   useInstalledResourcesViewMode,
 } from './installedResourcesView';
 
@@ -55,5 +57,18 @@ describe('installedResourcesView', () => {
 
     expect(result.current.viewMode).toBe('list');
     expect(window.localStorage.getItem(GAME_SERVER_CONTENT_VIEW_STORAGE_KEY)).toBe('list');
+  });
+
+  it('defaults game servers list view to cards and persists table mode', () => {
+    const { result } = renderHook(() => useGameServersListViewMode());
+
+    expect(result.current.viewMode).toBe('cards');
+
+    act(() => {
+      result.current.setViewMode('list');
+    });
+
+    expect(result.current.viewMode).toBe('list');
+    expect(window.localStorage.getItem(GAME_SERVERS_LIST_VIEW_STORAGE_KEY)).toBe('list');
   });
 });
