@@ -1251,8 +1251,7 @@ describe('ServersPage', () => {
 
     const user = userEvent.setup({ delay: null });
     renderServers('/servers/srv-1');
-    await waitFor(() => expect(screen.getByText('MySQL')).toBeInTheDocument());
-    expect(screen.getByText(/percona-server-server/)).toBeInTheDocument();
+    expect(await screen.findByText(/percona-server-server/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Сбросить/ }));
     await user.click((await screen.findAllByRole('button', { name: /^OK$/i })).at(-1)!);
     await waitFor(() => expect(testMessage.success).toHaveBeenCalledWith('MySQL удалена'));
