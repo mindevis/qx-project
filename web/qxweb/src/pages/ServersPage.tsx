@@ -20,6 +20,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import {
   AppstoreOutlined,
+  ApartmentOutlined,
   ArrowLeftOutlined,
   CloudServerOutlined,
   CopyOutlined,
@@ -35,7 +36,7 @@ import {
   UnorderedListOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { api, type GameServer } from '@/api/client';
+import { api, type GameServer, type GameServerNetwork } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { modalMotionProps } from '@/lib/modal';
 import { useAuthModal } from '@/auth/AuthModalContext';
@@ -66,6 +67,7 @@ import {
   stopVpsGameServer,
   type VpsGameServer,
 } from '@/lib/vpsGameServers';
+import { groupGameServersByNetwork } from '@/lib/gameServerNetworkLayout';
 import { useMessage } from '@/hooks/useMessage';
 import {
   gameServerTypeLabelText,
@@ -543,6 +545,7 @@ function useGameServerStatusLabel() {
 type GameServersViewProps = {
   vpsId: string;
   games: VpsGameServer[];
+  networks: GameServerNetwork[];
   agentOnline: boolean;
   powerActionId: string | null;
   cloneActionId: string | null;
@@ -589,7 +592,7 @@ function GameServerRowActions({
   onRestart,
 }: Omit<
   GameServersViewProps,
-  'vpsId' | 'games' | 'gameServerTypeLabel' | 'gameStatusLabel'
+  'vpsId' | 'games' | 'networks' | 'gameServerTypeLabel' | 'gameStatusLabel'
 > & { game: VpsGameServer }) {
   const { t } = useI18n();
   const { rowBusy, canClone, canStart, canStop, canRestart } = getGameServerActionState(
@@ -647,84 +650,132 @@ function GameServerRowActions({
   );
 }
 
-function GameServersCardList(props: GameServersViewProps) {
-  const {
-    vpsId,
-    games,
-    gameServerTypeLabel,
-    gameStatusLabel,
-  } = props;
+function GameServerCard({
+  game,
+  nested = false,
+  ...props
+}: GameServersViewProps & { game: VpsGameServer; nested?: boolean }) {
+  const { vpsId, gameServerTypeLabel, gameStatusLabel } = props;
   const { t } = useI18n();
   const navigate = useNavigate();
+  const serverType = game.server_type as VpsGameServerType | undefined;
+
+  return (
+    <article
+      className={[
+        'servers-game-card',
+        'servers-game-card--interactive',
+        nested ? 'servers-game-card--nested' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      onClick={() => navigate(`/servers/${vpsId}/game-servers/${game.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(`/servers/${vpsId}/game-servers/${game.id}`);
+        }
+      }}
+      role="link"
+      tabIndex={0}
+    >
+      <div className="servers-game-card-header">
+        <div className="servers-game-card-headline">
+          <Link
+            to={`/servers/${vpsId}/game-servers/${game.id}`}
+            className="servers-game-card-title-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Title level={5} className="servers-game-card-title">
+              {game.name}
+            </Title>
+          </Link>
+          <Tag color={gameServerStatusColor(game.status)} className="servers-game-card-status">
+            {gameStatusLabel(game.status)}
+          </Tag>
+        </div>
+        <GameServerRowActions {...props} game={game} />
+      </div>
+
+      <dl className="servers-game-card-meta servers-game-card-meta--grid">
+        <div className="servers-game-card-meta-item">
+          <dt>{t('servers.gameServerMcVersion')}</dt>
+          <dd>{formatGameServerMcVersionLabel(game.mc_version)}</dd>
+        </div>
+        <div className="servers-game-card-meta-item">
+          <dt>{t('servers.gameServerTypeLabel')}</dt>
+          <dd>{gameServerTypeLabel(serverType)}</dd>
+        </div>
+        <div className="servers-game-card-meta-item">
+          <dt>{t('servers.gameServerCoreVersion')}</dt>
+          <dd>{formatGameServerLoaderVersionLabel(game.loader_version, game.server_type)}</dd>
+        </div>
+        <div className="servers-game-card-meta-item">
+          <dt>{t('servers.gameServerPort')}</dt>
+          <dd className="servers-game-card-port">
+            <span>{game.address ?? '—'}</span>
+            <span className="servers-game-card-port-sep">:</span>
+            <span>{game.port ?? '—'}</span>
+          </dd>
+        </div>
+      </dl>
+    </article>
+  );
+}
+
+function GameServerProjectShell({
+  name,
+  children,
+}: {
+  name: string;
+  children: ReactNode;
+}) {
+  const { t } = useI18n();
+  return (
+    <section
+      className="servers-game-project"
+      aria-label={`${t('servers.gameServersProjectLabel')}: ${name}`}
+    >
+      <header className="servers-game-project-header">
+        <ApartmentOutlined aria-hidden />
+        <div className="servers-game-project-copy">
+          <span className="servers-game-project-kicker">{t('servers.gameServersProjectLabel')}</span>
+          <span className="servers-game-project-name">{name}</span>
+        </div>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function GameServersCardList(props: GameServersViewProps) {
+  const groups = groupGameServersByNetwork(props.games, props.networks);
 
   return (
     <div className="servers-game-list servers-game-list--cards">
-      {games.map((game) => {
-        const serverType = game.server_type as VpsGameServerType | undefined;
-
-        return (
-          <article
-            key={game.id}
-            className="servers-game-card servers-game-card--interactive"
-            onClick={() => navigate(`/servers/${vpsId}/game-servers/${game.id}`)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                navigate(`/servers/${vpsId}/game-servers/${game.id}`);
-              }
-            }}
-            role="link"
-            tabIndex={0}
-          >
-            <div className="servers-game-card-header">
-              <div className="servers-game-card-headline">
-                <Link
-                  to={`/servers/${vpsId}/game-servers/${game.id}`}
-                  className="servers-game-card-title-link"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Title level={5} className="servers-game-card-title">
-                    {game.name}
-                  </Title>
-                </Link>
-                <Tag color={gameServerStatusColor(game.status)} className="servers-game-card-status">
-                  {gameStatusLabel(game.status)}
-                </Tag>
-              </div>
-              <GameServerRowActions {...props} game={game} />
+      {groups.map((group) =>
+        group.network ? (
+          <GameServerProjectShell key={group.key} name={group.network.name}>
+            <div className="servers-game-cards-grid">
+              {group.games.map((game) => (
+                <GameServerCard key={game.id} {...props} game={game} nested />
+              ))}
             </div>
-
-            <dl className="servers-game-card-meta servers-game-card-meta--grid">
-              <div className="servers-game-card-meta-item">
-                <dt>{t('servers.gameServerMcVersion')}</dt>
-                <dd>{formatGameServerMcVersionLabel(game.mc_version)}</dd>
-              </div>
-              <div className="servers-game-card-meta-item">
-                <dt>{t('servers.gameServerTypeLabel')}</dt>
-                <dd>{gameServerTypeLabel(serverType)}</dd>
-              </div>
-              <div className="servers-game-card-meta-item">
-                <dt>{t('servers.gameServerCoreVersion')}</dt>
-                <dd>{formatGameServerLoaderVersionLabel(game.loader_version, game.server_type)}</dd>
-              </div>
-              <div className="servers-game-card-meta-item">
-                <dt>{t('servers.gameServerPort')}</dt>
-                <dd className="servers-game-card-port">
-                  <span>{game.address ?? '—'}</span>
-                  <span className="servers-game-card-port-sep">:</span>
-                  <span>{game.port ?? '—'}</span>
-                </dd>
-              </div>
-            </dl>
-          </article>
-        );
-      })}
+          </GameServerProjectShell>
+        ) : (
+          <div key={group.key} className="servers-game-cards-grid">
+            {group.games.map((game) => (
+              <GameServerCard key={game.id} {...props} game={game} />
+            ))}
+          </div>
+        ),
+      )}
     </div>
   );
 }
 
 function GameServersTableList(props: GameServersViewProps) {
-  const { vpsId, games, gameServerTypeLabel, gameStatusLabel } = props;
+  const { vpsId, games, networks, gameServerTypeLabel, gameStatusLabel } = props;
   const { t } = useI18n();
   const navigate = useNavigate();
 
@@ -793,13 +844,13 @@ function GameServersTableList(props: GameServersViewProps) {
     [gameServerTypeLabel, gameStatusLabel, props, t, vpsId],
   );
 
-  return (
+  const table = (rows: VpsGameServer[]) => (
     <Table
       className="servers-game-table"
       rowKey="id"
       size="middle"
       pagination={false}
-      dataSource={games}
+      dataSource={rows}
       columns={columns}
       scroll={{ x: 960 }}
       tableLayout="fixed"
@@ -808,6 +859,26 @@ function GameServersTableList(props: GameServersViewProps) {
         className: 'servers-game-table-row',
       })}
     />
+  );
+
+  const groups = groupGameServersByNetwork(games, networks);
+  const onlyUngrouped = groups.length === 1 && groups[0]?.network == null;
+  if (onlyUngrouped) {
+    return table(games);
+  }
+
+  return (
+    <div className="servers-game-table-groups">
+      {groups.map((group) =>
+        group.network ? (
+          <GameServerProjectShell key={group.key} name={group.network.name}>
+            {table(group.games)}
+          </GameServerProjectShell>
+        ) : (
+          <div key={group.key}>{table(group.games)}</div>
+        ),
+      )}
+    </div>
   );
 }
 
@@ -824,6 +895,7 @@ function VpsGameServersSection({
   const message = useMessage();
   const gameStatusLabel = useGameServerStatusLabel();
   const [games, setGames] = useState<VpsGameServer[]>([]);
+  const [networks, setNetworks] = useState<GameServerNetwork[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<VpsGameServer | null>(null);
@@ -844,6 +916,12 @@ function VpsGameServersSection({
       logger.warn('failed to load game servers', { error: String(e) });
     } finally {
       setGamesLoading(false);
+    }
+    try {
+      const res = await api.listVpsGameServerNetworks(vpsId);
+      setNetworks(res.items ?? []);
+    } catch (e) {
+      logger.warn('failed to load game server networks', { error: String(e) });
     }
   }, [vpsId]);
 
@@ -913,6 +991,7 @@ function VpsGameServersSection({
   const listProps: GameServersViewProps = {
     vpsId,
     games,
+    networks,
     agentOnline,
     powerActionId,
     cloneActionId,
@@ -1019,7 +1098,12 @@ function VpsGameServersSection({
         }}
       />
     </div>
-    <GameServerNetworksPanel vpsId={vpsId} games={games} agentOnline={agentOnline} />
+    <GameServerNetworksPanel
+      vpsId={vpsId}
+      games={games}
+      agentOnline={agentOnline}
+      onNetworksChange={setNetworks}
+    />
     <OllamaPanel vpsId={vpsId} agentOnline={agentOnline} />
     <MysqlPanel vpsId={vpsId} agentOnline={agentOnline} />
     </div>
@@ -1268,18 +1352,6 @@ function ServerDetail() {
                     <div className="servers-info-row">
                       <span className="servers-info-label">{t('servers.lastSeen')}</span>
                       <Text className="servers-info-value">{lastSeen}</Text>
-                    </div>
-                  ) : null}
-                  {server.config.jar_path ? (
-                    <div className="servers-info-row">
-                      <span className="servers-info-label">JAR</span>
-                      <Text className="servers-info-value">{server.config.jar_path}</Text>
-                    </div>
-                  ) : null}
-                  {server.config.jvm_args && server.config.jvm_args.length > 0 ? (
-                    <div className="servers-info-row">
-                      <span className="servers-info-label">JVM</span>
-                      <Text className="servers-info-value">{server.config.jvm_args.join(' ')}</Text>
                     </div>
                   ) : null}
                 </div>

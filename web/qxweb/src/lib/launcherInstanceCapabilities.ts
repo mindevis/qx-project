@@ -30,6 +30,7 @@ export function catalogLoaderForType(
 ): string | undefined {
   switch (projectType) {
     case 'datapack':
+      return 'datapack';
     case 'resourcepack':
     case 'shader':
       return undefined;

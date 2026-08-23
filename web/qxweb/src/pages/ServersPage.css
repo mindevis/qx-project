@@ -858,21 +858,30 @@ html[data-theme='dark'] .servers-panel {
 }
 
 .servers-game-list--cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.servers-game-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 14px;
 }
 
-.servers-game-list--cards .servers-game-card-header {
+.servers-game-list--cards .servers-game-card-header,
+.servers-game-cards-grid .servers-game-card-header {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.servers-game-list--cards .servers-game-card-header .servers-game-actions {
+.servers-game-list--cards .servers-game-card-header .servers-game-actions,
+.servers-game-cards-grid .servers-game-card-header .servers-game-actions {
   grid-column: 1;
   justify-content: flex-start;
 }
 
-.servers-game-list--cards .servers-game-card-meta--grid {
+.servers-game-list--cards .servers-game-card-meta--grid,
+.servers-game-cards-grid .servers-game-card-meta--grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -905,6 +914,76 @@ html[data-theme='dark'] .servers-panel {
 html[data-theme='dark'] .servers-game-card {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
+}
+
+.servers-game-card--nested {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+html[data-theme='dark'] .servers-game-card--nested {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.servers-game-project {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(22, 119, 255, 0.22);
+  background: linear-gradient(180deg, rgba(22, 119, 255, 0.08), rgba(22, 119, 255, 0.02));
+}
+
+html[data-theme='dark'] .servers-game-project {
+  border-color: rgba(64, 169, 255, 0.28);
+  background: linear-gradient(180deg, rgba(22, 119, 255, 0.16), rgba(255, 255, 255, 0.02));
+}
+
+.servers-game-project-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 0;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+html[data-theme='dark'] .servers-game-project-header {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.servers-game-project-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.servers-game-project-kicker {
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme='dark'] .servers-game-project-kicker {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.servers-game-project-name {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.servers-game-table-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .servers-game-card-header {

@@ -149,6 +149,60 @@ describe('GameServerContentPanel', () => {
     await waitFor(() => expect(testMessage.error).toHaveBeenCalledWith('datapacks failed'));
   });
 
+  it('requests datapack versions instead of fabric/forge jars', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerDatapacks').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'dnt',
+          slug: 'dungeons-and-taverns',
+          name: 'Dungeons and Taverns',
+          summary: 'Structures',
+          project_type: 'mod',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: false,
+    });
+    const listVersions = vi.spyOn(api, 'listModVersions').mockResolvedValue({
+      items: [
+        {
+          id: 'dp',
+          version_number: '5.3.0',
+          game_versions: ['1.21'],
+          loaders: ['datapack'],
+          files: [{ filename: 'Dungeons and Taverns v5.3.0.zip', url: 'https://cdn/pack.zip', size: 10 }],
+        },
+      ],
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="datapack"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="paper"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByText('Dungeons and Taverns')).toBeInTheDocument());
+    await user.click(screen.getByRole('combobox', { name: 'Версия' }));
+    await waitFor(() => expect(listVersions).toHaveBeenCalled());
+    expect(listVersions).toHaveBeenCalledWith(
+      'modrinth',
+      'dnt',
+      expect.objectContaining({ loader: 'datapack', mc_version: '1.21' }),
+    );
+  });
+
   it('hides installed catalog items by default and can show only them', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const user = userEvent.setup({ delay: null });

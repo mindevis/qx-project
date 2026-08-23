@@ -102,6 +102,22 @@ export function pluginCatalogSources(type: VpsGameServerType): Array<
   return ['hangar', 'spigot', 'bukkit', 'modrinth'];
 }
 
+export function catalogLoaderForContentKind(
+  kind: 'plugin' | 'mod' | 'datapack' | 'resourcepack' | 'shader',
+  serverType: VpsGameServerType,
+): string | undefined {
+  switch (kind) {
+    case 'plugin':
+      return pluginLoaderForServerType(serverType);
+    case 'mod':
+      return serverType;
+    case 'datapack':
+      return 'datapack';
+    default:
+      return undefined;
+  }
+}
+
 export function pluginLoaderForServerType(type: VpsGameServerType): string {
   switch (type) {
     case 'paper':

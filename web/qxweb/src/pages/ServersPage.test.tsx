@@ -1190,6 +1190,65 @@ describe('ServersPage', () => {
     expect(window.localStorage.getItem(GAME_SERVERS_LIST_VIEW_STORAGE_KEY)).toBe('list');
   });
 
+  it('nests game server cards inside a shared project card', async () => {
+    mockOnlineDetail(
+      [
+        { ...stoppedGame, id: 'gs-proxy', name: 'Velocity', server_type: 'velocity' },
+        { ...stoppedGame, id: 'gs-lobby', name: 'Lobby', server_type: 'paper', port: 25566 },
+        { ...stoppedGame, id: 'gs-solo', name: 'Creative', server_type: 'paper', port: 25567 },
+      ],
+      (url) => {
+        if (url.includes('/networks')) {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'net-1',
+                  name: 'Mini-games',
+                  members: [
+                    {
+                      id: 'm-1',
+                      game_server_id: 'gs-proxy',
+                      role: 'proxy',
+                      alias: 'proxy',
+                      sort_order: 0,
+                      name: 'Velocity',
+                      server_type: 'velocity',
+                      port: 25565,
+                      status: 'stopped',
+                    },
+                    {
+                      id: 'm-2',
+                      game_server_id: 'gs-lobby',
+                      role: 'lobby',
+                      alias: 'lobby',
+                      sort_order: 1,
+                      name: 'Lobby',
+                      server_type: 'paper',
+                      port: 25566,
+                      status: 'stopped',
+                    },
+                  ],
+                  created_at: '2026-01-01T00:00:00Z',
+                  updated_at: '2026-01-01T00:00:00Z',
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+        return null;
+      },
+    );
+
+    renderServers('/servers/srv-1');
+    const project = await screen.findByRole('region', { name: 'Проект: Mini-games' });
+    expect(within(project).getByRole('heading', { name: 'Velocity' })).toBeInTheDocument();
+    expect(within(project).getByRole('heading', { name: 'Lobby' })).toBeInTheDocument();
+    expect(within(project).queryByRole('heading', { name: 'Creative' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Creative' })).toBeInTheDocument();
+  });
+
   it('installs ollama from the dedicated server page', async () => {
     let ollama = { status: 'not_installed', models: [] as unknown[] };
     mockOnlineDetail([], (url, init) => {

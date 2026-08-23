@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { api, type GameServerContentKind, type ModProjectType } from '@/api/client';
 import { ModCatalogProvider } from '@/components/ModCatalogContext';
 import { useGameServerModInstall } from '@/hooks/useGameServerModInstall';
-import { pluginLoaderForServerType, type VpsGameServerType } from '@/lib/gameServerTypes';
+import { catalogLoaderForContentKind, type VpsGameServerType } from '@/lib/gameServerTypes';
 import { instanceResourceContentTarget, instanceResourceModTarget } from '@/lib/modSync';
 
 function projectTypeForKind(kind: GameServerContentKind): ModProjectType {
@@ -26,8 +26,7 @@ export function GameServerCatalogProvider({
 }) {
   const { installingVersionId, installBatch } = useGameServerModInstall(kind, vpsId, gameServerId);
   const resourceType = projectTypeForKind(kind);
-  const loader =
-    kind === 'plugin' ? pluginLoaderForServerType(serverType) : kind === 'mod' ? serverType : '';
+  const loader = catalogLoaderForContentKind(kind, serverType) ?? '';
 
   return (
     <ModCatalogProvider

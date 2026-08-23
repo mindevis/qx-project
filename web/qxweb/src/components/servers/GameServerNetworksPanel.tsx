@@ -7,12 +7,13 @@ import { useMessage } from '@/hooks/useMessage';
 import { logger } from '@/lib/logger';
 import { modalMotionProps } from '@/lib/modal';
 import {
+  assignNetworkMemberRole,
   suggestedAliasForServer,
   suggestedRoleForServer,
 } from '@/lib/gameServerNetworkLayout';
-import { gameServerTypeLabelText, isProxyGameServerType, type VpsGameServerType } from '@/lib/gameServerTypes';
+import { gameServerTypeLabelText } from '@/lib/gameServerTypes';
 import type { VpsGameServer } from '@/lib/vpsGameServers';
-import { GameServerNetworkDiagram } from './GameServerNetworkDiagram';
+import { GameServerNetworkBoard } from './GameServerNetworkBoard';
 
 const { Paragraph, Text, Title } = Typography;
 
@@ -26,10 +27,12 @@ export function GameServerNetworksPanel({
   vpsId,
   games,
   agentOnline,
+  onNetworksChange,
 }: {
   vpsId: string;
   games: VpsGameServer[];
   agentOnline: boolean;
+  onNetworksChange?: (networks: GameServerNetwork[]) => void;
 }) {
   const { t } = useI18n();
   const message = useMessage();
@@ -42,14 +45,16 @@ export function GameServerNetworksPanel({
   const refresh = useCallback(async () => {
     try {
       const res = await api.listVpsGameServerNetworks(vpsId);
-      setNetworks(res.items ?? []);
+      const items = res.items ?? [];
+      setNetworks(items);
+      onNetworksChange?.(items);
     } catch (e) {
       logger.warn('failed to load game server networks', { error: String(e) });
       message.error(t('servers.networkLoadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [message, t, vpsId]);
+  }, [message, onNetworksChange, t, vpsId]);
 
   useEffect(() => {
     void refresh();
@@ -346,15 +351,23 @@ function NetworkCard({
         </Popconfirm>
       </div>
 
-      {diagramMembers.length > 0 ? (
-        <GameServerNetworkDiagram
-          vpsId={vpsId}
-          members={diagramMembers}
-          onSelectLobby={(gameServerId) => {
-            setMembers((prev) => assignNetworkRole(prev, gameServerId, 'lobby', games));
-          }}
-        />
-      ) : null}
+      <GameServerNetworkBoard
+        vpsId={vpsId}
+        members={diagramMembers}
+        onMove={(gameServerId, role) => {
+          setMembers((prev) =>
+            assignNetworkMemberRole(
+              prev,
+              gameServerId,
+              role,
+              (id) => games.find((item) => item.id === id)?.name ?? id,
+            ),
+          );
+        }}
+        onRemove={(gameServerId) => {
+          setMembers((prev) => prev.filter((item) => item.game_server_id !== gameServerId));
+        }}
+      />
 
       {!hasProxy ? (
         <Paragraph type="secondary">{t('servers.networkNeedProxy')}</Paragraph>
@@ -372,44 +385,6 @@ function NetworkCard({
           })}
         </Paragraph>
       ) : null}
-
-      <div className="network-member-list">
-        {members.map((member) => {
-          const game = games.find((item) => item.id === member.game_server_id);
-          return (
-            <div key={member.game_server_id} className="network-member-row">
-              <Text className="network-member-name">
-                {game?.name ?? member.game_server_id}
-                <Text type="secondary">
-                  {' '}
-                  · {gameServerTypeLabelText(t, game?.server_type)}
-                </Text>
-                {network.proxy_synced &&
-                network.members.find((item) => item.game_server_id === member.game_server_id)?.in_proxy ===
-                  false ? (
-                  <Text type="warning"> · {t('servers.networkMissingInProxy')}</Text>
-                ) : null}
-              </Text>
-              <Select
-                value={member.role}
-                className="network-member-role"
-                options={roleOptions(t, game?.server_type)}
-                onChange={(role: GameServerNetworkRole) =>
-                  setMembers((prev) => assignNetworkRole(prev, member.game_server_id, role, games))
-                }
-              />
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() =>
-                  setMembers((prev) => prev.filter((item) => item.game_server_id !== member.game_server_id))
-                }
-              />
-            </div>
-          );
-        })}
-      </div>
 
       {unusedGames.length > 0 ? (
         <Select
@@ -463,48 +438,6 @@ function NetworkCard({
       </Modal>
     </article>
   );
-}
-
-function assignNetworkRole(
-  members: DraftMember[],
-  gameServerId: string,
-  role: GameServerNetworkRole,
-  games: VpsGameServer[],
-): DraftMember[] {
-  return members.map((item) => {
-    if (item.game_server_id === gameServerId) {
-      if (item.role === 'proxy') return item;
-      const game = games.find((row) => row.id === item.game_server_id);
-      return {
-        ...item,
-        role,
-        alias: suggestedAliasForServer(game?.name ?? item.alias, role),
-      };
-    }
-    if (role === 'lobby' && item.role === 'lobby') {
-      const game = games.find((row) => row.id === item.game_server_id);
-      return {
-        ...item,
-        role: 'backend',
-        alias: suggestedAliasForServer(game?.name ?? item.alias, 'backend'),
-      };
-    }
-    return item;
-  });
-}
-
-function roleOptions(
-  t: (key: string) => string,
-  serverType: string | undefined,
-): Array<{ value: GameServerNetworkRole; label: string }> {
-  const isProxy = serverType ? isProxyGameServerType(serverType as VpsGameServerType) : false;
-  if (isProxy) {
-    return [{ value: 'proxy', label: t('servers.networkRoleProxy') }];
-  }
-  return [
-    { value: 'lobby', label: t('servers.networkRoleLobby') },
-    { value: 'backend', label: t('servers.networkRoleBackend') },
-  ];
 }
 
 function formatProxyChange(

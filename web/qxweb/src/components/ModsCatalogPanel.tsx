@@ -97,7 +97,7 @@ export function ModsCatalogPanel() {
   const handleInstalled = useCallback(
     async (item: ModCatalogItem, version: ModVersion) => {
       await refreshInstalled();
-      const projectType = item.project_type ?? activeTab;
+      const projectType = activeTab;
       if (canSync && modSupportsServerSync(item) && projectType === 'mod') {
         setSyncSelection({
           source: item.source as ModSource,
@@ -453,7 +453,7 @@ export function ModsCatalogPanel() {
             source={item.source as ModSource}
             projectId={item.id}
             projectName={item.name}
-            projectType={item.project_type ?? activeTab}
+            projectType={activeTab}
             iconUrl={item.icon_url}
             downloads={item.downloads}
             clientSide={item.client_side}
@@ -663,7 +663,7 @@ export function ModsCatalogPanel() {
                           source={item.source as ModSource}
                           projectId={item.id}
                           projectName={item.name}
-                          projectType={item.project_type ?? activeTab}
+                          projectType={activeTab}
                           iconUrl={item.icon_url}
                           downloads={item.downloads}
                           clientSide={item.client_side}

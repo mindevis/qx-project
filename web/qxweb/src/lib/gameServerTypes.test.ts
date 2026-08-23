@@ -9,6 +9,7 @@ import {
   gameServerTypeLabelText,
   isKnownGameServerType,
   pluginCatalogSources,
+  catalogLoaderForContentKind,
 } from './gameServerTypes';
 
 describe('gameServerTypes', () => {
@@ -74,6 +75,13 @@ describe('gameServerTypes', () => {
     expect(gameServerTypeLabelText(t, undefined)).toBe('—');
     expect(gameServerTypeLabelText(t, 'paper')).toBe('Paper');
     expect(gameServerTypeLabelText(t, 'custom-core')).toBe('custom-core');
+  });
+
+  it('uses datapack as the version loader for datapack catalogs', () => {
+    expect(catalogLoaderForContentKind('datapack', 'paper')).toBe('datapack');
+    expect(catalogLoaderForContentKind('plugin', 'paper')).toBe('paper');
+    expect(catalogLoaderForContentKind('mod', 'forge')).toBe('forge');
+    expect(catalogLoaderForContentKind('resourcepack', 'paper')).toBeUndefined();
   });
 
   it('limits velocity plugin catalogs to hangar and modrinth', () => {

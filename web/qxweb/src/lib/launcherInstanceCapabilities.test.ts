@@ -28,8 +28,8 @@ describe('launcherInstanceCapabilities', () => {
     expect(launcherCatalogTabs('forge')).toEqual(['mod', 'resourcepack', 'shader', 'datapack']);
   });
 
-  it('omits loader filter for non-mod catalog queries', () => {
-    expect(catalogLoaderForType('forge', 'datapack')).toBeUndefined();
+  it('uses datapack loader for datapack versions and omits it for packs/shaders', () => {
+    expect(catalogLoaderForType('forge', 'datapack')).toBe('datapack');
     expect(catalogLoaderForType('forge', 'resourcepack')).toBeUndefined();
     expect(catalogLoaderForType('forge', 'shader')).toBeUndefined();
     expect(catalogLoaderForType('forge', 'mod')).toBe('forge');

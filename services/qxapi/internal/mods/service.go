@@ -307,20 +307,28 @@ func (s *Service) ListVersions(ctx context.Context, source, projectID, loader, m
 	}
 	key := cacheKey("versions", source, projectID, loader, mcVersion)
 	return versionListCache.GetOrLoadIf(key, func() ([]Version, error) {
+		var (
+			items []Version
+			err   error
+		)
 		switch source {
 		case SourceModrinth:
-			return s.modrinth.listVersions(ctx, projectID, loader, mcVersion)
+			items, err = s.modrinth.listVersions(ctx, projectID, loader, mcVersion)
 		case SourceCurseForge:
-			return s.curseforge.listVersions(ctx, projectID, loader, mcVersion)
+			items, err = s.curseforge.listVersions(ctx, projectID, loader, mcVersion)
 		case SourceHangar:
-			return s.hangar.listVersions(ctx, projectID, loader, mcVersion)
+			items, err = s.hangar.listVersions(ctx, projectID, loader, mcVersion)
 		case SourceSpigot:
-			return s.spiget.listVersions(ctx, projectID, loader, mcVersion)
+			items, err = s.spiget.listVersions(ctx, projectID, loader, mcVersion)
 		case SourceBukkit:
-			return s.curseforge.listVersions(ctx, projectID, loader, mcVersion)
+			items, err = s.curseforge.listVersions(ctx, projectID, loader, mcVersion)
 		default:
 			return nil, fmt.Errorf("unknown source %q", source)
 		}
+		if err != nil {
+			return nil, err
+		}
+		return filterVersionsByLoader(items, loader), nil
 	}, func(items []Version) bool { return len(items) > 0 })
 }
 

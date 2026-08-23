@@ -1,25 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   aliasFromServerName,
-  layoutGameServerNetwork,
+  assignNetworkMemberRole,
+  canMoveNetworkMember,
+  groupGameServersByNetwork,
+  groupNetworkMembers,
   suggestedAliasForServer,
   suggestedRoleForServer,
 } from './gameServerNetworkLayout';
-import type { GameServerNetworkMember } from '@/api/client';
-
-function member(
-  partial: Partial<GameServerNetworkMember> & Pick<GameServerNetworkMember, 'game_server_id' | 'role' | 'alias'>,
-): GameServerNetworkMember {
-  return {
-    id: partial.id ?? partial.game_server_id,
-    sort_order: partial.sort_order ?? 0,
-    name: partial.name ?? partial.alias,
-    server_type: partial.server_type ?? 'paper',
-    port: partial.port ?? 25565,
-    status: partial.status ?? 'stopped',
-    ...partial,
-  };
-}
 
 describe('gameServerNetworkLayout', () => {
   it('slugs aliases and suggests roles', () => {
@@ -35,50 +23,84 @@ describe('gameServerNetworkLayout', () => {
     expect(suggestedAliasForServer('qrpg-world-survival', 'backend')).toBe('qrpg-world-survival');
   });
 
-  it('lays out players -> velocity -> lobby and worlds', () => {
-    const layout = layoutGameServerNetwork(
-      [
-        member({
-          game_server_id: 'v',
-          role: 'proxy',
-          alias: 'proxy',
-          name: 'Velocity',
-          server_type: 'velocity',
-          port: 25565,
-        }),
-        member({
-          game_server_id: 'l',
-          role: 'lobby',
-          alias: 'lobby',
-          name: 'Lobby',
-          port: 25566,
-          sort_order: 1,
-        }),
-        member({
-          game_server_id: 's',
-          role: 'backend',
-          alias: 'survival',
-          name: 'Survival',
-          port: 25567,
-          sort_order: 2,
-        }),
-      ],
-      { players: 'Players' },
-    );
+  it('groups members into proxy, try, and world columns', () => {
+    const grouped = groupNetworkMembers([
+      { game_server_id: 'v', role: 'proxy' as const, sort_order: 0 },
+      { game_server_id: 's', role: 'backend' as const, sort_order: 2 },
+      { game_server_id: 'l', role: 'lobby' as const, sort_order: 1 },
+      { game_server_id: 'n', role: 'backend' as const, sort_order: 1 },
+    ]);
+    expect(grouped.proxy.map((item) => item.game_server_id)).toEqual(['v']);
+    expect(grouped.lobby.map((item) => item.game_server_id)).toEqual(['l']);
+    expect(grouped.backend.map((item) => item.game_server_id)).toEqual(['n', 's']);
+  });
 
-    expect(layout.nodes.map((node) => node.id)).toEqual(['players', 'v', 'l', 's']);
-    const lobbyNode = layout.nodes.find((node) => node.id === 'l');
-    const survivalNode = layout.nodes.find((node) => node.id === 's');
-    expect(lobbyNode).toBeDefined();
-    expect(survivalNode).toBeDefined();
-    expect(lobbyNode!.y).toBeLessThan(survivalNode!.y);
-    expect(layout.edges).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ from: 'players', to: 'v', kind: 'connect' }),
-        expect.objectContaining({ from: 'v', to: 'l', kind: 'try' }),
-        expect.objectContaining({ from: 'l', to: 's', kind: 'transfer' }),
-      ]),
+  it('moves a world onto try and demotes the previous lobby', () => {
+    const next = assignNetworkMemberRole(
+      [
+        { game_server_id: 'v', role: 'proxy', alias: 'proxy' },
+        { game_server_id: 'l', role: 'lobby', alias: 'lobby' },
+        { game_server_id: 's', role: 'backend', alias: 'survival' },
+      ],
+      's',
+      'lobby',
+      (id) => (id === 's' ? 'Survival' : id === 'l' ? 'Lobby' : 'Velocity'),
     );
-    expect(layout.edges.some((edge) => edge.from === 'v' && edge.to === 's')).toBe(false);
+    expect(next.find((item) => item.game_server_id === 's')).toEqual({
+      game_server_id: 's',
+      role: 'lobby',
+      alias: 'lobby',
+    });
+    expect(next.find((item) => item.game_server_id === 'l')?.role).toBe('backend');
+    expect(next.find((item) => item.game_server_id === 'v')?.role).toBe('proxy');
+  });
+
+  it('does not move a proxy off its column or a world onto proxy', () => {
+    expect(canMoveNetworkMember('proxy', 'lobby')).toBe(false);
+    expect(canMoveNetworkMember('backend', 'proxy')).toBe(false);
+    expect(canMoveNetworkMember('backend', 'lobby')).toBe(true);
+    const members = [
+      { game_server_id: 'v', role: 'proxy' as const, alias: 'proxy' },
+      { game_server_id: 's', role: 'backend' as const, alias: 'survival' },
+    ];
+    expect(assignNetworkMemberRole(members, 'v', 'lobby', () => 'Velocity')).toEqual(members);
+    expect(assignNetworkMemberRole(members, 's', 'proxy', () => 'Survival')).toEqual(members);
+  });
+
+  it('nests assigned game servers under their project and keeps the rest loose', () => {
+    const groups = groupGameServersByNetwork(
+      [
+        { id: 'v', name: 'Velocity' },
+        { id: 'l', name: 'Lobby' },
+        { id: 'c', name: 'Creative' },
+      ],
+      [
+        {
+          id: 'net-1',
+          name: 'Mini-games',
+          members: [
+            { game_server_id: 'l', sort_order: 1 },
+            { game_server_id: 'v', sort_order: 0 },
+            { game_server_id: 'missing', sort_order: 2 },
+          ],
+        },
+        { id: 'net-empty', name: 'Empty', members: [] },
+      ],
+    );
+    expect(groups).toEqual([
+      {
+        key: 'net-1',
+        network: { id: 'net-1', name: 'Mini-games' },
+        games: [
+          { id: 'v', name: 'Velocity' },
+          { id: 'l', name: 'Lobby' },
+        ],
+      },
+      {
+        key: 'ungrouped',
+        network: null,
+        games: [{ id: 'c', name: 'Creative' }],
+      },
+    ]);
   });
 });

@@ -86,6 +86,50 @@ func TestModrinthListVersionsFallsBackWithoutMCVersion(t *testing.T) {
 	}
 }
 
+func TestModrinthListVersionsKeepsDatapackLoader(t *testing.T) {
+	t.Parallel()
+
+	calls := make([]url.Values, 0, 3)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q, _ := url.ParseQuery(r.URL.RawQuery)
+		calls = append(calls, q)
+		w.Header().Set("Content-Type", "application/json")
+		switch len(calls) {
+		case 1:
+			_, _ = w.Write([]byte(`[]`))
+		default:
+			_, _ = w.Write([]byte(`[{"id":"dp-1","version_number":"5.3.0","game_versions":["1.21.1"],"loaders":["datapack"],"date_published":"2024-01-01","dependencies":[],"files":[{"filename":"pack.zip","url":"https://example.com/pack.zip","size":123,"hashes":{"sha1":"abc"}}]}]`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	base, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &modrinthClient{
+		httpClient: &http.Client{Transport: rewriteTransport{base: base, rt: http.DefaultTransport}},
+		userAgent:  "qx-test",
+	}
+
+	versions, err := client.listVersions(context.Background(), "dungeons-and-taverns", "datapack", "1.21")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(versions) != 1 || versions[0].ID != "dp-1" {
+		t.Fatalf("versions: %+v", versions)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 API calls, got %d", len(calls))
+	}
+	if !strings.Contains(calls[0].Get("loaders"), "datapack") || calls[0].Get("game_versions") == "" {
+		t.Fatalf("first call should keep datapack + mc version, got %v", calls[0])
+	}
+	if !strings.Contains(calls[1].Get("loaders"), "datapack") || calls[1].Get("game_versions") != "" {
+		t.Fatalf("second call should keep datapack and drop mc version, got %v", calls[1])
+	}
+}
+
 func TestNormalizeDependencyType(t *testing.T) {
 	t.Parallel()
 	if got := normalizeDependencyType("incompatible"); got != "incompatible" {

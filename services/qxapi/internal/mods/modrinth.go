@@ -53,8 +53,8 @@ type modrinthProject struct {
 type modrinthVersion struct {
 	ID            string `json:"id"`
 	VersionNumber string `json:"version_number"`
-	GameVersions  []string
-	Loaders       []string
+	GameVersions  []string `json:"game_versions"`
+	Loaders       []string `json:"loaders"`
 	DatePublished string `json:"date_published"`
 	Dependencies  []struct {
 		VersionID      string `json:"version_id"`
@@ -205,6 +205,12 @@ func (c *modrinthClient) listVersions(ctx context.Context, projectID, loader, mc
 		return nil, err
 	}
 	if len(items) > 0 || (loader == "" && mcVersion == "") {
+		return items, nil
+	}
+	if keepVersionLoaderFilter(loader) {
+		if mcVersion != "" {
+			return c.listVersionsOnce(ctx, projectID, loader, "")
+		}
 		return items, nil
 	}
 	if loader != "" {

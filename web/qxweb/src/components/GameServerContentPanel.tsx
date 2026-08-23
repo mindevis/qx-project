@@ -48,9 +48,9 @@ import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { useModal } from '@/hooks/useModal';
 import {
+  catalogLoaderForContentKind,
   gameServerTypeLabelText,
   pluginCatalogSources,
-  pluginLoaderForServerType,
   type VpsGameServerType,
 } from '@/lib/gameServerTypes';
 import { attachCatalogPartners } from '@/lib/catalogPartners';
@@ -230,12 +230,7 @@ export function GameServerContentPanel({
   const message = useMessage();
   const modal = useModal();
   const projectType = projectTypeForKind(kind);
-  const loader =
-    kind === 'plugin'
-      ? pluginLoaderForServerType(serverType)
-      : kind === 'mod'
-        ? serverType
-        : undefined;
+  const loader = catalogLoaderForContentKind(kind, serverType);
 
   const [installed, setInstalled] = useState<GameServerFileEntry[]>([]);
   const [installedResources, setInstalledResources] = useState<InstanceResource[]>([]);
@@ -708,7 +703,7 @@ export function GameServerContentPanel({
       source={row.source as ModSource}
       projectId={row.id}
       projectName={row.name}
-      projectType={row.project_type ?? projectType}
+      projectType={projectType}
       iconUrl={row.icon_url}
       downloads={row.downloads}
       clientSide={row.client_side}

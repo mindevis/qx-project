@@ -216,7 +216,7 @@ export function ModDetailPanel() {
           downloads={detail.downloads}
           clientSide={detail.client_side}
           serverSide={detail.server_side}
-          loader={resourceType === 'datapack' ? undefined : loader || catalogLoader}
+          loader={catalogLoaderForType(loader, resourceType) ?? catalogLoader}
           mcVersion={mcVersion}
           installedProjectIds={installedProjectIds}
           layout="inline"

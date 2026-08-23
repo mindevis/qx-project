@@ -643,6 +643,7 @@ export const en: Messages = {
     gameServersViewModeAria: 'Game servers view',
     gameServersViewList: 'List',
     gameServersViewCards: 'Cards',
+    gameServersProjectLabel: 'Project',
     addGameServer: 'Add game server',
     editGameServer: 'Edit',
     gameServerUpdated: 'Game server updated',

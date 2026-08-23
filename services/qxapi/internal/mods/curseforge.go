@@ -290,6 +290,12 @@ func (c *curseForgeClient) listVersions(ctx context.Context, projectID, loader, 
 	if len(items) > 0 || (loader == "" && mcVersion == "") {
 		return items, nil
 	}
+	if keepVersionLoaderFilter(loader) {
+		if mcVersion != "" {
+			return c.listVersionsOnce(ctx, projectID, loader, "")
+		}
+		return items, nil
+	}
 	if loader != "" {
 		items, err = c.listVersionsOnce(ctx, projectID, "", mcVersion)
 		if err != nil || len(items) > 0 || mcVersion == "" {

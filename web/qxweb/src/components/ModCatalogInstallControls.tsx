@@ -20,7 +20,7 @@ import {
   clearModVersionListCache,
 } from '@/lib/modCatalogCache';
 import { isDependencyResolved, loadModDirectDependencies } from '@/lib/modCatalogDeps';
-import { selectLatestCompatibleVersion } from '@/lib/selectLatestModVersion';
+import { selectLatestCompatibleVersion, filterVersionsForCatalogLoader } from '@/lib/selectLatestModVersion';
 import { useMessage } from '@/hooks/useMessage';
 
 export type ModCatalogInstallControlsProps = {
@@ -92,10 +92,13 @@ export function ModCatalogInstallControls({
   const loadVersions = useCallback(async () => {
     setLoadingVersions(true);
     try {
-      const items = await cachedListModVersions(source, projectId, {
+      const items = filterVersionsForCatalogLoader(
+        await cachedListModVersions(source, projectId, {
+          loader,
+          mc_version: mcVersion,
+        }),
         loader,
-        mc_version: mcVersion,
-      });
+      );
       const latest = selectLatestCompatibleVersion(items, loader, mcVersion);
       setVersions(items);
       setSelectedVersionId((prev) => prev ?? latest?.id);

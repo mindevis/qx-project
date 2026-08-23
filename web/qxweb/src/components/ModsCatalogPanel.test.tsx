@@ -243,7 +243,7 @@ describe('ModsCatalogPanel', () => {
     await user.click(screen.getByText('Датапаки'));
     await waitFor(() =>
       expect(api.browseMods).toHaveBeenLastCalledWith(
-        expect.objectContaining({ type: 'datapack', loader: undefined }),
+        expect.objectContaining({ type: 'datapack', loader: 'datapack' }),
       ),
     );
   });
