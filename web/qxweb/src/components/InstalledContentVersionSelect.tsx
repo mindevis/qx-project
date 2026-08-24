@@ -23,9 +23,14 @@ function resourceAsVersion(resource: InstanceResource): ModVersion {
   };
 }
 
+type CatalogInstalledResource = InstanceResource & {
+  project_id: string;
+  source: Exclude<ModSource, 'upload'>;
+};
+
 export function canChangeInstalledContentVersion(
   resource?: InstanceResource,
-): resource is InstanceResource {
+): resource is CatalogInstalledResource {
   return Boolean(
     resource &&
       resource.project_id &&
