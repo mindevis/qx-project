@@ -39,6 +39,7 @@ const (
 	TypeCmdServerContentUpload           = "cmd.server.content.upload"
 	TypeCmdServerContentRead             = "cmd.server.content.read"
 	TypeCmdServerContentDelete           = "cmd.server.content.delete"
+	TypeCmdServerContentSetEnabled       = "cmd.server.content.set_enabled"
 	TypeCmdInstanceFilesList             = "cmd.instance.files.list"
 	TypeCmdInstanceFilesRead             = "cmd.instance.files.read"
 	TypeCmdInstanceFilesWrite            = "cmd.instance.files.write"
@@ -89,6 +90,7 @@ const (
 	TypeResServerContentUpload           = "res.server.content.upload"
 	TypeResServerContentRead             = "res.server.content.read"
 	TypeResServerContentDelete           = "res.server.content.delete"
+	TypeResServerContentSetEnabled       = "res.server.content.set_enabled"
 	TypeResInstanceFilesList             = "res.instance.files.list"
 	TypeResInstanceFilesRead             = "res.instance.files.read"
 	TypeResInstanceFilesWrite            = "res.instance.files.write"
@@ -361,6 +363,23 @@ type ServerContentDeleteResult struct {
 	Status   string `json:"status"`
 	RelPath  string `json:"rel_path,omitempty"`
 	Filename string `json:"filename,omitempty"`
+}
+
+type ServerContentSetEnabledPayload struct {
+	GameServerID string `json:"game_server_id"`
+	WorkDir      string `json:"work_dir"`
+	ServerType   string `json:"server_type,omitempty"`
+	ContentKind  string `json:"content_kind"`
+	ModTarget    string `json:"mod_target,omitempty"`
+	Filename     string `json:"filename"`
+	Enabled      bool   `json:"enabled"`
+}
+
+type ServerContentSetEnabledResult struct {
+	Status   string `json:"status"`
+	RelPath  string `json:"rel_path,omitempty"`
+	Filename string `json:"filename,omitempty"`
+	Enabled  bool   `json:"enabled"`
 }
 
 type ServerContentUploadResult struct {

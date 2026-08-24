@@ -13,6 +13,7 @@ type InstanceResourceEntry struct {
 	ProjectName   string `json:"project_name"`
 	VersionID     string `json:"version_id,omitempty"`
 	VersionNumber string `json:"version_number,omitempty"`
+	VersionType   string `json:"version_type,omitempty"`
 	Filename      string `json:"filename"`
 	ResourceType  string `json:"resource_type"`
 	IconURL       string `json:"icon_url,omitempty"`

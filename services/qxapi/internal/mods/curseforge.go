@@ -112,6 +112,7 @@ type curseForgeFileData struct {
 		Algo  int    `json:"algo"`
 	} `json:"hashes"`
 	Dependencies []curseForgeFileDependency `json:"dependencies"`
+	ReleaseType  int                       `json:"releaseType"`
 }
 
 type curseForgeFilesResponse struct {
@@ -339,6 +340,7 @@ func (c *curseForgeClient) listVersionsOnce(ctx context.Context, projectID, load
 		out = append(out, Version{
 			ID:            strconv.Itoa(f.ID),
 			VersionNumber: f.DisplayName,
+			VersionType:   InferVersionType(CurseForgeReleaseType(f.ReleaseType), f.DisplayName, f.FileName),
 			GameVersions:  f.GameVersions,
 			Loaders:       []string{curseForgeLoaderName(f.ModLoader)},
 			Files: []VersionFile{{
@@ -414,6 +416,7 @@ func (c *curseForgeClient) versionFromFileData(
 	return &Version{
 		ID:            fileID,
 		VersionNumber: f.DisplayName,
+		VersionType:   InferVersionType(CurseForgeReleaseType(f.ReleaseType), f.DisplayName, f.FileName),
 		GameVersions:  f.GameVersions,
 		Loaders:       []string{curseForgeLoaderName(f.ModLoader)},
 		Files: []VersionFile{{

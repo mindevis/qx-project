@@ -212,3 +212,73 @@ func TestReadContentFile(t *testing.T) {
 		t.Fatalf("content: %q", string(data))
 	}
 }
+
+func TestSetContentEnabledRenamesJar(t *testing.T) {
+	dir := t.TempDir()
+	modsDir := filepath.Join(dir, "mods")
+	if err := os.MkdirAll(modsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(modsDir, "sodium.jar")
+	if err := os.WriteFile(src, []byte("jar"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rel, name, err := SetContentEnabled(dir, "fabric", "mod", "", "sodium.jar", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rel != "mods/sodium.jar.disabled" || name != "sodium.jar.disabled" {
+		t.Fatalf("disable result: %q %q", rel, name)
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Fatal("expected enabled jar removed")
+	}
+	if _, err := os.Stat(filepath.Join(modsDir, "sodium.jar.disabled")); err != nil {
+		t.Fatal(err)
+	}
+
+	rel, name, err = SetContentEnabled(dir, "fabric", "mod", "", "sodium.jar.disabled", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rel != "mods/sodium.jar" || name != "sodium.jar" {
+		t.Fatalf("enable result: %q %q", rel, name)
+	}
+	if _, err := os.Stat(src); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetContentEnabledRejectsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	pack := filepath.Join(dir, "world", "datapacks", "custom")
+	if err := os.MkdirAll(pack, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := SetContentEnabled(dir, "vanilla", "datapack", "", "custom", false); err == nil {
+		t.Fatal("expected directory disable to fail")
+	}
+}
+
+func TestDeleteContentFileRemovesDisabled(t *testing.T) {
+	dir := t.TempDir()
+	modsDir := filepath.Join(dir, "mods")
+	if err := os.MkdirAll(modsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	disabled := filepath.Join(modsDir, "sodium.jar.disabled")
+	if err := os.WriteFile(disabled, []byte("jar"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rel, err := DeleteContentFile(dir, "fabric", "mod", "", "sodium.jar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rel != "mods/sodium.jar.disabled" {
+		t.Fatalf("deleted path: %q", rel)
+	}
+	if _, err := os.Stat(disabled); !os.IsNotExist(err) {
+		t.Fatal("expected disabled jar removed")
+	}
+}

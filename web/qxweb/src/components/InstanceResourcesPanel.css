@@ -142,6 +142,32 @@ html[data-theme='dark'] .instance-resources-panel {
   min-width: 0;
 }
 
+.qxmods-title-with-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.qxmods-title-with-source .game-server-mods-card-name,
+.qxmods-title-with-source .qxmods-catalog-link,
+.qxmods-title-with-source .launcher-resource-item-link,
+.qxmods-title-with-source > span:first-child {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qxmods-title-with-source .ant-tag,
+.qxmods-title-with-source .qxmods-source-switch {
+  flex-shrink: 0;
+  margin-inline-end: 0;
+}
+
 .qxmods-catalog-name-meta {
   display: flex;
   flex-wrap: wrap;
@@ -198,6 +224,30 @@ html[data-theme='dark'] .instance-resources-panel {
   min-width: 120px;
 }
 
+.qxmods-version-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.qxmods-version-option--selected {
+  width: auto;
+}
+
+.qxmods-version-option-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qxmods-version-option .ant-tag {
+  margin-inline-end: 0;
+  flex-shrink: 0;
+}
+
 .launcher-resources-page--catalog .launcher-resources-hero-inner,
 .launcher-resources-body--catalog {
   max-width: 1280px;
@@ -212,9 +262,9 @@ html[data-theme='dark'] .instance-resources-panel {
 }
 
 .qxmods-install-version-select--table {
-  flex: 1 1 120px;
-  min-width: 110px;
-  max-width: 160px;
+  flex: 1 1 140px;
+  min-width: 130px;
+  max-width: 220px;
 }
 
 .qxmods-install-version-select--detail {

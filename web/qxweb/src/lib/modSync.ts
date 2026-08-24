@@ -162,17 +162,39 @@ export function modSupportsServerSync(item: Pick<ModCatalogItem, 'client_side' |
   return side === 'server' || side === 'both' || side === 'unknown';
 }
 
+export function isContentDisabledFilename(name: string): boolean {
+  const lower = name.trim().toLowerCase();
+  return lower.endsWith('.disabled') && lower !== '.disabled';
+}
+
+export function enabledContentFilename(name: string): string {
+  const trimmed = name.trim();
+  if (isContentDisabledFilename(trimmed)) {
+    return trimmed.slice(0, -'.disabled'.length);
+  }
+  return trimmed;
+}
+
+export function contentFilenameKey(name: string): string {
+  return enabledContentFilename(name).toLowerCase();
+}
+
+export function contentFilenamesMatch(a: string, b: string): boolean {
+  const left = contentFilenameKey(a);
+  return Boolean(left) && left === contentFilenameKey(b);
+}
+
 export function isFilenameOnServer(serverFiles: GameServerFileEntry[], filename: string): boolean {
-  const lower = filename.toLowerCase();
-  return serverFiles.some((entry) => !entry.dir && entry.name.toLowerCase() === lower);
+  return serverFiles.some((entry) => !entry.dir && contentFilenamesMatch(entry.name, filename));
 }
 
 export function isModOnServer(
   serverMods: GameServerFileEntry[],
   version: Pick<ModVersion, 'files'>,
 ): boolean {
-  const filenames = version.files.map((f) => f.filename.toLowerCase());
-  return serverMods.some((entry) => !entry.dir && filenames.includes(entry.name.toLowerCase()));
+  return serverMods.some(
+    (entry) => !entry.dir && version.files.some((file) => contentFilenamesMatch(entry.name, file.filename)),
+  );
 }
 
 export function isCatalogItemOnServer(
@@ -185,7 +207,7 @@ export function isCatalogItemOnServer(
   const nameNorm = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '');
   return serverFiles.some((entry) => {
     if (entry.dir) return false;
-    const filename = entry.name.toLowerCase();
+    const filename = enabledContentFilename(entry.name).toLowerCase();
     const filenameNorm = filename.replace(/[^a-z0-9]+/g, '');
     if (tokens.some((token) => filename.includes(token))) {
       return true;

@@ -77,6 +77,203 @@ describe('GameServerContentPanel', () => {
     expect(screen.getByRole('button', { name: /по ссылке/i })).toBeInTheDocument();
   });
 
+  it('can disable an installed mod without deleting it', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
+      items: [{ name: 'sodium.jar', path: 'mods/sodium.jar', dir: false, size: 10 }],
+    });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    const setEnabled = vi.spyOn(api, 'setVpsGameServerModEnabled').mockResolvedValue({
+      status: 'ok',
+      filename: 'sodium.jar.disabled',
+      enabled: false,
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="fabric"
+        mcVersion="1.21"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('sodium.jar')).toBeInTheDocument());
+    await user.click(screen.getByRole('switch', { name: /выключить sodium.jar/i }));
+    await waitFor(() =>
+      expect(setEnabled).toHaveBeenCalledWith('srv-1', 'gs-1', {
+        filename: 'sodium.jar',
+        enabled: false,
+        mod_target: 'mods',
+      }),
+    );
+  });
+
+  it('shows a disabled installed mod and can enable it again', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
+      items: [{ name: 'sodium.jar.disabled', path: 'mods/sodium.jar.disabled', dir: false, size: 10 }],
+    });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    const setEnabled = vi.spyOn(api, 'setVpsGameServerModEnabled').mockResolvedValue({
+      status: 'ok',
+      filename: 'sodium.jar',
+      enabled: true,
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="fabric"
+        mcVersion="1.21"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('sodium.jar')).toBeInTheDocument());
+    expect(screen.getByText('Выключен')).toBeInTheDocument();
+    await user.click(screen.getByRole('switch', { name: /включить sodium.jar/i }));
+    await waitFor(() =>
+      expect(setEnabled).toHaveBeenCalledWith('srv-1', 'gs-1', {
+        filename: 'sodium.jar.disabled',
+        enabled: true,
+        mod_target: 'mods',
+      }),
+    );
+  });
+
+  it('shows a version channel badge on installed mods and opens catalog links from the name', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
+      items: [{ name: 'sodium.jar', path: 'mods/sodium.jar', dir: false, size: 10 }],
+    });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listGameServerResources').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          project_id: 'sodium',
+          project_name: 'Sodium',
+          version_number: '0.6.0-beta.1',
+          version_type: 'beta',
+          filename: 'sodium.jar',
+          resource_type: 'mod',
+          installed_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+    });
+    vi.spyOn(api, 'getModProject').mockResolvedValue({
+      source: 'modrinth',
+      id: 'sodium',
+      slug: 'sodium',
+      name: 'Sodium',
+      summary: 'Performance',
+      project_type: 'mod',
+      external_url: 'https://modrinth.com/mod/sodium',
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="fabric"
+        mcVersion="1.21"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sodium' })).toBeInTheDocument());
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(screen.getByText('sodium.jar')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sodium' }).closest('.qxmods-title-with-source')).toHaveTextContent(
+      'Modrinth',
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Sodium' }));
+    const sourceLink = await screen.findByRole('link', { name: /открыть на modrinth/i });
+    expect(sourceLink.getAttribute('href')).toMatch(/modrinth\.com/);
+  });
+
+  it('shows alpha beta and stable badges in the catalog version list', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'sodium',
+          slug: 'sodium',
+          name: 'Sodium',
+          summary: 'Performance',
+          project_type: 'mod',
+          external_url: 'https://modrinth.com/mod/sodium',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: false,
+    });
+    vi.spyOn(api, 'listModVersions').mockResolvedValue({
+      items: [
+        {
+          id: 'ver-stable',
+          version_number: '0.6.0',
+          version_type: 'release',
+          game_versions: ['1.21'],
+          loaders: ['fabric'],
+          files: [{ filename: 'sodium.jar', url: 'https://cdn/sodium.jar', size: 10 }],
+        },
+        {
+          id: 'ver-beta',
+          version_number: '0.6.1-beta',
+          version_type: 'beta',
+          game_versions: ['1.21'],
+          loaders: ['fabric'],
+          files: [{ filename: 'sodium-beta.jar', url: 'https://cdn/sodium-beta.jar', size: 10 }],
+        },
+        {
+          id: 'ver-alpha',
+          version_number: '0.7.0-alpha',
+          version_type: 'alpha',
+          game_versions: ['1.21'],
+          loaders: ['fabric'],
+          files: [{ filename: 'sodium-alpha.jar', url: 'https://cdn/sodium-alpha.jar', size: 10 }],
+        },
+      ],
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="fabric"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    await user.click(screen.getByRole('combobox', { name: 'Версия' }));
+    await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument());
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(screen.getAllByText('Stable').length).toBeGreaterThan(0);
+  });
+
   it('installs a plugin from a url', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const user = userEvent.setup({ delay: null });
@@ -346,6 +543,82 @@ describe('GameServerContentPanel', () => {
     expect(screen.getByText('jei.jar')).toBeInTheDocument();
     expect(screen.getByText('19.8.0')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Тип мода (сторона)' })).toBeInTheDocument();
+  });
+
+  it('replaces an installed catalog mod when changing version', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({
+      items: [{ name: 'sodium-0.5.0.jar', path: 'mods/sodium-0.5.0.jar', dir: false, size: 10 }],
+    });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listGameServerResources').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          project_id: 'sodium',
+          project_name: 'Sodium',
+          version_id: 'ver-old',
+          version_number: '0.5.0',
+          filename: 'sodium-0.5.0.jar',
+          resource_type: 'mod',
+          installed_at: 'now',
+          side_override: 'both',
+        },
+      ],
+    });
+    vi.spyOn(api, 'listModVersions').mockResolvedValue({
+      items: [
+        {
+          id: 'ver-old',
+          version_number: '0.5.0',
+          game_versions: ['1.21'],
+          loaders: ['fabric'],
+          files: [{ filename: 'sodium-0.5.0.jar', url: 'https://cdn/sodium-0.5.0.jar', size: 10 }],
+        },
+        {
+          id: 'ver-new',
+          version_number: '0.6.0',
+          game_versions: ['1.21'],
+          loaders: ['fabric'],
+          files: [{ filename: 'sodium-0.6.0.jar', url: 'https://cdn/sodium-0.6.0.jar', size: 12 }],
+        },
+      ],
+    });
+    const sync = vi.spyOn(api, 'syncModToGameServer').mockResolvedValue({
+      status: 'installed',
+      filename: 'sodium-0.6.0.jar',
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="fabric"
+        mcVersion="1.21"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('Sodium')).toBeInTheDocument());
+    await user.click(screen.getByRole('combobox', { name: 'Версия Sodium' }));
+    await user.click(await screen.findByText('0.6.0'));
+    await waitFor(() => {
+      expect(sync).toHaveBeenCalledTimes(1);
+      expect(sync).toHaveBeenCalledWith(
+        'srv-1',
+        'gs-1',
+        expect.objectContaining({
+          project_id: 'sodium',
+          version_id: 'ver-new',
+          filename: 'sodium-0.6.0.jar',
+          replace_filename: 'sodium-0.5.0.jar',
+          side_override: 'both',
+        }),
+      );
+    });
   });
 
   it('lists server and client mods together and can change the side', async () => {

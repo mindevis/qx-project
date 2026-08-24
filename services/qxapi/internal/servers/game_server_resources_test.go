@@ -19,6 +19,75 @@ func TestAppendUniqueContentResourceReplacesSameProject(t *testing.T) {
 	}
 }
 
+func TestAppendUniqueContentResourceReplacesDifferentFilename(t *testing.T) {
+	list := appendUniqueContentResource(nil, models.InstanceResourceEntry{
+		Source: "modrinth", ProjectID: "sodium", Filename: "sodium-0.5.0.jar", ResourceType: "mod", SideOverride: "server",
+	})
+	list = appendUniqueContentResource(list, models.InstanceResourceEntry{
+		Source: "modrinth", ProjectID: "sodium", Filename: "sodium-0.6.0.jar", ResourceType: "mod", SideOverride: "server", VersionNumber: "0.6.0",
+	})
+	if len(list) != 1 || list[0].Filename != "sodium-0.6.0.jar" || list[0].VersionNumber != "0.6.0" {
+		t.Fatalf("got %+v", list)
+	}
+}
+
+func TestAppendUniqueContentResourceKeepsClientAndServerCopies(t *testing.T) {
+	list := appendUniqueContentResource(nil, models.InstanceResourceEntry{
+		Source: "modrinth", ProjectID: "sodium", Filename: "sodium-server.jar", ResourceType: "mod", SideOverride: "server",
+	})
+	list = appendUniqueContentResource(list, models.InstanceResourceEntry{
+		Source: "modrinth", ProjectID: "sodium", Filename: "sodium-client.jar", ResourceType: "mod", SideOverride: "client",
+	})
+	if len(list) != 2 {
+		t.Fatalf("got %+v", list)
+	}
+}
+
+func TestShouldReplaceInstalledContent(t *testing.T) {
+	existing := &models.InstanceResourceEntry{
+		Source: "modrinth", ProjectID: "sodium", Filename: "sodium-0.5.0.jar", VersionID: "v1",
+	}
+	if !ShouldReplaceInstalledContent(existing, "sodium-0.5.0.jar", "sodium-0.6.0.jar", "v2") {
+		t.Fatal("changing version with a new filename must replace")
+	}
+	if ShouldReplaceInstalledContent(existing, "", "sodium-0.5.0.jar", "v1") {
+		t.Fatal("same version and filename must not replace")
+	}
+	if !ShouldReplaceInstalledContent(existing, "sodium-0.5.0.jar.disabled", "sodium-0.6.0.jar", "v2") {
+		t.Fatal("disabled old file must still be replaced")
+	}
+	if ShouldReplaceInstalledContent(nil, "", "fresh.jar", "v1") {
+		t.Fatal("first install must not look like a replace")
+	}
+}
+
+func TestContentFilesToReplace(t *testing.T) {
+	existing := &models.InstanceResourceEntry{Filename: "sodium-0.5.0.jar"}
+	got := ContentFilesToReplace(existing, "sodium-0.5.0.jar.disabled", "sodium-0.6.0.jar")
+	if len(got) != 1 {
+		t.Fatalf("got %v", got)
+	}
+	same := ContentFilesToReplace(existing, "sodium-0.5.0.jar", "sodium-0.5.0.jar")
+	if len(same) != 0 {
+		t.Fatalf("same filename should not delete, got %v", same)
+	}
+}
+
+func TestFindContentResourceByProject(t *testing.T) {
+	list := models.InstanceResourceList{
+		{Source: "modrinth", ProjectID: "sodium", Filename: "sodium-server.jar", SideOverride: "server"},
+		{Source: "modrinth", ProjectID: "sodium", Filename: "sodium-client.jar", SideOverride: "client"},
+	}
+	server := findContentResourceByProject(list, "modrinth", "sodium", "server")
+	if server == nil || server.Filename != "sodium-server.jar" {
+		t.Fatalf("server=%+v", server)
+	}
+	client := findContentResourceByProject(list, "modrinth", "sodium", "client")
+	if client == nil || client.Filename != "sodium-client.jar" {
+		t.Fatalf("client=%+v", client)
+	}
+}
+
 func TestRemoveContentResource(t *testing.T) {
 	list := models.InstanceResourceList{
 		{Filename: "keep.jar", ResourceType: "mod", SideOverride: "server"},

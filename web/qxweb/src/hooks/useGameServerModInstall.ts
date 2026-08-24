@@ -55,6 +55,7 @@ export function useGameServerModInstall(
         project_name: params.projectName,
         version_id: params.version.id,
         version_number: params.version.version_number,
+        version_type: params.version.version_type,
         filename: file.filename,
         download_url: file.url,
         icon_url: params.iconUrl,
@@ -64,6 +65,7 @@ export function useGameServerModInstall(
           ? instanceResourceContentTarget({ side_override: side, resource_type: kind })
           : undefined,
         side_override: side,
+        replace_filename: params.replaceFilename,
       });
       return true;
     },
@@ -79,7 +81,10 @@ export function useGameServerModInstall(
         for (const item of items) {
           await installOne(item);
         }
-        message.success(t('gameServerDetail.content.installed'));
+        const replaced = items.some((item) => Boolean(item.replaceFilename));
+        message.success(
+          t(replaced ? 'gameServerDetail.content.versionUpdated' : 'gameServerDetail.content.installed'),
+        );
         return true;
       } catch (e) {
         message.error(e instanceof Error ? e.message : t('qxmods.install.failed'));

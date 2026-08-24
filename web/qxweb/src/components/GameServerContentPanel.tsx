@@ -41,9 +41,11 @@ import {
 import { CatalogSourceLinks, CatalogSourceSwitch } from '@/components/CatalogSourceSwitch';
 import { GameServerCatalogProvider } from '@/components/GameServerCatalogProvider';
 import { ModCatalogIcon } from '@/components/ModCatalogIcon';
+import { InstalledContentVersionSelect, canChangeInstalledContentVersion } from '@/components/InstalledContentVersionSelect';
 import { ModCatalogInstallControls } from '@/components/ModCatalogInstallControls';
 import { ModSideBadge } from '@/components/ModSideBadge';
 import { ModSourceBadge } from '@/components/ModSourceBadge';
+import { ModVersionChannelBadge } from '@/components/ModVersionChannelBadge';
 import { useI18n } from '@/i18n/I18nContext';
 import { useMessage } from '@/hooks/useMessage';
 import { useModal } from '@/hooks/useModal';
@@ -65,15 +67,20 @@ import {
 } from '@/lib/mergeCatalogCards';
 import {
   contentKindHasSide,
+  contentFilenamesMatch,
   contentTargetFromPath,
+  enabledContentFilename,
   gameServerInstallSide,
   instanceResourceContentTarget,
   instanceResourceModTarget,
   isCatalogItemOnServer,
+  isContentDisabledFilename,
+  isFilenameOnServer,
   modSyncSide,
   needsServerRestartAfterSync,
 } from '@/lib/modSync';
 import { useGameServerContentViewMode } from '@/lib/installedResourcesView';
+import { catalogProjectUrl, resolveModVersionChannel } from '@/lib/modVersionChannel';
 import { modalMotionProps } from '@/lib/modal';
 import { restartVpsGameServer } from '@/lib/vpsGameServers';
 import './InstanceResourcesPanel.css';
@@ -110,16 +117,14 @@ function matchResource(
   file: GameServerFileEntry,
   resources: InstanceResource[],
 ): InstanceResource | undefined {
-  const name = file.name.toLowerCase();
-  return resources.find((item) => item.filename.toLowerCase() === name);
+  return resources.find((item) => contentFilenamesMatch(item.filename, file.name));
 }
 
 function resourceFileOnDisk(
   resource: Pick<InstanceResource, 'filename'>,
   files: GameServerFileEntry[],
 ): boolean {
-  const filename = (resource.filename ?? '').toLowerCase();
-  return Boolean(filename) && files.some((file) => !file.dir && file.name.toLowerCase() === filename);
+  return Boolean(resource.filename) && isFilenameOnServer(files, resource.filename);
 }
 
 function formatFileSize(size?: number): string {
@@ -217,6 +222,40 @@ function deleteContent(
   }
 }
 
+function setContentEnabled(
+  kind: GameServerContentKind,
+  vpsId: string,
+  gameServerId: string,
+  filename: string,
+  enabled: boolean,
+  modTarget?: ModTarget,
+) {
+  switch (kind) {
+    case 'plugin':
+      return api.setVpsGameServerPluginEnabled(vpsId, gameServerId, { filename, enabled });
+    case 'datapack':
+      return api.setVpsGameServerDatapackEnabled(vpsId, gameServerId, { filename, enabled });
+    case 'resourcepack':
+      return api.setVpsGameServerResourcepackEnabled(vpsId, gameServerId, {
+        filename,
+        enabled,
+        mod_target: modTarget,
+      });
+    case 'shader':
+      return api.setVpsGameServerShaderEnabled(vpsId, gameServerId, {
+        filename,
+        enabled,
+        mod_target: modTarget,
+      });
+    default:
+      return api.setVpsGameServerModEnabled(vpsId, gameServerId, {
+        filename,
+        enabled,
+        mod_target: modTarget,
+      });
+  }
+}
+
 export function GameServerContentPanel({
   kind,
   vpsId,
@@ -256,6 +295,7 @@ export function GameServerContentPanel({
   const [cardSourceByKey, setCardSourceByKey] = useState<Partial<Record<string, ModSource>>>({});
   const [uploading, setUploading] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string>();
+  const [enablingPath, setEnablingPath] = useState<string>();
   const [sideSavingPath, setSideSavingPath] = useState<string>();
   const [uploadSide, setUploadSide] = useState<ModSyncSide>('both');
   const [urlModalOpen, setUrlModalOpen] = useState(false);
@@ -505,6 +545,54 @@ export function GameServerContentPanel({
     }
   }, [cardSourceByKey]);
 
+  const openInstalledDetail = useCallback(
+    (row: GameServerFileEntry, resource?: InstanceResource) => {
+      if (resource?.project_id && resource.source && resource.source !== 'upload') {
+        const existing = catalogCards.find((card) =>
+          card.items.some((item) => item.source === resource.source && item.id === resource.project_id),
+        );
+        if (existing) {
+          openDetail(existing);
+          setDetailSource(resource.source);
+          return;
+        }
+        const item: ModCatalogItem = {
+          id: resource.project_id,
+          source: resource.source,
+          slug: resource.project_id,
+          name: resource.project_name || enabledContentFilename(row.name),
+          icon_url: resource.icon_url,
+          downloads: resource.downloads,
+          project_type: resource.resource_type || kind,
+          external_url: catalogProjectUrl(resource.source, resource.project_id),
+        };
+        openDetail({
+          key: `installed:${resource.source}:${resource.project_id}`,
+          name: item.name,
+          items: [item],
+        });
+        return;
+      }
+      const name = resource?.project_name || enabledContentFilename(row.name);
+      openDetail({
+        key: `installed-file:${row.path}`,
+        name,
+        items: [
+          {
+            id: resource?.project_id || row.path,
+            source: resource?.source ?? 'upload',
+            slug: '',
+            name,
+            icon_url: resource?.icon_url,
+            project_type: kind,
+            external_url: '',
+          },
+        ],
+      });
+    },
+    [catalogCards, kind, openDetail],
+  );
+
   const filteredInstalled = useMemo(() => {
     const query = appliedInstalledSearch.trim().toLowerCase();
     if (!query) return installed;
@@ -543,6 +631,35 @@ export function GameServerContentPanel({
       message.error(e instanceof Error ? e.message : t('gameServerDetail.content.deleteFailed'));
     } finally {
       setDeletingPath(undefined);
+    }
+  };
+
+  const handleSetEnabled = async (row: GameServerFileEntry, enabled: boolean) => {
+    setEnablingPath(row.path);
+    try {
+      await setContentEnabled(
+        kind,
+        vpsId,
+        gameServerId,
+        row.name,
+        enabled,
+        contentTargetFromPath(row.path),
+      );
+      message.success(
+        t(
+          enabled
+            ? 'gameServerDetail.content.setEnabledCompleted'
+            : 'gameServerDetail.content.setDisabledCompleted',
+        ),
+      );
+      void loadInstalled();
+      if (needsServerRestartAfterSync(contentTargetFromPath(row.path))) {
+        promptRestart();
+      }
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : t('gameServerDetail.content.setEnabledFailed'));
+    } finally {
+      setEnablingPath(undefined);
     }
   };
 
@@ -803,21 +920,21 @@ export function GameServerContentPanel({
         const item = itemForCard(card);
         return (
           <div className="qxmods-catalog-name-cell">
-            <button type="button" className="game-server-mods-card-name" onClick={() => void openDetail(card)}>
-              {card.name}
-            </button>
-            <div className="qxmods-catalog-name-meta">
+            <div className="qxmods-title-with-source">
+              <button type="button" className="game-server-mods-card-name" onClick={() => void openDetail(card)}>
+                {card.name}
+              </button>
               <CatalogSourceSwitch
                 items={card.items}
                 value={item.source}
                 onChange={(source) => setCardSource(card, source)}
               />
-              {item.author ? (
-                <Typography.Text type="secondary" className="qxmods-catalog-author">
-                  {item.author}
-                </Typography.Text>
-              ) : null}
             </div>
+            {item.author ? (
+              <Typography.Text type="secondary" className="qxmods-catalog-author">
+                {item.author}
+              </Typography.Text>
+            ) : null}
           </div>
         );
       },
@@ -992,11 +1109,54 @@ export function GameServerContentPanel({
               <ul className={viewMode === 'list' ? 'qxmods-installed-list' : 'game-server-mods-grid'}>
                 {filteredInstalled.map((row) => {
                   const resource = matchResource(row, installedResources);
-                  const title = resource?.project_name || row.name;
+                  const displayName = enabledContentFilename(row.name);
+                  const disabled = isContentDisabledFilename(row.name);
+                  const title = resource?.project_name || displayName;
+                  const channel = resolveModVersionChannel(
+                    resource?.version_type,
+                    resource?.version_number,
+                    displayName,
+                  );
+                  const titleButton = (
+                    <button
+                      type="button"
+                      className="game-server-mods-card-name"
+                      onClick={() => openInstalledDetail(row, resource)}
+                    >
+                      {title}
+                    </button>
+                  );
+                  const channelBadge = canChangeInstalledContentVersion(resource) ? null : (
+                    <ModVersionChannelBadge channel={channel} />
+                  );
+                  const fileRow =
+                    title !== displayName ? (
+                      <div className="game-server-mods-file-row">
+                        <Text className="game-server-mods-card-file">{displayName}</Text>
+                        {channelBadge}
+                      </div>
+                    ) : channelBadge ? (
+                      <div className="game-server-mods-file-row">{channelBadge}</div>
+                    ) : null;
+                  const enableSwitch = (
+                    <Switch
+                      size="small"
+                      checked={!disabled}
+                      loading={enablingPath === row.path}
+                      disabled={deletingPath === row.path}
+                      onChange={(checked) => void handleSetEnabled(row, checked)}
+                      aria-label={t(
+                        disabled
+                          ? 'gameServerDetail.content.enableAria'
+                          : 'gameServerDetail.content.disableAria',
+                        { name: displayName },
+                      )}
+                    />
+                  );
                   const removeButton = (
                     <Popconfirm
                       title={t('gameServerDetail.content.deleteTitle')}
-                      description={t('gameServerDetail.content.deleteConfirm', { name: row.name })}
+                      description={t('gameServerDetail.content.deleteConfirm', { name: displayName })}
                       okText={t('gameServerDetail.content.deleteAction')}
                       cancelText={t('common.cancel')}
                       okButtonProps={{ danger: true }}
@@ -1012,6 +1172,24 @@ export function GameServerContentPanel({
                       />
                     </Popconfirm>
                   );
+                  const versionControl = canChangeInstalledContentVersion(resource) ? (
+                    <InstalledContentVersionSelect
+                      kind={kind}
+                      resource={resource}
+                      diskFilename={row.name}
+                      disabled={deletingPath === row.path || enablingPath === row.path}
+                      onUpdated={() => {
+                        void loadInstalled();
+                        if (needsServerRestartAfterSync(contentTargetFromPath(row.path))) {
+                          promptRestart();
+                        }
+                      }}
+                    />
+                  ) : resource?.version_number ? (
+                    <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
+                      {resource.version_number}
+                    </Tag>
+                  ) : null;
                   if (viewMode === 'list') {
                     return (
                       <li key={row.path}>
@@ -1024,29 +1202,31 @@ export function GameServerContentPanel({
                           />
                           <div className="qxmods-installed-item-content">
                             <div className="qxmods-installed-item-title">
-                              <Text strong>{title}</Text>
-                              {resource?.source && resource.source !== 'upload' ? (
-                                <ModSourceBadge source={resource.source} />
-                              ) : (
-                                <Tag variant="filled">{t('gameServerDetail.content.uploaded')}</Tag>
-                              )}
+                              <span className="qxmods-title-with-source">
+                                {titleButton}
+                                {resource?.source && resource.source !== 'upload' ? (
+                                  <ModSourceBadge source={resource.source} />
+                                ) : (
+                                  <Tag variant="filled">{t('gameServerDetail.content.uploaded')}</Tag>
+                                )}
+                              </span>
+                              {disabled ? (
+                                <Tag variant="filled">{t('gameServerDetail.content.disabledTag')}</Tag>
+                              ) : null}
                             </div>
                             <div className="game-server-mods-card-meta">
-                              {resource?.version_number ? (
-                                <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
-                                  {resource.version_number}
-                                </Tag>
-                              ) : null}
+                              {versionControl}
                               <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
                                 {formatFileSize(row.size ?? resource?.file_size)}
                               </Tag>
                             </div>
-                            {title !== row.name ? (
-                              <Text className="game-server-mods-card-file">{row.name}</Text>
-                            ) : null}
+                            {fileRow}
                             {renderInstalledSideSelect(row, resource)}
                           </div>
-                          <div className="qxmods-installed-item-actions">{removeButton}</div>
+                          <div className="qxmods-installed-item-actions">
+                            {enableSwitch}
+                            {removeButton}
+                          </div>
                         </article>
                       </li>
                     );
@@ -1063,29 +1243,31 @@ export function GameServerContentPanel({
                           />
                           <div className="game-server-mods-card-body">
                             <div className="game-server-mods-card-title">
-                              <Text strong>{title}</Text>
-                              {resource?.source && resource.source !== 'upload' ? (
-                                <ModSourceBadge source={resource.source} />
-                              ) : (
-                                <Tag variant="filled">{t('gameServerDetail.content.uploaded')}</Tag>
-                              )}
+                              <span className="qxmods-title-with-source">
+                                {titleButton}
+                                {resource?.source && resource.source !== 'upload' ? (
+                                  <ModSourceBadge source={resource.source} />
+                                ) : (
+                                  <Tag variant="filled">{t('gameServerDetail.content.uploaded')}</Tag>
+                                )}
+                              </span>
+                              {disabled ? (
+                                <Tag variant="filled">{t('gameServerDetail.content.disabledTag')}</Tag>
+                              ) : null}
                             </div>
                             <div className="game-server-mods-card-meta">
-                              {resource?.version_number ? (
-                                <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--version">
-                                  {resource.version_number}
-                                </Tag>
-                              ) : null}
+                              {versionControl}
                               <Tag variant="filled" className="launcher-resource-meta-tag launcher-resource-meta-tag--size">
                                 {formatFileSize(row.size ?? resource?.file_size)}
                               </Tag>
                             </div>
-                            {title !== row.name ? (
-                              <Text className="game-server-mods-card-file">{row.name}</Text>
-                            ) : null}
+                            {fileRow}
                             {renderInstalledSideSelect(row, resource)}
                           </div>
-                          {removeButton}
+                          <div className="qxmods-installed-item-actions">
+                            {enableSwitch}
+                            {removeButton}
+                          </div>
                         </div>
                       </article>
                     </li>
@@ -1202,18 +1384,20 @@ export function GameServerContentPanel({
                               />
                               <div className="game-server-mods-card-body">
                                 <div className="game-server-mods-card-title">
-                                  <button
-                                    type="button"
-                                    className="game-server-mods-card-name"
-                                    onClick={() => void openDetail(card)}
-                                  >
-                                    {card.name}
-                                  </button>
-                                  <CatalogSourceSwitch
-                                    items={card.items}
-                                    value={row.source}
-                                    onChange={(source) => setCardSource(card, source)}
-                                  />
+                                  <span className="qxmods-title-with-source">
+                                    <button
+                                      type="button"
+                                      className="game-server-mods-card-name"
+                                      onClick={() => void openDetail(card)}
+                                    >
+                                      {card.name}
+                                    </button>
+                                    <CatalogSourceSwitch
+                                      items={card.items}
+                                      value={row.source}
+                                      onChange={(source) => setCardSource(card, source)}
+                                    />
+                                  </span>
                                 </div>
                                 {row.author ? (
                                   <Text type="secondary">
@@ -1298,7 +1482,22 @@ export function GameServerContentPanel({
 
         <Modal
           {...modalMotionProps}
-          title={detailItem?.name ?? t(`${i18nPrefix}.detailTitle`)}
+          title={
+            detailItem ? (
+              <span className="qxmods-title-with-source">
+                <span>{detailItem.name}</span>
+                <CatalogSourceSwitch
+                  items={detailCard?.items ?? [detailItem]}
+                  value={detailItem.source}
+                  onChange={(source) => {
+                    if (detailCard) setCardSource(detailCard, source);
+                  }}
+                />
+              </span>
+            ) : (
+              t(`${i18nPrefix}.detailTitle`)
+            )
+          }
           open={detailOpen}
           onCancel={() => setDetailOpen(false)}
           footer={null}
@@ -1315,11 +1514,6 @@ export function GameServerContentPanel({
                 />
                 <div className="game-server-mods-detail-copy">
                   <div className="game-server-mods-detail-meta">
-                    <CatalogSourceSwitch
-                      items={detailCard.items}
-                      value={detailItem.source}
-                      onChange={(source) => setCardSource(detailCard, source)}
-                    />
                     {contentKindHasSide(kind) ? <ModSideBadge item={detailItem} /> : null}
                     {detailItem.author ? (
                       <Text type="secondary">

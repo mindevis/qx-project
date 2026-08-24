@@ -15,6 +15,7 @@ import (
 
 	"github.com/qxproject/qx/pkg/protocol"
 	"github.com/qxproject/qx/services/qxapi/internal/mods"
+	"github.com/qxproject/qx/services/qxapi/internal/servers"
 )
 
 type syncContentBody struct {
@@ -23,6 +24,12 @@ type syncContentBody struct {
 
 type deleteContentBody struct {
 	Filename  string `json:"filename" binding:"required"`
+	ModTarget string `json:"mod_target"`
+}
+
+type setContentEnabledBody struct {
+	Filename  string `json:"filename" binding:"required"`
+	Enabled   *bool  `json:"enabled" binding:"required"`
 	ModTarget string `json:"mod_target"`
 }
 
@@ -182,6 +189,26 @@ func (h *GameServersHandler) DeleteShader(c *gin.Context) {
 	h.deleteGameServerContent(c, "shader", gameServerSupportsClientContent)
 }
 
+func (h *GameServersHandler) SetModEnabled(c *gin.Context) {
+	h.setGameServerContentEnabled(c, "mod", gameServerSupportsMods)
+}
+
+func (h *GameServersHandler) SetPluginEnabled(c *gin.Context) {
+	h.setGameServerContentEnabled(c, "plugin", gameServerSupportsPlugins)
+}
+
+func (h *GameServersHandler) SetDatapackEnabled(c *gin.Context) {
+	h.setGameServerContentEnabled(c, "datapack", gameServerSupportsDatapacks)
+}
+
+func (h *GameServersHandler) SetResourcepackEnabled(c *gin.Context) {
+	h.setGameServerContentEnabled(c, "resourcepack", gameServerSupportsClientContent)
+}
+
+func (h *GameServersHandler) SetShaderEnabled(c *gin.Context) {
+	h.setGameServerContentEnabled(c, "shader", gameServerSupportsClientContent)
+}
+
 func (h *GameServersHandler) ListResourcepacks(c *gin.Context) {
 	userID, ok := c.Get(UserIDKey)
 	if !ok {
@@ -289,26 +316,44 @@ func (h *GameServersHandler) syncGameServerContent(
 	}
 
 	modTarget := strings.TrimSpace(body.ModTarget)
-	installed, err := contentAlreadyInstalled(
+	existing, err := h.Service.LookupGameServerContentResource(
 		c.Request.Context(),
-		h,
 		userID.(string),
 		c.Param("id"),
 		c.Param("gameServerId"),
 		contentKind,
+		body.Source,
+		body.ProjectID,
 		modTarget,
-		body.Filename,
+		body.SideOverride,
 	)
 	if err != nil {
 		gameServerError(c, err)
 		return
 	}
-	if installed {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "already_installed",
-			"message": contentKind + " file already exists on server",
-		})
-		return
+	replace := servers.ShouldReplaceInstalledContent(existing, body.ReplaceFilename, body.Filename, body.VersionID)
+	if !replace {
+		installed, err := contentAlreadyInstalled(
+			c.Request.Context(),
+			h,
+			userID.(string),
+			c.Param("id"),
+			c.Param("gameServerId"),
+			contentKind,
+			modTarget,
+			body.Filename,
+		)
+		if err != nil {
+			gameServerError(c, err)
+			return
+		}
+		if installed {
+			c.JSON(http.StatusOK, gin.H{
+				"status":  "already_installed",
+				"message": contentKind + " file already exists on server",
+			})
+			return
+		}
 	}
 
 	result, err := h.Service.InstallGameServerContent(
@@ -325,6 +370,21 @@ func (h *GameServersHandler) syncGameServerContent(
 	if err != nil {
 		gameServerError(c, err)
 		return
+	}
+	for _, oldName := range servers.ContentFilesToReplace(existing, body.ReplaceFilename, body.Filename) {
+		_, delErr := h.Service.DeleteGameServerContent(
+			c.Request.Context(),
+			userID.(string),
+			c.Param("id"),
+			c.Param("gameServerId"),
+			contentKind,
+			modTarget,
+			oldName,
+		)
+		if delErr != nil && !isMissingContentFile(delErr) {
+			gameServerError(c, delErr)
+			return
+		}
 	}
 	_ = h.Service.RecordGameServerSync(c.Request.Context(), gs.ID, contentKind, body.SyncModRequest)
 
@@ -386,8 +446,61 @@ func (h *GameServersHandler) deleteGameServerContent(
 		gameServerError(c, err)
 		return
 	}
-	_ = h.Service.RemoveGameServerResource(c.Request.Context(), gs.ID, body.Filename, contentKind, modTarget)
+	_ = h.Service.RemoveGameServerResource(c.Request.Context(), gs.ID, protocol.EnabledContentFilename(body.Filename), contentKind, modTarget)
 	c.JSON(http.StatusOK, gin.H{"status": "deleted", "filename": body.Filename})
+}
+
+func (h *GameServersHandler) setGameServerContentEnabled(
+	c *gin.Context,
+	contentKind string,
+	supports func(string) bool,
+) {
+	userID, ok := c.Get(UserIDKey)
+	if !ok {
+		JSONUnauthorized(c)
+		return
+	}
+	var body setContentEnabledBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		JSONValidation(c, err.Error())
+		return
+	}
+	if body.Enabled == nil {
+		JSONValidation(c, "enabled is required")
+		return
+	}
+
+	gs, err := h.Service.GetGameServer(c.Request.Context(), userID.(string), c.Param("id"), c.Param("gameServerId"))
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	if !supports(gs.ServerType) {
+		JSONError(c, http.StatusForbidden, "CONTENT_NOT_ALLOWED", "this server type does not support "+contentKind)
+		return
+	}
+
+	modTarget := strings.TrimSpace(body.ModTarget)
+	result, err := h.Service.SetGameServerContentEnabled(
+		c.Request.Context(),
+		userID.(string),
+		c.Param("id"),
+		c.Param("gameServerId"),
+		contentKind,
+		modTarget,
+		body.Filename,
+		*body.Enabled,
+	)
+	if err != nil {
+		gameServerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status":   result.Status,
+		"filename": result.Filename,
+		"path":     result.RelPath,
+		"enabled":  result.Enabled,
+	})
 }
 
 func contentAlreadyInstalled(
@@ -422,7 +535,7 @@ func contentAlreadyInstalled(
 			return false, err
 		}
 		for _, entry := range entries {
-			if !entry.Dir && strings.EqualFold(entry.Name, filename) {
+			if !entry.Dir && protocol.SameContentFilename(entry.Name, filename) {
 				return true, nil
 			}
 		}
@@ -681,6 +794,13 @@ func (h *GameServersHandler) uploadGameServerContent(
 		"filename": result.Filename,
 		"path":     result.RelPath,
 	})
+}
+
+func isMissingContentFile(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "content file not found")
 }
 
 func gameServerSupportsMods(serverType string) bool {

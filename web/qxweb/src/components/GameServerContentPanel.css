@@ -180,6 +180,10 @@ html[data-theme='dark'] .game-server-mods-card {
   align-items: flex-start;
 }
 
+.game-server-mods-card-top .qxmods-installed-item-actions {
+  margin-left: 0;
+}
+
 .game-server-mods-card-body {
   min-width: 0;
   flex: 1;
@@ -202,6 +206,7 @@ html[data-theme='dark'] .game-server-mods-card {
   font-weight: 600;
   text-align: left;
   cursor: pointer;
+  min-width: 0;
 }
 
 .game-server-mods-card-name:hover {
@@ -226,12 +231,29 @@ html[data-theme='dark'] .game-server-mods-card {
   align-items: center;
 }
 
+.qxmods-installed-version-select {
+  min-width: 140px;
+  max-width: 220px;
+}
+
 .game-server-mods-card-file {
   display: block;
   margin-top: 4px;
   font-size: 12px;
   color: var(--ant-color-text-tertiary);
   word-break: break-all;
+}
+
+.game-server-mods-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.game-server-mods-file-row .game-server-mods-card-file {
+  margin-top: 0;
 }
 
 .game-server-mods-card-actions {

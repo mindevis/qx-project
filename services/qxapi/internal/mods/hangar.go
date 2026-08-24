@@ -67,6 +67,9 @@ type hangarVersion struct {
 	CreatedAt            string                           `json:"createdAt"`
 	Downloads            map[string]hangarVersionDownload `json:"downloads"`
 	PlatformDependencies map[string][]string              `json:"platformDependencies"`
+	Channel              *struct {
+		Name string `json:"name"`
+	} `json:"channel"`
 }
 
 func (c *hangarClient) search(ctx context.Context, query, projectType, loader, _ string, limit int) ([]SearchItem, error) {
@@ -210,9 +213,14 @@ func hangarVersionFrom(raw hangarVersion, platform string) *Version {
 	if file.URL == "" {
 		return nil
 	}
+	channel := ""
+	if raw.Channel != nil {
+		channel = raw.Channel.Name
+	}
 	return &Version{
 		ID:            name,
 		VersionNumber: name,
+		VersionType:   InferVersionType(channel, name),
 		GameVersions:  versions,
 		Loaders:       loaders,
 		Files:         []VersionFile{file},

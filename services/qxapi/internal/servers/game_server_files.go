@@ -543,6 +543,47 @@ func (s *Service) DeleteGameServerContent(
 	return &result, nil
 }
 
+func (s *Service) SetGameServerContentEnabled(
+	ctx context.Context,
+	ownerID, vpsID, gameServerID, contentKind, modTarget, filename string,
+	enabled bool,
+) (*protocol.ServerContentSetEnabledResult, error) {
+	item, err := s.requireInstalledGameServer(ctx, ownerID, vpsID, gameServerID)
+	if err != nil {
+		return nil, err
+	}
+	filename = strings.TrimSpace(filename)
+	contentKind = strings.ToLower(strings.TrimSpace(contentKind))
+	modTarget = strings.TrimSpace(modTarget)
+	if filename == "" || contentKind == "" {
+		return nil, ErrValidation
+	}
+	if err := validateGameServerContentKind(item.ServerType, contentKind); err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(protocol.ServerContentSetEnabledPayload{
+		GameServerID: item.ID,
+		WorkDir:      item.WorkDir,
+		ServerType:   item.ServerType,
+		ContentKind:  contentKind,
+		ModTarget:    modTarget,
+		Filename:     filename,
+		Enabled:      enabled,
+	})
+	if err != nil {
+		return nil, err
+	}
+	raw, err := s.agentRPC(ctx, vpsID, protocol.TypeCmdServerContentSetEnabled, protocol.TypeResServerContentSetEnabled, payload)
+	if err != nil {
+		return nil, err
+	}
+	var result protocol.ServerContentSetEnabledResult
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 func validateGameServerContentKind(serverType, contentKind string) error {
 	switch contentKind {
 	case "mod":
@@ -678,6 +719,7 @@ func isRPCResponseType(t string) bool {
 		protocol.TypeResServerContentUpload,
 		protocol.TypeResServerContentRead,
 		protocol.TypeResServerContentDelete,
+		protocol.TypeResServerContentSetEnabled,
 		protocol.TypeResServerWipe,
 		protocol.TypeResServerCopy,
 		protocol.TypeResOllamaStart,

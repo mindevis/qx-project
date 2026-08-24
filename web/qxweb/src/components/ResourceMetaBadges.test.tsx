@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { ResourceMetaBadges } from '@/components/ResourceMetaBadges';
 import type { InstanceResource } from '@/api/client';
+import { renderWithTheme } from '@/test/test-utils';
 
 const item: InstanceResource = {
   source: 'modrinth',
@@ -16,9 +17,10 @@ const item: InstanceResource = {
 };
 
 describe('ResourceMetaBadges', () => {
-  it('renders only the version badge for installed resources', () => {
-    render(<ResourceMetaBadges item={item} />);
+  it('renders the version and channel badges for installed resources', () => {
+    renderWithTheme(<ResourceMetaBadges item={item} />);
     expect(screen.getByText('journeymap-1.20.1-5.10.3-forge')).toBeInTheDocument();
+    expect(screen.getByText('Stable')).toBeInTheDocument();
     expect(screen.queryByText('Моды')).not.toBeInTheDocument();
     expect(screen.queryByText('journeymap-1.20.1-5.10.3-forge.jar')).not.toBeInTheDocument();
     expect(screen.queryByText('6.8 MB')).not.toBeInTheDocument();

@@ -68,6 +68,7 @@ type ModDependency struct {
 type Version struct {
 	ID            string          `json:"id"`
 	VersionNumber string          `json:"version_number"`
+	VersionType   string          `json:"version_type,omitempty"`
 	GameVersions  []string        `json:"game_versions,omitempty"`
 	Loaders       []string        `json:"loaders,omitempty"`
 	Files         []VersionFile   `json:"files"`
@@ -108,16 +109,18 @@ func skipBukkitPluginSources(projectType, loader string) bool {
 
 // SyncModRequest is the body for POST .../mods/sync.
 type SyncModRequest struct {
-	Source        string `json:"source"`
-	ProjectID     string `json:"project_id"`
-	VersionID     string `json:"version_id"`
-	Filename      string `json:"filename"`
-	DownloadURL   string `json:"download_url"`
-	ProjectName   string `json:"project_name,omitempty"`
-	VersionNumber string `json:"version_number,omitempty"`
-	ModTarget     string `json:"mod_target,omitempty"`
-	SideOverride  string `json:"side_override,omitempty"`
-	IconURL       string `json:"icon_url,omitempty"`
-	Downloads     int64  `json:"downloads,omitempty"`
-	FileSize      int64  `json:"file_size,omitempty"`
+	Source          string `json:"source"`
+	ProjectID       string `json:"project_id"`
+	VersionID       string `json:"version_id"`
+	Filename        string `json:"filename"`
+	DownloadURL     string `json:"download_url"`
+	ProjectName     string `json:"project_name,omitempty"`
+	VersionNumber   string `json:"version_number,omitempty"`
+	VersionType     string `json:"version_type,omitempty"`
+	ModTarget       string `json:"mod_target,omitempty"`
+	SideOverride    string `json:"side_override,omitempty"`
+	ReplaceFilename string `json:"replace_filename,omitempty"`
+	IconURL         string `json:"icon_url,omitempty"`
+	Downloads       int64  `json:"downloads,omitempty"`
+	FileSize        int64  `json:"file_size,omitempty"`
 }

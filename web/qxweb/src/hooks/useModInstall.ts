@@ -23,6 +23,7 @@ export type ModInstallParams = {
   downloads?: number;
   fileSize?: number;
   side?: ModSyncSide;
+  replaceFilename?: string;
 };
 
 export function useModInstall(instanceId: string) {

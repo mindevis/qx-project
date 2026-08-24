@@ -51,11 +51,12 @@ type modrinthProject struct {
 }
 
 type modrinthVersion struct {
-	ID            string `json:"id"`
-	VersionNumber string `json:"version_number"`
+	ID            string   `json:"id"`
+	VersionNumber string   `json:"version_number"`
+	VersionType   string   `json:"version_type"`
 	GameVersions  []string `json:"game_versions"`
 	Loaders       []string `json:"loaders"`
-	DatePublished string `json:"date_published"`
+	DatePublished string   `json:"date_published"`
 	Dependencies  []struct {
 		VersionID      string `json:"version_id"`
 		ProjectID      string `json:"project_id"`
@@ -278,6 +279,7 @@ func (c *modrinthClient) versionFromModrinthBasic(v modrinthVersion) *Version {
 	return &Version{
 		ID:            v.ID,
 		VersionNumber: v.VersionNumber,
+		VersionType:   InferVersionType(v.VersionType, v.VersionNumber),
 		GameVersions:  v.GameVersions,
 		Loaders:       v.Loaders,
 		Files:         files,

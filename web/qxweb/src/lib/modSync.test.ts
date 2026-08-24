@@ -12,6 +12,7 @@ import {
   instanceResourceVersionKey,
   isInstanceResourceOnServer,
   isModOnServer,
+  isFilenameOnServer,
   isCatalogItemOnServer,
   isCatalogItemInstalledOnInstance,
   modSupportsServerSync,
@@ -144,6 +145,21 @@ describe('isModOnServer', () => {
       { files: [{ filename: 'mod.jar', url: 'https://example/mod.jar' }] },
     );
     expect(onServer).toBe(true);
+  });
+
+  it('treats a .disabled jar as still installed', () => {
+    expect(
+      isModOnServer(
+        [{ name: 'sodium-0.5.0.jar.disabled', path: 'mods/sodium-0.5.0.jar.disabled', dir: false }],
+        { files: [{ filename: 'sodium-0.5.0.jar', url: 'https://example/mod.jar' }] },
+      ),
+    ).toBe(true);
+    expect(
+      isFilenameOnServer(
+        [{ name: 'sodium-0.5.0.jar.disabled', path: 'mods/sodium-0.5.0.jar.disabled', dir: false }],
+        'sodium-0.5.0.jar',
+      ),
+    ).toBe(true);
   });
 });
 
@@ -319,6 +335,15 @@ describe('isCatalogItemOnServer', () => {
     expect(
       isCatalogItemOnServer({ id: 'jei', slug: 'jei', name: 'JEI' }, installed),
     ).toBe(false);
+  });
+
+  it('still matches a disabled jar on the server', () => {
+    const installed = [
+      { name: 'sodium-fabric-0.5.8.jar.disabled', path: 'mods/sodium-fabric-0.5.8.jar.disabled', dir: false },
+    ];
+    expect(
+      isCatalogItemOnServer({ id: 'AANobbMI', slug: 'sodium', name: 'Sodium' }, installed),
+    ).toBe(true);
   });
 });
 

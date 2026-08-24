@@ -397,6 +397,7 @@ export type ModVersionFile = {
 export type ModVersion = {
   id: string;
   version_number: string;
+  version_type?: 'release' | 'beta' | 'alpha' | string;
   game_versions?: string[];
   loaders?: string[];
   files: ModVersionFile[];
@@ -431,6 +432,8 @@ export type GameServerContentSyncBody = {
   download_url: string;
   project_name?: string;
   version_number?: string;
+  version_type?: string;
+  replace_filename?: string;
   mod_target?: ModTarget;
   side_override?: ModSyncSide;
   icon_url?: string;
@@ -452,6 +455,7 @@ export type InstanceResource = {
   project_name: string;
   version_id?: string;
   version_number?: string;
+  version_type?: string;
   filename: string;
   resource_type: ModProjectType;
   icon_url?: string;
@@ -1438,6 +1442,16 @@ export const api = {
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/client-mods`,
     ),
 
+  setVpsGameServerModEnabled: (
+    vpsId: string,
+    gameServerId: string,
+    body: { filename: string; enabled: boolean; mod_target?: ModTarget },
+  ) =>
+    request<{ status: string; filename: string; enabled: boolean }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/mods`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+    ),
+
   deleteVpsGameServerMod: (
     vpsId: string,
     gameServerId: string,
@@ -1454,10 +1468,30 @@ export const api = {
       { method: 'DELETE', body: JSON.stringify(body) },
     ),
 
+  setVpsGameServerPluginEnabled: (
+    vpsId: string,
+    gameServerId: string,
+    body: { filename: string; enabled: boolean },
+  ) =>
+    request<{ status: string; filename: string; enabled: boolean }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/plugins`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+    ),
+
   deleteVpsGameServerDatapack: (vpsId: string, gameServerId: string, body: { filename: string }) =>
     request<{ status: string; filename: string }>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/datapacks`,
       { method: 'DELETE', body: JSON.stringify(body) },
+    ),
+
+  setVpsGameServerDatapackEnabled: (
+    vpsId: string,
+    gameServerId: string,
+    body: { filename: string; enabled: boolean },
+  ) =>
+    request<{ status: string; filename: string; enabled: boolean }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/datapacks`,
+      { method: 'PATCH', body: JSON.stringify(body) },
     ),
 
   listVpsGameServerPlugins: (vpsId: string, gameServerId: string) =>
@@ -1500,6 +1534,16 @@ export const api = {
       { method: 'DELETE', body: JSON.stringify(body) },
     ),
 
+  setVpsGameServerResourcepackEnabled: (
+    vpsId: string,
+    gameServerId: string,
+    body: { filename: string; enabled: boolean; mod_target?: ModTarget },
+  ) =>
+    request<{ status: string; filename: string; enabled: boolean }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/resourcepacks`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+    ),
+
   deleteVpsGameServerShader: (
     vpsId: string,
     gameServerId: string,
@@ -1508,6 +1552,16 @@ export const api = {
     request<{ status: string; filename: string }>(
       `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/shaders`,
       { method: 'DELETE', body: JSON.stringify(body) },
+    ),
+
+  setVpsGameServerShaderEnabled: (
+    vpsId: string,
+    gameServerId: string,
+    body: { filename: string; enabled: boolean; mod_target?: ModTarget },
+  ) =>
+    request<{ status: string; filename: string; enabled: boolean }>(
+      `/servers/${encodeURIComponent(vpsId)}/game-servers/${encodeURIComponent(gameServerId)}/shaders`,
+      { method: 'PATCH', body: JSON.stringify(body) },
     ),
 
   listVpsGameServerFiles: (vpsId: string, gameServerId: string, path = '') =>

@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -283,18 +284,127 @@ func UploadContentFile(workDir, serverType, contentKind, modTarget, filename str
 }
 
 func DeleteContentFile(workDir, serverType, contentKind, modTarget, filename string) (string, error) {
-	relPath, err := ContentRelPath(workDir, serverType, contentKind, filename, modTarget)
+	enabledRel, disabledRel, enabledAbs, disabledAbs, err := contentVariantPaths(workDir, serverType, contentKind, modTarget, filename)
 	if err != nil {
 		return "", err
 	}
-	abs, err := safepath.JoinRel(workDir, relPath)
+	enExists, _, err := contentStat(enabledAbs)
 	if err != nil {
 		return "", err
 	}
-	if err := safepath.Remove(abs); err != nil {
+	disExists, _, err := contentStat(disabledAbs)
+	if err != nil {
 		return "", err
 	}
-	return relPath, nil
+	if !enExists && !disExists {
+		return "", fmt.Errorf("content file not found")
+	}
+	if enExists {
+		if err := safepath.Remove(enabledAbs); err != nil {
+			return "", err
+		}
+	}
+	if disExists {
+		if err := safepath.Remove(disabledAbs); err != nil {
+			return "", err
+		}
+	}
+	if enExists {
+		return enabledRel, nil
+	}
+	return disabledRel, nil
+}
+
+func SetContentEnabled(workDir, serverType, contentKind, modTarget, filename string, enabled bool) (string, string, error) {
+	canonical := protocol.EnabledContentFilename(filename)
+	if canonical == "" {
+		return "", "", fmt.Errorf("invalid filename")
+	}
+	enabledRel, disabledRel, enabledAbs, disabledAbs, err := contentVariantPaths(workDir, serverType, contentKind, modTarget, filename)
+	if err != nil {
+		return "", "", err
+	}
+	disabledName := protocol.DisabledContentFilename(canonical)
+	enExists, enDir, err := contentStat(enabledAbs)
+	if err != nil {
+		return "", "", err
+	}
+	disExists, disDir, err := contentStat(disabledAbs)
+	if err != nil {
+		return "", "", err
+	}
+	if enExists && disExists {
+		return "", "", fmt.Errorf("both enabled and disabled files exist")
+	}
+	if enabled {
+		if enExists {
+			if enDir {
+				return "", "", fmt.Errorf("cannot change enabled state of a directory")
+			}
+			return enabledRel, canonical, nil
+		}
+		if !disExists {
+			return "", "", fmt.Errorf("content file not found")
+		}
+		if disDir {
+			return "", "", fmt.Errorf("cannot change enabled state of a directory")
+		}
+		if err := safepath.Rename(disabledAbs, enabledAbs); err != nil {
+			return "", "", err
+		}
+		return enabledRel, canonical, nil
+	}
+	if disExists {
+		if disDir {
+			return "", "", fmt.Errorf("cannot change enabled state of a directory")
+		}
+		return disabledRel, disabledName, nil
+	}
+	if !enExists {
+		return "", "", fmt.Errorf("content file not found")
+	}
+	if enDir {
+		return "", "", fmt.Errorf("cannot disable a directory")
+	}
+	if err := safepath.Rename(enabledAbs, disabledAbs); err != nil {
+		return "", "", err
+	}
+	return disabledRel, disabledName, nil
+}
+
+func contentVariantPaths(workDir, serverType, contentKind, modTarget, filename string) (enabledRel, disabledRel, enabledAbs, disabledAbs string, err error) {
+	canonical := protocol.EnabledContentFilename(filename)
+	if canonical == "" {
+		return "", "", "", "", fmt.Errorf("invalid filename")
+	}
+	enabledRel, err = ContentRelPath(workDir, serverType, contentKind, canonical, modTarget)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	disabledRel, err = ContentRelPath(workDir, serverType, contentKind, protocol.DisabledContentFilename(canonical), modTarget)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	enabledAbs, err = safepath.JoinRel(workDir, enabledRel)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	disabledAbs, err = safepath.JoinRel(workDir, disabledRel)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	return enabledRel, disabledRel, enabledAbs, disabledAbs, nil
+}
+
+func contentStat(abs string) (exists bool, isDir bool, err error) {
+	info, err := safepath.Stat(abs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, false, nil
+		}
+		return false, false, err
+	}
+	return true, info.IsDir(), nil
 }
 
 func ReadContentFile(workDir, serverType, contentKind, modTarget, filename string) ([]byte, error) {

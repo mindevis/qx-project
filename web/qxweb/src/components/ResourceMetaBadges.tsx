@@ -1,5 +1,7 @@
 import { Tag } from 'antd';
 import type { InstanceResource } from '@/api/client';
+import { ModVersionChannelBadge } from '@/components/ModVersionChannelBadge';
+import { resolveModVersionChannel } from '@/lib/modVersionChannel';
 
 type ResourceMetaBadgesProps = {
   item: InstanceResource;
@@ -16,6 +18,9 @@ export function ResourceMetaBadges({ item, className }: ResourceMetaBadgesProps)
           {item.version_number}
         </Tag>
       ) : null}
+      <ModVersionChannelBadge
+        channel={resolveModVersionChannel(item.version_type, item.version_number, item.filename)}
+      />
     </div>
   );
 }

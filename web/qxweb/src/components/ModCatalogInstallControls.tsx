@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Popconfirm, Select, Tag } from 'antd';
+import { Button, Popconfirm, Tag } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import {
   type ModProjectType,
@@ -9,6 +9,7 @@ import {
 import { ModInstallDepsWizard } from '@/components/ModInstallDepsWizard';
 import type { InstallItem } from '@/components/ModInstallDepsModal';
 import { ServerOnlyInstallModal } from '@/components/ServerOnlyInstallModal';
+import { ModVersionSelect } from '@/components/ModVersionSelect';
 import { useModCatalog } from '@/components/ModCatalogContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { formatModCatalogError } from '@/lib/modCatalogError';
@@ -124,15 +125,6 @@ export function ModCatalogInstallControls({
       void loadVersions();
     }
   }, [eagerVersions, loadVersions, source, projectId, loader, mcVersion]);
-
-  const versionOptions = useMemo(
-    () =>
-      versions.map((version) => ({
-        value: version.id,
-        label: version.version_number,
-      })),
-    [versions],
-  );
 
   const resolveVersionForInstall = useCallback(
     async (
@@ -338,16 +330,14 @@ export function ModCatalogInstallControls({
             {t('qxmods.installed.badge')}
           </Tag>
         ) : null}
-        <Select
-          showSearch
-          optionFilterProp="label"
-          placeholder={t('qxmods.selectVersion')}
-          className={selectClassName ?? 'qxmods-install-version-select'}
+        <ModVersionSelect
+          versions={versions}
+          value={selectedVersion?.id}
           loading={loadingVersions}
           disabled={disabled}
-          value={selectedVersion?.id}
-          options={versionOptions}
-          aria-label={t('qxmods.selectVersion')}
+          className={selectClassName ?? 'qxmods-install-version-select'}
+          placeholder={t('qxmods.selectVersion')}
+          ariaLabel={t('qxmods.selectVersion')}
           onChange={setSelectedVersionId}
           onOpenChange={(open) => {
             if (open && !loadingVersions && (!versionsLoaded || versions.length === 0)) {

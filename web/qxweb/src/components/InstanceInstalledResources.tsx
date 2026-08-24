@@ -122,17 +122,19 @@ function InstalledResourceItem({
         />
         <div className="qxmods-installed-item-content">
           <div className="qxmods-installed-item-title">
-            {item.project_id && item.source !== 'upload' ? (
-              <Link
-                to={`${basePath}/catalog/${item.source}/${item.project_id}`}
-                className="launcher-resource-item-link"
-              >
-                {item.project_name}
-              </Link>
-            ) : (
-              <span>{item.project_name}</span>
-            )}
-            <ModSourceBadge source={item.source} />
+            <span className="qxmods-title-with-source">
+              {item.project_id && item.source !== 'upload' ? (
+                <Link
+                  to={`${basePath}/catalog/${item.source}/${item.project_id}`}
+                  className="launcher-resource-item-link"
+                >
+                  {item.project_name}
+                </Link>
+              ) : (
+                <span>{item.project_name}</span>
+              )}
+              <ModSourceBadge source={item.source} />
+            </span>
           </div>
           <ResourceMetaBadges item={item} />
           {sideSelect}
@@ -158,17 +160,19 @@ function InstalledResourceItem({
       />
       <div className="launcher-resource-card-body">
         <div className="launcher-resource-card-title">
-          {item.project_id && item.source !== 'upload' ? (
-            <Link
-              to={`${basePath}/catalog/${item.source}/${item.project_id}`}
-              className="launcher-resource-item-link"
-            >
-              {item.project_name}
-            </Link>
-          ) : (
-            <span>{item.project_name}</span>
-          )}
-          <ModSourceBadge source={item.source} />
+          <span className="qxmods-title-with-source">
+            {item.project_id && item.source !== 'upload' ? (
+              <Link
+                to={`${basePath}/catalog/${item.source}/${item.project_id}`}
+                className="launcher-resource-item-link"
+              >
+                {item.project_name}
+              </Link>
+            ) : (
+              <span>{item.project_name}</span>
+            )}
+            <ModSourceBadge source={item.source} />
+          </span>
         </div>
         <ResourceMetaBadges item={item} />
         {sideSelect}

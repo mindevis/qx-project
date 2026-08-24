@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qxproject/qx/pkg/protocol"
 	"github.com/qxproject/qx/services/qxapi/internal/models"
 	"github.com/qxproject/qx/services/qxapi/internal/mods"
 )
@@ -92,14 +93,91 @@ func shouldPullServerModToClient(side string) bool {
 	return normalizeContentSide(side) != "server"
 }
 
+func contentResourceSameSlot(existing, entry models.InstanceResourceEntry) bool {
+	if existing.ResourceType != "" && entry.ResourceType != "" && existing.ResourceType != entry.ResourceType {
+		return false
+	}
+	if existing.ProjectID != "" && entry.ProjectID != "" &&
+		strings.EqualFold(existing.Source, entry.Source) &&
+		existing.ProjectID == entry.ProjectID {
+		return contentFolderKind(effectiveContentSide(existing)) == contentFolderKind(effectiveContentSide(entry))
+	}
+	return strings.EqualFold(existing.Filename, entry.Filename)
+}
+
 func appendUniqueContentResource(list models.InstanceResourceList, entry models.InstanceResourceEntry) models.InstanceResourceList {
 	for i, existing := range list {
-		if existing.Filename == entry.Filename && existing.ProjectID == entry.ProjectID && existing.ResourceType == entry.ResourceType {
+		if contentResourceSameSlot(existing, entry) {
 			list[i] = entry
 			return list
 		}
 	}
 	return append(list, entry)
+}
+
+func findContentResourceByProject(list models.InstanceResourceList, source, projectID, side string) *models.InstanceResourceEntry {
+	source = strings.TrimSpace(source)
+	projectID = strings.TrimSpace(projectID)
+	if source == "" || projectID == "" {
+		return nil
+	}
+	wantFolder := contentFolderKind(side)
+	for i, entry := range list {
+		if !strings.EqualFold(entry.Source, source) || entry.ProjectID != projectID {
+			continue
+		}
+		if contentFolderKind(effectiveContentSide(entry)) != wantFolder {
+			continue
+		}
+		found := list[i]
+		return &found
+	}
+	return nil
+}
+
+func (s *Service) LookupGameServerContentResource(
+	ctx context.Context,
+	ownerID, vpsID, gameServerID, resourceType, source, projectID, modTarget, sideOverride string,
+) (*models.InstanceResourceEntry, error) {
+	items, err := s.ListGameServerResources(ctx, ownerID, vpsID, gameServerID, resourceType, "")
+	if err != nil {
+		return nil, err
+	}
+	return findContentResourceByProject(items, source, projectID, contentResourceSide(modTarget, sideOverride)), nil
+}
+
+func ShouldReplaceInstalledContent(existing *models.InstanceResourceEntry, replaceFilename, newFilename, newVersionID string) bool {
+	if strings.TrimSpace(replaceFilename) != "" && !protocol.SameContentFilename(replaceFilename, newFilename) {
+		return true
+	}
+	if existing == nil {
+		return false
+	}
+	if existing.VersionID != "" && existing.VersionID == newVersionID && protocol.SameContentFilename(existing.Filename, newFilename) {
+		return false
+	}
+	return existing.VersionID != newVersionID || !protocol.SameContentFilename(existing.Filename, newFilename)
+}
+
+func ContentFilesToReplace(existing *models.InstanceResourceEntry, replaceFilename, newFilename string) []string {
+	names := make([]string, 0, 2)
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" || protocol.SameContentFilename(name, newFilename) {
+			return
+		}
+		for _, have := range names {
+			if protocol.SameContentFilename(have, name) {
+				return
+			}
+		}
+		names = append(names, name)
+	}
+	add(replaceFilename)
+	if existing != nil {
+		add(existing.Filename)
+	}
+	return names
 }
 
 func removeContentResource(list models.InstanceResourceList, filename, resourceType, side string) models.InstanceResourceList {
@@ -189,6 +267,7 @@ func resourceEntryFromSync(kind string, body mods.SyncModRequest) models.Instanc
 		ProjectName:   name,
 		VersionID:     body.VersionID,
 		VersionNumber: body.VersionNumber,
+		VersionType:   mods.InferVersionType(body.VersionType, body.VersionNumber, body.Filename),
 		Filename:      body.Filename,
 		ResourceType:  kind,
 		IconURL:       body.IconURL,

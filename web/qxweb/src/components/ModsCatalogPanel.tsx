@@ -393,25 +393,25 @@ export function ModsCatalogPanel() {
         const item = itemForCard(card);
         return (
           <div className="qxmods-catalog-name-cell">
-            <Link
-              to={`${basePath}/catalog/${item.source}/${item.id}`}
-              state={card.items.length > 1 ? { catalogSiblings: card.items } : undefined}
-              className="qxmods-catalog-link"
-            >
-              {card.name}
-            </Link>
-            <div className="qxmods-catalog-name-meta">
+            <div className="qxmods-title-with-source">
+              <Link
+                to={`${basePath}/catalog/${item.source}/${item.id}`}
+                state={card.items.length > 1 ? { catalogSiblings: card.items } : undefined}
+                className="qxmods-catalog-link"
+              >
+                {card.name}
+              </Link>
               <CatalogSourceSwitch
                 items={card.items}
                 value={item.source}
                 onChange={(source) => setCardSourceByKey((prev) => ({ ...prev, [card.key]: source }))}
               />
-              {item.author ? (
-                <Text type="secondary" className="qxmods-catalog-author">
-                  {item.author}
-                </Text>
-              ) : null}
             </div>
+            {item.author ? (
+              <Text type="secondary" className="qxmods-catalog-author">
+                {item.author}
+              </Text>
+            ) : null}
           </div>
         );
       },
@@ -627,20 +627,22 @@ export function ModsCatalogPanel() {
                         />
                         <div className="game-server-mods-card-body">
                           <div className="game-server-mods-card-title">
-                            <Link
-                              to={`${basePath}/catalog/${item.source}/${item.id}`}
-                              state={card.items.length > 1 ? { catalogSiblings: card.items } : undefined}
-                              className="game-server-mods-card-name"
-                            >
-                              {card.name}
-                            </Link>
-                            <CatalogSourceSwitch
-                              items={card.items}
-                              value={item.source}
-                              onChange={(source) =>
-                                setCardSourceByKey((prev) => ({ ...prev, [card.key]: source }))
-                              }
-                            />
+                            <span className="qxmods-title-with-source">
+                              <Link
+                                to={`${basePath}/catalog/${item.source}/${item.id}`}
+                                state={card.items.length > 1 ? { catalogSiblings: card.items } : undefined}
+                                className="game-server-mods-card-name"
+                              >
+                                {card.name}
+                              </Link>
+                              <CatalogSourceSwitch
+                                items={card.items}
+                                value={item.source}
+                                onChange={(source) =>
+                                  setCardSourceByKey((prev) => ({ ...prev, [card.key]: source }))
+                                }
+                              />
+                            </span>
                           </div>
                           {item.author ? (
                             <Text type="secondary">{item.author}</Text>

@@ -872,6 +872,37 @@ func (c *Client) dispatchCommand(env protocol.Envelope) (*protocol.Envelope, err
 			TS:        ts,
 			Payload:   resPayload,
 		}, nil
+	case protocol.TypeCmdServerContentSetEnabled:
+		var payload protocol.ServerContentSetEnabledPayload
+		if err := json.Unmarshal(env.Payload, &payload); err != nil {
+			return nil, err
+		}
+		relPath, filename, err := fs.SetContentEnabled(
+			payload.WorkDir,
+			payload.ServerType,
+			payload.ContentKind,
+			payload.ModTarget,
+			payload.Filename,
+			payload.Enabled,
+		)
+		var resPayload []byte
+		if err != nil {
+			resPayload, _ = json.Marshal(map[string]string{"error": err.Error()})
+		} else {
+			resPayload, _ = json.Marshal(protocol.ServerContentSetEnabledResult{
+				Status:   "ok",
+				RelPath:  relPath,
+				Filename: filename,
+				Enabled:  payload.Enabled,
+			})
+		}
+		return &protocol.Envelope{
+			V:         protocol.Version,
+			Type:      protocol.TypeResServerContentSetEnabled,
+			RequestID: env.RequestID,
+			TS:        ts,
+			Payload:   resPayload,
+		}, nil
 	case protocol.TypeCmdOllamaInstall:
 		return nil, nil
 	case protocol.TypeCmdOllamaStart:

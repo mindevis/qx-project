@@ -294,6 +294,7 @@ func spigetVersionFrom(resource spigetResource, raw spigetVersion) *Version {
 	return &Version{
 		ID:            strconv.Itoa(raw.ID),
 		VersionNumber: name,
+		VersionType:   InferVersionType(name),
 		GameVersions:  resource.TestedVersions,
 		Loaders:       []string{"paper", "spigot", "bukkit"},
 		Files: []VersionFile{{
