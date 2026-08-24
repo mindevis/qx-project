@@ -212,7 +212,7 @@ export function GameServerDetailPage() {
 
   if (loading || !vps || !game || !vpsId) {
     return (
-      <div className="servers-page">
+      <div className="servers-page game-server-detail-page">
         <div className="servers-loading">
           <Spin size="large" />
         </div>
@@ -363,7 +363,7 @@ export function GameServerDetailPage() {
   ];
 
   return (
-    <div className="servers-page servers-page--detail">
+    <div className="servers-page servers-page--detail game-server-detail-page">
       <section className="servers-hero servers-hero--detail game-server-detail-hero">
         <div className="servers-hero-ambient" aria-hidden>
           <span className="servers-hero-blob servers-hero-blob--1" />

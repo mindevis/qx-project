@@ -457,6 +457,19 @@ html[data-theme='dark'] .servers-auth-section {
   padding-bottom: 40px;
 }
 
+.game-server-detail-page .servers-hero {
+  padding-inline: 0;
+}
+
+.game-server-detail-page .servers-hero-inner,
+.game-server-detail-page .servers-section {
+  max-width: 1600px;
+}
+
+.game-server-detail-page .servers-section {
+  padding-inline: 0;
+}
+
 .servers-hero--detail .servers-hero-inner {
   align-items: center;
 }

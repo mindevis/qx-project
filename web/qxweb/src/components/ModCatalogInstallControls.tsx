@@ -8,6 +8,7 @@ import {
 } from '@/api/client';
 import { ModInstallDepsWizard } from '@/components/ModInstallDepsWizard';
 import type { InstallItem } from '@/components/ModInstallDepsModal';
+import { ModCatalogDependenciesPanel } from '@/components/ModCatalogDependenciesPanel';
 import { ServerOnlyInstallModal } from '@/components/ServerOnlyInstallModal';
 import { ModVersionSelect } from '@/components/ModVersionSelect';
 import { useModCatalog } from '@/components/ModCatalogContext';
@@ -41,6 +42,8 @@ export type ModCatalogInstallControlsProps = {
   eagerVersions?: boolean;
   onInstalled?: (version: ModVersion) => void;
   onUninstalled?: () => void;
+  onDependencyInstalled?: () => void;
+  showDependencies?: boolean;
 };
 
 export function ModCatalogInstallControls({
@@ -60,6 +63,8 @@ export function ModCatalogInstallControls({
   eagerVersions = false,
   onInstalled,
   onUninstalled,
+  onDependencyInstalled,
+  showDependencies = false,
 }: ModCatalogInstallControlsProps) {
   const { t } = useI18n();
   const message = useMessage();
@@ -374,6 +379,16 @@ export function ModCatalogInstallControls({
           </Popconfirm>
         ) : null}
       </div>
+      {showDependencies && !contentLocked && (projectType === 'mod' || projectType === 'plugin') ? (
+        <ModCatalogDependenciesPanel
+          source={source}
+          projectId={projectId}
+          version={selectedVersion}
+          resourceType={projectType}
+          installedProjectIds={installedProjectIds}
+          onInstalled={onDependencyInstalled}
+        />
+      ) : null}
       {pendingVersion ? (
         <>
           <ModInstallDepsWizard

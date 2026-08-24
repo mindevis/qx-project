@@ -35,6 +35,29 @@ func TestFilterVersionsByLoaderDropsDatapackFromMods(t *testing.T) {
 	}
 }
 
+func TestFilterVersionsByLoaderKeepsEmptyCurseForgeLoaders(t *testing.T) {
+	t.Parallel()
+	unknown := Version{
+		ID:      "cf",
+		Loaders: []string{""},
+		Files:   []VersionFile{{Filename: "jei-1.21.1.jar"}},
+	}
+	got := filterVersionsByLoader([]Version{unknown}, "forge")
+	if len(got) != 1 || got[0].ID != "cf" {
+		t.Fatalf("empty curseforge loader should still match mods, got %+v", got)
+	}
+}
+
+func TestFilterVersionsByLoaderKeepsForgeFromGameVersions(t *testing.T) {
+	t.Parallel()
+	forge := Version{ID: "fg", Loaders: []string{"forge"}, Files: []VersionFile{{Filename: "mod.jar"}}}
+	fabric := Version{ID: "fab", Loaders: []string{"fabric"}, Files: []VersionFile{{Filename: "mod.jar"}}}
+	got := filterVersionsByLoader([]Version{forge, fabric}, "forge")
+	if len(got) != 1 || got[0].ID != "fg" {
+		t.Fatalf("forge filter: %+v", got)
+	}
+}
+
 func TestVersionIsDatapackFromZipWithoutLoader(t *testing.T) {
 	t.Parallel()
 	zipOnly := Version{ID: "zip", Files: []VersionFile{{Filename: "pack.zip"}}}

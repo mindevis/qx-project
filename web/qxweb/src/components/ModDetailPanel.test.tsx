@@ -156,4 +156,37 @@ describe('ModDetailPanel', () => {
     renderDetail();
     await waitFor(() => expect(screen.getByText('Нет подходящих версий')).toBeInTheDocument());
   });
+
+  it('lists required and optional dependencies on the detail page', async () => {
+    vi.mocked(api.getModVersion).mockResolvedValue({
+      ...modVersion,
+      dependencies: [
+        {
+          source: 'modrinth',
+          project_id: 'cloth-config',
+          project_name: 'Cloth Config API',
+          dependency_type: 'required',
+          version_id: 'ver-cloth',
+          version_number: '15.0.0',
+          filename: 'cloth.jar',
+          download_url: 'https://cdn.modrinth.com/cloth.jar',
+        },
+        {
+          source: 'modrinth',
+          project_id: 'modmenu',
+          project_name: 'Mod Menu',
+          dependency_type: 'optional',
+          version_id: 'ver-menu',
+          filename: 'modmenu.jar',
+          download_url: 'https://cdn.modrinth.com/modmenu.jar',
+        },
+      ],
+    });
+    renderDetail();
+    await waitFor(() => expect(screen.getByText('Cloth Config API')).toBeInTheDocument());
+    expect(screen.getByText('Обязательные зависимости')).toBeInTheDocument();
+    expect(screen.getByText('Опциональные зависимости')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Установить Cloth Config API' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Установить Mod Menu' })).toBeInTheDocument();
+  });
 });

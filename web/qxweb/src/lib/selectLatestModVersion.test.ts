@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectLatestCompatibleVersion } from './selectLatestModVersion';
+import { filterVersionsForCatalogLoader, selectLatestCompatibleVersion } from './selectLatestModVersion';
 
 const older = {
   id: 'old',
@@ -59,5 +59,18 @@ describe('selectLatestCompatibleVersion', () => {
       '1.21.1',
     );
     expect(latest?.id).toBe('datapack');
+  });
+
+  it('keeps CurseForge files that omit loader metadata', () => {
+    const curseforge = {
+      id: 'cf',
+      version_number: '19.8.2',
+      game_versions: ['1.21.1', 'Forge', 'Client'],
+      loaders: [''],
+      files: [{ filename: 'jei-1.21.1-forge.jar', url: 'https://cdn/jei.jar' }],
+      published_at: '2026-08-01T00:00:00Z',
+    };
+    expect(filterVersionsForCatalogLoader([curseforge], 'forge')).toEqual([curseforge]);
+    expect(selectLatestCompatibleVersion([curseforge], 'forge', '1.21.1')?.id).toBe('cf');
   });
 });

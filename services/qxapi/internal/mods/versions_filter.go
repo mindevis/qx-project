@@ -34,15 +34,18 @@ func versionMatchesLoader(item Version, loader string) bool {
 	if versionIsDatapackOnly(item) {
 		return false
 	}
-	if len(item.Loaders) == 0 {
-		return true
-	}
+	named := 0
 	for _, candidate := range item.Loaders {
-		if strings.EqualFold(strings.TrimSpace(candidate), loader) {
+		candidate = strings.ToLower(strings.TrimSpace(candidate))
+		if candidate == "" {
+			continue
+		}
+		named++
+		if candidate == loader {
 			return true
 		}
 	}
-	return false
+	return named == 0
 }
 
 func versionIsDatapack(item Version) bool {

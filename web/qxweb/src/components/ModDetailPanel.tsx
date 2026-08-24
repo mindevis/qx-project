@@ -221,12 +221,14 @@ export function ModDetailPanel() {
           installedProjectIds={installedProjectIds}
           layout="inline"
           eagerVersions
+          showDependencies
           selectClassName="qxmods-install-version-select--detail"
           onInstalled={handleInstalled}
           onUninstalled={() => {
             setLastInstalledVersion(null);
             void refreshInstalled();
           }}
+          onDependencyInstalled={() => void refreshInstalled()}
         />
       </div>
       {showSyncButton ? (

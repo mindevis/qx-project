@@ -457,3 +457,51 @@ func TestCurseForgeListVersionsKeepsFilesWithoutDownloadURL(t *testing.T) {
 		t.Fatalf("expected version without url to stay in the list, got %+v", items)
 	}
 }
+
+func TestCurseForgeListVersionsReadsLoaderFromGameVersions(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path != "/v1/mods/238222/files" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{"id":9,"displayName":"JEI 1.21.1","fileName":"jei-1.21.1-forge.jar","fileDate":"2024-01-01","gameVersions":["1.21.1","Forge","Client"],"downloadUrl":"https://example/jei.jar","fileLength":10,"hashes":[],"releaseType":1}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	items, err := c.listVersionsOnce(context.Background(), "238222", "forge", "1.21.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items=%d", len(items))
+	}
+	if len(items[0].Loaders) != 1 || items[0].Loaders[0] != "forge" {
+		t.Fatalf("expected forge loader from gameVersions, got %+v", items[0].Loaders)
+	}
+	filtered := filterVersionsByLoader(items, "forge")
+	if len(filtered) != 1 {
+		t.Fatalf("forge filter dropped curseforge files: %+v", filtered)
+	}
+}
+
+func TestCurseForgeLoadersFromFile(t *testing.T) {
+	t.Parallel()
+	got := curseForgeLoadersFromFile(0, []string{"1.21.1", "NeoForge", "Client"})
+	if len(got) != 1 || got[0] != "neoforge" {
+		t.Fatalf("got %+v", got)
+	}
+	got = curseForgeLoadersFromFile(4, []string{"1.20.1", "Fabric"})
+	if len(got) != 1 || got[0] != "fabric" {
+		t.Fatalf("got %+v", got)
+	}
+	if names := curseForgeLoadersFromFile(0, []string{"1.21.1", "Client"}); len(names) != 0 {
+		t.Fatalf("expected no loaders, got %+v", names)
+	}
+}

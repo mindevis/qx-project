@@ -584,3 +584,33 @@ html[data-theme='dark'] .qxmods-installed-icon--placeholder {
   display: block;
   margin-top: 12px;
 }
+
+.qxmods-detail-deps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.qxmods-detail-deps-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.qxmods-detail-deps-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.qxmods-detail-deps-name {
+  font-weight: 500;
+}
+
+.qxmods-detail-deps-version {
+  font-size: 12px;
+}

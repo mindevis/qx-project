@@ -124,6 +124,11 @@ describe('needsServerRestartAfterSync', () => {
     expect(needsServerRestartAfterSync('client-shaders')).toBe(false);
   });
 
+  it('skips restart for resource packs and shaders the server process does not load', () => {
+    expect(needsServerRestartAfterSync('resourcepacks')).toBe(false);
+    expect(needsServerRestartAfterSync('shaderpacks')).toBe(false);
+  });
+
   it('requires restart for server-loaded content', () => {
     expect(needsServerRestartAfterSync('mods')).toBe(true);
     expect(needsServerRestartAfterSync(undefined)).toBe(true);

@@ -961,6 +961,104 @@ describe('GameServerContentPanel', () => {
     expect(screen.getByText('Cloth Config API')).toBeInTheDocument();
   });
 
+  it('shows required and optional dependencies in the catalog detail and can install one', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup({ delay: null });
+    vi.spyOn(api, 'listVpsGameServerMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'listVpsGameServerClientMods').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'browseMods').mockResolvedValue({
+      items: [
+        {
+          source: 'modrinth',
+          id: 'better-combat',
+          slug: 'better-combat',
+          name: 'Better Combat',
+          summary: 'Combat',
+          project_type: 'mod',
+          external_url: '',
+        },
+      ],
+      has_more: false,
+      curseforge_enabled: true,
+    });
+    vi.spyOn(api, 'listModVersions').mockResolvedValue({
+      items: [
+        {
+          id: 'ver-bc',
+          version_number: '2.0.0',
+          game_versions: ['1.21'],
+          loaders: ['forge'],
+          files: [{ filename: 'bettercombat.jar', url: 'https://cdn.modrinth.com/bc.jar', size: 10 }],
+        },
+      ],
+    });
+    vi.spyOn(api, 'getModVersion').mockResolvedValue({
+      id: 'ver-bc',
+      version_number: '2.0.0',
+      game_versions: ['1.21'],
+      loaders: ['forge'],
+      files: [{ filename: 'bettercombat.jar', url: 'https://cdn.modrinth.com/bc.jar', size: 10 }],
+      dependencies: [
+        {
+          source: 'modrinth',
+          project_id: 'cloth-config',
+          project_name: 'Cloth Config API',
+          dependency_type: 'required',
+          version_id: 'ver-cloth',
+          version_number: '15.0.0',
+          filename: 'cloth.jar',
+          download_url: 'https://cdn.modrinth.com/cloth.jar',
+        },
+        {
+          source: 'modrinth',
+          project_id: 'modmenu',
+          project_name: 'Mod Menu',
+          dependency_type: 'optional',
+          version_id: 'ver-menu',
+          version_number: '11.0.0',
+          filename: 'modmenu.jar',
+          download_url: 'https://cdn.modrinth.com/modmenu.jar',
+        },
+      ],
+    });
+    const sync = vi.spyOn(api, 'syncModToGameServer').mockResolvedValue({
+      status: 'installed',
+      filename: 'cloth.jar',
+    });
+
+    renderWithTheme(
+      <GameServerContentPanel
+        kind="mod"
+        vpsId="srv-1"
+        gameServerId="gs-1"
+        agentOnline={true}
+        supported={true}
+        serverType="forge"
+        mcVersion="1.21"
+      />,
+    );
+
+    await user.click(screen.getByText('Каталог'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Better Combat' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Better Combat' }));
+    await waitFor(() => expect(screen.getByText('Обязательные зависимости')).toBeInTheDocument());
+    expect(screen.getByText('Cloth Config API')).toBeInTheDocument();
+    expect(screen.getByText('Опциональные зависимости')).toBeInTheDocument();
+    expect(screen.getByText('Mod Menu')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Установить Cloth Config API' }));
+    await waitFor(() =>
+      expect(sync).toHaveBeenCalledWith(
+        'srv-1',
+        'gs-1',
+        expect.objectContaining({
+          project_id: 'cloth-config',
+          filename: 'cloth.jar',
+        }),
+      ),
+    );
+  });
+
   it('lists installed resource packs and browses the resource pack catalog', async () => {
     vi.spyOn(api, 'listVpsGameServerResourcepacks').mockResolvedValue({
       items: [{ name: 'faithful.zip', path: 'resourcepacks/faithful.zip', dir: false, size: 2048 }],

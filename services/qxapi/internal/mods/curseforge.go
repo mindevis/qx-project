@@ -99,14 +99,14 @@ type curseForgeFileDependency struct {
 }
 
 type curseForgeFileData struct {
-	ID           int    `json:"id"`
-	DisplayName  string `json:"displayName"`
-	FileName     string `json:"fileName"`
-	FileDate     string `json:"fileDate"`
-	GameVersions []string
-	ModLoader    int    `json:"modLoader"`
-	DownloadURL  string `json:"downloadUrl"`
-	FileLength   int64  `json:"fileLength"`
+	ID           int      `json:"id"`
+	DisplayName  string   `json:"displayName"`
+	FileName     string   `json:"fileName"`
+	FileDate     string   `json:"fileDate"`
+	GameVersions []string `json:"gameVersions"`
+	ModLoader    int      `json:"modLoader"`
+	DownloadURL  string   `json:"downloadUrl"`
+	FileLength   int64    `json:"fileLength"`
 	Hashes       []struct {
 		Value string `json:"value"`
 		Algo  int    `json:"algo"`
@@ -342,7 +342,7 @@ func (c *curseForgeClient) listVersionsOnce(ctx context.Context, projectID, load
 			VersionNumber: f.DisplayName,
 			VersionType:   InferVersionType(CurseForgeReleaseType(f.ReleaseType), f.DisplayName, f.FileName),
 			GameVersions:  f.GameVersions,
-			Loaders:       []string{curseForgeLoaderName(f.ModLoader)},
+			Loaders:       curseForgeLoadersFromFile(f.ModLoader, f.GameVersions),
 			Files: []VersionFile{{
 				Filename: f.FileName,
 				URL:      downloadURL,
@@ -418,7 +418,7 @@ func (c *curseForgeClient) versionFromFileData(
 		VersionNumber: f.DisplayName,
 		VersionType:   InferVersionType(CurseForgeReleaseType(f.ReleaseType), f.DisplayName, f.FileName),
 		GameVersions:  f.GameVersions,
-		Loaders:       []string{curseForgeLoaderName(f.ModLoader)},
+		Loaders:       curseForgeLoadersFromFile(f.ModLoader, f.GameVersions),
 		Files: []VersionFile{{
 			Filename: f.FileName,
 			URL:      downloadURL,
@@ -627,14 +627,49 @@ func curseForgeLoaderName(code int) string {
 	}
 }
 
+func curseForgeLoaderNameFromGameVersion(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "forge":
+		return "forge"
+	case "neoforge", "neo forge":
+		return "neoforge"
+	case "fabric":
+		return "fabric"
+	case "quilt":
+		return "quilt"
+	default:
+		return ""
+	}
+}
+
+func curseForgeLoadersFromFile(modLoader int, gameVersions []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, 1)
+	add := func(name string) {
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name == "" {
+			return
+		}
+		if _, ok := seen[name]; ok {
+			return
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
+	}
+	add(curseForgeLoaderName(modLoader))
+	for _, version := range gameVersions {
+		add(curseForgeLoaderNameFromGameVersion(version))
+	}
+	return out
+}
+
 func curseForgeFileCandidates(files []curseForgeLatestFile, loader, mcVersion string) []curseForgeLatestFile {
 	if loader == "" && mcVersion == "" {
 		return files
 	}
 	matched := make([]curseForgeLatestFile, 0, len(files))
 	for _, file := range files {
-		loaderName := curseForgeLoaderName(file.ModLoader)
-		if loader != "" && loaderName != loader {
+		if loader != "" && !curseForgeFileMatchesLoader(file.ModLoader, file.GameVersions, loader) {
 			continue
 		}
 		if mcVersion != "" && !slicesContains(file.GameVersions, mcVersion) {
@@ -702,6 +737,23 @@ func curseForgeClientSide(files []curseForgeLatestFile, loader, mcVersion string
 func curseForgeServerSide(files []curseForgeLatestFile, loader, mcVersion string) string {
 	_, server := curseForgeSidesFromFiles(files, loader, mcVersion)
 	return server
+}
+
+func curseForgeFileMatchesLoader(modLoader int, gameVersions []string, loader string) bool {
+	loader = strings.ToLower(strings.TrimSpace(loader))
+	if loader == "" {
+		return true
+	}
+	names := curseForgeLoadersFromFile(modLoader, gameVersions)
+	if len(names) == 0 {
+		return true
+	}
+	for _, name := range names {
+		if name == loader {
+			return true
+		}
+	}
+	return false
 }
 
 func slicesContains(values []string, target string) bool {

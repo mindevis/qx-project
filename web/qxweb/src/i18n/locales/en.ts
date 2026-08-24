@@ -1491,6 +1491,7 @@ export const en: Messages = {
       unresolved: 'could not resolve',
       unresolvedBlocked:
         'Some selected dependencies could not be resolved for your Minecraft version and loader. Change the version filters or install dependencies manually.',
+      installAria: 'Install {{name}}',
       continue: 'Continue',
       installAll: 'Install',
     },

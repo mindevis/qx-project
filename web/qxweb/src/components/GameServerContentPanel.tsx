@@ -742,7 +742,20 @@ export function GameServerContentPanel({
       message.success(t('qxmods.side.saved'));
       void loadInstalled();
       if (sideFolderKind(previous) !== sideFolderKind(side)) {
-        promptRestart();
+        const previousTarget = instanceResourceContentTarget({
+          side_override: previous,
+          resource_type: projectType,
+        });
+        const nextTarget = instanceResourceContentTarget({
+          side_override: side,
+          resource_type: projectType,
+        });
+        if (
+          needsServerRestartAfterSync(previousTarget) ||
+          needsServerRestartAfterSync(nextTarget)
+        ) {
+          promptRestart();
+        }
       }
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('qxmods.side.saveFailed'));
@@ -830,8 +843,24 @@ export function GameServerContentPanel({
       installedProjectIds={installedProjectIds}
       layout={layout}
       eagerVersions={layout === 'stacked'}
+      showDependencies={layout === 'stacked'}
       onInstalled={() => {
         if (layout === 'stacked') setDetailOpen(false);
+        void loadInstalled();
+        if (
+          needsServerRestartAfterSync(
+            contentKindHasSide(kind)
+              ? instanceResourceContentTarget({
+                  side_override: gameServerInstallSide(modSyncSide(row)),
+                  resource_type: projectType,
+                })
+              : undefined,
+          )
+        ) {
+          promptRestart();
+        }
+      }}
+      onDependencyInstalled={() => {
         void loadInstalled();
         if (
           needsServerRestartAfterSync(

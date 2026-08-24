@@ -346,6 +346,8 @@ export function needsServerRestartAfterSync(target?: string): boolean {
     case 'client-mods':
     case 'client-resourcepacks':
     case 'client-shaders':
+    case 'resourcepacks':
+    case 'shaderpacks':
       return false;
     default:
       return true;
