@@ -331,12 +331,7 @@ func (c *curseForgeClient) listVersionsOnce(ctx context.Context, projectID, load
 				break
 			}
 		}
-		downloadURL := f.DownloadURL
-		if downloadURL == "" || curseForgeNeedsResolvedDownload(downloadURL) {
-			if resolved, err := c.fileDownloadURL(ctx, projectID, strconv.Itoa(f.ID)); err == nil && resolved != "" {
-				downloadURL = resolved
-			}
-		}
+		downloadURL := c.resolveFileDownloadURL(ctx, projectID, strconv.Itoa(f.ID), f.FileName, f.DownloadURL)
 		out = append(out, Version{
 			ID:            strconv.Itoa(f.ID),
 			VersionNumber: f.DisplayName,
@@ -400,12 +395,7 @@ func (c *curseForgeClient) versionFromFileData(
 			break
 		}
 	}
-	downloadURL := f.DownloadURL
-	if downloadURL == "" || curseForgeNeedsResolvedDownload(downloadURL) {
-		if resolved, err := c.fileDownloadURL(ctx, projectID, fileID); err == nil && resolved != "" {
-			downloadURL = resolved
-		}
-	}
+	downloadURL := c.resolveFileDownloadURL(ctx, projectID, fileID, f.FileName, f.DownloadURL)
 	if downloadURL == "" {
 		return nil, fmt.Errorf("missing download URL for file %s", fileID)
 	}
@@ -793,4 +783,28 @@ func curseForgeNeedsResolvedDownload(raw string) bool {
 	}
 	host := strings.ToLower(parsed.Hostname())
 	return host == "curseforge.com" || strings.HasSuffix(host, ".curseforge.com")
+}
+
+func curseForgeCDNDownloadURL(fileID, fileName string) string {
+	fileName = strings.TrimSpace(fileName)
+	id, err := strconv.Atoi(strings.TrimSpace(fileID))
+	if err != nil || id <= 0 || fileName == "" {
+		return ""
+	}
+	return fmt.Sprintf(
+		"https://mediafilez.forgecdn.net/files/%d/%d/%s",
+		id/1000,
+		id%1000,
+		url.PathEscape(fileName),
+	)
+}
+
+func (c *curseForgeClient) resolveFileDownloadURL(ctx context.Context, projectID, fileID, fileName, raw string) string {
+	if !curseForgeNeedsResolvedDownload(raw) {
+		return strings.TrimSpace(raw)
+	}
+	if resolved, err := c.fileDownloadURL(ctx, projectID, fileID); err == nil && !curseForgeNeedsResolvedDownload(resolved) {
+		return strings.TrimSpace(resolved)
+	}
+	return curseForgeCDNDownloadURL(fileID, fileName)
 }

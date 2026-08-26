@@ -386,7 +386,7 @@ export const ru = {
     offlineProfiles: 'Профили игрока',
     offlineAfterLink: 'Доступно после связывания QXLauncher — см. инструкцию выше.',
     selectNickname: 'Выберите, кем играть',
-    noProfiles: 'Нет профилей — можно играть как Player или добавьте свой ник',
+    noProfiles: 'Нет профилей — добавьте свой ник',
     deleteProfileConfirm: 'Удалить профиль?',
     noInstances: 'Пока нет инстансов',
     play: 'Играть',
@@ -438,7 +438,7 @@ export const ru = {
     loadProfilesFailed: 'Не удалось загрузить профили',
     instanceCreated: 'Инстанс создан',
     createProfileHint:
-      'Создайте offline-профиль с ником или играйте с Player по умолчанию',
+      'Создайте offline-профиль с ником или привяжите Microsoft',
     createInstanceFailed: 'Не удалось создать инстанс',
     profileCreated: 'Профиль создан',
     createProfileFailed: 'Не удалось создать профиль',
@@ -472,7 +472,8 @@ export const ru = {
     launchTimeout: 'Время ожидания истекло',
     launcherUnlinked: 'QXLauncher отвязан',
     unlinkFailed: 'Не удалось отвязать устройство',
-    defaultPlayerHint: 'Ник Player (по умолчанию). Добавьте профиль в разделе «Игрок» для своего ника.',
+    defaultPlayerHint: 'Добавьте профиль игрока или привяжите Microsoft, чтобы запустить игру.',
+    launchNeedsIdentity: 'Чтобы запустить инстанс, создайте профиль игрока или привяжите Microsoft.',
     launchSent: 'Запрос отправлен в QXLauncher',
     launchGameFailed: 'Не удалось запустить игру',
     launchStatus: {

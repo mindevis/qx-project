@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { Spin } from 'antd';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthModalProvider } from '@/auth/AuthModalContext';
+import { RequireAuth } from '@/auth/RequireAuth';
 import { AppLayout } from '@/layouts/AppLayout';
 import { HomePage } from '@/pages/HomePage';
 
@@ -69,7 +70,9 @@ export default function App() {
               path="skins"
               element={
                 <LazyRoute>
-                  <SkinsPage />
+                  <RequireAuth>
+                    <SkinsPage />
+                  </RequireAuth>
                 </LazyRoute>
               }
             />
@@ -101,7 +104,9 @@ export default function App() {
               path="servers/*"
               element={
                 <LazyRoute>
-                  <ServersPage />
+                  <RequireAuth>
+                    <ServersPage />
+                  </RequireAuth>
                 </LazyRoute>
               }
             />

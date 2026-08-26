@@ -187,23 +187,22 @@ function LauncherHome() {
   const instancesTitle = t('launcher.myInstances');
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
   const licensedReady = accountMode === 'licensed' && mojangStatus?.linked === true;
+  const hasPlayIdentity =
+    licensedReady || (accountMode === 'offline' && Boolean(selectedProfile));
   const sortedInstances = [...instances].sort((a, b) =>
     a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
   );
   const { viewMode, setViewMode } = useLauncherInstancesViewMode();
-  const launchBlocked = accountMode === 'licensed' && !licensedReady;
+  const launchBlocked = !hasPlayIdentity;
   const updateAvailable =
     linkedDevice != null &&
     launcherRelease != null &&
     isUpdateAvailable(linkedDevice.launcher_version, launcherRelease.version);
   const downloadUrl = resolveLauncherDownloadUrl(launcherRelease);
   const showInstallBand = !authLoading && !linkedDevice && (!isAuthenticated || deviceChecked);
-  const activePlayerLabel =
-    accountMode === 'licensed'
-      ? mojangStatus?.linked
-        ? (mojangStatus.username ?? t('launcher.licensedAccount'))
-        : t('launcher.licensedNotLinked')
-      : (selectedProfile?.username ?? t('launcher.playerDefault'));
+  const activePlayerLabel = licensedReady
+    ? (mojangStatus?.username ?? t('launcher.licensedAccount'))
+    : (selectedProfile?.username ?? '');
   const officialSkinUrl = officialAccountBodyUrl(mojangStatus?.minecraft_uuid, mojangStatus?.username);
   const playingAsAvatar =
     accountMode === 'licensed' && mojangStatus?.linked ? (
@@ -805,6 +804,10 @@ function LauncherHome() {
   };
 
   const handlePlay = async (instance: LauncherInstance) => {
+    if (!hasPlayIdentity) {
+      message.warning(t('launcher.launchNeedsIdentity'));
+      return;
+    }
     if (accountMode === 'licensed' && !licensedReady) {
       message.warning(t('launcher.licensedLaunchFailed'));
       return;
@@ -817,9 +820,6 @@ function LauncherHome() {
       accountMode: launchAccountMode,
     });
     try {
-      if (launchAccountMode === 'offline' && !selectedProfileId) {
-        message.info(t('launcher.defaultPlayerHint'));
-      }
       const req = await api.createLaunchRequest({
         instance_id: instance.id,
         offline_profile_id: launchAccountMode === 'offline' ? selectedProfileId : undefined,
@@ -1090,15 +1090,17 @@ function LauncherHome() {
                 </Button>
               </div>
 
-              <div className="launcher-player-controls">
-                <div className="launcher-launch-bar">
-                  <Text type="secondary">{t('launcher.playingAs')}</Text>
-                  <Text strong className="launcher-launch-bar-name">
-                    {mojangLoading && accountMode === 'licensed' ? '…' : activePlayerLabel}
-                  </Text>
-                  <span className="launcher-launch-bar-avatar">{playingAsAvatar}</span>
+              {hasPlayIdentity ? (
+                <div className="launcher-player-controls">
+                  <div className="launcher-launch-bar">
+                    <Text type="secondary">{t('launcher.playingAs')}</Text>
+                    <Text strong className="launcher-launch-bar-name">
+                      {mojangLoading && accountMode === 'licensed' ? '…' : activePlayerLabel}
+                    </Text>
+                    <span className="launcher-launch-bar-avatar">{playingAsAvatar}</span>
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               {profilesLoading || mojangLoading ? (
                 <div className="launcher-panel-loading">
@@ -1459,6 +1461,7 @@ function LauncherHome() {
                               launchProgress.instanceId !== item.id &&
                               !isLaunchTerminal(launchProgress.status))
                           }
+                          title={launchBlocked ? t('launcher.launchNeedsIdentity') : undefined}
                           onClick={() => handlePlay(item)}
                         >
                           {t('launcher.play')}

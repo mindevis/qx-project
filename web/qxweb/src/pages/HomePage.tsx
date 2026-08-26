@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button, Card, Space, Typography } from 'antd';
+import type { ReactNode } from 'react';
 import {
   AppstoreOutlined,
   CloudServerOutlined,
@@ -13,11 +14,48 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/auth/AuthContext';
+import { useAuthModal } from '@/auth/AuthModalContext';
 import { useI18n } from '@/i18n/I18nContext';
 import { DiscordInviteLink } from '@/components/DiscordInviteLink';
 import './HomePage.css';
 
 const { Title, Paragraph, Text } = Typography;
+
+function isAccountOnlyPath(to: string) {
+  return to === '/servers' || to.startsWith('/servers/') || to === '/skins';
+}
+
+function HomeSectionLink({
+  to,
+  className,
+  children,
+}: {
+  to: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const { isAuthenticated } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  if (!isAuthenticated && isAccountOnlyPath(to)) {
+    return (
+      <a
+        href={to}
+        className={className}
+        onClick={(event) => {
+          event.preventDefault();
+          openAuthModal('login');
+        }}
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link to={to} className={className}>
+      {children}
+    </Link>
+  );
+}
 
 export function highlightMinecraft(title: string) {
   const marker = 'Minecraft';
@@ -223,7 +261,7 @@ export function HomePage() {
         </div>
         <div className="home-stack">
           {stackCards.map((card) => (
-            <Link
+            <HomeSectionLink
               key={card.key}
               to="/servers"
               className={`home-stack-card home-stack-card--${card.key}`}
@@ -244,7 +282,7 @@ export function HomePage() {
               <span className="home-stack-link">
                 {t('home.stackOpen')} →
               </span>
-            </Link>
+            </HomeSectionLink>
           ))}
         </div>
       </section>
@@ -273,9 +311,9 @@ export function HomePage() {
               <Paragraph type="secondary" className="home-feature-body">
                 {feature.body}
               </Paragraph>
-              <Link to={feature.href} className="home-feature-link">
+              <HomeSectionLink to={feature.href} className="home-feature-link">
                 {t('common.open')} →
-              </Link>
+              </HomeSectionLink>
             </Card>
           ))}
         </div>

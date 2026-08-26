@@ -37,9 +37,9 @@ describe('AppLayout', () => {
 
     await waitFor(() => expect(screen.getByText('QXSystem')).toBeInTheDocument());
     expect(screen.getAllByRole('button', { name: 'Вход' }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: 'Серверы' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Скины' })).toBeInTheDocument();
-    expect(document.querySelector('.app-nav-new-badge')).toHaveTextContent('Новинка');
+    expect(screen.queryByRole('link', { name: 'Серверы' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Скины' })).not.toBeInTheDocument();
+    expect(document.querySelector('.app-nav-new-badge')).toBeNull();
     expect(screen.getAllByRole('link', { name: 'Сообщество QXSystem в Discord' }).length).toBeGreaterThan(0);
   });
 

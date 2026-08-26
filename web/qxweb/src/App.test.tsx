@@ -61,7 +61,9 @@ describe('App', () => {
 
     renderApp('/servers');
     await waitFor(() =>
-      expect(screen.getByText('Нужен аккаунт')).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Единая экосистема для Minecraft',
+      ),
     );
   });
 

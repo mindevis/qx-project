@@ -388,7 +388,7 @@ export const en: Messages = {
     offlineProfiles: 'Player profiles',
     offlineAfterLink: 'Available after linking QXLauncher — see instructions above.',
     selectNickname: 'Choose who to play as',
-    noProfiles: 'No profiles — play as Player or add your nickname',
+    noProfiles: 'No profiles — add your nickname',
     deleteProfileConfirm: 'Delete profile?',
     noInstances: 'No instances yet',
     play: 'Play',
@@ -440,7 +440,7 @@ export const en: Messages = {
     loadProfilesFailed: 'Failed to load profiles',
     instanceCreated: 'Instance created',
     createProfileHint:
-      'Create an offline profile with a nickname or play as default Player',
+      'Create an offline profile with a nickname or link Microsoft',
     createInstanceFailed: 'Failed to create instance',
     profileCreated: 'Profile created',
     createProfileFailed: 'Failed to create profile',
@@ -474,7 +474,8 @@ export const en: Messages = {
     launchTimeout: 'Timed out waiting',
     launcherUnlinked: 'QXLauncher unlinked',
     unlinkFailed: 'Failed to unlink device',
-    defaultPlayerHint: 'Nickname Player (default). Add a profile in the player section for your nickname.',
+    defaultPlayerHint: 'Add a player profile or link Microsoft to launch the game.',
+    launchNeedsIdentity: 'Create a player profile or link Microsoft to launch an instance.',
     launchSent: 'Request sent to QXLauncher',
     launchGameFailed: 'Failed to launch game',
     launchStatus: {

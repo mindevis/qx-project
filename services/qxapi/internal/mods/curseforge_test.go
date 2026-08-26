@@ -358,13 +358,43 @@ func TestCurseForgeGetVersionFallsBackToList(t *testing.T) {
 	}
 }
 
-func TestCurseForgeGetVersionErrorsWhenDownloadURLMissing(t *testing.T) {
+func TestCurseForgeGetVersionFallsBackToCDNWhenDownloadURLMissing(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v1/mods/32274/files/8228544":
+			_, _ = w.Write([]byte(`{"data":{"id":8228544,"displayName":"1.0","fileName":"mod.jar","fileDate":"2024-01-01","gameVersions":["1.21.1","Forge"],"downloadUrl":"","fileLength":123,"hashes":[]}}`))
+		case "/v1/mods/32274/files/8228544/download-url":
+			_, _ = w.Write([]byte(`{"data":""}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	c := &curseForgeClient{
+		httpClient: srv.Client(),
+		apiKey:     "test-key",
+		apiBase:    srv.URL + "/v1",
+	}
+	version, err := c.getVersion(context.Background(), "32274", "8228544", "forge", "1.21.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "https://mediafilez.forgecdn.net/files/8228/544/mod.jar"
+	if len(version.Files) != 1 || version.Files[0].URL != want {
+		t.Fatalf("cdn fallback: %+v", version.Files)
+	}
+}
+
+func TestCurseForgeGetVersionErrorsWhenDownloadURLAndFilenameMissing(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/v1/mods/32274/files/5789363":
-			_, _ = w.Write([]byte(`{"data":{"id":5789363,"displayName":"5.10.3","fileName":"broken.jar","fileDate":"2024-01-01","gameVersions":["1.20.1"],"modLoader":1,"downloadUrl":"","fileLength":123,"hashes":[]}}`))
+			_, _ = w.Write([]byte(`{"data":{"id":5789363,"displayName":"5.10.3","fileName":"","fileDate":"2024-01-01","gameVersions":["1.20.1"],"modLoader":1,"downloadUrl":"","fileLength":123,"hashes":[]}}`))
 		case "/v1/mods/32274/files/5789363/download-url":
 			_, _ = w.Write([]byte(`{"data":""}`))
 		default:
@@ -455,6 +485,21 @@ func TestCurseForgeListVersionsKeepsFilesWithoutDownloadURL(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Files[0].Filename != "mod.jar" {
 		t.Fatalf("expected version without url to stay in the list, got %+v", items)
+	}
+	if items[0].Files[0].URL != "https://mediafilez.forgecdn.net/files/0/9/mod.jar" {
+		t.Fatalf("expected forgecdn fallback, got %q", items[0].Files[0].URL)
+	}
+}
+
+func TestCurseForgeCDNDownloadURL(t *testing.T) {
+	t.Parallel()
+	got := curseForgeCDNDownloadURL("8228544", "Cool Mod 1.0.jar")
+	want := "https://mediafilez.forgecdn.net/files/8228/544/Cool%20Mod%201.0.jar"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+	if curseForgeCDNDownloadURL("abc", "mod.jar") != "" {
+		t.Fatal("invalid id should be empty")
 	}
 }
 

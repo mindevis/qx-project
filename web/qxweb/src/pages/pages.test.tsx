@@ -25,6 +25,15 @@ function emptyProfilesResponse() {
   return new Response(JSON.stringify({ items: [] }), { status: 200 });
 }
 
+function offlineProfileResponse() {
+  return new Response(
+    JSON.stringify({
+      items: [{ id: 'prof-1', username: 'Steve', model: 'steve' }],
+    }),
+    { status: 200 },
+  );
+}
+
 function meResponse() {
   return new Response(
     JSON.stringify({
@@ -825,9 +834,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     });
   });
 
-  it('launches with default player when no offline profile', async () => {
-    const user = userEvent.setup({ delay: null });
-  const infoSpy = testMessage.info;
+  it('does not show play-as Player or launch without a profile', async () => {
     saveTokens({
       access_token: 'a',
       refresh_token: 'r',
@@ -842,6 +849,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       created_at: 't',
       updated_at: 't',
     };
+    const createLaunch = vi.fn();
     vi.mocked(fetch).mockImplementation(
       mockLauncherFetch((url, init) => {
         if (url.includes('/instances')) {
@@ -851,26 +859,8 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
           return new Response(JSON.stringify({ items: [] }), { status: 200 });
         }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
-          return new Response(
-            JSON.stringify({
-              id: 'lr-1',
-              status: 'queued',
-              instance_id: instance.id,
-              expires_at: new Date().toISOString(),
-            }),
-            { status: 201 },
-          );
-        }
-        if (url.includes('/launcher/launch-requests/lr-1')) {
-          return new Response(
-            JSON.stringify({
-              id: 'lr-1',
-              status: 'completed',
-              instance_id: instance.id,
-              expires_at: new Date().toISOString(),
-            }),
-            { status: 200 },
-          );
+          createLaunch();
+          return new Response('{}', { status: 500 });
         }
         return null;
       }),
@@ -886,13 +876,10 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
     );
 
     await waitFor(() => expect(screen.getByText('Survival')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /Играть/ })).toBeEnabled();
-    await user.click(screen.getByRole('button', { name: /Играть/ }));
-    await waitFor(() =>
-      expect(infoSpy).toHaveBeenCalledWith(
-        'Ник Player (по умолчанию). Добавьте профиль в разделе «Игрок» для своего ника.',
-      ),
-    );
+    expect(screen.queryByText('Играть как')).not.toBeInTheDocument();
+    expect(screen.queryByText('Player')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Играть/ })).toBeDisabled();
+    expect(createLaunch).not.toHaveBeenCalled();
   });
 
   it('shows launching status badge while polling launch request', async () => {
@@ -916,6 +903,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       mockLauncherFetch((url, init) => {
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
         }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           return new Response(
@@ -1104,7 +1094,8 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       expect(screen.getByRole('link', { name: /Привязать Microsoft/ })).toHaveAttribute('href', '/profile'),
     );
     expect(screen.getByText(/Привяжите Microsoft в профиле/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Играть/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Играть/ })).toBeDisabled();
+    expect(screen.queryByText('Играть как')).not.toBeInTheDocument();
     expect(screen.queryByText('Лицензия (Microsoft)')).not.toBeInTheDocument();
     expect(screen.queryByText('Оффлайн')).not.toBeInTheDocument();
   });
@@ -1276,6 +1267,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
         }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
+        }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           const body = JSON.parse(String(init.body));
           expect(body.use_mojang_account).toBe(true);
@@ -1367,6 +1361,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
         }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
+        }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           const body = JSON.parse(String(init.body));
           expect(body.use_mojang_account).toBe(true);
@@ -1457,6 +1454,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         }
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
         }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           const body = JSON.parse(String(init.body));
@@ -1705,7 +1705,7 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText('Нет профилей — можно играть как Player или добавьте свой ник'),
+        screen.getByText('Нет профилей — добавьте свой ник'),
       ).toBeInTheDocument(),
     );
   });
@@ -1847,6 +1847,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
         }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
+        }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           return Promise.reject('launch boom');
         }
@@ -1889,6 +1892,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       mockLauncherFetch((url, init) => {
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
         }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           return new Response(
@@ -2218,6 +2224,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
         }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
+        }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           return new Response(
             JSON.stringify({
@@ -2294,6 +2303,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         }
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
         }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           return new Response(
@@ -2385,6 +2397,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
         }
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
         }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           return new Response(
@@ -2730,6 +2745,9 @@ describe.sequential('pages', { timeout: 30_000 }, () => {
       mockLauncherFetch((url, init) => {
         if (url.includes('/instances')) {
           return new Response(JSON.stringify({ items: [instance] }), { status: 200 });
+        }
+        if (url.includes('/launcher/profiles')) {
+          return offlineProfileResponse();
         }
         if (url.includes('/launcher/launch-requests') && init?.method === 'POST') {
           return new Response(

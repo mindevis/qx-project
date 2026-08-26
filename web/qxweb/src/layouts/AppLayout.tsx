@@ -87,18 +87,22 @@ export function AppLayout() {
     { key: '/', label: <Link to="/">{t('layout.navHome')}</Link> },
     { key: '/launcher', label: <Link to="/launcher">{t('layout.navLauncher')}</Link> },
     { key: '/monitoring', label: <Link to="/monitoring">{t('layout.navMonitoring')}</Link> },
-    {
-      key: '/skins',
-      label: (
-        <Link to="/skins" className="app-nav-with-badge">
-          <span className="app-nav-new-badge" aria-hidden>
-            {t('layout.navNewBadge')}
-          </span>
-          {t('layout.navSkins')}
-        </Link>
-      ),
-    },
-    { key: '/servers', label: <Link to="/servers">{t('layout.navServers')}</Link> },
+    ...(isAuthenticated
+      ? [
+          {
+            key: '/skins',
+            label: (
+              <Link to="/skins" className="app-nav-with-badge">
+                <span className="app-nav-new-badge" aria-hidden>
+                  {t('layout.navNewBadge')}
+                </span>
+                {t('layout.navSkins')}
+              </Link>
+            ),
+          },
+          { key: '/servers', label: <Link to="/servers">{t('layout.navServers')}</Link> },
+        ]
+      : []),
   ];
   const selectedKey = navSelectedKey(location.pathname);
 
