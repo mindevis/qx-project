@@ -12,12 +12,12 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/qxproject/qx/pkg/log v0.0.0
 	github.com/qxproject/qx/pkg/mcmanifest v0.0.0
+	github.com/qxproject/qx/pkg/mcproxy v0.0.0
 	github.com/qxproject/qx/pkg/msauth v0.0.0
 	github.com/qxproject/qx/pkg/mysqlutil v0.0.0
 	github.com/qxproject/qx/pkg/protocol v0.0.0
 	github.com/qxproject/qx/pkg/reporoot v0.0.0
 	github.com/qxproject/qx/pkg/safepath v0.0.0
-	github.com/qxproject/qx/pkg/mcproxy v0.0.0
 	github.com/stretchr/testify v1.12.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
@@ -55,7 +55,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
